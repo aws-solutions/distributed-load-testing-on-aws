@@ -1,0 +1,31 @@
+{
+  "name": "custom-resource",
+  "version": "1.0.0",
+  "engines": {
+    "node": "^8.10"
+  },
+  "description": "cfn custom resources for vod workflow",
+  "main": "na",
+  "scripts": {
+    "test": "mocha lib/**/*.spec.js"
+  },
+  "dependencies": {
+    "axios": "*",
+    "moment": "*",
+    "uuid": "^3.3.0"
+  },
+  "devDependencies": {
+    "aws-sdk": "*",
+    "aws-sdk-mock": "*",
+    "mocha": "*",
+    "chai": "*",
+    "axios-mock-adapter": "*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "na"
+  },
+  "author": "aws-solution-builders",
+  "license": "Apache-2.0",
+  "readme": "./README.md"
+}

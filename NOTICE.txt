@@ -1,0 +1,40 @@
+Distributed Load Testing Reference Architecture
+Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+**********************
+THIRD PARTY COMPONENTS
+**********************
+This software includes third party software subject to the following copyrights:
+
+AWS SDK under the Apache License Version 2.0
+aws-amplify under the Apache License Version 2.0
+aws-amplify-react under the Apache License Version 2.0
+bootstrap under the Massachusetts Institute of Technology (MIT) license
+react under the Massachusetts Institute of Technology (MIT) license
+reactstrap under the Massachusetts Institute of Technology (MIT) license
+react-dom under the Massachusetts Institute of Technology (MIT) license
+react-router under the Massachusetts Institute of Technology (MIT) license
+react-router-dom under the Massachusetts Institute of Technology (MIT) license
+react-scripts under the Massachusetts Institute of Technology (MIT) license
+moment.js under the Massachusetts Institute of Technology (MIT) license
+shortid under the Massachusetts Institute of Technology (MIT) license
+font-awesome under the Massachusetts Institute of Technology (MIT) license
+uuid under the Massachusetts Institute of Technology (MIT) license
+axios under the Massachusetts Institute of Technology (MIT) license
+axios-mock-adapter under the Massachusetts Institute of Technology (MIT) license
+chai under the Massachusetts Institute of Technology (MIT) license
+mocha under the Massachusetts Institute of Technology (MIT) license
+aws-sdk-mock under the Massachusetts Institute of Technology (MIT) license
+

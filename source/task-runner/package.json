@@ -1,0 +1,26 @@
+{
+  "name": "task-runner",
+  "version": "1.0.0",
+  "engines": {
+    "node": "^8.10"
+  },
+  "description": "triggered by sqs, runs ecs task Definitions",
+  "main": "na",
+  "scripts": {
+    "test": "mocha lib/**/*.spec.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "aws-sdk": "*",
+    "aws-sdk-mock": "*",
+    "mocha": "*",
+    "chai": "*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "na"
+  },
+  "author": "aws-solution-builders",
+  "license": "Apache-2.0",
+  "readme": "./README.md"
+}

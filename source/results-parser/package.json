@@ -1,0 +1,33 @@
+{
+  "name": "results-parser",
+  "version": "1.0.0",
+  "engines": {
+    "node": "^8.10"
+  },
+  "description": "result parser for indexing xml test results to DynamoDB",
+  "main": "na",
+  "scripts": {
+    "test": "mocha lib/**/*.spec.js"
+  },
+  "dependencies": {
+    "axios": "*",
+    "moment": "^2.18.1",
+    "shortid": "^2.2.14",
+    "xml-js": "^1.6.11"
+  },
+  "devDependencies": {
+    "aws-sdk": "*",
+    "aws-sdk-mock": "*",
+    "axios-mock-adapter": "^1.16.0",
+    "chai": "*",
+    "mocha": "*",
+    "sinon": "^7.3.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "na"
+  },
+  "author": "aws-solution-builders",
+  "license": "Apache-2.0",
+  "readme": "./README.md"
+}
