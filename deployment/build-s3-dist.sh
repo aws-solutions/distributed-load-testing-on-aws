@@ -105,7 +105,7 @@ zip -q -r9 ../../deployment/regional-s3-assets/container.zip *
 cp container-manifest.json $build_dist_dir/
 
 echo "------------------------------------------------------------------------------"
-echo "Buildinbg console"
+echo "Building console"
 echo "------------------------------------------------------------------------------"
 cd ../console
 [ -e build ] && rm -r build
