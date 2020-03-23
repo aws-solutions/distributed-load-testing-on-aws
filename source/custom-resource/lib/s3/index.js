@@ -35,7 +35,7 @@ const putNotification = async (bucket,lambdaArn) => {
 						Key: {
 							FilterRules: [{
 								Name: 'suffix',
-								Value: 'xml'
+								Value: 'json'
 							}]
 						}
 					}

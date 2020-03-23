@@ -4,7 +4,7 @@
   "engines": {
     "node": "^8.10"
   },
-  "description": "result parser for indexing xml test results to DynamoDB",
+  "description": "result parser for indexing json test results to DynamoDB",
   "main": "na",
   "scripts": {
     "test": "mocha lib/**/*.spec.js"
@@ -13,7 +13,7 @@
     "axios": "*",
     "moment": "^2.18.1",
     "shortid": "^2.2.14",
-    "xml-js": "^1.6.11"
+    "stats-lite": "^2.2.0"
   },
   "devDependencies": {
     "aws-sdk": "*",

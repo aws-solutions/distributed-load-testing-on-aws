@@ -31,7 +31,7 @@ The Taurus DockerFile and bash script run at start of the test to download the t
 A NodeJS Lambda function used as a CloudFormation custom resource for configuring Amazon S3 bucket notifications and to send anonymous metrics.
 
 **source/results-parser**<br/>
-A NodeJS Lambda function used to write the xml output from the docker images  to Amazon DynamoDB and generate the final results for each test.
+A NodeJS Lambda function used to write the json output from the docker images to Amazon DynamoDB and generate the final results for each test.
 
 **source/task-runner**<br/>
 A NodeJS Lambda function that Runs The Amaazon ECS task definition for each test.

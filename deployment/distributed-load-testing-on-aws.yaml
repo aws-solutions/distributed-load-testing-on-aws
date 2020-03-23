@@ -1006,7 +1006,7 @@ Resources:
   ResultsParser:
     Type: AWS::Lambda::Function
     Properties:
-      Description: result parser for indexing xml test results to DynamoDB
+      Description: result parser for indexing json test results to DynamoDB
       Handler: index.handler
       Role: !GetAtt LambdaResultsRole.Arn
       Code:

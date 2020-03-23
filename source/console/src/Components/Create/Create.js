@@ -33,12 +33,12 @@ import 'brace/theme/github';
 
 class Create extends React.Component {
 
-    constructor(props){
+    constructor(props) {
         super(props);
         if (this.props.location.state.data.testId) {
             this.state = {
                 isLoading: false,
-                runningTasks:false,
+                runningTasks: false,
                 testId: this.props.location.state.data.testId,
                 formValues: {
                     testName: this.props.location.state.data.testName,
@@ -49,71 +49,55 @@ class Create extends React.Component {
                     holdForUnits: this.props.location.state.data.holdFor.slice(-1),
                     rampUp: this.props.location.state.data.rampUp.slice(0, -1),
                     rampUpUnits: this.props.location.state.data.rampUp.slice(-1),
-                    endpoint: this.props.location.state.data.endpoint,
-                    method: this.props.location.state.data.method,
-                    body: JSON.stringify(this.props.location.state.data.body),
-                    headers: JSON.stringify(this.props.location.state.data.headers)
+                    rampDown: this.props.location.state.data.rampDown.slice(0, -1),
+                    rampDownUnits: this.props.location.state.data.rampDown.slice(-1),
+                    stack: this.props.localtion.state.data.stack
                 }
             }
         } else {
             this.state = {
                 isLoading: false,
-                runningTasks:false,
+                runningTasks: false,
                 testId: null,
                 formValues: {
-                    testName:'',
+                    testName: '',
                     testDescription: '',
                     taskCount: 0,
-                    concurrency:0,
+                    concurrency: 0,
                     holdFor: 0,
-                    holdForUnits:'m',
+                    holdForUnits: 'm',
                     rampUp: 0,
                     rampUpUnits: 'm',
-                    endpoint: '',
-                    method:'GET',
-                    body: '',
-                    headers: ''
+                    rampDown: 0,
+                    rampDownUnits: 'm',
+                    stack: ''
                 }
             };
-            
+
         }
 
         this.form = React.createRef();
         this.handleSubmit = this.handleSubmit.bind(this);
         this.handleInputChange = this.handleInputChange.bind(this);
         this.setFormValue = this.setFormValue.bind(this);
-        this.handleBodyPayloadChange = this.handleBodyPayloadChange.bind(this);
-        this.handleHeadersChange = this.handleHeadersChange.bind(this);
         this.parseJson = this.parseJson.bind(this);
         this.listTasks = this.listTasks.bind(this);
     }
 
     parseJson(str) {
-        try { 
-            return JSON.parse(str) 
+        try {
+            return JSON.parse(str)
         } catch (err) {
-             return false;
-        } 
+            return false;
+        }
     }
-    
+
     handleSubmit = async () => {
 
         const values = this.state.formValues;
 
-        if (!this.form.current.reportValidity() ) {
+        if (!this.form.current.reportValidity()) {
             return false;
-        }
-        if (!values.headers) {
-            values.headers = '{}';
-        }
-        if (!values.body) {
-            values.body = '{}';
-        }
-        if (!this.parseJson(values.headers.trim())) {
-            return alert('WARINING: headers text is not valid JSON');
-        }
-        if (!this.parseJson(values.body.trim())) {
-            return alert('WARINING: body text is not valid JSON');
         }
         this.setState({ isLoading: true })
 
@@ -123,32 +107,45 @@ class Create extends React.Component {
                 testName: values.testName,
                 testDescription: values.testDescription,
                 taskCount: values.taskCount,
-                testScenario: {
-                    execution: [{
-                        concurrency: values.concurrency,
-                        "ramp-up": String(values.rampUp).concat(values.rampUpUnits),
-                        "hold-for": String(values.holdFor).concat(values.holdForUnits),
-                        scenario: values.testName,
-                    }],
-                    scenarios: {
-                        [values.testName]: {
-                            requests: [
-                                {
-                                    url: values.endpoint,
-                                    method: values.method,
-                                    body: this.parseJson(values.body.trim()),
-                                    headers: this.parseJson(values.headers.trim())
-                                }
-                            ]
+                testConfig: {
+                    testName: values.testName,
+                    vusMax: 200,
+                    stages: [
+                        { duration: String(values.rampUp).concat(values.rampUpUnits), target: values.concurrency },
+                        { duration: String(values.holdFor).concat(values.holdForUnits), target: values.concurrency },
+                        { duration: String(values.rampDown).concat(values.rampDownUnits), target: 0 }
+                    ],
+                    stack: values.stack,
+                    logLevels: {
+                        //                        Client: 'Trace',
+                        '*': 'Info'
+                    },
+                    enableDelays: true,
+                    clientStackData: {
+                        staging: {
+                            clientId: '4db22g7bslp30dblj8kkubente',
+                            urlBase: 'https://staging-api.tallyup.com/api/v1/'
+                        },
+                        latest: {
+                            clientId: '4db22g7bslp30dblj8kkubente',
+                            urlBase: 'https://latest-api.tallyup.com/api/v1/'
+                        },
+                        sandbox: {
+                            clientId: '4db22g7bslp30dblj8kkubente',
+                            urlBase: 'https://sandbox-api.tallyup.com/api/v1/'
+                        },
+                        paul: {
+                            clientId: 'l1scbnoef6ir8696fu4iginnb',
+                            urlBase: 'https://paul-api.tallyup.com/api/v1/'
                         }
                     }
                 }
             };
 
             if (this.state.testId) {
-                payload.testId = this.state.testId; 
+                payload.testId = this.state.testId;
             }
-    
+
             const response = await API.post('dlts', '/scenarios', { body: payload });
             console.log('Scenario created successfully', response);
             this.props.history.push("/");
@@ -170,31 +167,22 @@ class Create extends React.Component {
         this.setFormValue(name, value);
     }
 
-    handleBodyPayloadChange(value) {
-        this.setFormValue('body', value);
-    }
-
-    handleHeadersChange(value) {
-        this.setFormValue('headers', value);
-    }
-
     listTasks = async () => {
         try {
             const data = await API.get('dlts', '/tasks');
-            if (data.length !== 0 ) {
-                this.setState({runningTasks:true});
+            if (data.length !== 0) {
+                this.setState({ runningTasks: true });
             }
         } catch (err) {
             alert(err);
         }
     };
 
-    componentDidMount() { 
+    componentDidMount() {
         this.listTasks();
     };
 
     render() {
-
         const warning = (
             <div>
                 <div className="box">
@@ -202,16 +190,14 @@ class Create extends React.Component {
                 </div>
                 <p className="warning">Warning there is a test running, multiple concurrent tests is currently not supported to avoid hitting the AWS Fargate task limits. Please wait for the test to finish before submitting a new test!</p>
             </div>
-
         )
 
         const heading = (
             <div className="box">
                 <h1>Create a Load Test</h1>
-                
             </div>
         )
-   
+
         const createTestForm = (
             <div>
                 <Row>
@@ -265,7 +251,6 @@ class Create extends React.Component {
                                     test scenario, max value 50.
                                 </FormText>
                             </FormGroup>
-
                             <FormGroup>
                                 <Label for="concurrency">Concurrency (TPS)</Label>
                                 <Input
@@ -285,7 +270,6 @@ class Create extends React.Component {
                                 </FormText>
                             </FormGroup>
                             <FormGroup>
-
                                 <Label for="rampUp">Ramp Up</Label>
                                 <InputGroup className="input-group-short">
                                     <Input
@@ -310,7 +294,6 @@ class Create extends React.Component {
                                         <option value="s">seconds</option>
                                     </Input>
                                 </InputGroup>
-
                                 <FormText color="muted">
                                     The time to reach target concurrency.
                                 </FormText>
@@ -345,91 +328,52 @@ class Create extends React.Component {
                                     Time to hold target concurrency.
                                 </FormText>
                             </FormGroup>
+                            <FormGroup>
+                                <Label for="rampDown">Ramp Down</Label>
+                                <InputGroup className="input-group-short">
+                                    <Input
+                                        value={this.state.formValues.rampDown}
+                                        className="form-short"
+                                        type="number"
+                                        name="rampDown"
+                                        id="rampDown"
+                                        required
+                                        onChange={this.handleInputChange}
+                                    />
+                                    &nbsp;
+                                    <Input
+                                        type="select"
+                                        className="form-short"
+                                        name="rampDownUnits"
+                                        value={this.state.formValues.rampDownUnits}
+                                        id="rampDownUnits"
+                                        onChange={this.handleInputChange}
+                                    >
+                                        <option value="m">minutes</option>
+                                        <option value="s">seconds</option>
+                                    </Input>
+                                </InputGroup>
+                                <FormText color="muted">
+                                    The time to ramp down concurrency.
+                                </FormText>
+                            </FormGroup>
                         </div>
                     </Col>
                     <Col sm="6">
                         <div className="box create-box">
                             <h3>Scenario</h3>
                             <FormGroup>
-                                <Label for="endpoint">HTTP endpoint under test</Label>
+                                <Label for="stack">Stack</Label>
                                 <Input
-                                    value={this.state.formValues.endpoint}
-                                    type="url"
-                                    name="endpoint"
-                                    id="endpoint"
+                                    value={this.state.formValues.stack}
+                                    type="text"
+                                    name="stack"
+                                    id="stack"
                                     required
                                     onChange={this.handleInputChange}
                                 />
                                 <FormText color="muted">
-                                    Target URL to run tests against, supports http and https. i.e.
-                                    https://example.com:8080.
-                                </FormText>
-                            </FormGroup>
-                            <FormGroup>
-                                <Label for="method">HTTP Method</Label>
-                                <Input
-                                    value={this.state.formValues.method}
-                                    className="form-short"
-                                    type="select"
-                                    name="method"
-                                    id="method"
-                                    required
-                                    onChange={this.handleInputChange}
-                                >
-                                    <option>GET</option>
-                                    <option>PUT</option>
-                                    <option>POST</option>
-                                    <option>DELETE</option>
-                                </Input>
-
-                                <FormText color="muted">
-                                    The request method, default is GET.
-                                </FormText>
-                            </FormGroup>
-                            <FormGroup>
-                                <Label for="testDescription">HTTP Headers (Optional)</Label>
-                                <AceEditor
-                                    mode="text"
-                                    theme="github"
-                                    showPrintMargin={true}
-                                    showGutter={true}
-                                    value={this.state.formValues.headers}
-                                    highlightActiveLine={true}
-                                    onChange={this.handleHeadersChange}
-                                    name="headers"
-                                    width="100%"
-                                    height="190px"
-                                    editorProps={{$blockScrolling: true}}
-                                    setOptions={{
-                                        showLineNumbers: true,
-                                        tabSize: 2,
-                                    }}
-                                />
-                                <FormText color="muted">
-                                    A valid JSON object key-value pair containing headers to include in the requests.
-                                </FormText>
-                            </FormGroup>
-                            <FormGroup>
-                                <Label>Body Payload (Optional)</Label>
-                                <AceEditor
-                                    mode="json"
-                                    theme="github"
-                                    showPrintMargin={true}
-                                    showGutter={true}
-                                    highlightActiveLine={true}
-                                    onChange={this.handleBodyPayloadChange}
-                                    name="bodyPayload"
-                                    value={this.state.formValues.body}
-                                    width="100%"
-                                    height="190px"
-                                    editorProps={{$blockScrolling: true}}
-                                    setOptions={{
-                                        showLineNumbers: true,
-                                        tabSize: 2,
-                                    }}
-                                />
-                                <FormText color="muted">
-                                    A valid JSON object containing any body text to include in the requests.
+                                    Target stack to run tests against.
                                 </FormText>
                             </FormGroup>
                             <Button
@@ -449,11 +393,9 @@ class Create extends React.Component {
         return (
             <div>
                 <form ref={this.form} onSubmit={e => e.preventDefault()}>
-                    
-                    { this.state.runningTasks? warning : heading }
-
+                    {this.state.runningTasks ? warning : heading}
                     <div>
-                        {this.state.isLoading? <div className="loading"><Spinner color="secondary" /></div> : createTestForm}
+                        {this.state.isLoading ? <div className="loading"><Spinner color="secondary" /></div> : createTestForm}
                     </div>
                 </form>
             </div>

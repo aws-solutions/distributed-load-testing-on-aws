@@ -101,7 +101,7 @@ echo "--------------------------------------------------------------------------
 echo "Creating container deployment package"
 echo "------------------------------------------------------------------------------"
 cd ../container
-zip -q -r9 ../../deployment/regional-s3-assets/container.zip *
+zip -q -r9 ../../deployment/regional-s3-assets/container.zip *.js container-manifest.json Dockerfile load-test.sh
 cp container-manifest.json $build_dist_dir/
 
 echo "------------------------------------------------------------------------------"

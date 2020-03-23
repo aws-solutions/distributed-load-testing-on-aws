@@ -17,7 +17,6 @@
 const expect = require('chai').expect;
 const path = require('path');
 const sinon = require('sinon');
-const parser = require('xml-js');
 let AWS = require('aws-sdk-mock');
 AWS.setSDK(path.resolve('./node_modules/aws-sdk'));
 

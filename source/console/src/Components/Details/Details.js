@@ -31,18 +31,17 @@ class Details extends React.Component {
             deleteModal: false,
             cancelModal: false,
             testId: props.location.state,
-            data:{
-                results:{},
-                history:[],
-                concurrency:null,
-                rampUp:null,
+            data: {
+                results: {},
+                history: [],
+                concurrency: null,
+                rampUp: null,
                 holdFor: null,
-                endpoint:null,
-                taskArns:[],
-                testScenario:{
-                    execution:[],
-                    reporting:[],
-                    scenarios:{}
+                rampDown: null,
+                stack: null,
+                taskArns: [],
+                testConfig: {
+                    stages: [],
                 }
             }
         }
@@ -64,7 +63,7 @@ class Details extends React.Component {
         }));
     }
 
-    deleteTest= async () => {
+    deleteTest = async () => {
         const { testId } = this.state.testId;
         try {
             await API.del('dlts', `/scenarios/${testId}`);
@@ -84,20 +83,18 @@ class Details extends React.Component {
         this.props.history.push("dashboard");
     }
 
-    reloadData = async () => { 
+    reloadData = async () => {
         this.setState({
             isLoading: true,
-            data:{
-                results:{},
-                history:[],
-                concurrency:null,
-                rampUp:null,
+            data: {
+                results: {},
+                history: [],
+                concurrency: null,
+                rampUp: null,
                 holdFor: null,
-                endpoint:null,
-                method:null,
-                body:{},
-                header:{},
-                taskArns:[]
+                rampDown: null,
+                stack: null,
+                taskArns: []
             }
         })
         await this.getTest();
@@ -107,64 +104,62 @@ class Details extends React.Component {
         const { testId } = this.state.testId;
         try {
             const data = await API.get('dlts', `/scenarios/${testId}`);
-            data.concurrency = data.testScenario.execution[0].concurrency;
-            data.rampUp = data.testScenario.execution[0]['ramp-up'];
-            data.holdFor = data.testScenario.execution[0]['hold-for'];
-            data.endpoint = data.testScenario.scenarios[Object.keys(data.testScenario.scenarios)[0]].requests[0].url;
-            data.method = data.testScenario.scenarios[Object.keys(data.testScenario.scenarios)[0]].requests[0].method;
-            data.body = data.testScenario.scenarios[Object.keys(data.testScenario.scenarios)[0]].requests[0].body;
-            data.headers = data.testScenario.scenarios[Object.keys(data.testScenario.scenarios)[0]].requests[0].headers;
+            data.concurrency = data.testConfig.execution[0].concurrency;
+            data.rampUp = data.testConfig.stages[0].duration;
+            data.holdFor = data.testConfig.stages[1].duration;
+            data.rampDown = data.testConfig.stages[2].duration;
+            data.stack = data.testConfig.stack;
 
             this.setState({
-                isLoading:false,
-                data:data
+                isLoading: false,
+                data: data
             });
         } catch (err) {
             console.log(err);
             alert(err);
         }
     }
-  
-    componentDidMount= async () => {
+
+    componentDidMount = async () => {
         await this.getTest();
-      }
-   
+    }
+
     render() {
 
         const { data } = this.state;
-        
+
         const cancelled = (
             <div className="box">
                 <h2>Test Results</h2>
                 <p>No results available as the test was cancelled.</p>
-                </div>
+            </div>
         )
 
         const details = (
             <div>
                 {(() => {
                     switch (data.status) {
-                    case 'running':
-                        return (
-                            <div className="box">
-                            <h1>Load Test Details</h1>
-                            <Button color="danger" onClick={this.cancelToggle} size="sm">Cancel</Button>
-                            <Button onClick={ this.reloadData } size="sm">Refresh</Button>
-                        </div>
-                        );
-                    default:
-                        return (
-                            <div className="box">
-                            <h1>Load Test Details</h1> 
-                            <Button color="danger" onClick={this.deleteToggle} size="sm">Delete</Button>
-                            <Link to= {{
-                                    pathname:"/create",
-                                    state:{ data }
-                                }}>
-                            <Button size="sm">Update</Button>
-                            </Link>
-                        </div>
-                        );
+                        case 'running':
+                            return (
+                                <div className="box">
+                                    <h1>Load Test Details</h1>
+                                    <Button color="danger" onClick={this.cancelToggle} size="sm">Cancel</Button>
+                                    <Button onClick={this.reloadData} size="sm">Refresh</Button>
+                                </div>
+                            );
+                        default:
+                            return (
+                                <div className="box">
+                                    <h1>Load Test Details</h1>
+                                    <Button color="danger" onClick={this.deleteToggle} size="sm">Delete</Button>
+                                    <Link to={{
+                                        pathname: "/create",
+                                        state: { data }
+                                    }}>
+                                        <Button size="sm">Update</Button>
+                                    </Link>
+                                </div>
+                            );
                     }
                 })()}
 
@@ -181,67 +176,58 @@ class Details extends React.Component {
                             </Row>
                             <Row className="detail">
                                 <Col sm="3"><b>DESCRIPTION</b></Col>
-                                <Col  sm="9">{data.testDescription}</Col>
-                            </Row>
-                            <Row className="detail">
-                                <Col sm="3"><b>ENDPOINT</b></Col>
-                                <Col  sm="9">{ data.endpoint }</Col>
-                            </Row>
-                           
-                            <Row className="detail">
-                                <Col sm="3"><b>Body</b></Col>
-                                <Col  sm="9">{ JSON.stringify(data.body) }</Col>
-                            </Row>
-                            <Row className="detail">
-                                <Col sm="3"><b>Headers</b></Col>
-                                <Col  sm="9">{ JSON.stringify(data.headers) }</Col>
+                                <Col sm="9">{data.testDescription}</Col>
                             </Row>
                         </Col>
                         <Col sm="5">
-                        <Row className="detail">
+                            <Row className="detail">
                                 <Col sm="4"><b>STATUS</b></Col>
                                 <Col className={data.status} sm="8">{data.status}</Col>
                             </Row>
                             <Row className="detail">
-                                <Col sm="4"><b>LAST RAN</b></Col> 
-                                <Col  sm="8">{data.startTime}</Col>
+                                <Col sm="4"><b>LAST RAN</b></Col>
+                                <Col sm="8">{data.startTime}</Col>
                             </Row>
                             <Row className="detail">
                                 <Col sm="4"><b>TASK COUNT</b></Col>
-                                <Col  sm="8">{data.taskCount}</Col>
+                                <Col sm="8">{data.taskCount}</Col>
                             </Row>
                             <Row className="detail">
-                                <Col sm="4"><b>METHOD</b></Col>
-                                <Col  sm="8">{ data.method }</Col>
+                                <Col sm="4"><b>STACK</b></Col>
+                                <Col sm="8">{data.stack}</Col>
                             </Row>
                             <Row className="detail">
                                 <Col sm="4"><b>CONCURRENCY</b></Col>
-                                <Col  sm="8">{ data.concurrency }</Col>
+                                <Col sm="8">{data.concurrency}</Col>
                             </Row>
-                            <Row className="detail"> 
+                            <Row className="detail">
                                 <Col sm="4"><b>RAMP UP</b></Col>
-                                <Col  sm="8">{ data.rampUp }</Col>
+                                <Col sm="8">{data.rampUp}</Col>
                             </Row>
                             <Row className="detail">
                                 <Col sm="4"><b>HOLD FOR</b></Col>
-                                <Col  sm="8">{ data.holdFor }</Col>
+                                <Col sm="8">{data.holdFor}</Col>
+                            </Row>
+                            <Row className="detail">
+                                <Col sm="4"><b>RAMP DOWN</b></Col>
+                                <Col sm="8">{data.rampDown}</Col>
                             </Row>
                         </Col>
                     </Row>
                 </div>
-              
+
                 {(() => {
                     switch (data.status) {
-                    case 'complete':
-                        return <Results data={data} />;
-                    case 'cancelled':
-                        return <div>{cancelled}</div>;
-                    default:
-                        return <Running data={data} />;
+                        case 'complete':
+                            return <Results data={data} />;
+                        case 'cancelled':
+                            return <div>{cancelled}</div>;
+                        default:
+                            return <Running data={data} />;
                     }
                 })()}
-                
-                {data.status ==='running'? <div></div> :  <History data={data} /> }
+
+                {data.status === 'running' ? <div></div> : <History data={data} />}
 
             </div>
         )
@@ -249,7 +235,7 @@ class Details extends React.Component {
         return (
             <div>
 
-                { this.state.isLoading?  <div className="loading"><Spinner color="secondary" /></div> : details }
+                {this.state.isLoading ? <div className="loading"><Spinner color="secondary" /></div> : details}
 
                 <Modal isOpen={this.state.deleteModal} toggle={this.deleteToggle}>
                     <ModalHeader>Warning</ModalHeader>
@@ -272,7 +258,7 @@ class Details extends React.Component {
                         <Button color="danger" size="sm" onClick={this.cancelTest}>Cancel Test</Button>
                     </ModalFooter>
                 </Modal>
-            
+
             </div>
         )
     }

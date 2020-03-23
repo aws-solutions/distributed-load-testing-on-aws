@@ -1,7 +1,15 @@
-FROM blazemeter/taurus
-# taurus includes python and pip
-RUN pip install --no-cache-dir awscli
-# Taurus working directory  = /bzt-configs
-ADD ./load-test.sh /bzt-configs/
-RUN chmod 755 /bzt-configs/load-test.sh
-ENTRYPOINT ["sh", "-c","./load-test.sh"]
+FROM loadimpact/k6
+
+# Install python, pip, and awscli
+RUN apk --no-cache add \
+    python \
+    python-dev \
+    py-pip \
+    build-base \
+  && pip install --no-cache-dir awscli
+
+ADD ./load-test.sh /k6-tests/
+RUN chmod 755 /k6-tests/load-test.sh
+ADD ./*.js /k6-tests/
+
+ENTRYPOINT ["sh", "-c", "./load-test.sh"]

@@ -33,7 +33,7 @@ const getData = {
     testId:'1234',
     name: 'mytest',
     status: 'running',
-	testScenario:"{\"name\":\"example\"}"
+	testConfig:"{\"name\":\"example\"}"
   }
 }
 
@@ -52,7 +52,7 @@ const config = {
 	testName:'mytest',
 	testDescription:'test',
 	taskCount: 4,
-	testScenario: {}
+	testConfig: {}
 }
 
 process.env.SCENARIOS_BUCKET = 'bucket';
