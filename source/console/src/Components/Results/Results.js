@@ -50,82 +50,92 @@ class Results extends React.Component {
                 <div className="box">
                     <h2>Test Results</h2>
                     <Button id="info" color="link"><FontAwesomeIcon id="icon" icon={faInfoCircle} /> Info</Button>
-                    <Row>
-                        <Col sm="3">
-                            <div className="result">
-                                Avg Response Time
-                                <p>{results.avg_rt}s</p>
-                            </div>
-                        </Col>
-                        <Col sm="3">
-                            <div className="result">
-                                Avg Latency
-                                <p>{results.avg_lt}s</p>
-                            </div>
-                        </Col>
-                        <Col sm="3">
-                            <div className="result">
-                                Avg Conection Time
-                                <p>{results.avg_ct}s</p>
-                            </div>
-                        </Col>
-                        <Col sm="3">
-                            <div className="result">
-                                Avg Bandwidth
-                                <p>{Math.round(results.bytes * 0.01) / 10} kbps</p>
-                            </div>
-                        </Col>
-                    </Row>
-                    <Row>
-                        <Col sm="3">
-                            <div className="result">
-                                <b>Total Requests:</b><span>{results.throughput}</span>
-                            </div>
-                        </Col>
-                        <Col sm="3">
-                            <div className="result">
-                                <b>Success Count:</b><span>{results.succ}</span>
-                            </div>
-                        </Col>
-                        <Col sm="3">
-                            <div className="result">
-                                <b>Error Count:</b><span>{results.fail}</span>
-                            </div>
-                        </Col>
-                        <Col sm="3">
-                            <div className="result">
-                                <b>Avg Task Duration:</b><span>{Math.round(results.testDuration / 60)}m</span>
-                            </div>
-                        </Col>
-                    </Row>
+                    {
+                        Object.keys(results).map(metricName => {
+                            const metric = results[metricName];
+                            return (
+                                <Row>
+                                    <Col sm="4">
+                                        <div className="result">
+                                            {metricName}
+                                        </div>
+                                    </Col>
+                                    <Col sm="1">
+                                        {
+                                            metric.value != null ? (
+                                                <div className="result">
+                                                    {metric.value}
+                                                </div>
+                                            ) : (
+                                                <div className="result">
+                                                    min: {metric.min}
+                                                </div>
+                                            )
+                                        }
+                                    </Col>
+                                    <Col sm="1">
+                                        {
+                                            metric.max != null ? (
+                                                <div className="result">
+                                                    max: {metric.max}
+                                                </div>
+                                            ) : (
+                                                <div className="result"/>
+                                            )
+                                        }
+                                    </Col>
+                                    <Col sm="1">
+                                        {
+                                            metric.avg != null ? (
+                                                <div className="result">
+                                                    avg: {metric.avg}
+                                                </div>
+                                            ) : (
+                                                <div className="result"/>
+                                            )
+                                        }
+                                    </Col>
+                                    <Col sm="1">
+                                        {
+                                            metric.med != null ? (
+                                                <div className="result">
+                                                    med: {metric.med}
+                                                </div>
+                                            ) : (
+                                                <div className="result"/>
+                                            )
+                                        }
+                                    </Col>
+                                    <Col sm="1">
+                                        {
+                                            metric.p90 != null ? (
+                                                <div className="result">
+                                                    90%: {metric.p90}
+                                                </div>
+                                            ) : (
+                                                <div className="result"/>
+                                            )
+                                        }
+                                    </Col>
+                                    <Col sm="1">
+                                        {
+                                            metric.p95 != null ? (
+                                                <div className="result">
+                                                    95%: {metric.p95}
+                                                </div>
+                                            ) : (
+                                                <div className="result"/>
+                                            )
+                                        }
+                                    </Col>
+                                </Row>
+                            );
+                        })
+                    }
                     <Row>
                         {errors}
                     </Row>
                     <Row>
-                        <Col sm="3">
-                            <h3>Percentile Response Time</h3>
-                            <div className="result">
-                                <b>100%:</b><span>{results.p100_0}s</span>
-                            </div>
-                            <div className="result">
-                                <b>99.9%:</b><span>{results.p99_9}s</span>
-                            </div>
-                            <div className="result">
-                                <b>99%:</b><span>{results.p99_0}s</span>
-                            </div>
-                            <div className="result">
-                                <b>95%:</b><span>{results.p95_0}s</span>
-                            </div>
-                            <div className="result">
-                                <b>90%:</b><span>{results.p90_0}s</span>
-                            </div>
-                            <div className="result">
-                                <b>50%:</b><span>{results.p50_0}s</span>
-                            </div>
-                            <div className="result">
-                                <b>0%:</b><span>{results.p0_0}s</span>
-                            </div>
-                        </Col>
                         <Col sm="9">
                             <img src={`data:image/jpeg;base64,${this.props.data.metricWidgetImage}`} alt='avRt' />
                         </Col>

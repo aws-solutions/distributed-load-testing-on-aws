@@ -28,34 +28,35 @@ class Results extends React.Component {
                         <thead>
                             <tr>
                                 <th>RunTime</th>
-                                <th>AvgRt</th>
-                                <th>AvgLt</th>
-                                <th>AvgCt</th>
-                                <th>100%</th>
-                                <th>99.9%</th>
-                                <th>99.0%</th>
-                                <th>95%</th>
+                                <th>Metric</th>
+                                <th>Val</th>
+                                <th>Min</th>
+                                <th>Max</th>
+                                <th>Avg</th>
+                                <th>Med</th>
                                 <th>90%</th>
-                                <th>50%</th>
-                                <th>0%</th>
+                                <th>95%</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {history.map(i => (
-                                <tr key={i.id}>
-                                    <td>{i.endTime}</td>
-                                    <td>{i.results.avg_rt}</td>
-                                    <td>{i.results.avg_lt}</td>
-                                    <td>{i.results.avg_ct}</td>
-                                    <td>{i.results.p100_0}</td>
-                                    <td>{i.results.p99_9}</td>
-                                    <td>{i.results.p99_0}</td>
-                                    <td>{i.results.p95_0}</td>
-                                    <td>{i.results.p90_0}</td>
-                                    <td>{i.results.p50_0}</td>
-                                    <td>{i.results.p0_0}</td>
-                                </tr>
-                            ))}
+                            {
+                                history.map(entry => Object.keys(entry.results).map((metricName, i) => {
+                                    const metric = entry.results[metricName];
+                                    return (
+                                        <tr key={entry.id}>
+                                            <td>{i == 0 ? entry.endTime : ''}</td>
+                                            <td>{i == 0 ? '' : metricName}</td>
+                                            <td>{i == 0 ? '' : (metric.value || '')}</td>
+                                            <td>{i == 0 ? '' : (metric.min || '')}</td>
+                                            <td>{i == 0 ? '' : (metric.max || '')}</td>
+                                            <td>{i == 0 ? '' : (metric.avg || '')}</td>
+                                            <td>{i == 0 ? '' : (metric.med || '')}</td>
+                                            <td>{i == 0 ? '' : (metric.p90 || '')}</td>
+                                            <td>{i == 0 ? '' : (metric.p95 || '')}</td>
+                                        </tr>
+                                    );
+                                }))
+                            }
                         </tbody>
                     </Table>
                 </div>
