@@ -20,6 +20,7 @@
     "aws-sdk-mock": "*",
     "axios-mock-adapter": "^1.16.0",
     "chai": "*",
+    "jimp": "^0.9.6",
     "mocha": "*",
     "sinon": "^7.3.2"
   },

@@ -117,7 +117,7 @@ class Create extends React.Component {
                     ],
                     stack: values.stack,
                     logLevels: {
-                        //                        Client: 'Trace',
+//                        Client: 'Trace',
                         '*': 'Info'
                     },
                     enableDelays: true,

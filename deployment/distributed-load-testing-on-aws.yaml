@@ -657,13 +657,13 @@ Resources:
       MetricTransformations:
         -
           MetricValue: "$avgRt"
-          MetricNamespace: "distribuited-load-testing"
+          MetricNamespace: "distributed-load-testing"
           MetricName: "Avg Response Time"
 
   EcsLoadTesting:
     Type: AWS::CloudWatch::Dashboard
     Properties:
-      DashboardBody: !Sub '{"widgets":[{"type":"metric","x":0,"y":0,"width":8,"height":8,"properties":{"metrics":[["distribuited-load-testing","Avg Response Time"]],"view":"timeSeries","stacked":true,"region":"${AWS::Region}","stat":"Average"}}]}'
+      DashboardBody: !Sub '{"widgets":[{"type":"metric","x":0,"y":0,"width":8,"height":8,"properties":{"metrics":[["distributed-load-testing","Avg Response Time"]],"view":"timeSeries","stacked":true,"region":"${AWS::Region}","stat":"Average"}}]}'
 
   EcsTaskSqsQueue: 
     Type: AWS::SQS::Queue

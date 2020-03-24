@@ -50,7 +50,7 @@ const send = async (duration) => {
         //Not returning an error to avoid Metrics affecting the Application
         console.log(err);
     }
-    return data.status;
+    return data && data.status;
 };
 
 

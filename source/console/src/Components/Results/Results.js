@@ -21,22 +21,20 @@ import { faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 class Results extends React.Component {
     constructor(props) {
         super(props);
-    
         this.toggle = this.toggle.bind(this);
         this.state = {
-          info: false
+            info: false
         };
-      }
-    
-      toggle() {
+    }
+
+    toggle() {
         this.setState({
             info: !this.state.info
         });
-      }
- 
-      render() {    
-        const results = this.props.data.results || {};
+    }
 
+    render() {
+        const results = this.props.data.results || {};
         let errors;
         if (results.rc && results.rc.length > 0) {
             errors = results.rc.map((err) =>
@@ -47,7 +45,6 @@ class Results extends React.Component {
                 </Col>
             );
         }
-        
         return (
             <div>
                 <div className="box">
@@ -75,7 +72,7 @@ class Results extends React.Component {
                         <Col sm="3">
                             <div className="result">
                                 Avg Bandwidth
-                                <p>{ Math.round(results.bytes * 0.01) /10 } kbps</p>
+                                <p>{Math.round(results.bytes * 0.01) / 10} kbps</p>
                             </div>
                         </Col>
                     </Row>
@@ -97,12 +94,12 @@ class Results extends React.Component {
                         </Col>
                         <Col sm="3">
                             <div className="result">
-                                <b>Avg Task Duration:</b><span>{Math.round(results.testDuration /60)}m</span>
+                                <b>Avg Task Duration:</b><span>{Math.round(results.testDuration / 60)}m</span>
                             </div>
                         </Col>
                     </Row>
                     <Row>
-                    { errors }
+                        {errors}
                     </Row>
                     <Row>
                         <Col sm="3">
@@ -133,23 +130,20 @@ class Results extends React.Component {
                             <img src={`data:image/jpeg;base64,${this.props.data.metricWidgetImage}`} alt='avRt' />
                         </Col>
                     </Row>
+                </div>
+                <Popover className="info" placement="top" isOpen={this.state.info} target="info" toggle={this.toggle}>
+                    <PopoverHeader>Results Details</PopoverHeader>
+                    <PopoverBody>
+                        <li><b>Avg Response Time (AvgRt):</b> the average response time in seconds for all requests.</li>
+                        <li><b>Avg Latency (AvgLt):</b> the average latency in seconds for all requests </li>
+                        <li><b>Avg Connection Time (AvgCt):</b> the average connection time in seconds for all requests </li>
+                        <li><b>Avg Bandwidth:</b> the average bandwidth in kilobytes per second for all requests  </li>
+                        <li><b>Percentiles:</b> percentile levels for the response time, 0 is also minimum response time, 100 is maximum response time </li>
+                    </PopoverBody>
+                </Popover>
             </div>
-        
-        <Popover className="info" placement="top" isOpen={this.state.info} target="info" toggle={this.toggle}>
-          <PopoverHeader>Results Details</PopoverHeader>
-          <PopoverBody>
-            <li><b>Avg Response Time (AvgRt):</b> the average response time in seconds for all requests.</li>
-            <li><b>Avg Latency (AvgLt):</b> the average latency in seconds for all requests </li>
-            <li><b>Avg Connection Time (AvgCt):</b> the average connection time in seconds for all requests </li>
-            <li><b>Avg Bandwidth:</b> the average bandwidth in kilobytes per second for all requests  </li>
-            <li><b>Percentiles:</b> percentile levels for the response time, 0 is also minimum response time, 100 is maximum response time </li>
-          </PopoverBody>
-        </Popover>
-
-        </div>
         )
     }
-
 }
 
 export default Results;

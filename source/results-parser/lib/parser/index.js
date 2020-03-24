@@ -40,12 +40,12 @@ const results = async (bucket, key, uuid, testId) => {
 
     try {
         // Download json results
-        params = {
+        let params = {
             Bucket: bucket,
             Key: key
         };
         const jsonFile = await s3.getObject(params).promise();
-        const jsonData = JSON.parse('[' + jsonFile.Body.replace(/\n/g, '.').slice(0, -1) + ']');
+        const jsonData = JSON.parse('[' + jsonFile.Body.replace(/\n/g, ',').slice(0, -1) + ']');
 
         const metrics = {};
         let firstTime;
@@ -74,10 +74,10 @@ const results = async (bucket, key, uuid, testId) => {
                     results[metric.name] = { value: metric.values.reduce((t, v) => t += v) };
                     break;
                 case 'gauge':
-                    results[metric.name] = { name: metric.name, value: metric.values[metric.values.length - 1] };
+                    results[metric.name] = { value: metric.values[metric.values.length - 1] };
                     break;
                 case 'rate':
-                    results[metric.name] = { name: metric.name, value: metric.values.reduce((t, v) => t += v ? 1 : 0) / metric.values.length };
+                    results[metric.name] = { value: metric.values.reduce((t, v) => t += v ? 1 : 0) / metric.values.length };
                     break;
                 case 'trend':
                     results[metric.name] = {
@@ -91,12 +91,13 @@ const results = async (bucket, key, uuid, testId) => {
                     break;
             }
         }
-        const testDuration = (Date.parse(lastTime).getTime() - Date.parse(firstTime).getTime()) / 1000;
+//        console.log('results=' + JSON.stringify(results, null, '    '));
+        const testDuration = (Date.parse(lastTime) - Date.parse(firstTime)) / 1000;
 
         // Set TTL for DynamoDB entry so records expire after 7 days
         const ttlDel = moment().utc().add(7, 'days').format('YYYY-MM-DD HH:mm:ss.S');
 
-        let params = {
+        params = {
             TableName: process.env.RESULTS_TABLE,
             Key: {
                 uuid: uuid
@@ -105,14 +106,12 @@ const results = async (bucket, key, uuid, testId) => {
             ExpressionAttributeNames: {
                 '#i': 'testId',
                 '#d': 'testDuration',
-                '#e': 'endPoints',
                 '#r': 'results',
                 '#t': 'ttlDel'
             },
             ExpressionAttributeValues: {
                 ':i': testId,
                 ':d': testDuration,
-                ':e': endPoints,
                 ':r': results,
                 ':t': ttlDel
             },
@@ -202,7 +201,7 @@ const finalResults = async (testId) => {
                 finalResults[name][field] = stats.mean(combined[name][field]);
             }
         }
-        console.log('Final Results: ', JSON.stringify(finalResults, null, 2));
+//        console.log('Final Results: ', JSON.stringify(finalResults, null, 2));
 
         // Get Cloudwatch metrics image for the test.
         params = {
