@@ -78,8 +78,8 @@ exports.handler = async (event) => {
         // Run tasks singly, so we can pass individual config value(s) to each, via environment override 'TASK_INDEX'
         for (let i = 0; i < taskCount; i++) {
             params.count = 1;
-            params.overrides[2].value = i;  // TASK_INDEX is the 3rd environment override
-            console.log('RUNNING TEST: ' + i);
+            params.overrides.containerOverrides[0].environment[2].value = i.toString();  // TASK_INDEX is the 3rd environment override
+            console.log('RUNNING TASK: ' + i);
             await ecs.runTask(params).promise();
             if (i < (taskCount - 1)) {
                 console.log('sleep 10 seconds to avoid ThrottlingException');
