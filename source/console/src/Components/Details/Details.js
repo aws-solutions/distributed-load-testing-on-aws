@@ -34,6 +34,7 @@ class Details extends React.Component {
             data: {
                 results: {},
                 history: [],
+                taskCount: null,
                 concurrency: null,
                 rampUp: null,
                 holdFor: null,
@@ -89,6 +90,7 @@ class Details extends React.Component {
             data: {
                 results: {},
                 history: [],
+                taskCount: null,
                 concurrency: null,
                 rampUp: null,
                 holdFor: null,
@@ -104,7 +106,7 @@ class Details extends React.Component {
         const { testId } = this.state.testId;
         try {
             const data = await API.get('dlts', `/scenarios/${testId}`);
-            data.concurrency = data.testConfig.execution[0].concurrency;
+            data.concurrency = data.testConfig.stages[0].target;
             data.rampUp = data.testConfig.stages[0].duration;
             data.holdFor = data.testConfig.stages[1].duration;
             data.rampDown = data.testConfig.stages[2].duration;
@@ -165,7 +167,7 @@ class Details extends React.Component {
 
                 <div className="box">
                     <Row>
-                        <Col sm="7">
+                        <Col sm="6">
                             <Row className="detail">
                                 <Col sm="3"><b>ID</b></Col>
                                 <Col sm="9">{data.testId}</Col>
@@ -179,38 +181,38 @@ class Details extends React.Component {
                                 <Col sm="9">{data.testDescription}</Col>
                             </Row>
                         </Col>
-                        <Col sm="5">
+                        <Col sm="6">
                             <Row className="detail">
-                                <Col sm="4"><b>STATUS</b></Col>
-                                <Col className={data.status} sm="8">{data.status}</Col>
+                                <Col sm="5"><b>STATUS</b></Col>
+                                <Col className={data.status} sm="7">{data.status}</Col>
                             </Row>
                             <Row className="detail">
-                                <Col sm="4"><b>LAST RAN</b></Col>
-                                <Col sm="8">{data.startTime}</Col>
+                                <Col sm="5"><b>LAST RAN</b></Col>
+                                <Col sm="7">{data.startTime}</Col>
                             </Row>
                             <Row className="detail">
-                                <Col sm="4"><b>TASK COUNT</b></Col>
-                                <Col sm="8">{data.taskCount}</Col>
+                                <Col sm="5"><b>TASK COUNT</b></Col>
+                                <Col sm="7">{data.taskCount}</Col>
                             </Row>
                             <Row className="detail">
-                                <Col sm="4"><b>STACK</b></Col>
-                                <Col sm="8">{data.stack}</Col>
+                                <Col sm="5"><b>STACK</b></Col>
+                                <Col sm="7">{data.stack}</Col>
                             </Row>
                             <Row className="detail">
-                                <Col sm="4"><b>CONCURRENCY</b></Col>
-                                <Col sm="8">{data.concurrency}</Col>
+                                <Col sm="5"><b>CONCURRENCY</b></Col>
+                                <Col sm="7">{data.concurrency}</Col>
                             </Row>
                             <Row className="detail">
-                                <Col sm="4"><b>RAMP UP</b></Col>
-                                <Col sm="8">{data.rampUp}</Col>
+                                <Col sm="5"><b>RAMP UP</b></Col>
+                                <Col sm="7">{data.rampUp}</Col>
                             </Row>
                             <Row className="detail">
-                                <Col sm="4"><b>HOLD FOR</b></Col>
-                                <Col sm="8">{data.holdFor}</Col>
+                                <Col sm="5"><b>HOLD FOR</b></Col>
+                                <Col sm="7">{data.holdFor}</Col>
                             </Row>
                             <Row className="detail">
-                                <Col sm="4"><b>RAMP DOWN</b></Col>
-                                <Col sm="8">{data.rampDown}</Col>
+                                <Col sm="5"><b>RAMP DOWN</b></Col>
+                                <Col sm="7">{data.rampDown}</Col>
                             </Row>
                         </Col>
                     </Row>
@@ -251,7 +253,7 @@ class Details extends React.Component {
                 <Modal isOpen={this.state.cancelModal} toggle={this.cancelToggle}>
                     <ModalHeader>Warning</ModalHeader>
                     <ModalBody>
-                        This will stop all running tasks amd end the test.
+                        This will stop all running tasks and end the test.
                 </ModalBody>
                     <ModalFooter>
                         <Button color="link" size="sm" onClick={this.cancelToggle}>Cancel</Button>

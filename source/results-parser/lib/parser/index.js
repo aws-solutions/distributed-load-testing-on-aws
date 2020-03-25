@@ -45,7 +45,7 @@ const results = async (bucket, key, uuid, testId) => {
             Key: key
         };
         const jsonFile = await s3.getObject(params).promise();
-        const jsonData = JSON.parse('[' + jsonFile.Body.replace(/\n/g, ',').slice(0, -1) + ']');
+        const jsonData = JSON.parse('[' + jsonFile.Body.toString().replace(/\n/g, ',').slice(0, -1) + ']');
 
         const metrics = {};
         let firstTime;
@@ -102,7 +102,7 @@ const results = async (bucket, key, uuid, testId) => {
             Key: {
                 uuid: uuid
             },
-            UpdateExpression: 'set #i=:i, #d=:d, #e=:e, #r=:r, #t=:t',
+            UpdateExpression: 'set #i=:i, #d=:d, #r=:r, #t=:t',
             ExpressionAttributeNames: {
                 '#i': 'testId',
                 '#d': 'testDuration',

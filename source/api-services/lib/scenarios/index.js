@@ -134,7 +134,7 @@ const createTest = async (config) => {
         };
         await sqs.sendMessage(params).promise();
 
-        // 4. Update DynamoDB. values for history, taskIds and endTime are used to remove the old data. 
+        // 4. Update DynamoDB. Values for history, taskIds, and endTime are used to remove the old data. 
         params = {
             TableName: process.env.SCENARIOS_TABLE,
             Key: {
@@ -214,7 +214,7 @@ const getTest = async (testId) => {
 
             console.log(`testId: ${testId} is still running`);
 
-            //Get list of task for testId 
+            // 1. Get list of tasks for testId 
             data.tasks = [];
             params = {
                 cluster: process.env.TASK_CLUSTER
@@ -222,7 +222,7 @@ const getTest = async (testId) => {
 
             const tasks = await ecs.listTasks(params).promise();
 
-            //2. check if any running task are associated with the testId 
+            // 2. check if any running task are associated with the testId 
             if (tasks.taskArns && tasks.taskArns.length != 0) {
 
                 params = {
@@ -232,7 +232,7 @@ const getTest = async (testId) => {
 
                 const testTasks = await ecs.describeTasks(params).promise();
 
-                //3. list any tasks associated with the testId 
+                // 3. list any tasks associated with the testId 
                 for (let i in testTasks.tasks) {
 
                     if (testTasks.tasks[i].group === testId) {

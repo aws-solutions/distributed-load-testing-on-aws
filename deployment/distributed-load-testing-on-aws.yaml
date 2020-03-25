@@ -358,7 +358,7 @@ Resources:
                 Action:
                   - s3:GetObject
                 Resource:
-                  - !Join ["", ["arn:aws:s3:::",!FindInMap ["SourceCode", "General", "S3Bucket"], "-", Ref: "AWS::Region","/*"]]
+                  - !Join ["", ["arn:aws:s3:::", !FindInMap ["SourceCode", "General", "S3Bucket"], "/*"]]
     Metadata:
       cfn_nag:
         rules_to_suppress:
@@ -571,8 +571,8 @@ Resources:
       InternetGatewayId: !Ref InternetGateway
 
   RouteToInternet:
-    Type: AWS::EC2::Route
     DependsOn: GatewayAttachment
+    Type: AWS::EC2::Route
     Properties:
       DestinationCidrBlock: 0.0.0.0/0
       RouteTableId: !Ref MainRouteTable
@@ -739,7 +739,7 @@ Resources:
       cfn_nag:
         rules_to_suppress:
           - id: W35
-            reason: "Loggin not enabled, this is the logs bucket for CloudFront and the other S3 buckets"
+            reason: "Logging not enabled, this is the logs bucket for CloudFront and the other S3 buckets"
 
   ConsoleBucket:
     Type: AWS::S3::Bucket
@@ -964,7 +964,7 @@ Resources:
       Handler: index.handler
       Role: !GetAtt LambdaCustomRole.Arn
       Code:
-        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"],  "custom-resource.zip"]]
       Runtime:  nodejs10.x
       Timeout: 120
@@ -980,7 +980,7 @@ Resources:
       Handler: index.handler
       Role: !GetAtt LambdaApiRole.Arn
       Code:
-        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"],  "api-services.zip"]]
       Runtime:  nodejs10.x
       Timeout: 120
@@ -1010,7 +1010,7 @@ Resources:
       Handler: index.handler
       Role: !GetAtt LambdaResultsRole.Arn
       Code:
-        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"],  "results-parser.zip"]]
       Runtime:  nodejs10.x
       Timeout: 120
@@ -1034,7 +1034,7 @@ Resources:
       Handler: index.handler
       Role: !GetAtt LambdaTaskRole.Arn
       Code:
-        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"],  "task-runner.zip"]]
       Runtime:  nodejs10.x
       Timeout: 120
@@ -1287,7 +1287,7 @@ Resources:
               InviteMessageTemplate:
                   EmailMessage:
                       !Sub |
-                        <p>You are invited to join the Distribution Load Testing Solution.</p>
+                        <p>You are invited to join the Distributed Load Testing Solution.</p>
                         <p>Username: <strong>{username}</strong></p>
                         <p>Password: <strong>{####}</strong></p>
                         <p>Console: <strong>https://${ConsoleCloudFront.DomainName}/</strong></p>
@@ -1298,8 +1298,8 @@ Resources:
               - "email"
           AutoVerifiedAttributes:
               - "email"
-          EmailVerificationMessage: "Your Distribution Load Testing console verification code is {####}."
-          EmailVerificationSubject: "Your Distribution Load Testing console verification code"
+          EmailVerificationMessage: "Your Distributed Load Testing console verification code is {####}."
+          EmailVerificationSubject: "Your Distributed Load Testing console verification code"
           Policies:
               PasswordPolicy:
                     MinimumLength: 8
@@ -1365,6 +1365,7 @@ Resources:
 
 ## Custom Resources
   S3PutNotification:
+    DependsOn: S3LambdaInvoke
     Type: Custom::S3PutNotification
     Properties:
       ServiceToken: !GetAtt CustomResource.Arn
@@ -1377,7 +1378,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt CustomResource.Arn
       Resource: CopyAssets
-      SrcBucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+      SrcBucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
       SrcPath: !FindInMap ["SourceCode", "General", "KeyPrefix"]
       ManifestFile: container-manifest.json
       DestBucket: !Ref ContainerBucket
@@ -1387,7 +1388,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt CustomResource.Arn
       Resource: CopyAssets
-      SrcBucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+      SrcBucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
       SrcPath: !FindInMap ["SourceCode", "General", "KeyPrefix"]
       ManifestFile: console-manifest.json
       DestBucket: !Ref ConsoleBucket

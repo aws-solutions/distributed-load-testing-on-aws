@@ -29,7 +29,7 @@ exports.handler = async (event) => {
         const testId = key.split('/').slice(1, 2)[0];
         const uuid = key.split('/').slice(2, 3)[0].slice(0, -4);
 
-        // Parse results from an individualtask and update dynamodb 
+        // Parse results from an individual task and update dynamodb 
         const results = await parser.results(bucket, key, uuid, testId);
 
         // Send anonymous metrics
