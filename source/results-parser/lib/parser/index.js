@@ -71,16 +71,17 @@ const results = async (bucket, key, uuid, testId) => {
             let metric = metrics[name];
             switch (metric.type) {
                 case 'counter':
-                    results[metric.name] = { value: metric.values.reduce((t, v) => t += v) };
+                    results[metric.name] = { type: 'counter', value: metric.values.reduce((t, v) => t += v) };
                     break;
                 case 'gauge':
-                    results[metric.name] = { value: metric.values[metric.values.length - 1] };
+                    results[metric.name] = { type: 'gauge', value: metric.values[metric.values.length - 1] };
                     break;
                 case 'rate':
-                    results[metric.name] = { value: metric.values.reduce((t, v) => t += v ? 1 : 0) / metric.values.length };
+                    results[metric.name] = { type: 'rate', value: metric.values.reduce((t, v) => t += v ? 1 : 0) / metric.values.length };
                     break;
                 case 'trend':
                     results[metric.name] = {
+                        type: 'trend',
                         min: metric.values.reduce((t, v) => v < t ? v : t),
                         max: metric.values.reduce((t, v) => v > t ? v : t),
                         avg: stats.mean(metric.values),
@@ -179,26 +180,62 @@ const finalResults = async (testId) => {
         };
         let data = await dynamo.scan(params).promise();
 
-        // Combine all metrics into arrays and then get the average for each metric
+        // Combine all metrics fields into arrays and then get the aggregate for each metric
         let combined = {};
         for (let i in data.Items) {
             const results = data.Items[i].results;
             for (let name in results) {
                 const metric = results[name];
                 if (!combined[name])
-                    combined[name] = {};
+                    combined[name] = { type: metric.type };
                 for (let field in metric) {
-                    if (!combined[name][field])
-                        combined[name][field] = [];
-                    combined[name][field].push(metric[field])
+                    if (field !== 'type') {
+                        if (!combined[name][field])
+                            combined[name][field] = [];
+                        combined[name][field].push(metric[field])
+                    }
                 }
             }
         }
         let finalResults = {};
         for (let name in combined) {
-            finalResults[name] = {};
+            finalResults[name] = { type: combined[name].type };
             for (let field in combined[name]) {
-                finalResults[name][field] = stats.mean(combined[name][field]);
+                if (field !== 'type') {
+                    switch (combined[name].type) {
+                    case 'counter':
+                        finalResults[name][field] = stats.sum(combined[name][field]);
+                        break;
+                    case 'gauge':
+                        finalResults[name][field] = combined[name][field].reduce((t, v) => v > t ? v : t);  // max
+                        break;
+                    case 'rate':
+                        finalResults[name][field] = stats.mean(combined[name][field]);
+                        break;
+                    case 'trend':
+                        switch(field) {
+                            case 'min':
+                                finalResults[name][field] = combined[name][field].reduce((t, v) => v < t ? v : t);  // min
+                                break;
+                            case 'max':
+                                finalResults[name][field] = combined[name][field].reduce((t, v) => v < t ? v : t);  // max
+                                break;
+                            case 'avg':
+                                finalResults[name][field] = stats.mean(combined[name][field]);
+                                break;
+                            case 'med':
+                            case 'p90':
+                            case 'p95':
+                                // TODO: Mathematically, this is meaningless (pun intended!) - maybe the median (or max) is more useful?
+                                // See, for example, https://www.circonus.com/2018/11/the-problem-with-percentiles-aggregation-brings-aggravation/
+                                finalResults[name][field] = stats.mean(combined[name][field]);
+                                break;
+                        }
+                        break;
+                    default:
+                        finalResults[name][field] = stats.mean(combined[name][field]);
+                    }
+                }
             }
         }
 //        console.log('Final Results: ', JSON.stringify(finalResults, null, 2));

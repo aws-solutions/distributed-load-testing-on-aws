@@ -92,12 +92,15 @@ describe('#RESULTS PARSER::', () => {
 			{
 				"results": {
 					"sessions": {
+						"type": "counter",
 						"value": 1
 					},
 					"http_reqs": {
+						"type": "counter",
 						"value": 3
 					},
 					"http_req_duration": {
+						"type": "trend",
 						"min": 66.682,
 						"max": 842.427,
 						"avg": 436.4413333333334,
@@ -106,6 +109,7 @@ describe('#RESULTS PARSER::', () => {
 						"p95": 842.427
 					},
 					"http_req_blocked": {
+						"type": "trend",
 						"min": 0,
 						"max": 359.821,
 						"avg": 119.94033333333334,
@@ -114,6 +118,7 @@ describe('#RESULTS PARSER::', () => {
 						"p95": 359.821
 					},
 					"http_req_connecting": {
+						"type": "trend",
 						"min": 0,
 						"max": 0.157,
 						"avg": 0.052333333333333336,
@@ -122,6 +127,7 @@ describe('#RESULTS PARSER::', () => {
 						"p95": 0.157
 					},
 					"http_req_tls_handshaking": {
+						"type": "trend",
 						"min": 0,
 						"max": 277.111,
 						"avg": 92.37033333333333,
@@ -130,6 +136,7 @@ describe('#RESULTS PARSER::', () => {
 						"p95": 277.111
 					},
 					"http_req_sending": {
+						"type": "trend",
 						"min": 0.087,
 						"max": 2.338,
 						"avg": 0.8410000000000001,
@@ -138,6 +145,7 @@ describe('#RESULTS PARSER::', () => {
 						"p95": 2.338
 					},
 					"http_req_waiting": {
+						"type": "trend",
 						"min": 64.126,
 						"max": 842.233,
 						"avg": 435.4633333333333,
@@ -146,6 +154,7 @@ describe('#RESULTS PARSER::', () => {
 						"p95": 842.233
 					},
 					"http_req_receiving": {
+						"type": "trend",
 						"min": 0.096,
 						"max": 0.218,
 						"avg": 0.137,
@@ -154,12 +163,15 @@ describe('#RESULTS PARSER::', () => {
 						"p95": 0.218
 					},
 					"vus": {
+						"type": "gauge",
 						"value": 1
 					},
 					"vus_max": {
+						"type": "gauge",
 						"value": 200
 					},
 					"bots_percent": {
+						"type": "rate",
 						"value": 0.5
 					}
 				},
@@ -171,12 +183,15 @@ describe('#RESULTS PARSER::', () => {
 			{
 				"results": {
 					"sessions": {
+						"type": "counter",
 						"value": 1
 					},
 					"http_reqs": {
+						"type": "counter",
 						"value": 3
 					},
 					"http_req_duration": {
+						"type": "trend",
 						"min": 66.682,
 						"max": 842.427,
 						"avg": 436.4413333333334,
@@ -185,6 +200,7 @@ describe('#RESULTS PARSER::', () => {
 						"p95": 842.427
 					},
 					"http_req_blocked": {
+						"type": "trend",
 						"min": 0,
 						"max": 359.821,
 						"avg": 119.94033333333334,
@@ -193,6 +209,7 @@ describe('#RESULTS PARSER::', () => {
 						"p95": 359.821
 					},
 					"http_req_connecting": {
+						"type": "trend",
 						"min": 0,
 						"max": 0.157,
 						"avg": 0.052333333333333336,
@@ -201,6 +218,7 @@ describe('#RESULTS PARSER::', () => {
 						"p95": 0.157
 					},
 					"http_req_tls_handshaking": {
+						"type": "trend",
 						"min": 0,
 						"max": 277.111,
 						"avg": 92.37033333333333,
@@ -209,6 +227,7 @@ describe('#RESULTS PARSER::', () => {
 						"p95": 277.111
 					},
 					"http_req_sending": {
+						"type": "trend",
 						"min": 0.087,
 						"max": 2.338,
 						"avg": 0.8410000000000001,
@@ -217,6 +236,7 @@ describe('#RESULTS PARSER::', () => {
 						"p95": 2.338
 					},
 					"http_req_waiting": {
+						"type": "trend",
 						"min": 64.126,
 						"max": 842.233,
 						"avg": 435.4633333333333,
@@ -225,6 +245,7 @@ describe('#RESULTS PARSER::', () => {
 						"p95": 842.233
 					},
 					"http_req_receiving": {
+						"type": "trend",
 						"min": 0.096,
 						"max": 0.218,
 						"avg": 0.137,
@@ -233,12 +254,15 @@ describe('#RESULTS PARSER::', () => {
 						"p95": 0.218
 					},
 					"vus": {
+						"type": "gauge",
 						"value": 1
 					},
 					"vus_max": {
+						"type": "gauge",
 						"value": 200
 					},
 					"bots_percent": {
+						"type": "rate",
 						"value": 0.5
 					}
 				},
