@@ -101,6 +101,7 @@ describe('#RESULTS PARSER::', () => {
 					},
 					"http_req_duration": {
 						"type": "trend",
+						"isTime": true,
 						"min": 66.682,
 						"max": 842.427,
 						"avg": 436.4413333333334,
@@ -110,6 +111,7 @@ describe('#RESULTS PARSER::', () => {
 					},
 					"http_req_blocked": {
 						"type": "trend",
+						"isTime": true,
 						"min": 0,
 						"max": 359.821,
 						"avg": 119.94033333333334,
@@ -119,6 +121,7 @@ describe('#RESULTS PARSER::', () => {
 					},
 					"http_req_connecting": {
 						"type": "trend",
+						"isTime": true,
 						"min": 0,
 						"max": 0.157,
 						"avg": 0.052333333333333336,
@@ -128,6 +131,7 @@ describe('#RESULTS PARSER::', () => {
 					},
 					"http_req_tls_handshaking": {
 						"type": "trend",
+						"isTime": true,
 						"min": 0,
 						"max": 277.111,
 						"avg": 92.37033333333333,
@@ -137,6 +141,7 @@ describe('#RESULTS PARSER::', () => {
 					},
 					"http_req_sending": {
 						"type": "trend",
+						"isTime": true,
 						"min": 0.087,
 						"max": 2.338,
 						"avg": 0.8410000000000001,
@@ -146,6 +151,7 @@ describe('#RESULTS PARSER::', () => {
 					},
 					"http_req_waiting": {
 						"type": "trend",
+						"isTime": true,
 						"min": 64.126,
 						"max": 842.233,
 						"avg": 435.4633333333333,
@@ -155,6 +161,7 @@ describe('#RESULTS PARSER::', () => {
 					},
 					"http_req_receiving": {
 						"type": "trend",
+						"isTime": true,
 						"min": 0.096,
 						"max": 0.218,
 						"avg": 0.137,
@@ -192,6 +199,7 @@ describe('#RESULTS PARSER::', () => {
 					},
 					"http_req_duration": {
 						"type": "trend",
+						"isTime": true,
 						"min": 66.682,
 						"max": 842.427,
 						"avg": 436.4413333333334,
@@ -201,6 +209,7 @@ describe('#RESULTS PARSER::', () => {
 					},
 					"http_req_blocked": {
 						"type": "trend",
+						"isTime": true,
 						"min": 0,
 						"max": 359.821,
 						"avg": 119.94033333333334,
@@ -210,6 +219,7 @@ describe('#RESULTS PARSER::', () => {
 					},
 					"http_req_connecting": {
 						"type": "trend",
+						"isTime": true,
 						"min": 0,
 						"max": 0.157,
 						"avg": 0.052333333333333336,
@@ -219,6 +229,7 @@ describe('#RESULTS PARSER::', () => {
 					},
 					"http_req_tls_handshaking": {
 						"type": "trend",
+						"isTime": true,
 						"min": 0,
 						"max": 277.111,
 						"avg": 92.37033333333333,
@@ -228,6 +239,7 @@ describe('#RESULTS PARSER::', () => {
 					},
 					"http_req_sending": {
 						"type": "trend",
+						"isTime": true,
 						"min": 0.087,
 						"max": 2.338,
 						"avg": 0.8410000000000001,
@@ -237,6 +249,7 @@ describe('#RESULTS PARSER::', () => {
 					},
 					"http_req_waiting": {
 						"type": "trend",
+						"isTime": true,
 						"min": 64.126,
 						"max": 842.233,
 						"avg": 435.4633333333333,
@@ -246,6 +259,7 @@ describe('#RESULTS PARSER::', () => {
 					},
 					"http_req_receiving": {
 						"type": "trend",
+						"isTime": true,
 						"min": 0.096,
 						"max": 0.218,
 						"avg": 0.137,

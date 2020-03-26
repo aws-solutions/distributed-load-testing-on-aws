@@ -52,7 +52,7 @@ class Results extends React.Component {
                     <h2>Test Results</h2>
                     <Button id="info" color="link"><FontAwesomeIcon id="icon" icon={faInfoCircle} /> Info</Button>
                     {
-                        Object.keys(results).map(metricName => {
+                        Object.keys(results).sort().map(metricName => {
                             const metric = results[metricName];
                             return (
                                 <Row>

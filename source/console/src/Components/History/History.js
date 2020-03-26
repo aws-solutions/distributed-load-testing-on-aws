@@ -20,8 +20,11 @@ import { formatMetric } from '../../utils';
 class Results extends React.Component {
     render() {
         const history = this.props.data.history || [];
-        const styles = {
-            width: '15%'
+        const styles1 = {
+            width: '20%'
+        };
+        const styles2 = {
+            width: '13%'
         };
         return (
             <div>
@@ -30,14 +33,14 @@ class Results extends React.Component {
                     <Table borderless responsive>
                         <thead>
                             <tr>
-                                <th style={styles}>Run Time</th>
-                                <th style={styles}>Metric</th>
+                                <th style={styles1}>Run Time</th>
+                                <th style={styles2}>Metric</th>
                                 <th>Values</th>
                             </tr>
                         </thead>
                         <tbody>
                             {
-                                history.map(entry => Object.keys(entry.results).map((metricName, i) => {
+                                history.map(entry => Object.keys(entry.results).sort().map((metricName, i) => {
                                     const metric = entry.results[metricName];
                                     return (
                                         <tr key={entry.id}>

@@ -190,7 +190,7 @@ const finalResults = async (testId) => {
                 if (!combined[name])
                     combined[name] = { type: metric.type, isTime: metric.isTime };
                 for (let field in metric) {
-                    if (field !== 'type') {
+                    if (field !== 'type' && field !== 'isTime') {
                         if (!combined[name][field])
                             combined[name][field] = [];
                         combined[name][field].push(metric[field])
@@ -202,7 +202,7 @@ const finalResults = async (testId) => {
         for (let name in combined) {
             finalResults[name] = { type: combined[name].type, isTime: combined[name].isTime };
             for (let field in combined[name]) {
-                if (field !== 'type') {
+                if (field !== 'type' && field !== 'isTime') {
                     switch (combined[name].type) {
                     case 'counter':
                         finalResults[name][field] = stats.sum(combined[name][field]);
