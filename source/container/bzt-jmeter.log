@@ -1,0 +1,16 @@
+2020-03-25 15:04:13,517 INFO o.j.r.PluginManagerCMD: Command is: install-for-jmx
+2020-03-25 15:04:18,582 INFO o.j.r.JARSourceHTTP: Found cached repo
+2020-03-25 15:04:18,833 INFO o.j.r.PluginManager: Plugins Status: [jpgc-functions=2.1, jpgc-casutg=2.9, jpgc-dummy=0.4, jpgc-ffw=2.0, jpgc-fifo=0.2, jpgc-json=2.7, jpgc-prmctl=0.4, jpgc-perfmon=2.1, jpgc-plugins-manager=1.3, jpgc-tst=2.5, jmeter-core=5.2.1, jmeter-ftp=5.2.1, jmeter-http=5.2.1, jmeter-jdbc=5.2.1, jmeter-jms=5.2.1, jmeter-junit=5.2.1, jmeter-java=5.2.1, jmeter-ldap=5.2.1, jmeter-mail=5.2.1, jmeter-mongodb=5.2.1, jmeter-native=5.2.1, jmeter-tcp=5.2.1, jmeter-components=5.2.1]
+2020-03-25 15:04:18,835 INFO o.j.r.PluginManagerCMD: Params line is: /Users/paul/repos/distributed-load-testing-on-aws/source/container/2020-03-25_15-01-10.465858/modified_requests.jmx
+2020-03-25 15:04:19,139 INFO o.a.j.s.SaveService: Testplan (JMX) version: 2.2. Testlog (JTL) version: 2.2
+2020-03-25 15:04:19,160 INFO o.a.j.s.SaveService: Using SaveService properties file encoding UTF-8
+2020-03-25 15:04:19,165 INFO o.a.j.s.SaveService: Using SaveService properties version 5.0
+2020-03-25 15:04:19,227 INFO o.a.j.p.h.c.CacheManager: Will only cache the following methods: [GET]
+2020-03-25 15:04:19,230 INFO o.a.j.p.h.c.CookieManager: Settings: Delete null: true Check: true Allow variable: true Save: false Prefix: COOKIE_
+2020-03-25 15:04:19,336 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for text/html is org.apache.jmeter.protocol.http.parser.LagartoBasedHtmlParser
+2020-03-25 15:04:19,336 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for application/xhtml+xml is org.apache.jmeter.protocol.http.parser.LagartoBasedHtmlParser
+2020-03-25 15:04:19,337 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for application/xml is org.apache.jmeter.protocol.http.parser.LagartoBasedHtmlParser
+2020-03-25 15:04:19,337 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for text/xml is org.apache.jmeter.protocol.http.parser.LagartoBasedHtmlParser
+2020-03-25 15:04:19,337 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for text/vnd.wap.wml is org.apache.jmeter.protocol.http.parser.RegexpHTMLParser
+2020-03-25 15:04:19,337 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for text/css is org.apache.jmeter.protocol.http.parser.CssParser
+2020-03-25 15:04:19,407 INFO o.j.r.PluginManager: Finishing without changes

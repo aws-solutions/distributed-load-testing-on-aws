@@ -19,58 +19,59 @@ const cfn = require('./lib/cfn');
 const metrics = require('./lib/metrics');
 const s3 = require('./lib/s3');
 
-
 exports.handler = async (event, context) => {
-
     console.log(`event: ${JSON.stringify(event,null,2)}`);
-    
+
     const resource = event.ResourceProperties.Resource;
     const config = event.ResourceProperties;
     let responseData = {};
 
     try {
         if (event.RequestType === 'Create') {
-
             switch (resource) {
-
-                case ('UUID'):
+                case 'UUID':
                     responseData = {
                         UUID: uuid.v4()
                     };
                     break;
-
-                case ('S3PutNotification'):
+                case 'S3PutNotification':
                     await s3.putNotification(config.Bucket, config.LambdaArn);
                     break;
-
-                case ('CopyAssets'):
+                case 'CopyAssets':
                     await s3.copyAssets(config.SrcBucket, config.SrcPath, config.ManifestFile, config.DestBucket);
                     break;
-                
-                case ('ConfigFile'):
+                case 'ConfigFile':
                     await s3.configFile(config.AwsExports, config.DestBucket);
                     break;
-
-                case ('AnonymousMetric'):
+                case 'AnonymousMetric':
                     await metrics.send(config.SolutionId, config.Version, config.Region, config.UUID);
                     break;
-
-                    default:
+                default:
                     throw Error(resource + ' not defined as a resource');
             }
+        } else if (event.RequestType === 'Update') {
+            switch (resource) {
+                // Update not required for UUID, metrics, etc.
+                case 'UUID':
+                case 'S3PutNotification':
+                case 'AnonymousMetric':
+                        break;
+                case 'CopyAssets':
+                    await s3.copyAssets(config.SrcBucket, config.SrcPath, config.ManifestFile, config.DestBucket);
+                    break;
+                case 'ConfigFile':
+                    await s3.configFile(config.AwsExports, config.DestBucket);
+                    break;
+                default:
+                    throw Error(resource + ' not defined as a resource');
+            }
+
+        } else if (event.RequestType === 'Delete') {
+            // TODO: Delete not required?
         }
-        if (event.RequestType === 'Update') {
-            //Update not required for metrics
-        }
-        
-        if (event.RequestType === 'Delete') {
-            //Delete not required for metrics
-        }
-        
+
         await cfn.send(event, context, 'SUCCESS', responseData, resource);
-        
-    } 
-    catch (err) {
+    } catch (err) {
         console.log(err, err.stack);
         cfn.send(event, context, 'FAILED',{},resource);
     }

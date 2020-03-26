@@ -1421,21 +1421,21 @@ Resources:
           }
 
   Uuid:
-    Type: "Custom::UUID"
+    Type: Custom::UUID
     Properties:
       ServiceToken: !GetAtt CustomResource.Arn
       Resource: UUID
 
-  AnonymousMetric: 
-    Condition: Metrics 
-    Type: Custom::AnonymousMetric 
-    Properties: 
-      ServiceToken: !GetAtt CustomResource.Arn 
-      Resource: AnonymousMetric 
-      Region: !Ref AWS::Region 
-      SolutionId: SO0062 
-      UUID: !GetAtt Uuid.UUID 
-      Version: CODEVERSION 
+  AnonymousMetric:
+    Condition: Metrics
+    Type: Custom::AnonymousMetric
+    Properties:
+      ServiceToken: !GetAtt CustomResource.Arn
+      Resource: AnonymousMetric
+      Region: !Ref AWS::Region
+      SolutionId: SO0062
+      UUID: !GetAtt Uuid.UUID
+      Version: CODEVERSION
 
 Outputs:
 

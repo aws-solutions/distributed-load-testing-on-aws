@@ -82,6 +82,7 @@ const results = async (bucket, key, uuid, testId) => {
                 case 'trend':
                     results[metric.name] = {
                         type: 'trend',
+                        isTime: metric.contains === 'time',
                         min: metric.values.reduce((t, v) => v < t ? v : t),
                         max: metric.values.reduce((t, v) => v > t ? v : t),
                         avg: stats.mean(metric.values),
@@ -187,7 +188,7 @@ const finalResults = async (testId) => {
             for (let name in results) {
                 const metric = results[name];
                 if (!combined[name])
-                    combined[name] = { type: metric.type };
+                    combined[name] = { type: metric.type, isTime: metric.isTime };
                 for (let field in metric) {
                     if (field !== 'type') {
                         if (!combined[name][field])
@@ -199,7 +200,7 @@ const finalResults = async (testId) => {
         }
         let finalResults = {};
         for (let name in combined) {
-            finalResults[name] = { type: combined[name].type };
+            finalResults[name] = { type: combined[name].type, isTime: combined[name].isTime };
             for (let field in combined[name]) {
                 if (field !== 'type') {
                     switch (combined[name].type) {

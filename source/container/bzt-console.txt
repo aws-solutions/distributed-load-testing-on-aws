@@ -1,0 +1,166 @@
+$ bzt test.json -o modules.console.disable=true
+15:01:10 INFO: Taurus CLI Tool v1.14.1
+15:01:10 INFO: Starting with configs: ['test.json']
+15:01:10 INFO: Configuring...
+15:01:10 INFO: Artifacts dir: /Users/paul/repos/distributed-load-testing-on-aws/source/container/2020-03-25_15-01-10.465858
+15:01:10 INFO: Preparing...
+15:01:10 INFO: Will install JMeter into /Users/paul/.bzt/jmeter-taurus/5.2.1
+15:01:11 INFO: Downloading: https://apache.claz.org//jmeter/binaries/apache-jmeter-5.2.1.zip
+100% [======================================================================================================================================================================================================================] Time: 0:02:00
+15:03:12 INFO: Unzipping /var/folders/3_/ygbf_6vs18s9gh1pzb_qz47c0000gn/T/tmp1mdq7h31.zip to /Users/paul/.bzt/jmeter-taurus/5.2.1
+15:03:29 INFO: Downloading jmeter-plugins-manager-1.3.jar from https://search.maven.org/remotecontent?filepath=kg/apc/jmeter-plugins-manager/1.3/jmeter-plugins-manager-1.3.jar                                            ] ETA:  --:--:--
+15:03:31 INFO: Downloading cmdrunner-2.2.jar from https://search.maven.org/remotecontent?filepath=kg/apc/cmdrunner/2.2/cmdrunner-2.2.jar====================================================================================] ETA:  0:00:00
+100% [======================================================================================================================================================================================================================] Time: 0:00:01
+15:03:31 INFO: Installing JMeter plugins: jpgc-casutg,jpgc-dummy,jpgc-ffw,jpgc-fifo,jpgc-functions,jpgc-json,jpgc-perfmon,jpgc-prmctl,jpgc-tst
+15:04:19 INFO: Starting...
+15:04:19 INFO: Waiting for results...
+15:04:56 INFO: Current: 1 vu	1 succ	0 fail	0.518 avg rt	/	Cumulative: 0.518 avg rt, 0% failures
+15:04:57 INFO: Current: 1 vu	4 succ	0 fail	0.213 avg rt	/	Cumulative: 0.274 avg rt, 0% failures
+15:04:58 INFO: Current: 1 vu	4 succ	0 fail	0.241 avg rt	/	Cumulative: 0.259 avg rt, 0% failures
+15:04:59 INFO: Current: 1 vu	5 succ	0 fail	0.222 avg rt	/	Cumulative: 0.246 avg rt, 0% failures
+15:05:00 INFO: Current: 1 vu	5 succ	0 fail	0.201 avg rt	/	Cumulative: 0.234 avg rt, 0% failures
+15:05:01 INFO: Current: 1 vu	5 succ	0 fail	0.210 avg rt	/	Cumulative: 0.229 avg rt, 0% failures
+15:05:02 INFO: Current: 1 vu	4 succ	0 fail	0.202 avg rt	/	Cumulative: 0.225 avg rt, 0% failures
+15:05:03 INFO: Current: 1 vu	5 succ	0 fail	0.222 avg rt	/	Cumulative: 0.225 avg rt, 0% failures
+15:05:04 INFO: Current: 1 vu	4 succ	0 fail	0.229 avg rt	/	Cumulative: 0.225 avg rt, 0% failures
+15:05:05 INFO: Current: 1 vu	4 succ	0 fail	0.253 avg rt	/	Cumulative: 0.228 avg rt, 0% failures
+15:05:06 INFO: Current: 1 vu	4 succ	0 fail	0.238 avg rt	/	Cumulative: 0.229 avg rt, 0% failures
+15:05:07 INFO: Current: 1 vu	5 succ	0 fail	0.216 avg rt	/	Cumulative: 0.228 avg rt, 0% failures
+15:05:08 INFO: Current: 1 vu	5 succ	0 fail	0.216 avg rt	/	Cumulative: 0.227 avg rt, 0% failures
+15:05:09 INFO: Current: 1 vu	4 succ	0 fail	0.215 avg rt	/	Cumulative: 0.226 avg rt, 0% failures
+15:05:10 INFO: Current: 1 vu	5 succ	0 fail	0.217 avg rt	/	Cumulative: 0.225 avg rt, 0% failures
+15:05:11 INFO: Current: 1 vu	5 succ	0 fail	0.211 avg rt	/	Cumulative: 0.224 avg rt, 0% failures
+15:05:12 INFO: Current: 1 vu	3 succ	0 fail	0.274 avg rt	/	Cumulative: 0.226 avg rt, 0% failures
+15:05:13 INFO: Current: 1 vu	5 succ	0 fail	0.210 avg rt	/	Cumulative: 0.225 avg rt, 0% failures
+15:05:14 INFO: Current: 1 vu	4 succ	0 fail	0.233 avg rt	/	Cumulative: 0.225 avg rt, 0% failures
+15:05:15 INFO: Current: 1 vu	5 succ	0 fail	0.212 avg rt	/	Cumulative: 0.225 avg rt, 0% failures
+15:05:16 INFO: Current: 1 vu	5 succ	0 fail	0.225 avg rt	/	Cumulative: 0.225 avg rt, 0% failures
+15:05:17 INFO: Current: 1 vu	4 succ	0 fail	0.218 avg rt	/	Cumulative: 0.224 avg rt, 0% failures
+15:05:18 INFO: Current: 1 vu	5 succ	0 fail	0.224 avg rt	/	Cumulative: 0.224 avg rt, 0% failures
+15:05:19 INFO: Current: 1 vu	4 succ	0 fail	0.218 avg rt	/	Cumulative: 0.224 avg rt, 0% failures
+15:05:20 INFO: Current: 1 vu	4 succ	0 fail	0.231 avg rt	/	Cumulative: 0.224 avg rt, 0% failures
+15:05:21 INFO: Current: 1 vu	5 succ	0 fail	0.214 avg rt	/	Cumulative: 0.224 avg rt, 0% failures
+15:05:22 INFO: Current: 1 vu	4 succ	0 fail	0.261 avg rt	/	Cumulative: 0.225 avg rt, 0% failures
+15:05:23 INFO: Current: 1 vu	4 succ	0 fail	0.220 avg rt	/	Cumulative: 0.225 avg rt, 0% failures
+15:05:24 INFO: Current: 1 vu	5 succ	0 fail	0.214 avg rt	/	Cumulative: 0.225 avg rt, 0% failures
+15:05:25 INFO: Current: 1 vu	5 succ	0 fail	0.210 avg rt	/	Cumulative: 0.224 avg rt, 0% failures
+15:05:26 INFO: Current: 2 vu	6 succ	0 fail	0.234 avg rt	/	Cumulative: 0.224 avg rt, 0% failures
+15:05:27 INFO: Current: 2 vu	10 succ	0 fail	0.220 avg rt	/	Cumulative: 0.224 avg rt, 0% failures
+15:05:28 INFO: Current: 2 vu	8 succ	0 fail	0.237 avg rt	/	Cumulative: 0.225 avg rt, 0% failures
+15:05:29 INFO: Current: 2 vu	8 succ	0 fail	0.225 avg rt	/	Cumulative: 0.225 avg rt, 0% failures
+15:05:30 INFO: Current: 2 vu	10 succ	0 fail	0.224 avg rt	/	Cumulative: 0.225 avg rt, 0% failures
+15:05:31 INFO: Current: 2 vu	8 succ	0 fail	0.218 avg rt	/	Cumulative: 0.224 avg rt, 0% failures
+15:05:32 INFO: Current: 2 vu	10 succ	0 fail	0.223 avg rt	/	Cumulative: 0.224 avg rt, 0% failures
+15:05:33 INFO: Current: 2 vu	8 succ	0 fail	0.218 avg rt	/	Cumulative: 0.224 avg rt, 0% failures
+15:05:34 INFO: Current: 2 vu	10 succ	0 fail	0.216 avg rt	/	Cumulative: 0.224 avg rt, 0% failures
+15:05:35 INFO: Current: 2 vu	8 succ	0 fail	0.225 avg rt	/	Cumulative: 0.224 avg rt, 0% failures
+15:05:36 INFO: Current: 2 vu	10 succ	0 fail	0.215 avg rt	/	Cumulative: 0.223 avg rt, 0% failures
+15:05:37 INFO: Current: 2 vu	9 succ	0 fail	0.217 avg rt	/	Cumulative: 0.223 avg rt, 0% failures
+15:05:38 INFO: Current: 2 vu	9 succ	0 fail	0.217 avg rt	/	Cumulative: 0.223 avg rt, 0% failures
+15:05:39 INFO: Current: 2 vu	10 succ	0 fail	0.225 avg rt	/	Cumulative: 0.223 avg rt, 0% failures
+15:05:40 INFO: Current: 2 vu	9 succ	0 fail	0.212 avg rt	/	Cumulative: 0.223 avg rt, 0% failures
+15:05:41 INFO: Current: 2 vu	9 succ	0 fail	0.220 avg rt	/	Cumulative: 0.223 avg rt, 0% failures
+15:05:42 INFO: Current: 2 vu	9 succ	0 fail	0.212 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:05:43 INFO: Current: 2 vu	9 succ	0 fail	0.221 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:05:44 INFO: Current: 2 vu	9 succ	0 fail	0.216 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:05:45 INFO: Current: 2 vu	9 succ	0 fail	0.217 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:05:46 INFO: Current: 2 vu	10 succ	0 fail	0.214 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:05:47 INFO: Current: 2 vu	10 succ	0 fail	0.212 avg rt	/	Cumulative: 0.221 avg rt, 0% failures
+15:05:48 INFO: Current: 2 vu	8 succ	0 fail	0.231 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:05:49 INFO: Current: 2 vu	8 succ	0 fail	0.222 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:05:50 INFO: Current: 2 vu	9 succ	0 fail	0.238 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:05:51 INFO: Current: 2 vu	10 succ	0 fail	0.202 avg rt	/	Cumulative: 0.221 avg rt, 0% failures
+15:05:52 INFO: Current: 2 vu	8 succ	0 fail	0.257 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:05:53 INFO: Current: 2 vu	9 succ	0 fail	0.210 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:05:54 INFO: Current: 2 vu	9 succ	0 fail	0.225 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:05:55 INFO: Current: 2 vu	10 succ	0 fail	0.213 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:05:56 INFO: Current: 2 vu	8 succ	0 fail	0.248 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:05:57 INFO: Current: 2 vu	8 succ	0 fail	0.231 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:05:58 INFO: Current: 2 vu	9 succ	0 fail	0.230 avg rt	/	Cumulative: 0.223 avg rt, 0% failures
+15:05:59 INFO: Current: 2 vu	9 succ	0 fail	0.203 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:00 INFO: Current: 2 vu	10 succ	0 fail	0.218 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:01 INFO: Current: 2 vu	9 succ	0 fail	0.209 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:02 INFO: Current: 2 vu	9 succ	0 fail	0.235 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:03 INFO: Current: 2 vu	9 succ	0 fail	0.221 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:04 INFO: Current: 2 vu	9 succ	0 fail	0.216 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:05 INFO: Current: 2 vu	9 succ	0 fail	0.211 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:06 INFO: Current: 2 vu	9 succ	0 fail	0.225 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:07 INFO: Current: 2 vu	10 succ	0 fail	0.210 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:08 INFO: Current: 2 vu	8 succ	0 fail	0.228 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:09 INFO: Current: 2 vu	10 succ	0 fail	0.218 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:10 INFO: Current: 2 vu	9 succ	0 fail	0.215 avg rt	/	Cumulative: 0.221 avg rt, 0% failures
+15:06:11 INFO: Current: 2 vu	9 succ	0 fail	0.229 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:12 INFO: Current: 2 vu	8 succ	0 fail	0.283 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:13 INFO: Current: 2 vu	7 succ	0 fail	0.214 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:14 INFO: Current: 2 vu	10 succ	0 fail	0.232 avg rt	/	Cumulative: 0.223 avg rt, 0% failures
+15:06:15 INFO: Current: 2 vu	10 succ	0 fail	0.204 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:16 INFO: Current: 2 vu	8 succ	0 fail	0.211 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:17 INFO: Current: 2 vu	10 succ	0 fail	0.240 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:18 INFO: Current: 2 vu	8 succ	0 fail	0.215 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:19 INFO: Current: 2 vu	9 succ	0 fail	0.234 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:20 INFO: Current: 2 vu	8 succ	0 fail	0.225 avg rt	/	Cumulative: 0.223 avg rt, 0% failures
+15:06:21 INFO: Current: 2 vu	9 succ	0 fail	0.221 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:22 INFO: Current: 2 vu	9 succ	0 fail	0.218 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:23 INFO: Current: 2 vu	9 succ	0 fail	0.234 avg rt	/	Cumulative: 0.223 avg rt, 0% failures
+15:06:24 INFO: Current: 2 vu	10 succ	0 fail	0.215 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:25 INFO: Current: 2 vu	8 succ	0 fail	0.222 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:26 INFO: Current: 2 vu	9 succ	0 fail	0.216 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:27 INFO: Current: 2 vu	9 succ	0 fail	0.222 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:28 INFO: Current: 2 vu	9 succ	0 fail	0.223 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:29 INFO: Current: 2 vu	10 succ	0 fail	0.209 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:30 INFO: Current: 2 vu	8 succ	0 fail	0.239 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:31 INFO: Current: 2 vu	10 succ	0 fail	0.215 avg rt	/	Cumulative: 0.222 avg rt, 0% failures
+15:06:32 INFO: Current: 2 vu	8 succ	0 fail	0.264 avg rt	/	Cumulative: 0.223 avg rt, 0% failures
+15:06:33 INFO: Current: 2 vu	8 succ	0 fail	0.206 avg rt	/	Cumulative: 0.223 avg rt, 0% failures
+15:06:34 INFO: Current: 2 vu	10 succ	0 fail	0.224 avg rt	/	Cumulative: 0.223 avg rt, 0% failures
+15:06:35 INFO: Current: 2 vu	8 succ	0 fail	0.221 avg rt	/	Cumulative: 0.223 avg rt, 0% failures
+15:06:36 INFO: Current: 2 vu	8 succ	0 fail	0.249 avg rt	/	Cumulative: 0.223 avg rt, 0% failures
+15:06:37 INFO: Current: 2 vu	10 succ	0 fail	0.209 avg rt	/	Cumulative: 0.223 avg rt, 0% failures
+15:06:38 WARNING: Please wait for graceful shutdown...
+15:06:38 INFO: Shutting down...
+15:06:38 INFO: Post-processing...
+15:06:38 INFO: Test duration: 0:02:19
+15:06:38 INFO: Samples count: 809, 0.00% failures
+15:06:38 INFO: Average times: total 0.222, latency 0.222, connect 0.175
+15:06:38 INFO: Percentiles:
+┌───────────────┬───────────────┐
+│ Percentile, % │ Resp. Time, s │
+├───────────────┼───────────────┤
+│           0.0 │         0.181 │
+│          50.0 │         0.214 │
+│          90.0 │         0.247 │
+│          95.0 │         0.288 │
+│          99.0 │         0.363 │
+│          99.9 │         0.518 │
+│         100.0 │         0.518 │
+└───────────────┴───────────────┘
+15:06:38 INFO: Request label stats:
+┌─────────────────────────────────────┬────────┬─────────┬────────┬───────┐
+│ label                               │ status │    succ │ avg_rt │ error │
+├─────────────────────────────────────┼────────┼─────────┼────────┼───────┤
+│ https://paul-api.tallyup.com/health │   OK   │ 100.00% │  0.222 │       │
+└─────────────────────────────────────┴────────┴─────────┴────────┴───────┘
+15:06:38 INFO: Test duration: 0:02:19
+15:06:38 INFO: Samples count: 809, 0.00% failures
+15:06:38 INFO: Average times: total 0.222, latency 0.222, connect 0.175
+15:06:38 INFO: Percentiles:
+┌───────────────┬───────────────┐
+│ Percentile, % │ Resp. Time, s │
+├───────────────┼───────────────┤
+│           0.0 │         0.181 │
+│          50.0 │         0.214 │
+│          90.0 │         0.247 │
+│          95.0 │         0.288 │
+│          99.0 │         0.363 │
+│          99.9 │         0.518 │
+│         100.0 │         0.518 │
+└───────────────┴───────────────┘
+15:06:38 INFO: Request label stats:
+┌─────────────────────────────────────┬────────┬─────────┬────────┬───────┐
+│ label                               │ status │    succ │ avg_rt │ error │
+├─────────────────────────────────────┼────────┼─────────┼────────┼───────┤
+│ https://paul-api.tallyup.com/health │   OK   │ 100.00% │  0.222 │       │
+└─────────────────────────────────────┴────────┴─────────┴────────┴───────┘
+15:06:38 INFO: Dumping final status as XML: results.xml
+15:06:38 INFO: Artifacts dir: /Users/paul/repos/distributed-load-testing-on-aws/source/container/2020-03-25_15-01-10.465858
+15:06:38 INFO: Done performing with code: 0
