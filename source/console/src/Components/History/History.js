@@ -15,11 +15,14 @@
  ********************************************************************************/
 import React from 'react';
 import { Table } from 'reactstrap';
+import { formatMetric } from '../../utils';
 
 class Results extends React.Component {
     render() {
         const history = this.props.data.history || [];
-
+        const styles = {
+            width: '15%'
+        };
         return (
             <div>
                 <div className="box">
@@ -27,15 +30,9 @@ class Results extends React.Component {
                     <Table borderless responsive>
                         <thead>
                             <tr>
-                                <th>RunTime</th>
-                                <th>Metric</th>
-                                <th>Val</th>
-                                <th>Min</th>
-                                <th>Max</th>
-                                <th>Avg</th>
-                                <th>Med</th>
-                                <th>90%</th>
-                                <th>95%</th>
+                                <th style={styles}>Run Time</th>
+                                <th style={styles}>Metric</th>
+                                <th>Values</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -44,15 +41,9 @@ class Results extends React.Component {
                                     const metric = entry.results[metricName];
                                     return (
                                         <tr key={entry.id}>
-                                            <td>{i == 0 ? entry.endTime : ''}</td>
-                                            <td>{i == 0 ? '' : metricName}</td>
-                                            <td>{i == 0 ? '' : (metric.value || '')}</td>
-                                            <td>{i == 0 ? '' : (metric.min || '')}</td>
-                                            <td>{i == 0 ? '' : (metric.max || '')}</td>
-                                            <td>{i == 0 ? '' : (metric.avg || '')}</td>
-                                            <td>{i == 0 ? '' : (metric.med || '')}</td>
-                                            <td>{i == 0 ? '' : (metric.p90 || '')}</td>
-                                            <td>{i == 0 ? '' : (metric.p95 || '')}</td>
+                                            <td>{i === 0 ? entry.endTime : ''}</td>
+                                            <td>{metricName}</td>
+                                            <td>{formatMetric(metric)}</td>
                                         </tr>
                                     );
                                 }))

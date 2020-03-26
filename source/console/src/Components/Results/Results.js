@@ -17,6 +17,7 @@ import React from 'react';
 import { Row, Col, Button, Popover, PopoverHeader, PopoverBody } from 'reactstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faInfoCircle } from '@fortawesome/free-solid-svg-icons';
+import { formatMetric } from '../../utils';
 
 class Results extends React.Component {
     constructor(props) {
@@ -55,78 +56,15 @@ class Results extends React.Component {
                             const metric = results[metricName];
                             return (
                                 <Row>
-                                    <Col sm="4">
+                                    <Col sm="3">
                                         <div className="result">
                                             {metricName}
                                         </div>
                                     </Col>
-                                    <Col sm="1">
-                                        {
-                                            metric.value != null ? (
-                                                <div className="result">
-                                                    {metric.value}
-                                                </div>
-                                            ) : (
-                                                <div className="result">
-                                                    min: {metric.min}
-                                                </div>
-                                            )
-                                        }
-                                    </Col>
-                                    <Col sm="1">
-                                        {
-                                            metric.max != null ? (
-                                                <div className="result">
-                                                    max: {metric.max}
-                                                </div>
-                                            ) : (
-                                                <div className="result"/>
-                                            )
-                                        }
-                                    </Col>
-                                    <Col sm="1">
-                                        {
-                                            metric.avg != null ? (
-                                                <div className="result">
-                                                    avg: {metric.avg}
-                                                </div>
-                                            ) : (
-                                                <div className="result"/>
-                                            )
-                                        }
-                                    </Col>
-                                    <Col sm="1">
-                                        {
-                                            metric.med != null ? (
-                                                <div className="result">
-                                                    med: {metric.med}
-                                                </div>
-                                            ) : (
-                                                <div className="result"/>
-                                            )
-                                        }
-                                    </Col>
-                                    <Col sm="1">
-                                        {
-                                            metric.p90 != null ? (
-                                                <div className="result">
-                                                    90%: {metric.p90}
-                                                </div>
-                                            ) : (
-                                                <div className="result"/>
-                                            )
-                                        }
-                                    </Col>
-                                    <Col sm="1">
-                                        {
-                                            metric.p95 != null ? (
-                                                <div className="result">
-                                                    95%: {metric.p95}
-                                                </div>
-                                            ) : (
-                                                <div className="result"/>
-                                            )
-                                        }
+                                    <Col sm="9">
+                                        <div className="result">
+                                            {formatMetric(metric)}
+                                        </div>
                                     </Col>
                                 </Row>
                             );

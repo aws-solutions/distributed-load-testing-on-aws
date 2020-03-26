@@ -16,7 +16,6 @@
 import React from 'react';
 import { API } from 'aws-amplify';
 import 'brace';
-import AceEditor from 'react-ace';
 import {
     Col,
     Row,
