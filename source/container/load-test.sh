@@ -10,7 +10,7 @@ echo "Download test scenario"
 aws s3 cp s3://$S3_BUCKET/test-scenarios/$TEST_ID.json /k6-tests/config.json
 
 echo "Running test"
-k6 run --out json=/k6-tests/out.json /k6-tests/script.js
+k6 run --out json=/k6-tests/out.json --quiet --no-summary --logformat raw /k6-tests/script.js
 
 t=$(python -c "import random;print(random.randint(1, 30))")
 echo "sleep for: $t seconds."

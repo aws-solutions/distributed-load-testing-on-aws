@@ -652,7 +652,7 @@ Resources:
   EcsAvgResponseTime:
     Type: AWS::Logs::MetricFilter
     Properties:
-      FilterPattern: "[time, logType=INFO*, logTitle=Current*, numVu, vu, numSucc, succ, numFail, fail, avgRt, x]"
+      FilterPattern: '[numSucc, succ="succ", numFail, fail="fail", avgRt, ...]'
       LogGroupName: !Ref EcsCloudWatchLogGroup
       MetricTransformations:
         -
@@ -663,7 +663,7 @@ Resources:
   EcsLoadTesting:
     Type: AWS::CloudWatch::Dashboard
     Properties:
-      DashboardBody: !Sub '{"widgets":[{"type":"metric","x":0,"y":0,"width":8,"height":8,"properties":{"metrics":[["distributed-load-testing","Avg Response Time"]],"view":"timeSeries","stacked":true,"region":"${AWS::Region}","stat":"Average"}}]}'
+      DashboardBody: !Sub '{"widgets":[{"type":"metric","x":0,"y":0,"width":8,"height":8,"properties":{"metrics":[["distributed-load-testing","Avg Response Time"]],"view":"timeSeries","stacked":true,"region":"${AWS::Region}","stat":"Average","period":60}}]}'
 
   EcsTaskSqsQueue: 
     Type: AWS::SQS::Queue
@@ -1013,7 +1013,7 @@ Resources:
         S3Bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"],  "results-parser.zip"]]
       Runtime:  nodejs10.x
-      MemorySize: 512
+      MemorySize: 2048
       Timeout: 120
       Environment:
         Variables:

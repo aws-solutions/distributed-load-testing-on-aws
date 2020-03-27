@@ -25,6 +25,13 @@ fi
 
 set -e
 
+if aws s3 ls s3://$1/$2/$3 >/dev/null; then
+    read -p "Folder $1/$2/$3 already exists! Do you want to overwrite it? " yorn
+    if [[ $yorn != [Yy] && $yorn != [Yy][Ee][Ss] ]]; then
+        exit 1
+    fi
+fi
+
 # Get reference for all important folders
 template_dir="$PWD"
 template_dist_dir="$template_dir/global-s3-assets"

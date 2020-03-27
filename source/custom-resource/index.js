@@ -65,11 +65,9 @@ exports.handler = async (event, context) => {
                 default:
                     throw Error(resource + ' not defined as a resource');
             }
-
         } else if (event.RequestType === 'Delete') {
             // TODO: Delete not required?
         }
-
         await cfn.send(event, context, 'SUCCESS', responseData, resource);
     } catch (err) {
         console.log(err, err.stack);

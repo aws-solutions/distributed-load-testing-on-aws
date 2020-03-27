@@ -108,7 +108,7 @@ class Create extends React.Component {
                 taskCount: values.taskCount,
                 testConfig: {
                     testName: values.testName,
-                    vusMax: 200,
+                    vusMax: values.concurrency,
                     stages: [
                         { duration: String(values.rampUp).concat(values.rampUpUnits), target: values.concurrency },
                         { duration: String(values.holdFor).concat(values.holdForUnits), target: values.concurrency },
@@ -116,9 +116,9 @@ class Create extends React.Component {
                     ],
                     stack: values.stack,
                     logLevels: {
-//                        Client: 'Trace',
-                        '*': 'Info'
+                        '*': 'Warn'
                     },
+                    heartbeat: true,
                     enableDelays: true,
                     clientStackData: {
                         staging: {

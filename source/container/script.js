@@ -5,6 +5,8 @@ import { Cognito } from './Cognito.js';
 import { API } from './API.js';
 import { Client } from './Client.js';
 import { Counter, Trend, Rate } from 'k6/metrics';
+import { sleep } from 'k6';
+import http from 'k6/http';
 
 // NOTE: This will later be populated with consolidated options, including those
 // derived from here, config.json, env vars, and any command line args
@@ -21,10 +23,36 @@ const metrics = {
     roundDelay: new Trend('round_delay', true),
     botsPercentage: new Rate('bots_percent'),
     pennyAwardedCount: new Counter('pennies'),
-    noPennyCount: new Counter('no_pennies')
+    noPennyCount: new Counter('no_pennies'),
+    errors: new Counter('errors'),
+    timeouts: new Counter('timeouts')
 };
 
 export default function() {
+    // Burn our first VU as a heartbeat monitor to send logs to CloudWatch every 10
+    // seconds, along with a metric that can be graphed on a dashboard
+    if (config.heartbeat && __VU == 1) {
+        const duration = Utils.parseDuration(options.duration) ||
+            (options.stages && options.stages.map(s => Utils.parseDuration(s.duration)).reduce((t, d) => t + d));
+        if (duration) {
+            const url = `https://${config.stack}-api.tallyup.com/health`;
+            let succ = 0;
+            let fail = 0;
+            const start = Date.now();
+            let elapsed = 0;
+            while (elapsed < duration) {
+                const resp = http.get(url, { timeout: 10000 });
+                if (resp.status == 200)
+                    ++ succ;
+                else
+                    ++ fail;
+                console.log(`${succ} succ ${fail} fail ${resp.timings.duration / 1000} avg rt`);
+                sleep(10);
+                elapsed = Date.now() - start;
+            }
+            return;
+        }
+    }
     metrics.sessionCount.add(1);
     let start = Date.now();
     logger.info('TASK_INDEX: ' + __ENV.TASK_INDEX || 0);

@@ -21,4 +21,20 @@ export class Utils {
     static getUsername(phone) {
         return 'load_' + phone.substring(2, 5) + phone.substring(10);
     }
+
+    static parseDuration(d) {
+        if (d == null)
+            return undefined;
+        const str = d.toString();
+        let duration = 0;
+        const ms = str.match(/([.\d]+)ms/);
+        const s = str.match(/([.\d]+)s/);
+        const m = str.match(/([.\d]+)m($|[^s])/);
+        const h = str.match(/([.\d]+)h/);
+        if (ms) duration += parseInt(ms[1]);
+        if (s) duration += parseInt(s[1] * 1000);
+        if (m) duration += parseInt(m[1] * 60 * 1000);
+        if (h) duration += parseInt(h[1] * 60 * 60 * 1000);
+        return duration;
+    }
 }

@@ -82,7 +82,6 @@ const results = async (bucket, key, uuid, testId) => {
                 case 'trend':
                     results[metric.name] = {
                         type: 'trend',
-                        isTime: metric.contains === 'time',
                         min: metric.values.reduce((t, v) => v < t ? v : t),
                         max: metric.values.reduce((t, v) => v > t ? v : t),
                         avg: stats.mean(metric.values),
@@ -92,6 +91,7 @@ const results = async (bucket, key, uuid, testId) => {
                     };
                     break;
             }
+            results[metric.name].format = metric.contains;
         }
 //        console.log('results=' + JSON.stringify(results, null, '    '));
         const testDuration = (Date.parse(lastTime) - Date.parse(firstTime)) / 1000;
@@ -188,9 +188,9 @@ const finalResults = async (testId) => {
             for (let name in results) {
                 const metric = results[name];
                 if (!combined[name])
-                    combined[name] = { type: metric.type, isTime: metric.isTime };
+                    combined[name] = { type: metric.type, format: metric.format };
                 for (let field in metric) {
-                    if (field !== 'type' && field !== 'isTime') {
+                    if (field !== 'type' && field !== 'format') {
                         if (!combined[name][field])
                             combined[name][field] = [];
                         combined[name][field].push(metric[field])
@@ -200,9 +200,9 @@ const finalResults = async (testId) => {
         }
         let finalResults = {};
         for (let name in combined) {
-            finalResults[name] = { type: combined[name].type, isTime: combined[name].isTime };
+            finalResults[name] = { type: combined[name].type, format: combined[name].format };
             for (let field in combined[name]) {
-                if (field !== 'type' && field !== 'isTime') {
+                if (field !== 'type' && field !== 'format') {
                     switch (combined[name].type) {
                     case 'counter':
                         finalResults[name][field] = stats.sum(combined[name][field]);

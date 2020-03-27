@@ -20,12 +20,6 @@ import { formatMetric } from '../../utils';
 class Results extends React.Component {
     render() {
         const history = this.props.data.history || [];
-        const styles1 = {
-            width: '20%'
-        };
-        const styles2 = {
-            width: '13%'
-        };
         return (
             <div>
                 <div className="box">
@@ -33,8 +27,8 @@ class Results extends React.Component {
                     <Table borderless responsive>
                         <thead>
                             <tr>
-                                <th style={styles1}>Run Time</th>
-                                <th style={styles2}>Metric</th>
+                                <th style={{width: '18%'}}>Run Time</th>
+                                <th style={{width: '12%'}}>Metric</th>
                                 <th>Values</th>
                             </tr>
                         </thead>

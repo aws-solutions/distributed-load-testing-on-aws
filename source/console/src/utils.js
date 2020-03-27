@@ -1,23 +1,39 @@
+export function toFixed(value, digits) {
+    return value.toFixed(digits).replace(/0+$/, '').replace(/\.$/, '');
+}
+
 export function formatTime(t) {
     if (t <= 0) {
-        return '0s';
+        return '0';
     } else if (t < 1) {
-        return (t * 1000).toFixed(2) + 'µs';
+        return toFixed(t * 1000, 2) + 'µs';
     } else if (t < 1000) {
-        return t.toFixed(2) + 'ms';
+        return toFixed(t, 2) + 'ms';
     } else if ( t < 60000) {
-        return (t / 1000).toFixed(3) + 's';
+        return toFixed(t / 1000, 3) + 's';
     } else if (t < 3600000) {
-        return (t / 60000).toFixed(3) + 'm';
+        return toFixed(t / 60000, 3) + 'm';
     } else {
-        return (t / 3600000).toFixed(3) + 'h';
+        return toFixed(t / 3600000, 3) + 'h';
+    }
+}
+
+export function formatData(b) {
+    if (b > 1073741824) {
+        return toFixed(b / 1073741824, 2) + ' GB';
+    } else if (b > 1048576) {
+        return toFixed(b / 1048576, 2) + ' MB';
+    } else if (b > 1024) {
+        return toFixed(b / 1024, 2) + ' KB';
+    } else {
+        return toFixed(b, 0) + ' B';
     }
 }
 
 export function formatMetric(metric) {
     switch (metric.type) {
     case 'trend':
-        if (metric.isTime) {
+        if (metric.format === 'time') {
             return  `min=${formatTime(metric.min)}, ` +
                     `max=${formatTime(metric.max)}, ` +
                     `avg=${formatTime(metric.avg)}, ` +
@@ -25,18 +41,24 @@ export function formatMetric(metric) {
                     `p90=${formatTime(metric.p90)}, ` +
                     `p95=${formatTime(metric.p95)}`
         } else {
-            return  `min=${metric.min.toFixed(2)}, ` +
-                    `max=${metric.max.toFixed(2)}, ` +
-                    `avg=${metric.avg.toFixed(2)}, ` +
-                    `med=${metric.med.toFixed(2)}, ` +
-                    `p90=${metric.p90.toFixed(2)}, ` +
-                    `p95=${metric.p95.toFixed(2)}`
+            return  `min=${toFixed(metric.min, 2)}, ` +
+                    `max=${toFixed(metric.max, 2)}, ` +
+                    `avg=${toFixed(metric.avg, 2)}, ` +
+                    `med=${toFixed(metric.med, 2)}, ` +
+                    `p90=${toFixed(metric.p90, 2)}, ` +
+                    `p95=${toFixed(metric.p95, 2)}`
         }
     case 'rate':
-        return (metric.value * 100).toFixed(0) + '%';
+        return toFixed(metric.value * 100, 1) + '%';
     case 'counter':
+        if (metric.format === 'data') {
+            return formatData(metric.value);
+        } else {
+            return toFixed(metric.value, 3);
+        }
     case 'gauge':
+        return toFixed(metric.value, 3);
     default:
-        return metric.value.toFixed(2);
+        return toFixed(metric.value, 3);
     }
 }
