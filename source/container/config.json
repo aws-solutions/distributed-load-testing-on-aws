@@ -1,5 +1,9 @@
 {
-    "vusMax": 200,
+    "stages": [
+        { "duration": "1m", "target": 200 },
+        { "duration": "2m", "target": 200 },
+        { "duration": "2m", "target": 0 }
+    ],
     "stack": "paul",
     "logLevels": {
         "*": "Warn"

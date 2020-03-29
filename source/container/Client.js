@@ -10,7 +10,7 @@ export class Client {
         this.api = api;
         this.metrics = metrics;
         this.enableDelays = enableDelays;
-        this.user = {};
+        this.user = null;
     }
 
     delay(time, maxTime) {
@@ -55,6 +55,10 @@ export class Client {
 
     cashOut() {
         logger.debug('Cash out...');
+        if (!this.user) {
+            logger.error('No user for cashout!');
+            return null;
+        }
         const startResp = this.api.post('users/cashout_start', {});
         if (startResp.data && startResp.data.isAllowed) {
             const charityPerc = 10 + round(90 * Math.random());
@@ -162,8 +166,10 @@ export class Client {
                 if (!first) this.delay(2, 2.5);
                 first = false;
                 resp = this.api.get(`games/${gameId}`);
-                round_number = resp.data.data.game_config.round_number;
-                win_status = resp && resp.data && resp.data.data && resp.data.data.game_config.win_status;
+                if (resp && resp.data && resp.data.data) {
+                    round_number = resp.data.data.game_config.round_number;
+                    win_status = resp.data.data.game_config.win_status;
+                }
             }
             this.metrics.roundDelay.add(Date.now() - roundStart, { game: type, level: level/*, round: n*/ });
             ++ n;
@@ -199,7 +205,13 @@ export class Client {
     session(phone) {
         this.delay(120);
         this.sessionStart(phone);
-        if (this.user.pennies_remaining < 1) {
+        if (!this.user) {
+            logger.error('No user at start of session!');
+            this.delay(600);
+            return;
+        }
+        if (!this.user.pennies_remaining) {
+            logger.error('No pennies remaining at start of session!');
             this.delay(600);
             return;
         }

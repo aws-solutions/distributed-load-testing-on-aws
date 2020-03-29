@@ -1,13 +1,13 @@
 export class Utils {
     static parseResponseBody(resp) {
-        if (resp.body[0] == '{') {
+        if (resp.body[0] === '{' || resp.body[0] === '[')
             return JSON.parse(resp.body);
-        } else {
-            if (resp.status < 200 || resp.status >= 300) {
-                return { error: { msg: `HTTP status: ${resp.status}`} };
-            } else
-                return {};
-        }
+//        else if (resp.status < 200 || resp.status >= 300)
+//            return { error: { msg: `HTTP status: ${resp.status}`} };
+        else if (resp.error)
+            return { error: { msg: resp.error } };
+        else
+            return {};
     }
 
     static getPhoneNumber(n) {

@@ -251,12 +251,11 @@ class Create extends React.Component {
                                 </FormText>
                             </FormGroup>
                             <FormGroup>
-                                <Label for="concurrency">Concurrency (TPS)</Label>
+                                <Label for="concurrency">Concurrency</Label>
                                 <Input
                                     value={this.state.formValues.concurrency}
                                     className="form-short"
                                     type="number"
-                                    max={200}
                                     min={1}
                                     step={1}
                                     name="concurrency"
@@ -265,7 +264,7 @@ class Create extends React.Component {
                                     onChange={this.handleInputChange}
                                 />
                                 <FormText color="muted">
-                                    The number of concurrent requests generated per task, max value 200.
+                                    The number of concurrent virtual users spawned per task.
                                 </FormText>
                             </FormGroup>
                             <FormGroup>

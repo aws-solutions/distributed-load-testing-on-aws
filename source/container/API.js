@@ -31,8 +31,9 @@ export const ErrCode = {
 };
 
 export class API {
-    constructor(idp, urlBase) {
+    constructor(idp, metrics, urlBase) {
         this.idp = idp;
+        this.metrics = metrics;
         this.urlBase = urlBase;
         this.accessToken = '';
     }
@@ -54,7 +55,14 @@ export class API {
             }
         );
         logger.trace('GET ' + urlPath + ' ' + resp.status + ': ' + resp.body);
-        return Utils.parseResponseBody(resp);
+        const json = Utils.parseResponseBody(resp);
+        if (resp.status < 200 || resp.status >= 300)
+            this.metrics.apiErrorCount.add(1);
+        else if (resp.error_code == 1211)
+            this.metrics.timeoutCount.add(1);
+        else if (resp.error_code)
+            this.metrics.networkErrorCount.add(1);
+        return json;
     }
 
     post(urlPath, body) {
@@ -69,6 +77,15 @@ export class API {
             }
         );
         logger.trace('POST ' + urlPath + ' ' + resp.status + ': ' + resp.body);
-        return Utils.parseResponseBody(resp);
+        const json = Utils.parseResponseBody(resp);
+        if (resp.status < 200 || resp.status >= 300)
+            // It's expected for session_start to return UserNotFound error to denote user isn't registered
+            if (urlPath !== 'users/session_start' || !json || !json.err || json.error.code != ErrCode.UserNotFound)
+                this.metrics.apiErrorCount.add(1);
+        else if (resp.error_code == 1211)
+            this.metrics.timeoutCount.add(1);
+        else if (resp.error_code)
+            this.metrics.networkErrorCount.add(1);
+        return json;
     }
 }

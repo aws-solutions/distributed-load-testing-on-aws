@@ -24,8 +24,9 @@ const metrics = {
     botsPercentage: new Rate('bots_percent'),
     pennyAwardedCount: new Counter('pennies'),
     noPennyCount: new Counter('no_pennies'),
-    errors: new Counter('errors'),
-    timeouts: new Counter('timeouts')
+    networkErrorCount: new Counter('network_errors'),
+    apiErrorCount: new Counter('api_errors'),
+    timeoutCount: new Counter('timeouts')
 };
 
 export default function() {
@@ -62,7 +63,7 @@ export default function() {
     logger.info('Phone: ' + phone);
 
     const idp = new Cognito(config.clientStackData[config.stack].clientId);
-    const api = new API(idp, config.clientStackData[config.stack].urlBase);
+    const api = new API(idp, metrics, config.clientStackData[config.stack].urlBase);
     const client = new Client(api, metrics, config.enableDelays);
 
     client.session(phone);
