@@ -129,13 +129,13 @@ class Create extends React.Component {
                             clientId: '4db22g7bslp30dblj8kkubente',
                             urlBase: 'https://latest-api.tallyup.com/api/v1/'
                         },
+                        load: {
+                            clientId: '6mijdp6g40q5ivs5e7fgogt6vv',
+                            urlBase: 'https://load-api.tallyup.com/api/v1/'
+                        },
                         sandbox: {
                             clientId: '4db22g7bslp30dblj8kkubente',
                             urlBase: 'https://sandbox-api.tallyup.com/api/v1/'
-                        },
-                        paul: {
-                            clientId: 'l1scbnoef6ir8696fu4iginnb',
-                            urlBase: 'https://paul-api.tallyup.com/api/v1/'
                         }
                     }
                 }
