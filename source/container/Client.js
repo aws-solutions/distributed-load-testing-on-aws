@@ -216,16 +216,16 @@ export class Client {
             return;
         }
         while (true) {
-            let task = Math.round(100 * Math.random());
-            logger.debug('task=' + task);
-            if (task < 10) {
+            let actionPercentage = Math.round(100 * Math.random());
+            logger.debug('task=' + actionPercentage);
+            if (actionPercentage < 10) {
                 logger.debug('Ending session...');
                 return;
-            } else if (task < 20) {
+            } else if (actionPercentage < 20) {
                 this.getLeaderboard();
-            } else if (task < 30 && this.user && this.user.account > 1024) {
+            } else if (actionPercentage < 30 && this.user && this.user.account > 1000) {
                 this.cashOut();
-            } else if (task < 50) {
+            } else if (actionPercentage < 50) {
                 let resp = this.playRandomLevel();
                 if (!resp || resp.error)
                     return;

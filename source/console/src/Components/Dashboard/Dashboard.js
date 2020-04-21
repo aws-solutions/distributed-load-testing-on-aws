@@ -19,7 +19,7 @@ import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {faArrowAltCircleRight } from '@fortawesome/free-solid-svg-icons';
 import { API } from 'aws-amplify';
-
+import moment from 'moment';
 
 class Dashboard extends React.Component {
 
@@ -36,7 +36,7 @@ class Dashboard extends React.Component {
         this.setState({Items:[], isLoading:true});
         try {
             const data = await API.get('dlts', '/scenarios');
-            this.setState({Items:data.Items, isLoading:false});
+            this.setState({Items:data.Items.sort((a, b) => moment(b.startTime) - moment(a.startTime)), isLoading:false});
             if (data.Items.length === 0 ) {
                 this.setState({noData:true});
             }
