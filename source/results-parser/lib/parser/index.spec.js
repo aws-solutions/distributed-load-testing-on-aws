@@ -30,7 +30,7 @@ describe('#RESULTS PARSER::', () => {
 	const uuid = '1234';
 	const testId = 'abcd';
 	const jsonFile = {
-		Body:
+		Body: Buffer.from(
 	 	'{"type":"Metric","data":{"name":"sessions","type":"counter","contains":"default","tainted":null,"thresholds":[],"submetrics":null,"sub":{"name":"","parent":"","suffix":"","tags":null}},"metric":"sessions"}\n' +
 		'{"type":"Point","data":{"time":"2020-03-22T17:18:13.035607-07:00","value":1,"tags":{"group":""}},"metric":"sessions"}\n' +
 		'{"type":"Metric","data":{"name":"http_reqs","type":"counter","contains":"default","tainted":null,"thresholds":[],"submetrics":null,"sub":{"name":"","parent":"","suffix":"","tags":null}},"metric":"http_reqs"}\n' +
@@ -74,6 +74,10 @@ describe('#RESULTS PARSER::', () => {
 		'{"type":"Metric","data":{"name":"bots_percent","type":"rate","contains":"default","tainted":null,"thresholds":[],"submetrics":null,"sub":{"name":"","parent":"","suffix":"","tags":null}},"metric":"bots_percent"}\n' +
 		'{"type":"Point","data":{"time":"2020-03-22T17:18:34.315796-07:00","value":0,"tags":{"game":"ShootingGalleryGame","group":"","level":"2"}},"metric":"bots_percent"}\n' +
 		'{"type":"Point","data":{"time":"2020-03-22T17:19:13.422518-07:00","value":1,"tags":{"game":"MagnetGame","group":"","level":"3"}},"metric":"bots_percent"}\n'
+		, "utf-8")
+	};
+	const jsonHead = {
+		ContentLength: jsonFile.Body.length
 	};
 	const getData = {
 		Item: {
@@ -295,11 +299,24 @@ describe('#RESULTS PARSER::', () => {
 		"ScannedCount": 12
 	}
 
+	function getObject(params, callback) {
+		let first = 0;
+		let last = jsonFile.Body.length;
+		if (params.Range) {
+			const [s1,s2] = params.Range.slice('bytes='.length).split('-');
+			first = parseInt(s1);
+			last = parseInt(s2) + 1;
+		}
+		const chunkBody = jsonFile.Body.slice(first, last + 1);
+		callback(null, { Body: chunkBody, ContentLength: chunkBody.length });
+	}
+
 	// Positive tests
 	it('should return "SUCCESS" when parse results returns success', async () => {
-		AWS.mock('S3', 'getObject', Promise.resolve(jsonFile));
+		AWS.mock('S3', 'headObject', Promise.resolve(jsonHead));
+		AWS.mock('S3', 'getObject', getObject);
 		AWS.mock('DynamoDB.DocumentClient', 'update', Promise.resolve(updateData));
-		const response = await lambda.results(bucket, key, uuid, testId)
+		const response = await lambda.results(bucket, key, uuid, testId, 1024)	// <- small chunk size to test chunked S3 reads
 		expect(response.taskCount).to.equal(4);
 	});
 
@@ -320,24 +337,18 @@ describe('#RESULTS PARSER::', () => {
 	// Negative Tests
 	it('should return "S3 ERROR" when parse results fails', async () => {
 		AWS.restore('S3');
+		AWS.mock('S3', 'headObject', Promise.resolve(jsonHead));
 		AWS.mock('S3', 'getObject', Promise.reject('S3 ERROR'));
 		await lambda.results(bucket, key, uuid, testId).catch(err => {
 			expect(err).to.equal('S3 ERROR');
 		});
 	});
 
-	it('should return "XML ERROR" when parse results fails', async () => {
+	it('should return "DB ERROR" when parse results fails', async () => {
 		AWS.restore('S3');
-		AWS.mock('S3', 'getObject', Promise.resolve(jsonFile));
-		await lambda.results(bucket, key, uuid, testId).catch(err => {
-			expect(err).to.equal(err);
-		});
-	});
-
-	it('should return "S3 ERROR" when parse results fails', async () => {
-		AWS.restore('S3');
+		AWS.mock('S3', 'headObject', Promise.resolve(jsonHead));
+		AWS.mock('S3', 'getObject', getObject);
 		AWS.restore('DynamoDB.DocumentClient');
-		AWS.mock('S3', 'getObject', Promise.resolve(jsonFile));
 		AWS.mock('DynamoDB.DocumentClient', 'update', Promise.reject('DB ERROR'));
 		await lambda.results(bucket, key, uuid, testId).catch(err => {
 			expect(err).to.equal('DB ERROR');

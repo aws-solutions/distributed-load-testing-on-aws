@@ -26,8 +26,9 @@ const stats = require('stats-lite');
  * @key {string} s3 key for the json file extracted from the S3 event passed to lambda.
  * @uuid {string} the id of the individual task container.
  * @testId {string} the unique id of test scenario.
+ * @chunkLen {number} size of chunks to read from s3 (default is 8 MB).
  */
-const results = async (bucket, key, uuid, testId) => {
+const results = async (bucket, key, uuid, testId, chunkLen = 8 * 1024 * 1024) => {
 
     console.log(`processing results, bucket:${bucket}, key:${key}, uuid:${uuid}, testId:${testId}`);
 
@@ -39,31 +40,56 @@ const results = async (bucket, key, uuid, testId) => {
     let response;
 
     try {
-        // Download json results
+        const metrics = {};
+        let firstTime;
+        let lastTime;
+
+        // Download json results in chunks
         let params = {
             Bucket: bucket,
             Key: key
         };
-        const jsonFile = await s3.getObject(params).promise();
-        const jsonData = JSON.parse('[' + jsonFile.Body.toString().replace(/\n/g, ',').slice(0, -1) + ']');
+        const head = await s3.headObject(params).promise();
+        let first = 0;
+        let last = first + chunkLen - 1;
 
-        const metrics = {};
-        let firstTime;
-
-        // Loop through records, gathering into metric arrays
-        for (let record of jsonData) {
-            if (record.type === 'Metric') {
-                // Record is a metric definition
-                metrics[record.data.name] = record.data;
-                metrics[record.data.name].values = [];
-            } else {
-                // Record is a point value - add to a metric
-                metrics[record.metric].values.push(record.data.value);
-                if (!firstTime)
-                    firstTime = record.data.time;
+        while (first < head.ContentLength) {
+            params.Range = 'bytes=' + first + '-' + last;
+            const chunk = await s3.getObject(params).promise();
+            // Scan buffer, replacing newlines with commas and recording last pos
+            let lastNL = 0;
+            for (i = 0; i < chunk.ContentLength; ++ i) {
+                if (chunk.Body[i] === 10) {
+                    chunk.Body[i] = 44;
+                    lastNL = i;
+                }
             }
+            // Next chunk should start after end of last complete line
+            first += lastNL + 1;
+            last = first + chunkLen;
+            // Replace last newline (now a comma) with a closing bracket instead
+            chunk.Body[lastNL] = 93;
+
+            // Convert to a JSON array
+            const chunkString = chunk.Body.slice(0, lastNL + 1).toString();
+            const jsonArray = JSON.parse('[' + chunkString);
+
+            // Loop through records in JSON array, gathering into metric arrays
+            for (let record of jsonArray) {
+                if (record.type === 'Metric') {
+                    // Record is a metric definition
+                    metrics[record.data.name] = record.data;
+                    metrics[record.data.name].values = [];
+                } else {
+                    // Record is a point value - add it to a defined metric
+                    metrics[record.metric].values.push(record.data.value);
+                    if (!firstTime)
+                        firstTime = record.data.time;
+                }
+            }
+            if (jsonArray.length)
+                lastTime = jsonArray[jsonArray.length - 1].data.time;
         }
-        const lastTime = jsonData[jsonData.length - 1].data.time;
 
         // Loop for metrics, computing counts, averages, percentiles, etc.
         const results = {};
@@ -145,6 +171,7 @@ const results = async (bucket, key, uuid, testId) => {
             taskIds: data.Attributes.taskIds
         };
     } catch (err) {
+        console.log('results: err=' + JSON.stringify(err));
         throw err;
     }
     return response;
@@ -331,6 +358,7 @@ const finalResults = async (testId) => {
         await dynamo.update(params).promise();
 
     } catch (err) {
+        console.log('finalResults: err=' + JSON.stringify(err));
         throw err;
     }
     return 'success';
