@@ -26,9 +26,9 @@ const stats = require('stats-lite');
  * @key {string} s3 key for the json file extracted from the S3 event passed to lambda.
  * @uuid {string} the id of the individual task container.
  * @testId {string} the unique id of test scenario.
- * @chunkLen {number} size of chunks to read from s3 (default is 8 MB).
+ * @chunkLen {number} size of chunks to read from s3 (default is 16 MB).
  */
-const results = async (bucket, key, uuid, testId, chunkLen = 8 * 1024 * 1024) => {
+const results = async (bucket, key, uuid, testId, chunkLen = 16 * 1024 * 1024) => {
 
     console.log(`processing results, bucket:${bucket}, key:${key}, uuid:${uuid}, testId:${testId}`);
 
@@ -44,21 +44,22 @@ const results = async (bucket, key, uuid, testId, chunkLen = 8 * 1024 * 1024) =>
         let firstTime;
         let lastTime;
 
-        // Download json results in chunks
+        // Get size of JSON results file in S3
         let params = {
             Bucket: bucket,
             Key: key
         };
         const head = await s3.headObject(params).promise();
+
+        // Download JSON results file in chunks
         let first = 0;
         let last = first + chunkLen - 1;
-
         while (first < head.ContentLength) {
             params.Range = 'bytes=' + first + '-' + last;
             const chunk = await s3.getObject(params).promise();
             // Scan buffer, replacing newlines with commas and recording last pos
             let lastNL = 0;
-            for (i = 0; i < chunk.ContentLength; ++ i) {
+            for (let i = 0; i < chunk.ContentLength; ++ i) {
                 if (chunk.Body[i] === 10) {
                     chunk.Body[i] = 44;
                     lastNL = i;
@@ -74,7 +75,7 @@ const results = async (bucket, key, uuid, testId, chunkLen = 8 * 1024 * 1024) =>
             const chunkString = chunk.Body.slice(0, lastNL + 1).toString();
             const jsonArray = JSON.parse('[' + chunkString);
 
-            // Loop through records in JSON array, gathering into metric arrays
+            // Loop through records in JSON array, collecting into metric arrays
             for (let record of jsonArray) {
                 if (record.type === 'Metric') {
                     // Record is a metric definition

@@ -307,7 +307,7 @@ describe('#RESULTS PARSER::', () => {
 			first = parseInt(s1);
 			last = parseInt(s2) + 1;
 		}
-		const chunkBody = jsonFile.Body.slice(first, last + 1);
+		const chunkBody = jsonFile.Body.slice(first, last);
 		callback(null, { Body: chunkBody, ContentLength: chunkBody.length });
 	}
 

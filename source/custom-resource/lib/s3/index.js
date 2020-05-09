@@ -33,10 +33,16 @@ const putNotification = async (bucket,lambdaArn) => {
 					LambdaFunctionArn: lambdaArn,
 					Filter: {
 						Key: {
-							FilterRules: [{
-								Name: 'suffix',
-								Value: 'json'
-							}]
+							FilterRules: [
+								{
+									Name: 'prefix',
+									Value: 'results/'
+								},
+								{
+									Name: 'suffix',
+									Value: 'json'
+								}
+							]
 						}
 					}
 				}]
