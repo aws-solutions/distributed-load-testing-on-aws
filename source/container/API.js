@@ -27,7 +27,12 @@ export const ErrCode = {
 	IncompatibleClientVersion:  19,
 	IncompatibleServerVersion:  20,
 	PayeeInvalid:               21,
-    InternalError:              22
+    InternalError:              22,
+	InvalidQueryParams:         23,
+	AmountInvalid:              24,
+	GameNotPlayable:            25,
+	AdError:                    26
+    // NOTE: Keep this in sync with tallyup-server/src/shared/errors/ErrCode.ts!
 };
 
 export class API {
