@@ -112,7 +112,7 @@ class Create extends React.Component {
                     stages: [
                         { duration: String(values.rampUp).concat(values.rampUpUnits), target: values.concurrency },
                         { duration: String(values.holdFor).concat(values.holdForUnits), target: values.concurrency },
-                        { duration: String(values.rampDown).concat(values.rampDownUnits), target: 0 }
+                        { duration: String(values.rampDown).concat(values.rampDownUnits), target: values.concurrency }  // script.js will handle (graceful) ramp-down now
                     ],
                     stack: values.stack,
                     logLevels: {
@@ -121,10 +121,6 @@ class Create extends React.Component {
                     heartbeat: true,
                     enableDelays: true,
                     clientStackData: {
-                        staging: {
-                            clientId: '4db22g7bslp30dblj8kkubente',
-                            urlBase: 'https://staging-api.tallyup.com/api/v1/'
-                        },
                         latest: {
                             clientId: '4db22g7bslp30dblj8kkubente',
                             urlBase: 'https://latest-api.tallyup.com/api/v1/'
@@ -136,6 +132,10 @@ class Create extends React.Component {
                         sandbox: {
                             clientId: '4db22g7bslp30dblj8kkubente',
                             urlBase: 'https://sandbox-api.tallyup.com/api/v1/'
+                        },
+                        staging: {
+                            clientId: '4db22g7bslp30dblj8kkubente',
+                            urlBase: 'https://staging-api.tallyup.com/api/v1/'
                         }
                     }
                 }

@@ -202,7 +202,8 @@ export class Client {
         return null;
     }
 
-    session(phone) {
+    session(phone, startTime, startRampDownElapsed, rampDownDuration, vusMax) {
+        logger.debug('startTime=' + startTime + ', startRampDownElapsed=' + startRampDownElapsed + ', rampDownDuration=' + rampDownDuration + ', vusMax=' + vusMax);
         this.delay(120);
         this.sessionStart(phone);
         if (!this.user) {
@@ -216,20 +217,40 @@ export class Client {
             return;
         }
         while (true) {
+            const now = Date.now();
+            const elapsed = now - startTime;
+            logger.debug('elapsedTime=' + elapsed);
+            // If we're past the start of ramp-down, see if this VU should stop playing now
+            if (elapsed > startRampDownElapsed) {
+                const rampDownElapsed = elapsed - startRampDownElapsed;
+                const r = 1 - rampDownElapsed / rampDownDuration;
+                logger.debug('r=' + r + ', rampDownElapsed=' + rampDownElapsed);
+                if (__VU > r * vusMax) {
+                    logger.debug('Ramping down: ' + __VU + ', r=' + r + ', elapsed=' + elapsed + ', startRampDownElapsed=' + startRampDownElapsed);
+                    this.delay(rampDownDuration / 1000, rampDownDuration / 1000);
+                    return;
+                }
+            }
+            // Take some random action to simulate a user
             let actionPercentage = Math.round(100 * Math.random());
             logger.debug('task=' + actionPercentage);
             if (actionPercentage < 10) {
+                // Stop playing for a while
                 logger.debug('Ending session...');
                 return;
             } else if (actionPercentage < 20) {
+                // Get the leaderboard
                 this.getLeaderboard();
             } else if (actionPercentage < 30 && this.user && this.user.account > 1000) {
+                // Attempt to cashout
                 this.cashOut();
             } else if (actionPercentage < 50) {
+                // Play a random level
                 let resp = this.playRandomLevel();
                 if (!resp || resp.error)
                     return;
             } else {
+                // Play the highest level allowed
                 let resp = this.playMaximumLevel();
                 if (!resp || resp.error)
                     return;
