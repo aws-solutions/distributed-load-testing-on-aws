@@ -1,12 +1,13 @@
 {
     "stages": [
-        { "duration": "1m", "target": 10 },
-        { "duration": "2m", "target": 10 },
-        { "duration": "2m", "target": 10 }
+        { "duration": "1m", "target": 100 },
+        { "duration": "2m", "target": 100 },
+        { "duration": "2m", "target": 100 },
+        { "duration": "2m", "target": 100 }
     ],
-    "stack": "load",
+    "stack": "local",
     "logLevels": {
-        "*": "Debug"
+        "*": "Info"
     },
     "heartbeat": true,
     "enableDelays": false,
@@ -18,6 +19,10 @@
         "load": {
             "clientId": "6mijdp6g40q5ivs5e7fgogt6vv",
             "urlBase": "https://load-api.tallyup.com/api/v1/"
+        },
+        "local": {
+            "clientId": "6mijdp6g40q5ivs5e7fgogt6vv",
+            "urlBase": "http://localhost:8080/api/v1/"
         },
         "paul": {
             "clientId": "l1scbnoef6ir8696fu4iginnb",

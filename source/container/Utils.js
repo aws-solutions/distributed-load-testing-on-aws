@@ -1,13 +1,31 @@
+import { sleep } from 'k6';
+
 export class Utils {
     static parseResponseBody(resp) {
-        if (resp.body[0] === '{' || resp.body[0] === '[')
-            return JSON.parse(resp.body);
-//        else if (resp.status < 200 || resp.status >= 300)
-//            return { error: { msg: `HTTP status: ${resp.status}`} };
-        else if (resp.error)
-            return { error: { msg: resp.error } };
-        else
-            return {};
+        let json = {};
+        if (resp.body && (typeof resp.body === 'string' || resp.body instanceof String) && (resp.body[0] === '{' || resp.body[0] === '[')) {
+            json = JSON.parse(resp.body);
+        }
+        if (resp.error) {
+            if (!json.error)
+                json.error = {};
+            json.error.msg = resp.error;
+        }
+        if (resp.status < 200 || resp.status >= 300) {
+            if (!json.error)
+                json.error = {};
+            json.error.status = resp.status;
+            if (!json.error.msg)
+                json.error.msg = 'HTTP status ' + resp.status;
+        }
+        if (resp.error_code) {
+            if (!json.error)
+                json.error = {};
+            json.error.error_code = resp.error_code;
+            if (resp.error_code == 1211 && !json.error.msg)
+                json.error.msg = 'Timeout';
+        }
+        return json;
     }
 
     static getPhoneNumber(n) {
@@ -36,5 +54,20 @@ export class Utils {
         if (m) duration += parseInt(m[1] * 60 * 1000);
         if (h) duration += parseInt(h[1] * 60 * 60 * 1000);
         return duration;
+    }
+
+    static delay(time, maxTime) {
+        let sleepTime = 0;
+        if (maxTime != null) {
+            sleepTime = time;
+            if (this.enableDelays)
+                sleepTime += (maxTime - time) * Math.random();
+        } else {
+            if (!this.enableDelays)
+                return;
+            sleepTime = time * Math.random();
+        }
+        logger.trace('sleepTime=' + sleepTime);
+        sleep(sleepTime);
     }
 }

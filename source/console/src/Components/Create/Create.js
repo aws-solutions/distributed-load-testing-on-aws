@@ -112,7 +112,14 @@ class Create extends React.Component {
                     stages: [
                         { duration: String(values.rampUp).concat(values.rampUpUnits), target: values.concurrency },
                         { duration: String(values.holdFor).concat(values.holdForUnits), target: values.concurrency },
-                        { duration: String(values.rampDown).concat(values.rampDownUnits), target: values.concurrency }  // script.js will handle (graceful) ramp-down now
+                        // script.js will handle a (graceful) ramp-down now, by
+                        // sleeping excess VUs only when they are not playing a
+                        // game - so target is not 0 here...
+                        { duration: String(values.rampDown).concat(values.rampDownUnits), target: values.concurrency },
+                        // Add this 'slop' at the end of ramp-down to ensure all
+                        // VUs have a chance to stop cleanly (if they were still
+                        // mid-game at the end of ramp-down) before we clean up
+                        { duration: '2m', target: values.concurrency }
                     ],
                     stack: values.stack,
                     logLevels: {

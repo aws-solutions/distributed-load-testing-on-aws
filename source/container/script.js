@@ -33,13 +33,14 @@ const startTime = Date.now();
 
 export default function() {
     const testDuration = options.stages.map(s => Utils.parseDuration(s.duration)).reduce((t, d) => t + d);
-    const rampDownDuration = Utils.parseDuration(options.stages[options.stages.length - 1].duration);
-    const startRampDownElapsed = testDuration - rampDownDuration;
+    const rampDownDuration = Utils.parseDuration(options.stages[options.stages.length - 2].duration);
+    const cleanUpDuration = Utils.parseDuration(options.stages[options.stages.length - 1].duration);
+    const startRampDownElapsed = testDuration - cleanUpDuration - rampDownDuration;
     // Burn our first VU as a heartbeat monitor to send logs to CloudWatch every 10
     // seconds, along with a metric that can be graphed on a dashboard
     if (config.heartbeat && __VU == 1) {
         if (testDuration) {
-            const url = `https://${config.stack}-api.tallyup.com/health`;
+            const url = config.stack === 'local' ? 'http://localhost:8080/health' : `https://${config.stack}-api.tallyup.com/health`;
             let succ = 0;
             let fail = 0;
             const start = Date.now();
@@ -69,6 +70,6 @@ export default function() {
     const api = new API(idp, metrics, config.clientStackData[config.stack].urlBase);
     const client = new Client(api, metrics, config.enableDelays);
 
-    client.session(phone, startTime, startRampDownElapsed, rampDownDuration, options.vusMax);
+    client.session(phone, startTime, testDuration, startRampDownElapsed, rampDownDuration, options.vusMax);
     metrics.sessionLength.add(Date.now() - start);
 }

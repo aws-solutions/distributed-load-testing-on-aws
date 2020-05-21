@@ -31,7 +31,14 @@ export const ErrCode = {
 	InvalidQueryParams:         23,
 	AmountInvalid:              24,
 	GameNotPlayable:            25,
-	AdError:                    26
+	AdError:                    26,
+	UserIneligible:             27,
+	TransactionTimeout:         28,
+	DocumentTimeout:            29,
+	CommitTransactionRetriesExceeded: 30,
+	TransactionRetriesExceeded: 31,
+	DocumentRetriesExceeded:    32,
+	OCCVersionMismatch:         33
     // NOTE: Keep this in sync with tallyup-server/src/shared/errors/ErrCode.ts!
 };
 
@@ -43,11 +50,16 @@ export class API {
         this.accessToken = '';
     }
 
-    auth(phone) {
-        const respSignup = this.idp.signUp(phone);
-        const respInitiate = this.idp.initiateAuth(phone);
-        const respResponse = this.idp.respondToAuthChallenge(phone, respInitiate.Session);
-        this.accessToken = respResponse.AuthenticationResult.AccessToken;
+    auth(phone) {   
+        const signUpResp = this.idp.signUp(phone);
+        if (signUpResp.error && signUpResp.error.status !== 400 && signUpResp.__type !== 'UsernameExistsException')
+            return signUpResp;
+        const initiateAuthResp = this.idp.initiateAuth(phone);
+        if (initiateAuthResp.error)
+            return initiateAuthResp;
+        const respondResp = this.idp.respondToAuthChallenge(phone, initiateAuthResp.Session);
+        this.accessToken = respondResp && respondResp.AuthenticationResult ? respondResp.AuthenticationResult.AccessToken : null;
+        return respondResp;
     }
 
     get(urlPath) {
@@ -71,26 +83,36 @@ export class API {
     }
 
     post(urlPath, body) {
-        const resp = http.post(
-            this.urlBase + urlPath,
-            JSON.stringify(body),
-            {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + this.accessToken
+        let tries = 3;
+        let json;
+        while (tries) {
+            const resp = http.post(
+                this.urlBase + urlPath,
+                JSON.stringify(body),
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + this.accessToken
+                    }
                 }
-            }
-        );
-        logger.trace('POST ' + urlPath + ' ' + resp.status + ': ' + resp.body);
-        const json = Utils.parseResponseBody(resp);
-        if (resp.status < 200 || resp.status >= 300)
-            // It's expected for session_start to return UserNotFound error to denote user isn't registered
-            if (urlPath !== 'users/session_start' || !json || !json.err || json.error.code != ErrCode.UserNotFound)
-                this.metrics.apiErrorCount.add(1);
-        else if (resp.error_code == 1211)
-            this.metrics.timeoutCount.add(1);
-        else if (resp.error_code)
-            this.metrics.networkErrorCount.add(1);
+            );
+            logger.trace('POST ' + urlPath + ' ' + resp.status + ': ' + resp.body);
+            json = Utils.parseResponseBody(resp);
+            if (resp.status < 200 || resp.status >= 300)
+                // It's expected for session_start to return UserNotFound error to denote user isn't registered
+                if (urlPath !== 'users/session_start' || !json || !json.error || json.error.code != ErrCode.UserNotFound)
+                    this.metrics.apiErrorCount.add(1);
+            else if (resp.error_code == 1211)
+                this.metrics.timeoutCount.add(1);
+            else if (resp.error_code)
+                this.metrics.networkErrorCount.add(1);
+            if (!resp.status || resp.status < 500)
+                break;
+            -- tries;
+            Utils.delay(1, 5);
+            if (tries > 0)
+                logger.warn('POST ' + urlPath + ' retrying after ' + JSON.stringify(json));
+        }
         return json;
     }
 }

@@ -1,4 +1,3 @@
-import { sleep } from 'k6';
 import { Logger } from './Logger.js';
 import { Utils } from './Utils.js';
 import { ErrCode } from './API.js';
@@ -14,29 +13,25 @@ export class Client {
     }
 
     delay(time, maxTime) {
-        let sleepTime = 0;
-        if (maxTime != null) {
-            sleepTime = time;
-            if (this.enableDelays)
-                sleepTime += (maxTime - time) * Math.random();
-        } else {
-            if (!this.enableDelays)
-                return;
-            sleepTime = time * Math.random();
-        }
-        logger.trace('sleepTime=' + sleepTime);
-        sleep(sleepTime);
+        Utils.delay(time, maxTime);
     }
 
     sessionStart(phone) {
-        this.api.auth(phone);
+        const authResp = this.api.auth(phone);
+        if (authResp.error)
+            return authResp;
+        this.user = null;
         let sessionResp = this.api.post('users/session_start', {});
-        if (sessionResp.error && sessionResp.error.code == ErrCode.UserNotFound) {
+        if (sessionResp.error && sessionResp.error.code === ErrCode.UserNotFound) {
             const registerResp = this.api.post('users/register', { inviteCode: '0PENUP' });
+            if (registerResp.error)
+                return registerResp;
             sessionResp = this.api.get('users');
         }
         if (sessionResp.data && sessionResp.data.inviteData && sessionResp.data.inviteData.status !== 'playing') {
             const activateResp = this.api.post('users/activate', { username: Utils.getUsername(phone) });
+            if (activateResp.error)
+                return activateResp;
             sessionResp = this.api.get('users');
         }
         this.user = sessionResp.data;
@@ -202,32 +197,50 @@ export class Client {
         return null;
     }
 
-    session(phone, startTime, startRampDownElapsed, rampDownDuration, vusMax) {
+    session(phone, startTime, testDuration, startRampDownElapsed, rampDownDuration, vusMax) {
         logger.debug('startTime=' + startTime + ', startRampDownElapsed=' + startRampDownElapsed + ', rampDownDuration=' + rampDownDuration + ', vusMax=' + vusMax);
         this.delay(120);
-        this.sessionStart(phone);
+        const resp = this.sessionStart(phone);
+        if (resp.error) {
+            logger.error('Error at start of session: ' + JSON.stringify(resp.error));
+            if (resp.error.status === 500 || resp.error.status === 503 || (resp.error.status === 400 && resp.__type === 'TooManyRequestsException')) {
+                logger.info('Backing off VU: ' + __VU);
+                this.delay(60);
+            } else {
+                // Non-retryable error - kill VU by sleeping until end of test
+                logger.info('Stopping VU: ' + __VU);
+                const t = (testDuration - (Date.now() - startTime)) / 1000 + 10;
+                this.delay(t, t);
+            }
+            return;
+        }
         if (!this.user) {
             logger.error('No user at start of session!');
-            this.delay(600);
+            logger.info('Backing off VU: ' + __VU);
+            this.delay(60);
             return;
         }
         if (!this.user.pennies_remaining) {
             logger.error('No pennies remaining at start of session!');
+            logger.info('Backing off VU: ' + __VU);
             this.delay(600);
             return;
         }
         while (true) {
             const now = Date.now();
             const elapsed = now - startTime;
-            logger.debug('elapsedTime=' + elapsed);
+            logger.trace('elapsedTime=' + elapsed);
             // If we're past the start of ramp-down, see if this VU should stop playing now
             if (elapsed > startRampDownElapsed) {
                 const rampDownElapsed = elapsed - startRampDownElapsed;
-                const r = 1 - rampDownElapsed / rampDownDuration;
-                logger.debug('r=' + r + ', rampDownElapsed=' + rampDownElapsed);
-                if (__VU > r * vusMax) {
-                    logger.debug('Ramping down: ' + __VU + ', r=' + r + ', elapsed=' + elapsed + ', startRampDownElapsed=' + startRampDownElapsed);
-                    this.delay(rampDownDuration / 1000, rampDownDuration / 1000);
+                let vusFrac = 1 - rampDownElapsed / rampDownDuration;
+                if (vusFrac < 0) vusFrac = 0;
+                logger.trace('vusFrac=' + vusFrac + ', rampDownElapsed=' + rampDownElapsed);
+                if (__VU > vusFrac * vusMax) {
+                    // Kill VU by sleeping until end of test
+                    logger.info('Ramping down VU: ' + __VU + ', vusFrac=' + vusFrac + ', elapsed=' + elapsed);
+                    const t = (testDuration - (Date.now() - startTime)) / 1000 + 10;
+                    this.delay(t, t);
                     return;
                 }
             }
