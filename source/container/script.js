@@ -60,11 +60,10 @@ export default function() {
     }
     metrics.sessionCount.add(1);
     let start = Date.now();
-    logger.info('TASK_INDEX: ' + __ENV.TASK_INDEX || 0);
     const numberBase = (__ENV.TASK_INDEX || 0) * options.vusMax;
     logger.debug('Base number: ' + numberBase);
     const phone = Utils.getPhoneNumber(numberBase + __VU - 1);
-    logger.info('Phone: ' + phone);
+    logger.info('Task: ' + (__ENV.TASK_INDEX || 0) + ', VU: ' + __VU + ', phone: ' + phone);
 
     const idp = new Cognito(config.clientStackData[config.stack].clientId);
     const api = new API(idp, metrics, config.clientStackData[config.stack].urlBase);

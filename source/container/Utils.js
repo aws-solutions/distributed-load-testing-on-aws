@@ -25,6 +25,12 @@ export class Utils {
             if (resp.error_code == 1211 && !json.error.msg)
                 json.error.msg = 'Timeout';
         }
+        if (json.error) {
+            json.error.method = resp.request.method;
+            json.error.url = resp.request.url;
+            if (resp.request.headers && resp.request.headers['x-amz-target'])
+                json.error.target = resp.request.headers['x-amz-target'];
+        }
         return json;
     }
 

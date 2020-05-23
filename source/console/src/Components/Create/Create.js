@@ -113,8 +113,8 @@ class Create extends React.Component {
                         { duration: String(values.rampUp).concat(values.rampUpUnits), target: values.concurrency },
                         { duration: String(values.holdFor).concat(values.holdForUnits), target: values.concurrency },
                         // script.js will handle a (graceful) ramp-down now, by
-                        // sleeping excess VUs only when they are not playing a
-                        // game - so target is not 0 here...
+                        // sleeping excess VUs only when they finish playing a
+                        // game - so target isn't 0 here...
                         { duration: String(values.rampDown).concat(values.rampDownUnits), target: values.concurrency },
                         // Add this 'slop' at the end of ramp-down to ensure all
                         // VUs have a chance to stop cleanly (if they were still
@@ -127,17 +127,28 @@ class Create extends React.Component {
                     },
                     heartbeat: true,
                     enableDelays: true,
+                    percentages: {
+                        exit: 5,
+                        leaderboard: 15,
+                        cashOut: 25,
+                        playRandom: 50,
+                        playMax: 100
+                    },
                     clientStackData: {
                         latest: {
-                            clientId: '4db22g7bslp30dblj8kkubente',
+                            clientId: '2cgld5sl891jqbjehtqfn1m7vk',
                             urlBase: 'https://latest-api.tallyup.com/api/v1/'
                         },
                         load: {
                             clientId: '6mijdp6g40q5ivs5e7fgogt6vv',
                             urlBase: 'https://load-api.tallyup.com/api/v1/'
                         },
+                        production: {
+                            clientId: '3albhroof4h90dtdhrcfj8o027',
+                            urlBase: 'https://api.tallyup.com/api/v1/'
+                        },
                         sandbox: {
-                            clientId: '4db22g7bslp30dblj8kkubente',
+                            clientId: '76ah6s99fmtnrp76fp4t7ketup',
                             urlBase: 'https://sandbox-api.tallyup.com/api/v1/'
                         },
                         staging: {

@@ -1,3 +1,4 @@
+import { config } from './Config.js';
 import { Logger } from './Logger.js';
 import { Utils } from './Utils.js';
 import { ErrCode } from './API.js';
@@ -17,6 +18,9 @@ export class Client {
     }
 
     sessionStart(phone) {
+        const startupResp = this.api.get('config/startup');
+        if (startupResp.error)
+            return startupResp;
         const authResp = this.api.auth(phone);
         if (authResp.error)
             return authResp;
@@ -44,12 +48,12 @@ export class Client {
     }
 
     getLeaderboard() {
-        logger.debug('Get leaderboard...');
+        logger.info('Get leaderboard...');
         this.api.get('users/highest');
     }
 
     cashOut() {
-        logger.debug('Cash out...');
+        logger.info('Cash out...');
         if (!this.user) {
             logger.error('No user for cashout!');
             return null;
@@ -87,7 +91,7 @@ export class Client {
     }
 
     playLevel(level) {
-        logger.debug('Play level ' + level + '...');
+        logger.info('Play level ' + level + '...');
         if (!this.user) {
             logger.error('No user!');
             return null;
@@ -180,7 +184,7 @@ export class Client {
     };
 
     playRandomLevel() {
-        logger.debug('Play random level...');
+        logger.info('Play random level...');
         if (this.user) {
             const level = Math.max(this.user.account ? Math.round(this.maxLevel(this.user.account) * Math.random()) : 1, 1);
             return this.playLevel(level);
@@ -189,7 +193,7 @@ export class Client {
     }
 
     playMaximumLevel() {
-        logger.debug('Play maximum level...');
+        logger.info('Play maximum level...');
         if (this.user) {
             const level = Math.max(this.user.account ? this.maxLevel(this.user.account) : 1, 1);
             return this.playLevel(level);
@@ -197,18 +201,23 @@ export class Client {
         return null;
     }
 
+    backoff(maxTime) {
+        const sleepTime = maxTime * Math.random();
+        logger.warn('Backing off VU: ' + __VU + ', ' + sleepTime + ' seconds');
+        this.delay(sleepTime, sleepTime);
+    }
+
     session(phone, startTime, testDuration, startRampDownElapsed, rampDownDuration, vusMax) {
         logger.debug('startTime=' + startTime + ', startRampDownElapsed=' + startRampDownElapsed + ', rampDownDuration=' + rampDownDuration + ', vusMax=' + vusMax);
         this.delay(120);
         const resp = this.sessionStart(phone);
         if (resp.error) {
-            logger.error('Error at start of session: ' + JSON.stringify(resp.error));
+            logger.error('Error at start of session: ' + JSON.stringify(resp));
             if (resp.error.status === 500 || resp.error.status === 503 || (resp.error.status === 400 && resp.__type === 'TooManyRequestsException')) {
-                logger.info('Backing off VU: ' + __VU);
-                this.delay(60);
+                this.backoff(60);
             } else {
                 // Non-retryable error - kill VU by sleeping until end of test
-                logger.info('Stopping VU: ' + __VU);
+                logger.warn('Stopping VU: ' + __VU);
                 const t = (testDuration - (Date.now() - startTime)) / 1000 + 10;
                 this.delay(t, t);
             }
@@ -216,16 +225,17 @@ export class Client {
         }
         if (!this.user) {
             logger.error('No user at start of session!');
-            logger.info('Backing off VU: ' + __VU);
-            this.delay(60);
+            this.backoff(60);
             return;
         }
         if (!this.user.pennies_remaining) {
             logger.error('No pennies remaining at start of session!');
-            logger.info('Backing off VU: ' + __VU);
-            this.delay(600);
+            this.backoff(600);  // Up to 10 minutes
             return;
         }
+        this.api.get('config/towerdata');
+        this.api.get('users');
+        this.api.get('config/charitydata');
         while (true) {
             const now = Date.now();
             const elapsed = now - startTime;
@@ -247,17 +257,18 @@ export class Client {
             // Take some random action to simulate a user
             let actionPercentage = Math.round(100 * Math.random());
             logger.debug('task=' + actionPercentage);
-            if (actionPercentage < 10) {
+            if (actionPercentage <= config.percentages.exit) {
                 // Stop playing for a while
-                logger.debug('Ending session...');
+                logger.info('Ending session...');
+                this.delay(120);
                 return;
-            } else if (actionPercentage < 20) {
+            } else if (actionPercentage <= config.percentages.leaderboard) {
                 // Get the leaderboard
                 this.getLeaderboard();
-            } else if (actionPercentage < 30 && this.user && this.user.account > 1000) {
+            } else if (actionPercentage <= config.percentages.cashOut && this.user && this.user.account > 1000) {
                 // Attempt to cashout
                 this.cashOut();
-            } else if (actionPercentage < 50) {
+            } else if (actionPercentage <= config.percentages.playRandom) {
                 // Play a random level
                 let resp = this.playRandomLevel();
                 if (!resp || resp.error)

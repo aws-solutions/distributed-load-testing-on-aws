@@ -47,10 +47,14 @@ export class API {
         this.idp = idp;
         this.metrics = metrics;
         this.urlBase = urlBase;
+        this.phone = '';
         this.accessToken = '';
+        this.accessTokenExpiry = 0;
+        this.refreshToken = '';
     }
 
     auth(phone) {   
+        this.phone = phone;
         const signUpResp = this.idp.signUp(phone);
         if (signUpResp.error && signUpResp.error.status !== 400 && signUpResp.__type !== 'UsernameExistsException')
             return signUpResp;
@@ -58,11 +62,37 @@ export class API {
         if (initiateAuthResp.error)
             return initiateAuthResp;
         const respondResp = this.idp.respondToAuthChallenge(phone, initiateAuthResp.Session);
-        this.accessToken = respondResp && respondResp.AuthenticationResult ? respondResp.AuthenticationResult.AccessToken : null;
+        if (respondResp && respondResp.AuthenticationResult) {
+            this.accessToken = respondResp.AuthenticationResult.AccessToken;
+            this.accessTokenExpiry = Date.now() + (respondResp.AuthenticationResult.ExpiresIn - 60) * 1000; // Start refreshing 1 minute before expiry
+            this.refreshToken = respondResp.AuthenticationResult.RefreshToken;
+        } else {
+            this.accessToken = '';
+            this.accessTokenExpiry = 0;
+            this.refreshToken = null;
+        }
         return respondResp;
     }
 
+    refreshAuth() {
+        if (!this.refreshToken || Date.now() < this.accessTokenExpiry)
+            return;
+        logger.warn('Refreshing accessToken: ' + this.phone);
+        const refreshResp = this.idp.refreshAuth(this.phone, this.refreshToken);
+        if (refreshResp && refreshResp.AuthenticationResult) {
+            this.accessToken = refreshResp.AuthenticationResult.AccessToken;
+            this.accessTokenExpiry = Date.now() + (refreshResp.AuthenticationResult.ExpiresIn - 60) * 1000; // Start refreshing 1 minute before expiry
+        } else {
+            this.accessToken = null;
+            this.accessTokenExpiry = 0;
+        }
+        return refreshResp;
+    }
+
     get(urlPath) {
+        const refreshResp = this.refreshAuth();
+        if (refreshResp && refreshResp.error)
+            return refreshResp;
         const resp = http.get(
             this.urlBase + urlPath,
             {
@@ -83,6 +113,9 @@ export class API {
     }
 
     post(urlPath, body) {
+        const refreshResp = this.refreshAuth();
+        if (refreshResp && refreshResp.error)
+            return refreshResp;
         let tries = 3;
         let json;
         while (tries) {

@@ -6,7 +6,7 @@ echo "TEST_ID: ${TEST_ID}"
 echo "TASK_INDEX: ${TASK_INDEX}"
 echo "UUID: ${UUID}"
 
-echo "Download test scenario"
+echo "Downloading test scenario"
 aws s3 cp s3://$S3_BUCKET/test-scenarios/$TEST_ID.json /k6-tests/config.json
 
 echo "Running test"

@@ -56,4 +56,20 @@ export class Cognito {
         logger.trace('POST https://cognito-idp.us-west-2.amazonaws.com/ (RespondToAuthChallenge) ' + resp.status + ': ' + resp.body);
         return Utils.parseResponseBody(resp);
     }
+
+    refreshAuth(phone, refreshToken) {
+        const resp = http.post(
+            'https://cognito-idp.us-west-2.amazonaws.com/',
+            JSON.stringify({ ClientId: this.clientId, AuthFlow: "REFRESH_TOKEN_AUTH", AuthParameters: { USERNAME: phone, REFRESH_TOKEN: refreshToken } }),
+            {
+                headers: {
+                    'Content-Type': 'application/x-amz-json-1.1',
+                    'x-amz-api-version': '2016-04-18',
+                    'x-amz-target': 'AWSCognitoIdentityProviderService.InitiateAuth'
+                }
+            }
+        );
+        logger.trace('POST https://cognito-idp.us-west-2.amazonaws.com/ (InitiateAuth) ' + resp.status + ': ' + resp.body);
+        return Utils.parseResponseBody(resp);
+    }
 }
