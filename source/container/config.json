@@ -5,7 +5,7 @@
         { "duration": "2m", "target": 10 },
         { "duration": "2m", "target": 10 }
     ],
-    "stack": "load",
+    "stack": "local",
     "logLevels": {
         "*": "Info"
     },

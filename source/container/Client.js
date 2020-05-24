@@ -271,13 +271,19 @@ export class Client {
             } else if (actionPercentage <= config.percentages.playRandom) {
                 // Play a random level
                 let resp = this.playRandomLevel();
-                if (!resp || resp.error)
+                if (!resp || resp.error) {
+                    logger.info('Ending session...');
+                    this.delay(this.user.pennies_remaining === 0 ? 600 : 120);
                     return;
+                }
             } else {
                 // Play the highest level allowed
                 let resp = this.playMaximumLevel();
-                if (!resp || resp.error)
+                if (!resp || resp.error) {
+                    logger.info('Ending session...');
+                    this.delay(this.user.pennies_remaining === 0 ? 600 : 120);
                     return;
+                }
             }
             this.delay(60);
             this.getUser();
