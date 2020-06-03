@@ -60,9 +60,20 @@ export class Client {
         }
         const startResp = this.api.post('users/cashout_start', {});
         if (startResp.data && startResp.data.isAllowed) {
-            const charityPerc = 10 + round(90 * Math.random());
+            const availableBalance = this.user.account;
+            const charityPercent = 10 + Math.round(90 * Math.random());
+            const charityAmount = Math.round(availableBalance * (charityPercent / 100));
+            const friendPercent = 10;
+            const inviterAmount = startResp.hasInviter ? Math.round((availableBalance - charityAmount) * (friendPercent / 100)) : 0;
+            const playerAmount = availableBalance - charityAmount - inviterAmount;
             this.delay(30);
-            const finishResp = this.api.post('users/cashout_finish', { percentage: charityPerc, payee: this.user.phone });
+            const finishResp = this.api.post('users/cashout_finish', {
+                charityPercent: charityPercent,
+                desiredCharityAmount: charityAmount,
+                desiredInviterAmount: inviterAmount,
+                desiredPlayerAmount: playerAmount,
+                payee: 'fake@tallyup.com'   // Our fake phone numbers don't validate on the server: this.user.phone
+            });
         }
     }
 
@@ -77,10 +88,19 @@ export class Client {
     }
 
     requestLevel(level) {
-        let resp = this.api.post('games/request_level', { game_level: level, only_bots: false });
+        const resp = this.api.post('games/request_level', { game_level: level, only_bots: false });
         let status;
+        const start = Date.now();
         while (status !== 'playing') {
             this.delay(2, 2.5);
+            if (Date.now() - start > 180000) {
+                const resp = this.api.post('games/cancel_request_level', {});
+                if (!resp.error || resp.error.msg !== 'User is already matched.') {
+                    this.delay(2, 2.5);
+                    this.getUser();
+                    return;
+                }
+            }
             this.getUser();
             status = this.user && this.user.play && this.user.play.status;
         }
@@ -114,6 +134,9 @@ export class Client {
 
         let matchmakingStart = Date.now();
         this.requestLevel(level);
+        if (!this.user.play || !this.user.play.game) {
+            return null;
+        }
 
         const gameId = this.user.play.game;
         const type = this.user.play.game_type;
@@ -128,7 +151,7 @@ export class Client {
             if (!first) this.delay(2, 2.5);
             first = false;
             resp = this.api.get(`games/${gameId}`);
-        } 
+        }
 
         this.metrics.matchmakingDelay.add(Date.now() - matchmakingStart, { game: type, level: level });
 //        let isBot = resp.data.data.opponent_info.isBot; // TODO: This isn't exposed by our server! Expose it for non-prod stacks?
@@ -218,7 +241,7 @@ export class Client {
             } else {
                 // Non-retryable error - kill VU by sleeping until end of test
                 logger.warn('Stopping VU: ' + __VU);
-                const t = (testDuration - (Date.now() - startTime)) / 1000 + 10;
+                const t = (testDuration - (Date.now() - startTime)) / 1000 * 2;
                 this.delay(t, t);
             }
             return;
@@ -249,7 +272,7 @@ export class Client {
                 if (__VU > vusFrac * vusMax) {
                     // Kill VU by sleeping until end of test
                     logger.info('Ramping down VU: ' + __VU + ', vusFrac=' + vusFrac + ', elapsed=' + elapsed);
-                    const t = (testDuration - (Date.now() - startTime)) / 1000 + 10;
+                    const t = (testDuration - (Date.now() - startTime)) / 1000 * 2;
                     this.delay(t, t);
                     return;
                 }
@@ -265,7 +288,7 @@ export class Client {
             } else if (actionPercentage <= config.percentages.leaderboard) {
                 // Get the leaderboard
                 this.getLeaderboard();
-            } else if (actionPercentage <= config.percentages.cashOut && this.user && this.user.account > 1000) {
+            } else if (actionPercentage <= config.percentages.cashOut && this.user && this.user.account >= 1000) {
                 // Attempt to cashout
                 this.cashOut();
             } else if (actionPercentage <= config.percentages.playRandom) {

@@ -119,7 +119,7 @@ class Create extends React.Component {
                         // Add this 'slop' at the end of ramp-down to ensure all
                         // VUs have a chance to stop cleanly (if they were still
                         // mid-game at the end of ramp-down) before we clean up
-                        { duration: '2m', target: values.concurrency }
+                        { duration: '5m', target: values.concurrency }
                     ],
                     stack: values.stack,
                     logLevels: {
