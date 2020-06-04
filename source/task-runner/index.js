@@ -34,7 +34,7 @@ exports.handler = async (event) => {
 
     try {
 
-        // Check if any tasks are running
+        // TODOL Check if any tasks are running and don't relaunch them when retrying
 
         const params = {
             taskDefinition: process.env.TASK_DEFINITION,
@@ -82,8 +82,8 @@ exports.handler = async (event) => {
             console.log('RUNNING TASK: ' + i);
             await ecs.runTask(params).promise();
             if (i < (taskCount - 1)) {
-                console.log('sleep 10 seconds to avoid ThrottlingException');
-                await sleep(10000);
+                console.log('sleep 1.5 seconds to avoid ThrottlingException (1 TPS?)');
+                await sleep(1500);
             }
         }
 

@@ -486,6 +486,10 @@ Resources:
       Enabled: true
       EventSourceArn: !Sub ${EcsTaskSqsQueue.Arn}
       FunctionName: !Sub ${TaskRunner.Arn}
+      MaximumRecordAgeInSeconds: 60
+      # Prevent retrying this, since (if it fails after only managing to launch
+      # some tasks) retrying might launch those same few tasks up to 1000 times!
+      MaximumRetryAttempts: 0
 
   ## Fargate VPC
   Vpc:
@@ -980,7 +984,7 @@ Resources:
         S3Bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"],  "task-runner.zip"]]
       Runtime:  nodejs10.x
-      Timeout: 120
+      Timeout: 180  # Launch up to 100 tasks with 1.5 seconds between each + some slop
       Environment:
         Variables:
           SCENARIOS_BUCKET: !Ref ScenariosBucket

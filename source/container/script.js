@@ -26,7 +26,12 @@ const metrics = {
     noPennyCount: new Counter('no_pennies'),
     networkErrorCount: new Counter('network_errors'),
     apiErrorCount: new Counter('api_errors'),
-    timeoutCount: new Counter('timeouts')
+    timeoutCount: new Counter('timeouts'),
+    cognitoThrottleCount: new Counter('cognitoThrottles')
+};
+
+options.thresholds = {
+    cognitoThrottles: [{ threshold: 'count < 1', abortOnFail: true }]
 };
 
 const startTime = Date.now();

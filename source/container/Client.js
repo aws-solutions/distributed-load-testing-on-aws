@@ -26,25 +26,26 @@ export class Client {
             return authResp;
         this.user = null;
         let sessionResp = this.api.post('users/session_start', {});
+        this.user = sessionResp.data;
         if (sessionResp.error && sessionResp.error.code === ErrCode.UserNotFound) {
             const registerResp = this.api.post('users/register', { inviteCode: '0PENUP' });
             if (registerResp.error)
                 return registerResp;
-            sessionResp = this.api.get('users');
+            sessionResp = this.getUser();
         }
         if (sessionResp.data && sessionResp.data.inviteData && sessionResp.data.inviteData.status !== 'playing') {
             const activateResp = this.api.post('users/activate', { username: Utils.getUsername(phone) });
             if (activateResp.error)
                 return activateResp;
-            sessionResp = this.api.get('users');
+            sessionResp = this.getUser();
         }
-        this.user = sessionResp.data;
         return sessionResp;
     }
 
     getUser() {
         const resp = this.api.get('users');
         this.user = resp.data;
+        return resp;
     }
 
     getLeaderboard() {
@@ -87,16 +88,20 @@ export class Client {
         return finishResp;
     }
 
+    pollingDelay() {
+        this.delay(1, 1.25);
+    }
+
     requestLevel(level) {
         const resp = this.api.post('games/request_level', { game_level: level, only_bots: false });
         let status;
         const start = Date.now();
         while (status !== 'playing') {
-            this.delay(2, 2.5);
+            this.pollingDelay();
             if (Date.now() - start > 180000) {
                 const resp = this.api.post('games/cancel_request_level', {});
                 if (!resp.error || resp.error.msg !== 'User is already matched.') {
-                    this.delay(2, 2.5);
+                    this.pollingDelay();
                     this.getUser();
                     return;
                 }
@@ -148,7 +153,8 @@ export class Client {
 
         let first = true;
         while (!resp || !resp.data || !resp.data.data) {
-            if (!first) this.delay(2, 2.5);
+            if (!first)
+                this.pollingDelay();
             first = false;
             resp = this.api.get(`games/${gameId}`);
         }
@@ -185,7 +191,8 @@ export class Client {
             let roundStart = Date.now();
             let first = true;
             while (round_number === n && !win_status) {
-                if (!first) this.delay(2, 2.5);
+                if (!first)
+                    this.pollingDelay();
                 first = false;
                 resp = this.api.get(`games/${gameId}`);
                 if (resp && resp.data && resp.data.data) {
@@ -224,10 +231,31 @@ export class Client {
         return null;
     }
 
+    returnToTower() {
+        this.delay(60);
+        let resp = this.api.get('config/startup');
+        if (resp.error)
+            return resp;
+        resp = this.api.get('config/towerdata');
+        if (resp.error)
+            return resp;
+        resp = this.getUser();
+        if (resp.error)
+            return resp;
+        resp = this.api.get('config/charitydata');
+        return resp;
+    }
+
     backoff(maxTime) {
         const sleepTime = maxTime * Math.random();
         logger.warn('Backing off VU: ' + __VU + ', ' + sleepTime + ' seconds');
         this.delay(sleepTime, sleepTime);
+    }
+
+    killVU(testDuration, startTime) {
+        // Kill VU by sleeping until end of test
+        const t = (testDuration - (Date.now() - startTime)) / 1000 * 2;
+        this.delay(t, t);
     }
 
     session(phone, startTime, testDuration, startRampDownElapsed, rampDownDuration, vusMax) {
@@ -236,13 +264,15 @@ export class Client {
         const resp = this.sessionStart(phone);
         if (resp.error) {
             logger.error('Error at start of session: ' + JSON.stringify(resp));
-            if (resp.error.status === 500 || resp.error.status === 503 || (resp.error.status === 400 && resp.__type === 'TooManyRequestsException')) {
+            if (resp.error.status === 400 && resp.__type === 'TooManyRequestsException') {
+                this.metrics.cognitoThrottleCount.add(1);   // This might abort entire test if it exceeds threshold
+                this.backoff(600);
+            } else if (resp.error.status >= 500) {
                 this.backoff(60);
             } else {
-                // Non-retryable error - kill VU by sleeping until end of test
+                // Non-retryable error - kill VU
                 logger.warn('Stopping VU: ' + __VU);
-                const t = (testDuration - (Date.now() - startTime)) / 1000 * 2;
-                this.delay(t, t);
+                this.killVU(testDuration, startTime);
             }
             return;
         }
@@ -257,7 +287,7 @@ export class Client {
             return;
         }
         this.api.get('config/towerdata');
-        this.api.get('users');
+        this.getUser();
         this.api.get('config/charitydata');
         while (true) {
             const now = Date.now();
@@ -270,10 +300,8 @@ export class Client {
                 if (vusFrac < 0) vusFrac = 0;
                 logger.trace('vusFrac=' + vusFrac + ', rampDownElapsed=' + rampDownElapsed);
                 if (__VU > vusFrac * vusMax) {
-                    // Kill VU by sleeping until end of test
                     logger.info('Ramping down VU: ' + __VU + ', vusFrac=' + vusFrac + ', elapsed=' + elapsed);
-                    const t = (testDuration - (Date.now() - startTime)) / 1000 * 2;
-                    this.delay(t, t);
+                    this.killVU(testDuration, startTime);
                     return;
                 }
             }
@@ -308,9 +336,8 @@ export class Client {
                     return;
                 }
             }
-            this.delay(60);
-            this.getUser();
-            this.delay(2);
+            this.returnToTower();
+            this.delay(2, 2.5);
         }
     }
 }
