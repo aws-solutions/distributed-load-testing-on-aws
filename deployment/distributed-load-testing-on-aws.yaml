@@ -486,10 +486,10 @@ Resources:
       Enabled: true
       EventSourceArn: !Sub ${EcsTaskSqsQueue.Arn}
       FunctionName: !Sub ${TaskRunner.Arn}
-      MaximumRecordAgeInSeconds: 60
+#      MaximumRecordAgeInSeconds: 60  # TODO: Only supported for Kinesis stream source
       # Prevent retrying this, since (if it fails after only managing to launch
       # some tasks) retrying might launch those same few tasks up to 1000 times!
-      MaximumRetryAttempts: 0
+#      MaximumRetryAttempts: 0  # TODO: Only supported for Kinesis stream source
 
   ## Fargate VPC
   Vpc:
@@ -633,7 +633,7 @@ Resources:
   EcsTaskSqsQueue: 
     Type: AWS::SQS::Queue
     Properties:
-      VisibilityTimeout: 120
+      VisibilityTimeout: 180
 
   ## Storage
   ScenariosBucket:

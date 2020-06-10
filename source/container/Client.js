@@ -98,7 +98,7 @@ export class Client {
         const start = Date.now();
         while (status !== 'playing') {
             this.pollingDelay();
-            if (Date.now() - start > 180000) {
+            if ((Date.now() - start) > 180000) {
                 const resp = this.api.post('games/cancel_request_level', {});
                 if (!resp.error || resp.error.msg !== 'User is already matched.') {
                     this.pollingDelay();
@@ -139,7 +139,7 @@ export class Client {
 
         let matchmakingStart = Date.now();
         this.requestLevel(level);
-        if (!this.user.play || !this.user.play.game) {
+        if (!this.user.play || this.user.play.status !== 'playing' || !this.user.play.game) {
             return null;
         }
 
@@ -253,7 +253,7 @@ export class Client {
     }
 
     killVU(testDuration, startTime) {
-        // Kill VU by sleeping until end of test
+        // Kill VU by sleeping past end of test
         const t = (testDuration - (Date.now() - startTime)) / 1000 * 2;
         this.delay(t, t);
     }

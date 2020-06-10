@@ -38,7 +38,9 @@ export const ErrCode = {
 	CommitTransactionRetriesExceeded: 30,
 	TransactionRetriesExceeded: 31,
 	DocumentRetriesExceeded:    32,
-	OCCVersionMismatch:         33
+    OCCVersionMismatch:         33,
+    NoDeviceId:                 34,
+    MultiDevicePlay:            35
     // NOTE: Keep this in sync with tallyup-server/src/shared/errors/ErrCode.ts!
 };
 
@@ -100,7 +102,8 @@ export class API {
                 this.urlBase + urlPath,
                 {
                     headers: {
-                        'Authorization': 'Bearer ' + this.accessToken
+                        'Authorization': 'Bearer ' + this.accessToken,
+                        'X-TU-device-Id': '00000000-0000-0000-0000-000000000000'
                     }
                 }
             );
@@ -137,7 +140,8 @@ export class API {
                 {
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + this.accessToken
+                        'Authorization': 'Bearer ' + this.accessToken,
+                        'X-TU-device-Id': '00000000-0000-0000-0000-000000000000'
                     }
                 }
             );
