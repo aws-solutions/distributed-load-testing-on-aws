@@ -92,8 +92,8 @@ export class Client {
         this.delay(1, 1.25);
     }
 
-    requestLevel(level) {
-        const resp = this.api.post('games/request_level', { game_level: level, only_bots: false });
+    requestLevel(levels) {
+        const resp = this.api.post('games/request_level', { game_level: levels, only_bots: false });
         let status;
         const start = Date.now();
         while (status !== 'playing') {
@@ -115,7 +115,7 @@ export class Client {
         return min + (max - min) * Math.random();
     }
 
-    playLevel(level) {
+    playLevel(levels) {
         logger.info('Play level ' + level + '...');
         if (!this.user) {
             logger.error('No user!');
@@ -138,7 +138,7 @@ export class Client {
         }
 
         let matchmakingStart = Date.now();
-        this.requestLevel(level);
+        this.requestLevel(levels);
         if (!this.user.play || this.user.play.status !== 'playing' || !this.user.play.game) {
             return null;
         }
@@ -217,7 +217,7 @@ export class Client {
         logger.info('Play random level...');
         if (this.user) {
             const level = Math.max(this.user.account ? Math.round(this.maxLevel(this.user.account) * Math.random()) : 1, 1);
-            return this.playLevel(level);
+            return this.playLevel([level]);
         }
         return null;
     }
@@ -226,7 +226,32 @@ export class Client {
         logger.info('Play maximum level...');
         if (this.user) {
             const level = Math.max(this.user.account ? this.maxLevel(this.user.account) : 1, 1);
-            return this.playLevel(level);
+            return this.playLevel([level]);
+        }
+        return null;
+    }
+
+    playRandomLevels() {
+        logger.info('Play a few random levels');
+        const uniqueLevels = [];
+        const choosenLevels = [];
+        if (this.user) {
+            // Make a grab bag of unique levels
+            const maxLevel = Math.max(this.user.account ? this.maxLevel(this.user.account) : 1, 1);
+            for (let i = maxLevel; i >= 1; i--) {
+                uniqueLevels.push(i);
+            }
+
+            // Choose a couple of levels for the user.
+            const elementsToChoose = Math.min(uniqueLevels.length, 2);
+            for (let i = 0; i < elementsToChoose; i++) {
+                const randomIndex = Math.floor(Math.random() * uniqueLevels.length);
+                const randomElement = uniqueLevels[randomIndex];
+                choosenLevels.push(randomElement);
+                uniqueLevels.splice(randomIndex, 1);
+            }
+
+            return this.playLevel(choosenLevels);
         }
         return null;
     }
@@ -321,7 +346,7 @@ export class Client {
                 this.cashOut();
             } else if (actionPercentage <= config.percentages.playRandom) {
                 // Play a random level
-                let resp = this.playRandomLevel();
+                let resp = this.playRandomLevels();
                 if (!resp || resp.error) {
                     logger.info('Ending session...');
                     this.delay(this.user.pennies_remaining === 0 ? 600 : 120);
