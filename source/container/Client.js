@@ -178,6 +178,17 @@ export class Client {
                 logger.debug('available_water=' + available_water);
                 value = Math.round(this.randomInRange(0, available_water));
                 logger.debug('value=' + value);
+            } else if (type === 'CrystalCaveGame') {
+                let num_lanes = resp.data.data.game_config.lanes.length;
+                let available_buttons = [];
+                for (let i = 1; i <= num_lanes; i++) {
+                    available_buttons.push(i);
+                }
+                logger.debug('available_buttons=' + available_buttons);
+                let button_index = Math.round(this.randomInRange(0, available_buttons.length - 1));
+                logger.debug('button_index=' + button_index);
+                value = available_buttons[button_index];
+                logger.debug('value=' + value);
             } else {
                 let available_buttons = resp.data.data.player_info.available_buttons;
                 logger.debug('available_buttons=' + available_buttons);
