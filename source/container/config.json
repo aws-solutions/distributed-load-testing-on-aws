@@ -15,7 +15,7 @@
         "exit": 5,
         "leaderboard": 20,
         "cashOut": 30,
-        "playRandom": 50,
+        "playRandom": 80,
         "playMax": 100
     },
     "clientStackData" : {

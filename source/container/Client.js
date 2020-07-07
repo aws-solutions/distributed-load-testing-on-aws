@@ -116,7 +116,7 @@ export class Client {
     }
 
     playLevel(levels) {
-        logger.info('Play level ' + level + '...');
+        logger.info('Play levels ' + levels + '...');
         if (!this.user) {
             logger.error('No user!');
             return null;
@@ -145,7 +145,8 @@ export class Client {
 
         const gameId = this.user.play.game;
         const type = this.user.play.game_type;
-        this.metrics.gameCount.add(1, { game: type, level: level });
+        const gameLevel = this.user.play.matched_level
+        this.metrics.gameCount.add(1, { game: type, level: gameLevel });
         logger.trace('type=' + type);
 
 //        this.delay(10);
@@ -159,10 +160,10 @@ export class Client {
             resp = this.api.get(`games/${gameId}`);
         }
 
-        this.metrics.matchmakingDelay.add(Date.now() - matchmakingStart, { game: type, level: level });
+        this.metrics.matchmakingDelay.add(Date.now() - matchmakingStart, { game: type, level: gameLevel });
 //        let isBot = resp.data.data.opponent_info.isBot; // TODO: This isn't exposed by our server! Expose it for non-prod stacks?
         let isBot = resp.data.data.opponent_info.username.includes('bot');  // TODO: This assumes bots are called "botN" or similar
-        this.metrics.botsPercentage.add(isBot ? 1 : 0, { game: type, level: level });
+        this.metrics.botsPercentage.add(isBot ? 1 : 0, { game: type, level: gameLevel });
 
         const opponent = resp.data.data.opponent_info.username;
         logger.debug('Opponent: ' + opponent);
@@ -211,10 +212,10 @@ export class Client {
                     win_status = resp.data.data.game_config.win_status;
                 }
             }
-            this.metrics.roundDelay.add(Date.now() - roundStart, { game: type, level: level/*, round: n*/ });
+            this.metrics.roundDelay.add(Date.now() - roundStart, { game: type, level: gameLevel/*, round: n*/ });
             ++ n;
         }
-        this.metrics.gameLength.add(Date.now() - gameStart, { game: type, level: level });
+        this.metrics.gameLength.add(Date.now() - gameStart, { game: type, level: gameLevel });
         logger.debug(win_status);
         return resp;
     }
