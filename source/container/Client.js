@@ -254,7 +254,7 @@ export class Client {
             }
 
             // Choose a couple of levels for the user.
-            const elementsToChoose = Math.min(uniqueLevels.length, 2);
+            const elementsToChoose = Math.min(uniqueLevels.length, 5);
             for (let i = 0; i < elementsToChoose; i++) {
                 const randomIndex = Math.floor(Math.random() * uniqueLevels.length);
                 const randomElement = uniqueLevels[randomIndex];
