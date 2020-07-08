@@ -265,7 +265,7 @@ class Details extends React.Component {
                 <Modal isOpen={this.state.cancelModal} toggle={this.cancelToggle}>
                     <ModalHeader>Warning</ModalHeader>
                     <ModalBody>
-                        This will stop all running tasks amd end the test.
+                        This will stop all running tasks and end the test.
                 </ModalBody>
                     <ModalFooter>
                         <Button color="link" size="sm" onClick={this.cancelToggle}>Cancel</Button>
