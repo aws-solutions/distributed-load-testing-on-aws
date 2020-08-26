@@ -4,11 +4,11 @@ Parameters:
 
   AdminName:
     Type: String
-    Description: Then admin user name to access the Distributed Load Testing Console
+    Description: Admin user name to access the Distributed Load Testing Console
     MinLength: 4 
     MaxLength: 20 
     AllowedPattern: '[a-zA-Z0-9-]+'
-    ConstraintDescription: "username must be a minimum of 4 characters and cannot include spaces"
+    ConstraintDescription: "Admin username must be a minimum of 4 characters and cannot include spaces"
 
   AdminEmail:
     Type: String
@@ -45,7 +45,7 @@ Parameters:
   EgressCidr:
     Type: String
     Default: 0.0.0.0/0
-    Description: The Cidir Block to restrict the ECS container outbound access
+    Description: The CIDR Block to restrict the ECS container outbound access
     MinLength: 9
     MaxLength: 18
     AllowedPattern: "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))"
@@ -76,9 +76,9 @@ Metadata:
         VpcCidrBlock:
           default: "AWS Fargate VPC CIDR Block"
         SubnetACidrBlock:
-          default: "AWS Fargate Subnet A CIDR Blocck"
+          default: "AWS Fargate Subnet A CIDR Block"
         SubnetBCidrBlock:
-          default: "AWS Fargate Subnet B CIDR Blocck"
+          default: "AWS Fargate Subnet B CIDR Block"
         EgressCidr:
           default: "AWS Fargate SecurityGroup CIDR Block"
 
