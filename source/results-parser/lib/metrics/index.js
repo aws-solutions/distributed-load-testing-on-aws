@@ -1,28 +1,14 @@
-/*******************************************************************************
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved. 
- *
- * Licensed under the Amazon Software License (the "License").
- * You may not use this file except in compliance with the License.
- * A copy of the License is located at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0    
- *
- * or in the "license" file accompanying this file. This file is distributed
- * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing
- * permissions and limitations under the License.
- *
- ********************************************************************************/
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 const axios = require('axios');
 const moment = require('moment');
 
 /**
- * @function send
- * Description: sends anonymous metrcis to AWS
- * @testDuration {num} the totasl time teh test ran fo in seconds.
+ * Sends anonymouse metrics.
+ * @param {{ duration: number, testType: string }} - the total time the test ran for in seconds and the test type
  */
-const send = async (duration) => {
+const send = async (obj) => {
 
     let data;
 
@@ -31,9 +17,12 @@ const send = async (duration) => {
             Solution: process.env.SOLUTION_ID,
             UUID: process.env.UUID,
             TimeStamp: moment().utc().format('YYYY-MM-DD HH:mm:ss.S'),
-            Version: 'v1.0.0',
-            Event:"TaskCompletion",
-            Duration:duration
+            Version: process.env.VERSION,
+            Data: {
+                Type: 'TaskCompletion',
+                TestType: obj.testType,
+                Duration: obj.duration
+            }
         };
         const params = {
             method: 'post',

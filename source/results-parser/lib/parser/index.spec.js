@@ -1,35 +1,39 @@
-/*******************************************************************************
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved. 
- *
- * Licensed under the Amazon Software License (the "License").
- * You may not use this file except in compliance with the License.
- * A copy of the License is located at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0    
- *
- * or in the "license" file accompanying this file. This file is distributed
- * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing
- * permissions and limitations under the License.
- *
- ********************************************************************************/
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
-const expect = require('chai').expect;
-const path = require('path');
-const sinon = require('sinon');
-const parser = require('xml-js');
-let AWS = require('aws-sdk-mock');
-AWS.setSDK(path.resolve('./node_modules/aws-sdk'));
+// Mock AWS SDK
+const mockDynamoDB = jest.fn();
+const mockS3 = jest.fn();
+const mockCloudWatch = jest.fn();
+const mockAWS = require('aws-sdk');
+mockAWS.S3 = jest.fn(() => ({
+	getObject: mockS3
+}));
+mockAWS.CloudWatch = jest.fn(() => ({
+	getMetricWidgetImage: mockCloudWatch
+}));
+mockAWS.DynamoDB.DocumentClient = jest.fn(() => ({
+	update: mockDynamoDB,
+	get: mockDynamoDB
+}));
+
+// Mock xml-js
+const mockParse = jest.fn();
+jest.mock('xml-js', () => {
+	return {
+		xml2js: mockParse
+	};
+});
 
 const lambda = require('./index.js');
 
 describe('#RESULTS PARSER::', () => {
-
-    const bucket = 'testbucket';
-    const key = 'testfile.xml';
-	const uuid = '1234';
+	process.env.SCENARIOS_BUCKET = 'scenario_bucket';
+	const content = {
+		"Key": "testfile.xml"
+	}
 	const testId =  'abcd';
-	const xmlFile ={Body:''};
+	const xmlFile = { Body: '' };
 	const json = {
 		"FinalStatus": {
 			"TestDuration": {
@@ -81,17 +85,41 @@ describe('#RESULTS PARSER::', () => {
 			]
 		}
 	};
-	const updateData = {
-		Attributes:{
-			taskCount:4,
-			taskIds:[1,2,3,4],
-			runTime:1234
-		}
-	}
-	const finalData = {
-		"Items": [
-			{
-				"results": {
+	const resultJson = {
+    "avg_ct": 0.23043,
+    "p95_0": 4.896,
+    "rc": [
+    	{
+    		"code": "UnknownHostException",
+    		"count": "20753",
+    	},
+    ],
+		"testDuration": 123
+	};
+	const finalData = [
+		{
+			"stats": {
+				"avg_lt": 0,
+				"p0_0": 0,
+				"p99_0": 0.013,
+				"stdev_rt": 0.01049,
+				"avg_ct": 0.00096,
+				"concurrency": 4,
+				"p99_9": 0.105,
+				"rc": [],
+				"fail": 21064,
+				"succ": 0,
+				"p100_0": 0.396,
+				"bytes": 48258556,
+				"p95_0": 0.001,
+				"avg_rt": 0.00103,
+				"throughput": 21064,
+				"p90_0": 0,
+				"testDuration": 39,
+				"p50_0": 0
+			},
+			"endPoints": [
+				{
 					"avg_lt": 0,
 					"p0_0": 0,
 					"p99_0": 0.013,
@@ -101,6 +129,7 @@ describe('#RESULTS PARSER::', () => {
 					"p99_9": 0.105,
 					"rc": [],
 					"fail": 21064,
+					"endpoint": "https://stackoverflow.com22",
 					"succ": 0,
 					"p100_0": 0.396,
 					"bytes": 48258556,
@@ -108,164 +137,190 @@ describe('#RESULTS PARSER::', () => {
 					"avg_rt": 0.00103,
 					"throughput": 21064,
 					"p90_0": 0,
-					"testDuration": 39,
 					"p50_0": 0
-				},
-				"uuid": "1e802481-0bcb-4cd4-974c-b6ca375db36f",
-				"testId": "Ar_wFhrqx",
-				"testDuration": 39,
-				"ttlDel": "2019-09-04 11:41:39.8",
-				"endPoints": [
-					{
-						"avg_lt": 0,
-						"p0_0": 0,
-						"p99_0": 0.013,
-						"stdev_rt": 0.01049,
-						"avg_ct": 0.00096,
-						"concurrency": 4,
-						"p99_9": 0.105,
-						"rc": [],
-						"fail": 21064,
-						"endpoint": "https://stackoverflow.com22",
-						"succ": 0,
-						"p100_0": 0.396,
-						"bytes": 48258556,
-						"p95_0": 0.001,
-						"avg_rt": 0.00103,
-						"throughput": 21064,
-						"p90_0": 0,
-						"p50_0": 0
-					}
-				]
-			},
-			{
-				"results": {
-					"avg_lt": 0,
-					"p0_0": 0,
-					"p99_0": 0.016,
-					"stdev_rt": 0.01241,
-					"avg_ct": 0.00116,
-					"concurrency": 4,
-					"p99_9": 0.195,
-					"rc": [],
-					"fail": 20753,
-					"succ": 0,
-					"p100_0": 0.412,
-					"bytes": 47546055,
-					"p95_0": 0.001,
-					"avg_rt": 0.00121,
-					"throughput": 20753,
-					"p90_0": 0,
-					"testDuration": 38,
-					"p50_0": 0
-				},
-				"uuid": "961a663c-941d-4918-964a-9c708ecb7a92",
-				"testId": "Ar_wFhrqx",
-				"testDuration": 38,
-				"ttlDel": "2019-09-04 11:59:38.6",
-				"endPoints": [
-					{
-						"avg_lt": 0,
-						"p0_0": 0,
-						"p99_0": 0.016,
-						"stdev_rt": 0.01241,
-						"avg_ct": 0.00116,
-						"concurrency": 4,
-						"p99_9": 0.195,
-						"rc": [],
-						"fail": 20753,
-						"endpoint": "https://stackoverflow.com22",
-						"succ": 0,
-						"p100_0": 0.412,
-						"bytes": 47546055,
-						"p95_0": 0.001,
-						"avg_rt": 0.00121,
-						"throughput": 20753,
-						"p90_0": 0,
-						"p50_0": 0
-					}
-				]
-			}
-		],
-		"Count": 2,
-		"ScannedCount": 12
-	}
+				}
+			],
+			"duration": "39"
+		}
+	];
 
-	const stubXml = sinon.stub(parser, 'xml2js');
+	beforeEach(() => {
+		mockS3.mockReset();
+		mockDynamoDB.mockReset();
+		mockCloudWatch.mockReset();
+		mockParse.mockReset();
+	});
 
-	//Possitive tests
+	//Positive tests
 	it('should return "SUCCESS" when parse results returns success', async () => {
+		mockS3.mockImplementation(() => {
+			return {
+				promise() {
+					// getObject
+					return Promise.resolve(xmlFile);
+				}
+			};
+		});
+		mockParse.mockImplementation(() => {
+			return json;
+		});
 
-		AWS.mock('S3', 'getObject', Promise.resolve(xmlFile));
-		stubXml.returns(json);
-		AWS.mock('DynamoDB.DocumentClient', 'update', Promise.resolve(updateData));
-
-		const response = await lambda.results(bucket,key,uuid,testId)
-		expect(response.taskCount).to.equal(4);
+		const response = await lambda.results(content, testId);
+		expect(response).toEqual({ stats: resultJson, endPoints: [], duration: json.FinalStatus.TestDuration._text });
 	});
 
 	it('should return "SUCCESS" when final results returns success', async () => {
-		AWS.restore('DynamoDB.DocumentClient');
-		AWS.mock('DynamoDB.DocumentClient', 'scan', Promise.resolve(finalData));
-		AWS.mock('DynamoDB.DocumentClient', 'update', Promise.resolve(updateData));
+		mockDynamoDB.mockImplementationOnce(() => {
+			return {
+				promise() {
+					// get
+					return Promise.resolve({
+						Item: {
+							startTime: '2020-09-01 00:00:00'
+						}
+					});
+				}
+			};
+		}).mockImplementationOnce(() => {
+			return {
+				promise() {
+					// update
+					return Promise.resolve();
+				}
+			};
+		});
+		mockCloudWatch.mockImplementation(() => {
+			return {
+				promise() {
+					// getMetricWidgetImage
+					return Promise.resolve({ MetricWidgetImage: 'CloudWatchImage' });
+				}
+			};
+		});
 
-		const response = await lambda.finalResults(testId)
-		expect(response).to.equal('success');
+		const response = await lambda.finalResults(testId, finalData);
+		expect(response).toEqual('success');
 	});
 
 	//Negative Tests
 	it('should return "S3 ERROR" when parse results fails', async () => {
-
-		AWS.restore('S3');
-		AWS.mock('S3', 'getObject', Promise.reject('S3 ERROR'));
-
-		await lambda.results(bucket,key,uuid,testId).catch(err => {
-			expect(err).to.equal('S3 ERROR');
+		mockS3.mockImplementation(() => {
+			return {
+				promise() {
+					// getObject
+					return Promise.reject('S3 ERROR');
+				}
+			};
 		});
+
+		try {
+			await lambda.results(content, testId);
+		} catch (error) {
+			expect(error).toEqual('S3 ERROR');
+		}
 	});
 
 	it('should return "XML ERROR" when parse results fails', async () => {
-
-		AWS.restore('S3');
-		AWS.mock('S3', 'getObject', Promise.resolve(xmlFile));
-		stubXml.throws();
-
-		await lambda.results(bucket,key,uuid,testId).catch(err => {
-			expect(err).to.equal(err);
+		mockS3.mockImplementation(() => {
+			return {
+				promise() {
+					// getObject
+					return Promise.resolve(xmlFile);
+				}
+			};
 		});
+		mockParse.mockImplementation(() => {
+			throw 'XML ERROR';
+		});
+
+		try {
+			await lambda.results(content, testId);
+		} catch (error) {
+			expect(error).toEqual('XML ERROR');
+		}
 	});
 
-	it('should return "S3 ERROR" when parse results fails', async () => {
-
-		AWS.restore('S3');
-		AWS.restore('DynamoDB.DocumentClient');
-		AWS.mock('S3', 'getObject', Promise.resolve(xmlFile));
-		stubXml.returns(json);
-
-		AWS.mock('DynamoDB.DocumentClient', 'update', Promise.reject('DB ERROR'));
-
-		await lambda.results(bucket,key,uuid,testId).catch(err => {
-			expect(err).to.equal('DB ERROR');
+	it('should return "DB GET ERROR" when final results fails', async () => {
+		mockDynamoDB.mockImplementation(() => {
+			return {
+				promise() {
+					// get
+					return Promise.reject('DB GET ERROR');
+				}
+			};
 		});
+
+		try {
+			await lambda.finalResults(testId, finalData);
+		} catch (error) {
+			expect(error).toEqual('DB GET ERROR');
+		}
 	});
-	it('should return "DB SCAN ERROR" when final results fails', async () => {
 
-		AWS.restore('DynamoDB.DocumentClient');
-		AWS.mock('DynamoDB.DocumentClient', 'scan', Promise.reject('DB SCAN ERROR'));
-
-		await lambda.finalResults(testId).catch(err => {
-			expect(err).to.equal('DB SCAN ERROR');
+	it('should return "CLOUDWATCH ERROR" when final results fails', async () => {
+		mockDynamoDB.mockImplementation(() => {
+			return {
+				promise() {
+					// get
+					return Promise.resolve({
+						Item: {
+							startTime: '2020-09-01 00:00:00'
+						}
+					});
+				}
+			};
 		});
+		mockCloudWatch.mockImplementation(() => {
+			return {
+				promise() {
+					// getMetricWidgetImage
+					return Promise.reject('CLOUDWATCH ERROR');
+				}
+			};
+		});
+
+
+		try {
+			await lambda.finalResults(testId, finalData);
+		} catch (error) {
+			expect(error).toEqual('CLOUDWATCH ERROR');
+		}
 	});
+
 	it('should return "DB UPDATE ERROR" when final results fails', async () => {
-
-		AWS.restore('DynamoDB.DocumentClient');
-		AWS.mock('DynamoDB.DocumentClient', 'scan', Promise.resolve(finalData));
-		AWS.mock('DynamoDB.DocumentClient', 'update', Promise.reject('DB UPDATE ERROR'));
-
-		await lambda.finalResults(testId).catch(err => {
-			expect(err).to.equal('DB UPDATE ERROR');
+		mockDynamoDB.mockImplementationOnce(() => {
+			return {
+				promise() {
+					// get
+					return Promise.resolve({
+						Item: {
+							startTime: '2020-09-01 00:00:00'
+						}
+					});
+				}
+			};
+		}).mockImplementationOnce(() => {
+			return {
+				promise() {
+					// update
+					return Promise.reject('DB UPDATE ERROR');
+				}
+			};
 		});
-	});
+		mockCloudWatch.mockImplementation(() => {
+			return {
+				promise() {
+					// getMetricWidgetImage
+					return Promise.resolve({ MetricWidgetImage: 'CloudWatchImage' });
+				}
+			};
+		});
 
+
+		try {
+			await lambda.finalResults(testId, finalData);
+		} catch (error) {
+			expect(error).toEqual('DB UPDATE ERROR');
+		}
+	});
 });

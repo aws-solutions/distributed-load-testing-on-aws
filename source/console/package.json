@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws-ui",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "private": true,
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^1.2.18",
@@ -15,8 +15,9 @@
     "react-ace": "^7.0.2",
     "react-dom": "^16.8.6",
     "react-router-dom": "^5.0.0",
-    "react-scripts": "3.2.0",
-    "reactstrap": "^8.0.1"
+    "react-scripts": "^3.4.3",
+    "reactstrap": "^8.0.1",
+    "shortid": "^2.2.15"
   },
   "scripts": {
     "start": "react-scripts start",

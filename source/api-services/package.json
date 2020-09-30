@@ -1,25 +1,23 @@
 {
   "name": "api-services",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "engines": {
-    "node": "^8.10"
+    "node": "^12.x"
   },
   "description": "REST API micro services",
   "main": "na",
   "scripts": {
-    "test": "mocha lib/**/*.spec.js"
+    "test": "jest lib/**/*.spec.js --coverage --silent"
   },
   "dependencies": {
-    "axios": "*",
-    "moment": "*",
-    "shortid": "^2.2.14"
+    "axios": "^0.20.0",
+    "moment": "^2.27.0",
+    "shortid": "^2.2.15"
   },
   "devDependencies": {
-    "aws-sdk": "*",
-    "aws-sdk-mock": "*",
-    "mocha": "*",
-    "chai": "*",
-    "axios-mock-adapter": "*"
+    "aws-sdk": "2.721.0",
+    "jest": "26.4.2",
+    "axios-mock-adapter": "1.18.2"
   },
   "repository": {
     "type": "git",

@@ -1,61 +1,81 @@
-/*******************************************************************************
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved. 
- *
- * Licensed under the Amazon Software License (the "License").
- * You may not use this file except in compliance with the License.
- * A copy of the License is located at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0    
- *
- * or in the "license" file accompanying this file. This file is distributed
- * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing
- * permissions and limitations under the License.
- *
- ********************************************************************************/
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
-const expect = require('chai').expect;
-const path = require('path');
-let AWS = require('aws-sdk-mock');
-AWS.setSDK(path.resolve('./node_modules/aws-sdk'));
+// Mock AWS SDK
+const mockDynamoDB = jest.fn();
+const mockEcs = jest.fn();
+const mockAWS = require('aws-sdk');
+mockAWS.ECS = jest.fn(() => ({
+	runTask: mockEcs
+}));
+mockAWS.DynamoDB.DocumentClient = jest.fn(() => ({
+	update: mockDynamoDB
+}));
+
+// Mock Date
+const now = new Date();
+global.Date = jest.fn(() => now);
+global.Date.getTime = now.getTime();
 
 const lambda = require('../index.js');
 
 const event = {
-	"Records": [
-	  {
-		"body": "{\"testId\":\"5Q106Tg\",\"taskCount\":\"5\"}",
-	  }
-	]
-  }
-
+	"scenario": {
+		"testId": "testId",
+		"taskCount": "5",
+		"testType": "simple"
+	},
+	"isRunning": false
+};
+const prefix = now.toISOString().replace('Z', '').split('').reverse().join('');
 
 process.env.SCENARIOS_BUCKET = 'bucket';
 process.env.TASK_DEFINITION = 'task';
 
-
 describe('#TASK RUNNER:: ', () => {
-
-    afterEach(() => {
-        AWS.restore('ECS');
+    beforeEach(() => {
+				mockEcs.mockReset();
+				mockDynamoDB.mockReset();
     });
 
-	//Possitive tests
-    it('should return "SUCCESS" when "RUNTASK" returns success', async () => {
-  		AWS.mock('ECS', 'runTask', Promise.resolve());
+	//Positive tests
+	it('should return "SUCCESS" when "RUNTASK" returns success', async () => {
+		mockEcs.mockImplementation(() => {
+			return {
+				promise() {
+					// runTask
+					return Promise.resolve();
+				}
+			};
+		});
 
-		const response = await lambda.handler(event)
-		expect(response).to.equal('success');
+		const response = await lambda.handler(event);
+		expect(response).toEqual({ scenario: event.scenario, prefix });
 	});
 
 	//Negative Tests
-    it('should return "ECS ERROR" when "RUNTASK" fails', async () => {
-        AWS.mock('ECS', 'runTask', Promise.reject('ECS ERROR'));
-		AWS.mock('DynamoDB.DocumentClient', 'update', Promise.resolve());
-
-		await lambda.handler(event).catch(err => {
-			expect(err).to.equal('ECS ERROR');
+	it('should return "ECS ERROR" when "RUNTASK" fails', async () => {
+		mockEcs.mockImplementation(() => {
+			return {
+				promise() {
+					// runTask
+					return Promise.reject('ECS ERROR');
+				}
+			};
 		});
-	});
+		mockDynamoDB.mockImplementation(() => {
+			return {
+				promise() {
+					// update
+					return Promise.resolve();
+				}
+			};
+		});
 
+		try {
+			await lambda.handler(event);
+		} catch (error) {
+			expect(error).toEqual('ECS ERROR');
+		}
+	});
 });

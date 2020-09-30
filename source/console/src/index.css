@@ -70,7 +70,7 @@ color: #FF9900 !important;
 }
 
 .create-box {
-  height: 870px;
+  height: 950px;
 }
 
 .info>.popover{
@@ -168,6 +168,11 @@ td {
   color: #DC3545;
   font-weight: 400;
   font-size: 1.1rem;
+}
+
+.failed {
+  color: #DC3545;
+  text-transform: uppercase;
 }
 
 .RUNNING {
@@ -311,7 +316,7 @@ img {
   .box {
     padding:1rem;
   }
- 
+
   img {
     width: 98%;
     display: block;

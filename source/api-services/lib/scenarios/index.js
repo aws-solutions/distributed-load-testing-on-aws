@@ -1,412 +1,410 @@
-/*******************************************************************************
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved. 
- *
- * Licensed under the Amazon Software License (the "License").
- * You may not use this file except in compliance with the License.
- * A copy of the License is located at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0    
- *
- * or in the "license" file accompanying this file. This file is distributed
- * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing
- * permissions and limitations under the License.
- *
- ********************************************************************************/
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
-const AWS = require('aws-sdk'); 
-const moment = require('moment'); 
-const shortid = require('shortid'); 
- 
+const AWS = require('aws-sdk');
+const moment = require('moment');
+const shortid = require('shortid');
+
 AWS.config.logger = console;
 
+const s3 = new AWS.S3();
+const dynamoDB = new AWS.DynamoDB.DocumentClient({ region: process.env.AWS_REGION });
+const stepFunctions = new AWS.StepFunctions({ region : process.env.AWS_REGION });
+const ecs = new AWS.ECS({ region: process.env.AWS_REGION });
 
-/** 
- * @function listTests 
- * Description: returns a consolidated list of test scenarios 
- */ 
-const listTests = async () => { 
- 
-    const dynamoDB = new AWS.DynamoDB.DocumentClient({ 
-        region: process.env.AWS_REGION 
-    }); 
- 
-    let data; 
- 
-    try { 
- 
-        console.log('List tests'); 
- 
-        const params = { 
-            TableName: process.env.SCENARIOS_TABLE, 
-            AttributesToGet: [ 
-                'testId', 
-                'testName', 
-                'testDescription', 
-                'status', 
-                'startTime' 
-            ], 
-        }; 
-        data = await dynamoDB.scan(params).promise(); 
-    } catch (err) { 
-        throw err; 
-    } 
-    return data; 
-}; 
- 
+/**
+ * @function listTests
+ * Description: returns a consolidated list of test scenarios
+ */
+const listTests = async () => {
+    console.log('List tests');
 
-/** 
- * @function createTest 
- * Description: returns a consolidated list of test scenarios 
- * @testId {string} Id for the test (if a new test value is null) 
- * @config {object} test scenario configuration 
- */ 
-const createTest = async (config) => { 
- 
-    const s3 = new AWS.S3(); 
-    const dynamo = new AWS.DynamoDB.DocumentClient({ 
-        region: process.env.AWS_REGION 
-    });
-    const sqs = new AWS.SQS({ 
-        region: process.env.AWS_REGION 
-    });
- 
-    let params; 
-    let data; 
- 
-    try { 
- 
-        console.log(`Create test: ${JSON.stringify(config,null,2)}`); 
- 
-        const testName = config.testName; 
-        const testDescription = config.testDescription; 
-        const testScenario = config.testScenario; 
-        const taskCount = config.taskCount; 
-        const startTime = moment().utc().format('YYYY-MM-DD HH:mm:ss'); 
- 
-        // Add reporting to Test Scenario so that the end results are export to 
-        // Amazon s3 by each task. 
-        testScenario.reporting = [{ 
-            "module": "final-stats", 
-            "summary": true, 
-            "percentiles": true, 
-            "summary-labels": true, 
-            "test-duration": true, 
-            "dump-xml": "/tmp/artifacts/results.xml" 
-        }]; 
-        
-        console.log('TEST:: ', JSON.stringify(testScenario,null,2) )
- 
-        //1. Check for a testId delete any old records from the results table 
-        let testId; 
- 
-        if (config.testId) { 
-            testId = config.testId; 
- 
-            params = { 
-                TableName: process.env.RESULTS_TABLE, 
-                FilterExpression : 'testId = :id', 
-                ExpressionAttributeValues : { 
-                  ':id' : testId 
-                } 
-            }; 
-            data = await dynamo.scan(params).promise(); 
- 
-            if (data.Items.length !== 0) {
- 
-                for (let i in data.Items) { 
-                    params = { 
-                        TableName: process.env.RESULTS_TABLE, 
-                        Key: { 
-                            uuid: data.Items[i].uuid 
-                        } 
-                    }; 
-                    await dynamo.delete(params).promise(); 
-                } 
-            } 
-        } else { 
-            testId = shortid.generate(); 
-        } 
- 
-        //2. Write test scenario to S3
-        params = { 
-            Body: JSON.stringify(testScenario), 
-            Bucket: process.env.SCENARIOS_BUCKET, 
-            Key: `test-scenarios/${testId}.json` 
-        }; 
-        await s3.putObject(params).promise(); 
- 
-        console.log(`test scenario upoladed to s3: test-scenarios/${testId}.json`); 
- 
-        //3. Send id and task count to SQS
-        params = {
-            MessageBody: JSON.stringify({testId:testId,taskCount:taskCount}),
-            QueueUrl: process.env.SQS_URL
+    try {
+        const params = {
+            TableName: process.env.SCENARIOS_TABLE,
+            AttributesToGet: [
+                'testId',
+                'testName',
+                'testDescription',
+                'status',
+                'startTime'
+            ],
         };
-        await sqs.sendMessage(params).promise();
-        
-        //4. Update DynamoDB. values for history, taskIds and endTime are used to remove teh old data. 
-        params = { 
-            TableName: process.env.SCENARIOS_TABLE, 
-            Key: { 
-                testId: testId 
-            }, 
-            UpdateExpression: 'set #n = :n, #d = :d, #c = :c, #t = :t, #s = :s, #r = :r, #i=:i, #st = :st, #et = :et', 
-            ExpressionAttributeNames: { 
-                '#n': 'testName', 
-                '#d': 'testDescription', 
-                '#c': 'taskCount', 
-                '#t': 'testScenario', 
-                '#s': 'status', 
-                '#r': 'results', 
-                '#i': 'taskIds', 
-                '#st': 'startTime', 
-                '#et':  'endTime' 
-            }, 
-            ExpressionAttributeValues: { 
-                ':n': testName, 
-                ':d': testDescription, 
-                ':c': taskCount, 
-                ':t': JSON.stringify(testScenario), 
-                ':s': 'running', 
-                ":r": {}, 
-                ":i": [], 
-                ':st': startTime, 
-                ':et': 'running' 
-            }, 
-            ReturnValues: 'ALL_NEW' 
-        }; 
-        data = await dynamo.update(params).promise(); 
- 
-        console.log(`Create test complete: ${data}.json`); 
- 
-    } catch (err) { 
-        throw err; 
-    } 
-    return data.Attributes; 
-}; 
- 
- 
-/** 
- * @function getTest 
- * Description: returns all data related to a specific testId 
- * @testId {string} the unique id of test scenario to return. 
- */ 
-const getTest = async (testId) => { 
- 
-    const dynamoDB = new AWS.DynamoDB.DocumentClient({ 
-        region: process.env.AWS_REGION 
-    }); 
-    const cloudwatch = new AWS.CloudWatch({ 
-        region: process.env.AWS_REGION 
-    }); 
-     const ecs = new AWS.ECS({ 
-        region: process.env.AWS_REGION 
-    }); 
- 
-    let data; 
- 
-    try { 
- 
-        console.log(`Get test details for testId: ${testId}`); 
- 
-        let params = { 
-            TableName: process.env.SCENARIOS_TABLE, 
-            Key: { 
-                testId: testId 
-            } 
-        }; 
-        data = await dynamoDB.get(params).promise(); 
-        data = data.Item; 
-        //covert testSceario back into an object
-        data.testScenario = JSON.parse(data.testScenario);
-        
-        if (data.status === 'running') { 
- 
-            console.log(`testId: ${testId} is still running`); 
- 
-            //Get list of task for testId 
-            data.tasks = []; 
-            params = { 
-                cluster: process.env.TASK_CLUSTER 
-            }; 
- 
-            const tasks =  await ecs.listTasks(params).promise(); 
- 
-            //2. check if any running task are associated with the testId 
-            if (tasks.taskArns && tasks.taskArns.length != 0 ) { 
- 
-              params = { 
-                cluster: process.env.TASK_CLUSTER, 
-                tasks: tasks.taskArns 
-              }; 
- 
-              const testTasks = await ecs.describeTasks(params).promise(); 
- 
-              //3. list any tasks associated with the testId 
-              for (let i in testTasks.tasks) { 
- 
-                if (testTasks.tasks[i].group === testId) { 
-                     data.tasks.push(testTasks.tasks[i]); 
-                    } 
-                } 
-            } 
-        } 
- 
-    } catch (err) { 
-        throw err; 
-    } 
-    return data; 
-}; 
- 
- 
-/** 
- * @function deleteTest 
- * Description: deletes all data related to a specific testId 
- * @testId {string} the unique id of test scenario to delete 
- * e. 
- */ 
-const deleteTest = async (testId) => { 
- 
-    const dynamoDB = new AWS.DynamoDB.DocumentClient({ 
-        region: process.env.AWS_REGION 
-    }); 
- 
-    try { 
- 
-        console.log(`Delete test, testId: ${testId}`); 
- 
-        const params = { 
-            TableName: process.env.SCENARIOS_TABLE, 
-            Key: { 
-                testId: testId 
-            } 
-        }; 
-        await dynamoDB.delete(params).promise(); 
- 
-    } catch (err) { 
-        throw err; 
-    } 
-    return 'success'; 
-}; 
- 
- 
-/** 
- * @function cancelTest 
- * Description: stop all tasks related to a specific testId 
- * @testId {string} the unique id of test scenario to stop. 
- * e. 
- */ 
-const cancelTest = async (testId) => { 
- 
-    const dynamo = new AWS.DynamoDB.DocumentClient({ 
-        region: process.env.AWS_REGION 
-    }); 
- 
-    const ecs = new AWS.ECS({ 
-        region: process.env.AWS_REGION 
-    }); 
- 
-    let data,params; 
- 
-    try { 
- 
-        console.log(`Cancel test for testId: ${testId}`); 
- 
-        //1. get a list of all running tasks 
-        params = { 
-            cluster: process.env.TASK_CLUSTER, 
-            desiredStatus: 'RUNNING' 
-        }; 
- 
-        data =  await ecs.listTasks(params).promise(); 
- 
-        //2. check if any running task are associated with the testId 
-        if (data.taskArns && data.taskArns.length != 0 ) { 
- 
-          params = { 
-            cluster: process.env.TASK_CLUSTER, 
-            tasks: data.taskArns 
-          }; 
- 
-          data = await ecs.describeTasks(params).promise(); 
- 
-          //3. stop any tasks associated with the testId 
-          for (let i in data.tasks) { 
-            if (data.tasks[i].group === testId) { 
- 
-                console.log('Stopping ',data.tasks[i].taskArn); 
-                params = {
-                    cluster: process.env.TASK_CLUSTER,
-                    task: data.tasks[i].taskArn 
-                }; 
-                await ecs.stopTask(params).promise(); 
-            } else { 
-                console.log('no task running for testId: ',testId); 
-            } 
-          } 
-          //4. Update the status in the scenarios table. 
-          params = { 
-            TableName: process.env.SCENARIOS_TABLE, 
-            Key: { 
-                testId: testId 
-            }, 
-            UpdateExpression: 'set #s = :s', 
-            ExpressionAttributeNames: { 
-                '#s':'status' 
-            }, 
-            ExpressionAttributeValues: { 
-                ':s': 'cancelled' 
-            } 
-        }; 
-        await dynamo.update(params).promise(); 
- 
-        } else { 
-            console.log('no task running for testId: ',testId); 
-        } 
- 
-    } catch (err) { 
-        throw err; 
-    } 
-      return 'test cancelled'; 
+        return await dynamoDB.scan(params).promise();
+    } catch (err) {
+        throw err;
+    }
 };
 
+/**
+ * @function createTest
+ * Description: returns a consolidated list of test scenarios
+ * @config {object} test scenario configuration
+ */
+const createTest = async (config) => {
+    console.log(`Create test: ${JSON.stringify(config, null, 2)}`);
 
-/** 
- * @function listTasks 
- * Description: returns a list of ecs tasks
- */ 
-const listTasks = async () => { 
- 
-    const ecs = new AWS.ECS({ 
-        region: process.env.AWS_REGION 
-    }); 
- 
-    let data; 
- 
     try {
+        let params;
+        let data;
 
-        console.log('List tasks'); 
- 
+        const { testName, testDescription, testType } = config;
+        let { testId, testScenario, taskCount } = config;
+
+        // When acessing API directly and no testId
+        if (testId === undefined) {
+            testId = shortid.generate();
+        }
+
+        const startTime = moment().utc().format('YYYY-MM-DD HH:mm:ss');
+        const numRegex = /^\d+$/;
+        const timeRegex = /[a-z]+|[^a-z]+/gi;
+        const timeUnits = ['ms', 's', 'm', 'h', 'd'];
+
+        /**
+         * Validates if time unit are valid.
+         * @param {string} key Key to validate (ramp-up, hold-for)
+         * @param {number} min Minimum number for the value
+         */
+        const validateTimeUnit = (key, min) => {
+            if (typeof testScenario.execution[0][key] === 'string') {
+                testScenario.execution[0][key] = testScenario.execution[0][key].replace(/\s/g, '');
+            }
+            if (!numRegex.test(testScenario.execution[0][key])) {
+                let patterns = testScenario.execution[0][key].match(timeRegex);
+                if (patterns.length === 0 || patterns.length % 2 !== 0) {
+                    throw {
+                        message: `Invalid ${key} value.`,
+                        code: 'InvalidParameter',
+                        status: 400
+                    };
+                }
+
+                let result = '';
+                for (let i = 0, length = patterns.length; i < length; i++) {
+                    let value = patterns[i];
+                    if (i % 2 === 0) {
+                        // Number
+                        if (!numRegex.test(value) || parseInt(value) < min) {
+                            throw {
+                                message: `${key} should be positive number equal to or greater than ${min}.`,
+                                code: 'InvalidParameter',
+                                status: 400
+                            };
+                        }
+                        result = `${result}${parseInt(value)}`;
+                    } else {
+                        // Unit
+                        if (!timeUnits.includes(value)) {
+                            throw {
+                                message: `${key} unit should be one of these: ms, s, m, h, d.`,
+                                code: 'InvalidParameter',
+                                status: 400
+                            };
+                        }
+                        result = `${result}${value}`;
+                    }
+                }
+
+                testScenario.execution[0][key] = result;
+            } else {
+                testScenario.execution[0][key] = parseInt(testScenario.execution[0][key]);
+                if (testScenario.execution[0][key] < min) {
+                    throw {
+                        message: `${key} should be positive number equal to or greater than ${min}.`,
+                        code: 'InvalidParameter',
+                        status: 400
+                    };
+                }
+            }
+        }
+
+        // Task count
+        if (typeof taskCount === 'string') {
+            taskCount = taskCount.trim();
+        }
+        if (!numRegex.test(taskCount)
+            || parseInt(taskCount) < 1
+            || parseInt(taskCount) > 100) {
+            throw {
+                message: 'Task count should be positive number between 1 to 100.',
+                code: 'InvalidParameter',
+                status: 400
+             };
+        }
+        taskCount = parseInt(taskCount);
+
+        // Concurrency
+        if (typeof testScenario.execution[0].concurrency === 'string') {
+            testScenario.execution[0].concurrency = testScenario.execution[0].concurrency.trim();
+        }
+        if (!numRegex.test(testScenario.execution[0].concurrency)
+            || parseInt(testScenario.execution[0].concurrency) < 1
+            || parseInt(testScenario.execution[0].concurrency) > 200) {
+            throw {
+                message: 'Concurrency should be positive number between 1 to 200.',
+                code: 'InvalidParameter',
+                status: 400
+             };
+        }
+        testScenario.execution[0].concurrency = parseInt(testScenario.execution[0].concurrency);
+
+        // Ramp up
+        validateTimeUnit('ramp-up', 0);
+
+        // Hold for
+        validateTimeUnit('hold-for', 1);
+
+        // Add reporting to Test Scenario so that the end results are export to
+        // Amazon s3 by each task.
+        testScenario.reporting = [{
+            "module": "final-stats",
+            "summary": true,
+            "percentiles": true,
+            "summary-labels": true,
+            "test-duration": true,
+            "dump-xml": "/tmp/artifacts/results.xml"
+        }];
+
+        console.log('TEST:: ', JSON.stringify(testScenario, null, 2) );
+
+        // 1. Write test scenario to S3
+        params = {
+            Body: JSON.stringify(testScenario),
+            Bucket: process.env.SCENARIOS_BUCKET,
+            Key: `test-scenarios/${testId}.json`
+        };
+        await s3.putObject(params).promise();
+
+        console.log(`test scenario upoladed to s3: test-scenarios/${testId}.json`);
+
+        // 2. Start Step Functions execution
+        await stepFunctions.startExecution({
+            stateMachineArn: process.env.STATE_MACHINE_ARN,
+            input: JSON.stringify({
+                scenario: {
+                    testId: testId,
+                    taskCount: taskCount,
+                    testType: testType
+                }
+            })
+        }).promise();
+
+        // 3. Update DynamoDB. values for history and endTime are used to remove the old data.
+        params = {
+            TableName: process.env.SCENARIOS_TABLE,
+            Key: {
+                testId: testId
+            },
+            UpdateExpression: 'set #n = :n, #d = :d, #c = :c, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #tt = :tt',
+            ExpressionAttributeNames: {
+                '#n': 'testName',
+                '#d': 'testDescription',
+                '#c': 'taskCount',
+                '#t': 'testScenario',
+                '#s': 'status',
+                '#r': 'results',
+                '#st': 'startTime',
+                '#et': 'endTime',
+                '#tt': 'testType'
+            },
+            ExpressionAttributeValues: {
+                ':n': testName,
+                ':d': testDescription,
+                ':c': taskCount,
+                ':t': JSON.stringify(testScenario),
+                ':s': 'running',
+                ':r': {},
+                ':st': startTime,
+                ':et': 'running',
+                ':tt': testType
+            },
+            ReturnValues: 'ALL_NEW'
+        };
+        data = await dynamoDB.update(params).promise();
+
+        console.log(`Create test complete: ${data}.json`);
+
+        return data.Attributes;
+    } catch (err) {
+        throw err;
+    }
+};
+
+/**
+ * @function getTest
+ * Description: returns all data related to a specific testId
+ * @testId {string} the unique id of test scenario to return.
+ */
+const getTest = async (testId) => {
+    console.log(`Get test details for testId: ${testId}`);
+
+    try {
+        let data;
+        let params = {
+            TableName: process.env.SCENARIOS_TABLE,
+            Key: {
+                testId: testId
+            }
+        };
+        data = await dynamoDB.get(params).promise();
+        data = data.Item;
+        //covert testSceario back into an object
+        data.testScenario = JSON.parse(data.testScenario);
+
+        if (data.status === 'running') {
+            console.log(`testId: ${testId} is still running`);
+
+            //1. Get list of task for testId
+            data.tasks = [];
+            params = {
+                cluster: process.env.TASK_CLUSTER
+            };
+
+            const tasks = await ecs.listTasks(params).promise();
+
+            //2. check if any running task are associated with the testId
+            if (tasks.taskArns && tasks.taskArns.length !== 0 ) {
+                params = {
+                    cluster: process.env.TASK_CLUSTER,
+                    tasks: tasks.taskArns
+                };
+
+                const testTasks = await ecs.describeTasks(params).promise();
+
+                //3. list any tasks associated with the testId
+                for (let i in testTasks.tasks) {
+                    if (testTasks.tasks[i].group === testId) {
+                        data.tasks.push(testTasks.tasks[i]);
+                    }
+                }
+            }
+        }
+
+        return data;
+    } catch (err) {
+        throw err;
+    }
+};
+
+/**
+ * @function deleteTest
+ * Description: deletes all data related to a specific testId
+ * @testId {string} the unique id of test scenario to delete
+ * e.
+ */
+const deleteTest = async (testId) => {
+    console.log(`Delete test, testId: ${testId}`);
+
+    try {
+        const params = {
+            TableName: process.env.SCENARIOS_TABLE,
+            Key: {
+                testId: testId
+            }
+        };
+        await dynamoDB.delete(params).promise();
+
+        return 'success';
+    } catch (err) {
+        console.error(err);
+        throw err;
+    }
+};
+
+/**
+ * @function cancelTest
+ * Description: stop all tasks related to a specific testId
+ * @testId {string} the unique id of test scenario to stop.
+ * e.
+ */
+const cancelTest = async (testId) => {
+    console.log(`Cancel test for testId: ${testId}`);
+
+    try {
+        let data, params;
+
+        //1. get a list of all running tasks
+        params = {
+            cluster: process.env.TASK_CLUSTER,
+            desiredStatus: 'RUNNING'
+        };
+
+        data =  await ecs.listTasks(params).promise();
+
+        //2. check if any running task are associated with the testId
+        if (data.taskArns && data.taskArns.length !== 0 ) {
+            params = {
+                cluster: process.env.TASK_CLUSTER,
+                tasks: data.taskArns
+            };
+
+            data = await ecs.describeTasks(params).promise();
+
+            //3. stop any tasks associated with the testId
+            for (let i in data.tasks) {
+                if (data.tasks[i].group === testId) {
+
+                    console.log('Stopping ', data.tasks[i].taskArn);
+                    params = {
+                        cluster: process.env.TASK_CLUSTER,
+                        task: data.tasks[i].taskArn
+                    };
+                    await ecs.stopTask(params).promise();
+                } else {
+                    console.log('no task running for testId: ',testId);
+                }
+            }
+        } else {
+            console.log('no task running for testId: ',testId);
+        }
+
+        //4. Update the status in the scenarios table.
+        params = {
+            TableName: process.env.SCENARIOS_TABLE,
+            Key: {
+                testId: testId
+            },
+            UpdateExpression: 'set #s = :s',
+            ExpressionAttributeNames: {
+                '#s':'status'
+            },
+            ExpressionAttributeValues: {
+                ':s': 'cancelled'
+            }
+        };
+        await dynamoDB.update(params).promise();
+
+        return 'test cancelled';
+    } catch (err) {
+        throw err;
+    }
+};
+
+/**
+ * @function listTasks
+ * Description: returns a list of ecs tasks
+ */
+const listTasks = async () => {
+    console.log('List tasks');
+
+    try {
         //Get list of running tasks
-        let params = { 
-            cluster: process.env.TASK_CLUSTER 
-        }; 
-        data = await ecs.listTasks(params).promise();  
-        data = data.taskArns;
-        
-    } catch (err) { 
-        throw err; 
-    } 
-    return data; 
-}; 
- 
- 
-module.exports = { 
-    listTests: listTests, 
-    createTest: createTest, 
-    getTest: getTest, 
-    deleteTest: deleteTest, 
+        let params = {
+            cluster: process.env.TASK_CLUSTER
+        };
+        const data = await ecs.listTasks(params).promise();
+        return data.taskArns;
+    } catch (err) {
+        throw err;
+    }
+};
+
+module.exports = {
+    listTests: listTests,
+    createTest: createTest,
+    getTest: getTest,
+    deleteTest: deleteTest,
     cancelTest: cancelTest,
     listTasks:listTasks
-}; 
+};

@@ -1,50 +1,44 @@
-/*******************************************************************************
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved. 
- *
- * Licensed under the Amazon Software License (the "License").
- * You may not use this file except in compliance with the License.
- * A copy of the License is located at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0    
- *
- * or in the "license" file accompanying this file. This file is distributed
- * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing
- * permissions and limitations under the License.
- *
- ********************************************************************************/
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 const parser = require('./lib/parser/');
 const metrics = require('./lib/metrics/');
-
+const AWS = require('aws-sdk');
+const s3 = new AWS.S3();
 
 exports.handler = async (event) => {
-    
-    console.log(JSON.stringify(event,null,2));
-    
+    console.log(JSON.stringify(event, null, 2));
+
     try {
+        const { scenario, prefix } = event;
+        const { testId } = scenario;
+        const bucket = process.env.SCENARIOS_BUCKET;
+        let totalDuration = 0;
 
-        const bucket = event.Records[0].s3.bucket.name;
-        const key =  event.Records[0].s3.object.key;
-        const testId = key.split('/').slice(1,2)[0];
-        const uuid = key.split('/').slice(2,3)[0].slice(0, -4);
+        // Get the latest test result from S3
+        const resultList = await s3.listObjectsV2({ Bucket: bucket, Prefix: `results/${testId}/${prefix}`}).promise();
+        if (resultList.Contents) {
+            const data = [];
+            for (const content of resultList.Contents) {
+                const parsedResult = await parser.results(content, testId);
+                let duration = parseInt(parsedResult.duration);
+                totalDuration += isNaN(duration) ? 0 : duration;
 
-        //parse results from an individualtask and update dynamodb 
-        const results = await parser.results(bucket, key, uuid, testId);
+                data.push(parsedResult);
+            }
 
-        //Send anonymous metrics
-        await metrics.send(results.duration);
-
-        if (results.taskIds.length >= results.taskCount) {
+            // Send anonymous metrics
+            if (process.env.SEND_METRIC === 'Yes') {
+                await metrics.send(totalDuration);
+            }
             console.log('All Task Complete');
-            //Parser final results and update dynamodb
-            await parser.finalResults(testId);
-        } else {
-            console.log('tasks still running');
-        }
 
+            //Parser final results and update dynamodb
+            await parser.finalResults(testId, data);
+        }
+        return 'success';
 	} catch (err) {
+        console.error(err);
 		throw err;
     }
-	return 'success';
 };

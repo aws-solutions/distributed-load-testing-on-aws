@@ -1,20 +1,8 @@
-/*******************************************************************************
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved. 
- *
- * Licensed under the Amazon Software License (the "License").
- * You may not use this file except in compliance with the License.
- * A copy of the License is located at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0    
- *
- * or in the "license" file accompanying this file. This file is distributed
- * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing
- * permissions and limitations under the License.
- *
- ********************************************************************************/
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 import React from 'react';
-import { API } from 'aws-amplify';
+import { API, Storage } from 'aws-amplify';
 import 'brace';
 import AceEditor from 'react-ace';
 import {
@@ -27,19 +15,30 @@ import {
     FormText,
     Spinner,
     InputGroup,
+    CustomInput,
 } from 'reactstrap';
+import * as shortid from 'shortid';
 
 import 'brace/theme/github';
+
+// Upload file size limit
+const FILE_SIZE_LIMIT = 5 * 1024 * 1024;
+
+// Allowed file extentions
+const FILE_EXTENSIONS = ['jmx'];
 
 class Create extends React.Component {
 
     constructor(props){
         super(props);
-        if (this.props.location.state.data.testId) {
+        if (this.props.location.state && this.props.location.state.data.testId) {
             this.state = {
                 isLoading: false,
-                runningTasks:false,
+                runningTasks: false,
                 testId: this.props.location.state.data.testId,
+                file: null,
+                validFile: false,
+                chooseNewFile: false,
                 formValues: {
                     testName: this.props.location.state.data.testName,
                     testDescription: this.props.location.state.data.testDescription,
@@ -52,14 +51,18 @@ class Create extends React.Component {
                     endpoint: this.props.location.state.data.endpoint,
                     method: this.props.location.state.data.method,
                     body: JSON.stringify(this.props.location.state.data.body),
-                    headers: JSON.stringify(this.props.location.state.data.headers)
+                    headers: JSON.stringify(this.props.location.state.data.headers),
+                    testType: this.props.location.state.data.testType ? this.props.location.state.data.testType : 'simple'
                 }
             }
         } else {
             this.state = {
                 isLoading: false,
-                runningTasks:false,
+                runningTasks: false,
                 testId: null,
+                file: null,
+                validFile: false,
+                chooseNewFile: false,
                 formValues: {
                     testName:'',
                     testDescription: '',
@@ -72,10 +75,10 @@ class Create extends React.Component {
                     endpoint: '',
                     method:'GET',
                     body: '',
-                    headers: ''
+                    headers: '',
+                    testType: 'simple'
                 }
             };
-            
         }
 
         this.form = React.createRef();
@@ -84,74 +87,94 @@ class Create extends React.Component {
         this.setFormValue = this.setFormValue.bind(this);
         this.handleBodyPayloadChange = this.handleBodyPayloadChange.bind(this);
         this.handleHeadersChange = this.handleHeadersChange.bind(this);
+        this.handleFileChange = this.handleFileChange.bind(this);
+        this.handleCheckBox = this.handleCheckBox.bind(this);
         this.parseJson = this.parseJson.bind(this);
         this.listTasks = this.listTasks.bind(this);
     }
 
     parseJson(str) {
-        try { 
-            return JSON.parse(str) 
+        try {
+            return JSON.parse(str);
         } catch (err) {
              return false;
-        } 
+        }
     }
-    
+
     handleSubmit = async () => {
+        this.setState({ isLoading: true });
 
         const values = this.state.formValues;
 
         if (!this.form.current.reportValidity() ) {
+            this.setState({ isLoading: false });
             return false;
         }
-        if (!values.headers) {
-            values.headers = '{}';
-        }
-        if (!values.body) {
-            values.body = '{}';
-        }
-        if (!this.parseJson(values.headers.trim())) {
-            return alert('WARINING: headers text is not valid JSON');
-        }
-        if (!this.parseJson(values.body.trim())) {
-            return alert('WARINING: body text is not valid JSON');
-        }
-        this.setState({ isLoading: true })
 
-        try {
-
-            let payload = {
-                testName: values.testName,
-                testDescription: values.testDescription,
-                taskCount: values.taskCount,
-                testScenario: {
-                    execution: [{
-                        concurrency: values.concurrency,
-                        "ramp-up": String(values.rampUp).concat(values.rampUpUnits),
-                        "hold-for": String(values.holdFor).concat(values.holdForUnits),
-                        scenario: values.testName,
-                    }],
-                    scenarios: {
-                        [values.testName]: {
-                            requests: [
-                                {
-                                    url: values.endpoint,
-                                    method: values.method,
-                                    body: this.parseJson(values.body.trim()),
-                                    headers: this.parseJson(values.headers.trim())
-                                }
-                            ]
-                        }
-                    }
+        const testId = this.state.testId ? this.state.testId : shortid.generate();
+        let payload = {
+            testId,
+            testName: values.testName,
+            testDescription: values.testDescription,
+            taskCount: parseInt(values.taskCount),
+            testScenario: {
+                execution: [{
+                    concurrency: parseInt(values.concurrency),
+                    "ramp-up": String(parseInt(values.rampUp)).concat(values.rampUpUnits),
+                    "hold-for": String(parseInt(values.holdFor)).concat(values.holdForUnits),
+                    scenario: values.testName
+                }],
+                scenarios: {
+                    [values.testName]: {}
                 }
+            },
+            testType: values.testType
+        };
+
+        if (values.testType === 'simple') {
+            if (!values.headers) {
+                values.headers = '{}';
+            }
+            if (!values.body) {
+                values.body = '{}';
+            }
+            if (!this.parseJson(values.headers.trim())) {
+                return alert('WARNING: headers text is not valid JSON');
+            }
+            if (!this.parseJson(values.body.trim())) {
+                return alert('WARNING: body text is not valid JSON');
+            }
+
+            payload.testScenario.scenarios[values.testName] = {
+                requests: [
+                    {
+                        url: values.endpoint,
+                        method: values.method,
+                        body: this.parseJson(values.body.trim()),
+                        headers: this.parseJson(values.headers.trim())
+                    }
+                ]
+            };
+        } else {
+            payload.testScenario.scenarios[values.testName] = {
+                script: `${testId}.jmx`
             };
 
-            if (this.state.testId) {
-                payload.testId = this.state.testId; 
+            if (this.state.file) {
+                try {
+                    const file = this.state.file;
+                    await Storage.put(`test-scenarios/jmeter/${testId}.jmx`, file);
+                    console.log('Script uploaded successfully');
+                } catch (error) {
+                    console.error('Error', error);
+                }
             }
-    
+        }
+
+        try {
             const response = await API.post('dlts', '/scenarios', { body: payload });
             console.log('Scenario created successfully', response);
-            this.props.history.push("/");
+            this.props.history.push({ pathname: '/details', state: { testId: response.testId } });
         } catch (err) {
             console.error('Failed to create scenario', err);
             this.setState({ isLoading: false });
@@ -178,27 +201,79 @@ class Create extends React.Component {
         this.setFormValue('headers', value);
     }
 
+    handleFileChange(event) {
+        const file = event.target.files[0];
+        if (file) {
+            this.setState({
+                file: null,
+                validFile: false
+            });
+
+            const { name, size } = file;
+            const extension = name.split('.').pop();
+
+            // Limit upload file size
+            if (size > FILE_SIZE_LIMIT) {
+                return alert(`WARNING: exceeded file size limit ${FILE_SIZE_LIMIT}`);
+            }
+
+            // Limit file extension
+            if (!FILE_EXTENSIONS.includes(extension)) {
+                return alert(`WARNING: only allows (${FILE_EXTENSIONS.join(',')}) files.`);
+            }
+
+            this.setState({
+                file,
+                validFile: true
+            });
+        } else {
+            this.setState({
+                file: null,
+                validFile: false
+            });
+        }
+    }
+
+    handleCheckBox(event) {
+        const { checked } = event.target;
+        if (checked) {
+            this.setState({
+                validFile: false,
+                file: null
+            });
+        } else {
+            this.setState({ validFile: true });
+        }
+        this.setState({ chooseNewFile: checked });
+    }
+
     listTasks = async () => {
         try {
             const data = await API.get('dlts', '/tasks');
             if (data.length !== 0 ) {
-                this.setState({runningTasks:true});
+                this.setState({ runningTasks: true });
             }
         } catch (err) {
             alert(err);
         }
     };
 
-    componentDidMount() { 
+    componentDidMount() {
         this.listTasks();
-    };
+    }
 
     render() {
+
+        const cancel = () => {
+            return this.state.testId === null ?
+                this.props.history.push('/') :
+                this.props.history.push({ pathname: '/details', state: { testId: this.state.testId }})
+        }
 
         const warning = (
             <div>
                 <div className="box">
-                    <h1>Create a Load Test</h1>
+                    <h1>{ this.state.testId === null ? 'Create' : 'Update' } Load Test</h1>
                 </div>
                 <p className="warning">Warning there is a test running, multiple concurrent tests is currently not supported to avoid hitting the AWS Fargate task limits. Please wait for the test to finish before submitting a new test!</p>
             </div>
@@ -207,11 +282,10 @@ class Create extends React.Component {
 
         const heading = (
             <div className="box">
-                <h1>Create a Load Test</h1>
-                
+                <h1>{ this.state.testId === null ? 'Create' : 'Update' } Load Test</h1>
             </div>
         )
-   
+
         const createTestForm = (
             <div>
                 <Row>
@@ -254,7 +328,7 @@ class Create extends React.Component {
                                     type="number"
                                     name="taskCount"
                                     id="taskCount"
-                                    max={50}
+                                    max={100}
                                     min={1}
                                     step={1}
                                     required
@@ -262,12 +336,12 @@ class Create extends React.Component {
                                 />
                                 <FormText color="muted">
                                     Number of docker containers that will be launched in the Fargate cluster to run the
-                                    test scenario, max value 50.
+                                    test scenario, max value 100.
                                 </FormText>
                             </FormGroup>
 
                             <FormGroup>
-                                <Label for="concurrency">Concurrency (TPS)</Label>
+                                <Label for="concurrency">Concurrency</Label>
                                 <Input
                                     value={this.state.formValues.concurrency}
                                     className="form-short"
@@ -281,11 +355,10 @@ class Create extends React.Component {
                                     onChange={this.handleInputChange}
                                 />
                                 <FormText color="muted">
-                                    The number of concurrent requests generated per task, max value 200.
+                                    The number of concurrent virtual users generated per task, max value 200.
                                 </FormText>
                             </FormGroup>
                             <FormGroup>
-
                                 <Label for="rampUp">Ramp Up</Label>
                                 <InputGroup className="input-group-short">
                                     <Input
@@ -351,94 +424,154 @@ class Create extends React.Component {
                         <div className="box create-box">
                             <h3>Scenario</h3>
                             <FormGroup>
-                                <Label for="endpoint">HTTP endpoint under test</Label>
+                                <Label for="testType">Test Type</Label>
                                 <Input
-                                    value={this.state.formValues.endpoint}
-                                    type="url"
-                                    name="endpoint"
-                                    id="endpoint"
-                                    required
-                                    onChange={this.handleInputChange}
-                                />
-                                <FormText color="muted">
-                                    Target URL to run tests against, supports http and https. i.e.
-                                    https://example.com:8080.
-                                </FormText>
-                            </FormGroup>
-                            <FormGroup>
-                                <Label for="method">HTTP Method</Label>
-                                <Input
-                                    value={this.state.formValues.method}
-                                    className="form-short"
                                     type="select"
-                                    name="method"
-                                    id="method"
+                                    id="testType"
+                                    name="testType"
                                     required
+                                    value={this.state.formValues.testType}
                                     onChange={this.handleInputChange}
                                 >
-                                    <option>GET</option>
-                                    <option>PUT</option>
-                                    <option>POST</option>
-                                    <option>DELETE</option>
+                                    <option value="simple">Simple Test</option>
+                                    <option value="jmeter">JMeter</option>
                                 </Input>
+                            </FormGroup>
+                            {
+                                this.state.formValues.testType === 'simple' &&
+                                <div>
+                                    <FormGroup>
+                                        <Label for="endpoint">HTTP endpoint under test</Label>
+                                        <Input
+                                            value={this.state.formValues.endpoint}
+                                            type="url"
+                                            name="endpoint"
+                                            id="endpoint"
+                                            required
+                                            onChange={this.handleInputChange}
+                                        />
+                                        <FormText color="muted">
+                                            Target URL to run tests against, supports http and https. i.e.
+                                            https://example.com:8080.
+                                        </FormText>
+                                    </FormGroup>
+                                    <FormGroup>
+                                        <Label for="method">HTTP Method</Label>
+                                        <Input
+                                            value={this.state.formValues.method}
+                                            className="form-short"
+                                            type="select"
+                                            name="method"
+                                            id="method"
+                                            required
+                                            onChange={this.handleInputChange}
+                                        >
+                                            <option>GET</option>
+                                            <option>PUT</option>
+                                            <option>POST</option>
+                                            <option>DELETE</option>
+                                        </Input>
 
-                                <FormText color="muted">
-                                    The request method, default is GET.
-                                </FormText>
-                            </FormGroup>
-                            <FormGroup>
-                                <Label for="testDescription">HTTP Headers (Optional)</Label>
-                                <AceEditor
-                                    mode="text"
-                                    theme="github"
-                                    showPrintMargin={true}
-                                    showGutter={true}
-                                    value={this.state.formValues.headers}
-                                    highlightActiveLine={true}
-                                    onChange={this.handleHeadersChange}
-                                    name="headers"
-                                    width="100%"
-                                    height="190px"
-                                    editorProps={{$blockScrolling: true}}
-                                    setOptions={{
-                                        showLineNumbers: true,
-                                        tabSize: 2,
-                                    }}
-                                />
-                                <FormText color="muted">
-                                    A valid JSON object key-value pair containing headers to include in the requests.
-                                </FormText>
-                            </FormGroup>
-                            <FormGroup>
-                                <Label>Body Payload (Optional)</Label>
-                                <AceEditor
-                                    mode="json"
-                                    theme="github"
-                                    showPrintMargin={true}
-                                    showGutter={true}
-                                    highlightActiveLine={true}
-                                    onChange={this.handleBodyPayloadChange}
-                                    name="bodyPayload"
-                                    value={this.state.formValues.body}
-                                    width="100%"
-                                    height="190px"
-                                    editorProps={{$blockScrolling: true}}
-                                    setOptions={{
-                                        showLineNumbers: true,
-                                        tabSize: 2,
-                                    }}
-                                />
-                                <FormText color="muted">
-                                    A valid JSON object containing any body text to include in the requests.
-                                </FormText>
-                            </FormGroup>
+                                        <FormText color="muted">
+                                            The request method, default is GET.
+                                        </FormText>
+                                    </FormGroup>
+                                    <FormGroup>
+                                        <Label for="testDescription">HTTP Headers (Optional)</Label>
+                                        <AceEditor
+                                            id="headers"
+                                            mode="text"
+                                            theme="github"
+                                            showPrintMargin={true}
+                                            showGutter={true}
+                                            value={this.state.formValues.headers}
+                                            highlightActiveLine={true}
+                                            onChange={this.handleHeadersChange}
+                                            name="headers"
+                                            width="100%"
+                                            height="190px"
+                                            editorProps={{$blockScrolling: true}}
+                                            setOptions={{
+                                                showLineNumbers: true,
+                                                tabSize: 2,
+                                            }}
+                                        />
+                                        <FormText color="muted">
+                                            A valid JSON object key-value pair containing headers to include in the requests.
+                                        </FormText>
+                                    </FormGroup>
+                                    <FormGroup>
+                                        <Label>Body Payload (Optional)</Label>
+                                        <AceEditor
+                                            id="bodyPayload"
+                                            mode="json"
+                                            theme="github"
+                                            showPrintMargin={true}
+                                            showGutter={true}
+                                            highlightActiveLine={true}
+                                            onChange={this.handleBodyPayloadChange}
+                                            name="bodyPayload"
+                                            value={this.state.formValues.body}
+                                            width="100%"
+                                            height="190px"
+                                            editorProps={{$blockScrolling: true}}
+                                            setOptions={{
+                                                showLineNumbers: true,
+                                                tabSize: 2,
+                                            }}
+                                        />
+                                        <FormText color="muted">
+                                            A valid JSON object containing any body text to include in the requests.
+                                        </FormText>
+                                    </FormGroup>
+                                </div>
+                            }
+                            {
+                                this.state.formValues.testType !== 'simple' &&
+                                <div>
+                                    {
+                                        this.state.testId &&
+                                        <FormGroup check>
+                                            <Label check>
+                                                <Input id="newScriptCheckboux" type="checkbox" onClick={this.handleCheckBox} value={this.state.validFile} /> Choose new script.
+                                            </Label>
+                                        </FormGroup>
+                                    }
+                                    {
+                                        (!this.state.testId || this.state.chooseNewFile) &&
+                                        <FormGroup>
+                                            <Label for="fileUpload">Script File</Label>
+                                            <CustomInput
+                                                type="file"
+                                                id="fileUpload"
+                                                name="fileUpload"
+                                                onChange={this.handleFileChange}
+                                                disabled={this.state.runningTasks} />
+                                        </FormGroup>
+                                    }
+                                </div>
+                            }
                             <Button
+                                id="submitButton"
                                 className="submit"
                                 size="sm"
                                 onClick={this.handleSubmit}
-                                disabled={this.state.runningTasks}
+                                disabled={this.state.runningTasks ||
+                                    (this.state.formValues.testType !== 'simple' && (
+                                        (this.state.chooseNewFile && !this.state.validFile) || (!this.state.testId && !this.state.validFile)
+                                    ))}
                             >
                                 Submit
+                            </Button>
+                            <Button
+                                id="cancelButton"
+                                className="submit"
+                                color="danger"
+                                size="sm"
+                                onClick={cancel}
+                                disabled={this.state.isLoading}
+                            >
+                                Cancel
                             </Button>
                         </div>
                     </Col>
@@ -449,11 +582,11 @@ class Create extends React.Component {
         return (
             <div>
                 <form ref={this.form} onSubmit={e => e.preventDefault()}>
-                    
-                    { this.state.runningTasks? warning : heading }
+
+                    { this.state.runningTasks ? warning : heading }
 
                     <div>
-                        {this.state.isLoading? <div className="loading"><Spinner color="secondary" /></div> : createTestForm}
+                        {this.state.isLoading ? <div className="loading"><Spinner color="secondary" /></div> : createTestForm}
                     </div>
                 </form>
             </div>

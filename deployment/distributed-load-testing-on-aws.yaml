@@ -1,20 +1,19 @@
-Description: "(SO0062) - Distributed Load Testing on AWS Version 1.0.0 is a reference architecture for perform applications load testing at scale"
+Description: "(SO0062) - Distributed Load Testing on AWS is a reference architecture to perform application load testing at scale. Version CODE_VERSION"
 
 Parameters:
-
   AdminName:
     Type: String
-    Description: Then admin user name to access the Distributed Load Testing Console
-    MinLength: 4 
-    MaxLength: 20 
+    Description: Admin user name to access the Distributed Load Testing Console
+    MinLength: 4
+    MaxLength: 20
     AllowedPattern: '[a-zA-Z0-9-]+'
-    ConstraintDescription: "username must be a minimum of 4 characters and cannot include spaces"
+    ConstraintDescription: "Admin username must be a minimum of 4 characters and cannot include spaces"
 
   AdminEmail:
     Type: String
     Description: Admin user email address to access the Distributed Load Testing Console
-    MinLength: 5 
-    AllowedPattern: '^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$' 
+    MinLength: 5
+    AllowedPattern: '^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
     ConstraintDescription: "Admin email must be a valid email address"
 
   VpcCidrBlock:
@@ -45,7 +44,7 @@ Parameters:
   EgressCidr:
     Type: String
     Default: 0.0.0.0/0
-    Description: The Cidir Block to restrict the ECS container outbound access
+    Description: CIDR Block to restrict the ECS container outbound access
     MinLength: 9
     MaxLength: 18
     AllowedPattern: "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))"
@@ -76,9 +75,9 @@ Metadata:
         VpcCidrBlock:
           default: "AWS Fargate VPC CIDR Block"
         SubnetACidrBlock:
-          default: "AWS Fargate Subnet A CIDR Blocck"
+          default: "AWS Fargate Subnet A CIDR Block"
         SubnetBCidrBlock:
-          default: "AWS Fargate Subnet B CIDR Blocck"
+          default: "AWS Fargate Subnet B CIDR Block"
         EgressCidr:
           default: "AWS Fargate SecurityGroup CIDR Block"
 
@@ -89,10 +88,10 @@ Mappings:
       KeyPrefix: SOLUTION_NAME/CODE_VERSION
   AnonymousData:
     SendAnonymousData:
-      Data: Yes
+      Data: "Yes"
 
 Conditions:
-  Metrics: !Equals [ !FindInMap [AnonymousData,SendAnonymousData,Data], Yes ]
+  Metrics: !Equals [ !FindInMap [AnonymousData, SendAnonymousData, Data], "Yes" ]
 
 Resources:
 
@@ -110,19 +109,13 @@ Resources:
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-          -
-            Effect: Allow
+          - Effect: Allow
             Action:
               - logs:CreateLogGroup
               - logs:CreateLogStream
               - logs:PutLogEvents
             Resource:
-              !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/*
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W12
-            reason: "The wildcard action in the logs policy is required to write to log groups, log group names are not explicit"
+              - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/*
 
   S3Policy:
     Type: AWS::IAM::Policy
@@ -135,18 +128,15 @@ Resources:
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-          -
-            Effect: Allow
+          - Effect: Allow
             Action:
+              - s3:HeadObject
               - s3:PutObject
               - s3:GetObject
+              - s3:ListBucket
             Resource:
+              - !Sub ${ScenariosBucket.Arn}
               - !Sub ${ScenariosBucket.Arn}/*
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W12
-            reason: "The wildcard action in the s3 policy is required to read/write to the s3 bucket"
 
   DynamoDbPolicy:
     Type: AWS::IAM::Policy
@@ -159,8 +149,7 @@ Resources:
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-          -
-            Effect: Allow
+          - Effect: Allow
             Action:
               - dynamodb:DeleteItem
               - dynamodb:GetItem
@@ -170,7 +159,6 @@ Resources:
               - dynamodb:UpdateItem
             Resource:
               - !Sub ${ScenariosTable.Arn}
-              - !Sub ${ResultsTable.Arn}
 
   LambdaApiRole:
     Type: AWS::IAM::Role
@@ -178,59 +166,51 @@ Resources:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
-          -
-            Effect: Allow
+          - Effect: Allow
             Principal:
               Service:
                 - lambda.amazonaws.com
             Action:
               - sts:AssumeRole
       Policies:
-        -
-          PolicyName: !Sub ${AWS::StackName}-api-lambda-policy
+        - PolicyName: !Sub ${AWS::StackName}-api-lambda-policy
           PolicyDocument:
             Statement:
-              -
-                Effect: Allow
+              - Effect: Allow
                 Action:
-                  - ecs:listTasks
+                  - ecs:ListTasks
                 Resource:
                   - "*"
-              -
-                Effect: Allow
+              - Effect: Allow
                 Action:
                   - ecs:RunTask
                   - ecs:StopTask
-                  - ecs:describeTasks
+                  - ecs:DescribeTasks
                 Resource:
-                  - !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task/*
-                  - !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/*:*
-              -
-                Effect: Allow
+                  - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task/*
+                  - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/*:*
+              - Effect: Allow
                 Action:
                   - iam:PassRole
                 Resource:
                   - !Sub ${EcsTaskExecutionRole.Arn}
-              -
-                Effect: Allow
+              - Effect: Allow
                 Action:
-                  - "sqs:SendMessage"
-                Resource: !Sub ${EcsTaskSqsQueue.Arn}
-              -
-                Effect: Allow
+                  - states:StartExecution
+                Resource:
+                  - !Ref TaskRunnerStepFunctions
+              - Effect: Allow
                 Action:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource:
-                  !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/*
+                  !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/*
     Metadata:
       cfn_nag:
         rules_to_suppress:
           - id: W11
-            reason: "ecs:listTasks doesnot support resource level permissions"
-          - id: W12
-            reason: "The wildcard action in the logs policy is required to write to log groups, log group names are not explicit"
+            reason: ecs:listTasks does not support resource level permissions.
 
   LambdaTaskRole:
     Type: AWS::IAM::Role
@@ -255,8 +235,8 @@ Resources:
                 Action:
                   - ecs:RunTask
                 Resource:
-                  - !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task/*
-                  - !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/*:*
+                  - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task/*
+                  - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/*:*
               -
                 Effect: Allow
                 Action:
@@ -266,32 +246,19 @@ Resources:
               -
                 Effect: Allow
                 Action:
-                  - "sqs:ReceiveMessage"
-                  - "sqs:DeleteMessage"
-                  - "sqs:GetQueueAttributes"
-                Resource: !Sub ${EcsTaskSqsQueue.Arn}
-              -
-                Effect: Allow
-                Action:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource:
-                  !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/*
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W11
-            reason: "The wildcard action in the logs policy is required to write to log groups, log group names are not explicit"
+                  !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/*
 
-  LambdaResultsRole:
+  LambdaTaskStatusRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
-          -
-            Effect: Allow
+          - Effect: Allow
             Principal:
               Service:
                 - lambda.amazonaws.com
@@ -299,11 +266,49 @@ Resources:
               - sts:AssumeRole
       Policies:
         -
-          PolicyName: !Sub ${AWS::StackName}-api-lambda-policy
+          PolicyName: !Sub ${AWS::StackName}-task-status-lambda-policy
           PolicyDocument:
             Statement:
-              -
-                Effect: Allow
+              - Effect: Allow
+                Action:
+                  - ecs:ListTasks
+                Resource:
+                  - "*"
+              - Effect: Allow
+                Action:
+                  - ecs:DescribeTasks
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task/*
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/*
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: ecs:ListTasks cannot specify resource level.
+
+  LambdaResultsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-api-lambda-policy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
                 Action:
                   - cloudwatch:GetMetricWidgetImage
                 Resource: "*"
@@ -311,10 +316,9 @@ Resources:
       cfn_nag:
         rules_to_suppress:
           - id: W11
-            reason: "CloudWatch GetMetricWidgetImage and ECS listTasks do not support resource level permisions"
+            reason: cloudwatch:GetMetricWidgetImage does not support resource level permisions.
 
   LambdaCustomRole:
-    DependsOn: CloudWatchLogsPolicy
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -339,7 +343,7 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource:
-                  !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/*
+                  !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/*
               -
                 Effect: Allow
                 Action:
@@ -350,20 +354,11 @@ Resources:
               -
                 Effect: Allow
                 Action:
-                  - s3:PutBucketNotification
-                Resource:
-                  - !Sub ${ScenariosBucket.Arn}
-              -
-                Effect: Allow
-                Action:
                   - s3:GetObject
                 Resource:
-                  - !Join ["", ["arn:aws:s3:::",!FindInMap ["SourceCode", "General", "S3Bucket"], "-", Ref: "AWS::Region","/*"]]
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W11
-            reason: "/* required to get/put objects to Amazon S3"
+                  - !Sub
+                    - arn:${AWS::Partition}:s3:::${Bucket}-${AWS::Region}/*
+                    - Bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
 
   EcsTaskExecutionRole:
     Type: AWS::IAM::Role
@@ -376,7 +371,7 @@ Resources:
             Principal:
               Service: "ecs-tasks.amazonaws.com"
       ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 
   ContainerCodeBuildRole:
     Type: AWS::IAM::Role
@@ -427,10 +422,8 @@ Resources:
     Metadata:
       cfn_nag:
         rules_to_suppress:
-          - id: F3
-            reason: "ECR GetAuthorizationToken does not support resource level permissions"
           - id: W11
-            reason: "/* required to get/put objects to Amazon S3"
+            reason: ecr:GetAuthorizationToken does not support resource level permission.
 
   ContainerCodePipelineRole:
     Type: AWS::IAM::Role
@@ -467,44 +460,6 @@ Resources:
                   - codebuild:BatchGetBuilds
                 Resource:
                   - !Sub ${ContainerCodeBuild.Arn}
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W11
-            reason: "/* required to get/put objects to Amazon S3"
-
-  ApiLambdaExecRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          -
-            Effect: Allow
-            Principal:
-              Service:
-                - apigateway.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      Policies:
-        -
-          PolicyName: !Sub ${AWS::StackName}-api-gateway-policy
-          PolicyDocument:
-            Statement:
-              -
-                Effect: Allow
-                Action:
-                  - lambda:InvokeFunction
-                Resource:
-                  - !Sub ${ApiServices.Arn}
-
-  S3LambdaInvoke:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !GetAtt ResultsParser.Arn
-      Action: lambda:InvokeFunction
-      Principal: s3.amazonaws.com
-      SourceAccount: !Ref AWS::AccountId
 
   ApiLambdaInvoke:
     Type: AWS::Lambda::Permission
@@ -512,15 +467,7 @@ Resources:
       FunctionName: !GetAtt ApiServices.Arn
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
-      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*
-  
-  EcsTaskEventSourceMapping:
-    Type: AWS::Lambda::EventSourceMapping
-    Properties: 
-      BatchSize: 1
-      Enabled: true
-      EventSourceArn: !Sub ${EcsTaskSqsQueue.Arn}
-      FunctionName: !Sub ${TaskRunner.Arn}
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*
 
 ## Fargate VPC
   Vpc:
@@ -531,9 +478,13 @@ Resources:
       EnableDnsSupport: true
       EnableDnsHostnames: true
       Tags:
-        -
-          Key: SolutionId
+        - Key: SolutionId
           Value: SO0062
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W60
+            reason: This VPC is used by Fargates only, so it does not require to have VPC flow logs.
 
   PublicSubnetA:
     Type: AWS::EC2::Subnet
@@ -597,13 +548,15 @@ Resources:
     Type: AWS::ECR::Repository
 
   EcsCluster:
-      Type: AWS::ECS::Cluster
-      Properties:
-        ClusterName: !Sub ${AWS::StackName}
-        Tags:
-          -
-            Key: SolutionId
-            Value: SO0062
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub ${AWS::StackName}
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+      Tags:
+        - Key: SolutionId
+          Value: SO0062
 
   EcsSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -665,11 +618,6 @@ Resources:
     Properties:
       DashboardBody: !Sub '{"widgets":[{"type":"metric","x":0,"y":0,"width":8,"height":8,"properties":{"metrics":[["distribuited-load-testing","Avg Response Time"]],"view":"timeSeries","stacked":true,"region":"${AWS::Region}","stat":"Average"}}]}'
 
-  EcsTaskSqsQueue: 
-    Type: AWS::SQS::Queue
-    Properties:
-      VisibilityTimeout: 120
-
 ## Storage
   ScenariosBucket:
     DeletionPolicy: Retain
@@ -682,18 +630,32 @@ Resources:
         ServerSideEncryptionConfiguration:
         - ServerSideEncryptionByDefault:
             SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedMethods:
+              - GET
+              - POST
+              - PUT
+            AllowedOrigins:
+              - !Sub https://${ConsoleCloudFront.DomainName}
+            AllowedHeaders:
+              - '*'
       Tags:
-        -
-          Key: SolutionId
+        - Key: SolutionId
           Value: SO0062
 
   ScenariosBucketPolicy:
    Type: AWS::S3::BucketPolicy
    Properties:
     Bucket: !Ref ScenariosBucket
-    PolicyDocument: 
-      Statement: 
-        - 
+    PolicyDocument:
+      Statement:
+        -
           Action: "s3:*"
           Effect: Deny
           Principal: "*"
@@ -715,12 +677,21 @@ Resources:
         LogFilePrefix: container-bucket-access/
       BucketEncryption:
         ServerSideEncryptionConfiguration:
-        - ServerSideEncryptionByDefault:
-            SSEAlgorithm: aws:kms
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
       Tags:
-        -
-          Key: SolutionId
+        - Key: SolutionId
           Value: SO0062
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W51
+            reason: Since the bucket does not allow the public access, it does not require to have bucket policy.
 
   LogsBucket:
     DeletionPolicy: Retain
@@ -729,17 +700,23 @@ Resources:
       AccessControl: LogDeliveryWrite
       BucketEncryption:
         ServerSideEncryptionConfiguration:
-        - ServerSideEncryptionByDefault:
-            SSEAlgorithm: aws:kms
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
       Tags:
-        -
-          Key: SolutionId
+        - Key: SolutionId
           Value: SO0062
     Metadata:
       cfn_nag:
         rules_to_suppress:
           - id: W35
-            reason: "Loggin not enabled, this is the logs bucket for CloudFront and the other S3 buckets"
+            reason: Logging not enabled, this is the logs bucket for CloudFront and the other S3 buckets.
+          - id: W51
+            reason: Since the bucket does not allow the public access, it does not require to have bucket policy.
 
   ConsoleBucket:
     Type: AWS::S3::Bucket
@@ -751,55 +728,33 @@ Resources:
       LoggingConfiguration:
         DestinationBucketName: !Ref LogsBucket
         LogFilePrefix: console-bucket-access/
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
       Tags:
-        -
-          Key: SolutionId
+        - Key: SolutionId
           Value: SO0062
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W41
-            reason: "Encryption not enabled, this bucket host a website accessed through CloudFront"
 
   ScenariosTable:
     Type: AWS::DynamoDB::Table
     Properties:
       AttributeDefinitions:
-      - AttributeName: testId
-        AttributeType: S
+        - AttributeName: testId
+          AttributeType: S
       KeySchema:
-      - AttributeName: testId
-        KeyType: HASH
+        - AttributeName: testId
+          KeyType: HASH
       BillingMode: "PAY_PER_REQUEST"
-
-  ResultsTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      AttributeDefinitions:
-      - AttributeName: uuid
-        AttributeType: S
-      - AttributeName: testId
-        AttributeType: S
-      KeySchema:
-      - AttributeName: uuid
-        KeyType: HASH
-      GlobalSecondaryIndexes:
-        -
-          IndexName: "uuid-testId-index"
-          KeySchema:
-          - AttributeName: uuid
-            KeyType: HASH
-          - AttributeName: testId
-            KeyType: RANGE
-          Projection:
-            ProjectionType: "ALL"
-      TimeToLiveSpecification:
-        AttributeName: ttlDel
-        Enabled: true
-      BillingMode: "PAY_PER_REQUEST"
+      SSESpecification:
+        SSEEnabled: True
       Tags:
-        -
-          Key: SolutionId
+        - Key: SolutionId
           Value: SO0062
 
 ## CloudFront
@@ -814,7 +769,7 @@ Resources:
             Principal:
               CanonicalUser: !GetAtt ConsoleOriginAccessIdentity.S3CanonicalUserId
             Action: 's3:GetObject'
-            Resource: !Join ["", ["arn:aws:s3:::", Ref: "ConsoleBucket", "/*"]]
+            Resource: !Sub ${ConsoleBucket.Arn}/*
 
   ConsoleOriginAccessIdentity:
     Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
@@ -869,9 +824,13 @@ Resources:
         Enabled: true
         HttpVersion: 'http2'
       Tags:
-        -
-          Key: SolutionId
+        - Key: SolutionId
           Value: SO0062
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W70
+            reason: With the default CF certificate, we cannot set up the minimum protocol to TLS 1.2.
 
 ## Container Pipeline
   ContainerCodeBuild:
@@ -880,13 +839,14 @@ Resources:
       Description: Builds distributed load testing suite
       TimeoutInMinutes: 20
       ServiceRole: !GetAtt ContainerCodeBuildRole.Arn
-      EncryptionKey: !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/s3
+      EncryptionKey: !Sub arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/s3
       Artifacts:
         Type: CODEPIPELINE
       Environment:
         Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_MEDIUM
-        Image: aws/codebuild/docker:18.09.0
+        Image: aws/codebuild/standard:4.0
+        PrivilegedMode: True
         EnvironmentVariables:
           -
             Name: REPOSITORY
@@ -966,11 +926,10 @@ Resources:
       Code:
         S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"],  "custom-resource.zip"]]
-      Runtime:  nodejs10.x
+      Runtime: nodejs12.x
       Timeout: 120
       Tags:
-        -
-          Key: SolutionId
+        - Key: SolutionId
           Value: SO0062
 
   ApiServices:
@@ -982,25 +941,24 @@ Resources:
       Code:
         S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"],  "api-services.zip"]]
-      Runtime:  nodejs10.x
+      Runtime: nodejs12.x
       Timeout: 120
       Environment:
         Variables:
           SCENARIOS_BUCKET: !Ref ScenariosBucket
           SCENARIOS_TABLE: !Ref ScenariosTable
-          RESULTS_TABLE: !Ref ResultsTable
           TASK_CLUSTER: !Ref EcsCluster
           TASK_DEFINITION: !Ref EcsTaskDefinition
           TASK_SECURITY_GROUP: !Ref EcsSecurityGroup
           TASK_IMAGE: !Sub ${AWS::StackName}-load-tester
           SUBNET_A: !Ref PublicSubnetA
           SUBNET_B: !Ref PublicSubnetB
-          SQS_URL: !Ref EcsTaskSqsQueue 
+          STATE_MACHINE_ARN: !Ref TaskRunnerStepFunctions
           SOLUTION_ID: SO0062
           UUID: !GetAtt Uuid.UUID
+          SEND_METRIC: !FindInMap [AnonymousData, SendAnonymousData, Data]
       Tags:
-        -
-          Key: SolutionId
+        - Key: SolutionId
           Value: SO0062
 
   ResultsParser:
@@ -1012,20 +970,25 @@ Resources:
       Code:
         S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"],  "results-parser.zip"]]
-      Runtime:  nodejs10.x
+      Runtime: nodejs12.x
       Timeout: 120
       Environment:
         Variables:
           SCENARIOS_BUCKET: !Ref ScenariosBucket
           SCENARIOS_TABLE: !Ref ScenariosTable
-          RESULTS_TABLE: !Ref ResultsTable
           TASK_CLUSTER: !Ref EcsCluster
           SOLUTION_ID: SO0062
           UUID: !GetAtt Uuid.UUID
+          VERSION: CODE_VERSION
+          SEND_METRIC: !FindInMap [AnonymousData, SendAnonymousData, Data]
       Tags:
-        -
-          Key: SolutionId
+        - Key: SolutionId
           Value: SO0062
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: CloudWatchLogsPolicy covers a permission to write CloudWatch logs.
 
   TaskRunner:
     Type: AWS::Lambda::Function
@@ -1036,8 +999,8 @@ Resources:
       Code:
         S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"],  "task-runner.zip"]]
-      Runtime:  nodejs10.x
-      Timeout: 120
+      Runtime: nodejs12.x
+      Timeout: 180
       Environment:
         Variables:
           SCENARIOS_BUCKET: !Ref ScenariosBucket
@@ -1049,196 +1012,272 @@ Resources:
           SUBNET_A: !Ref PublicSubnetA
           SUBNET_B: !Ref PublicSubnetB
       Tags:
-        -
-          Key: SolutionId
+        - Key: SolutionId
+          Value: SO0062
+
+  TaskStatusChecker:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Task status checker
+      Handler: index.handler
+      Role: !GetAtt LambdaTaskStatusRole.Arn
+      Code:
+        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"],  "task-status-checker.zip"]]
+      Runtime:  nodejs12.x
+      Timeout: 180
+      Environment:
+        Variables:
+          TASK_CLUSTER: !Ref EcsCluster
+      Tags:
+        - Key: SolutionId
           Value: SO0062
 
 ## API
-  ApiDeployment:
-    Type: "AWS::ApiGateway::Deployment"
+  ApiLoggingRole:
+    Type: AWS::IAM::Role
     Properties:
-        RestApiId: !Ref Api
-        Description: "Production"
-        StageName: "prod"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: 2012-10-17
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                  - logs:PutLogEvents
+                  - logs:GetLogEvents
+                  - logs:FilterLogEvents
+                Effect: Allow
+                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*
+            Version: 2012-10-17
+          PolicyName: ApiCloudWatchRolePolicy
+      Tags:
+        - Key: SolutionId
+          Value: SO0062
+
+  ApiAccountConfig:
+    Type: AWS::ApiGateway::Account
+    DependsOn: Api
+    Properties:
+      CloudWatchRoleArn: !GetAtt ApiLoggingRole.Arn
+
+  ApiLogs:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: ApiAccountConfig
+    Properties:
+      RestApiId: !Ref Api
+      Description: Production
+      StageName: prod
+      StageDescription:
+        AccessLogSetting:
+          DestinationArn: !GetAtt ApiLogs.Arn
+          Format: "$context.identity.sourceIp $context.identity.caller $context.identity.user [$context.requestTime] \"$context.httpMethod $context.resourcePath $context.protocol\" $context.status $context.responseLength $context.requestId"
     Metadata:
       cfn_nag:
         rules_to_suppress:
-          - id: W45
-            reason: "access logging not enabled"
+          - id: W68
+            reason: Usage plan is not needed for the solution.
 
   Api:
     Type: AWS::ApiGateway::RestApi
     Properties:
-        Body:
-          swagger: "2.0"
-          info:
-            title: !Sub ${AWS::StackName}
-          basePath: "/prod"
-          schemes:
+      Body:
+        swagger: "2.0"
+        info:
+          title: !Sub ${AWS::StackName}
+        basePath: "/prod"
+        schemes:
           - "https"
-          paths:
-            /scenarios:
-              options:
-                consumes:
+        produces:
+          - application/json
+        x-amazon-apigateway-request-validators:
+          all:
+            validateRequestBody: true
+            validateRequestParameters: true
+          params-only:
+            validateRequestBody: false
+            validateRequestParameters: true
+        x-amazon-apigateway-request-validator: all
+        paths:
+          /scenarios:
+            options:
+              consumes:
                 - "application/json"
-                produces:
+              produces:
                 - "application/json"
+              responses:
+                "200":
+                  description: "200 response"
+                  schema:
+                    $ref: "#/definitions/Empty"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Headers:
+                      type: "string"
+              x-amazon-apigateway-integration:
                 responses:
-                  "200":
-                    description: "200 response"
-                    schema:
-                      $ref: "#/definitions/Empty"
-                    headers:
-                      Access-Control-Allow-Origin:
-                        type: "string"
-                      Access-Control-Allow-Methods:
-                        type: "string"
-                      Access-Control-Allow-Headers:
-                        type: "string"
-                x-amazon-apigateway-integration:
-                  responses:
-                    default:
-                      statusCode: "200"
-                      responseParameters:
-                        method.response.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
-                        method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
-                        method.response.header.Access-Control-Allow-Origin: "'*'"
-                  passthroughBehavior: "when_no_match"
-                  requestTemplates:
-                    application/json: "{\"statusCode\": 200}"
-                  type: "mock"
-              x-amazon-apigateway-any-method:
-                produces:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                passthroughBehavior: "when_no_match"
+                requestTemplates:
+                  application/json: "{\"statusCode\": 200}"
+                type: "mock"
+            x-amazon-apigateway-any-method:
+              x-amazon-apigateway-request-validator : all
+              produces:
                 - "application/json"
-                responses:
-                  "200":
-                    description: "200 response"
-                    schema:
-                      $ref: "#/definitions/Empty"
-                security:
+              responses:
+                "200":
+                  description: "200 response"
+                  schema:
+                    $ref: "#/definitions/Empty"
+              security:
                 - sigv4: []
-                x-amazon-apigateway-integration:
-                  uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApiServices.Arn}/invocations"
-                  responses:
-                    default:
-                      statusCode: "200"
-                  passthroughBehavior: "when_no_match"
-                  httpMethod: "POST"
-                  contentHandling: "CONVERT_TO_TEXT"
-                  type: "aws_proxy"
-            /scenarios/{testId}:
-              options:
-                consumes:
-                - "application/json"
-                produces:
-                - "application/json"
+              x-amazon-apigateway-integration:
+                uri: !Sub "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApiServices.Arn}/invocations"
                 responses:
-                  "200":
-                    description: "200 response"
-                    schema:
-                      $ref: "#/definitions/Empty"
-                    headers:
-                      Access-Control-Allow-Origin:
-                        type: "string"
-                      Access-Control-Allow-Methods:
-                        type: "string"
-                      Access-Control-Allow-Headers:
-                        type: "string"
-                x-amazon-apigateway-integration:
-                  responses:
-                    default:
-                      statusCode: "200"
-                      responseParameters:
-                        method.response.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
-                        method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
-                        method.response.header.Access-Control-Allow-Origin: "'*'"
-                  passthroughBehavior: "when_no_match"
-                  requestTemplates:
-                    application/json: "{\"statusCode\": 200}"
-                  type: "mock"
-              x-amazon-apigateway-any-method:
-                produces:
+                  default:
+                    statusCode: "200"
+                passthroughBehavior: "when_no_match"
+                httpMethod: "POST"
+                contentHandling: "CONVERT_TO_TEXT"
+                type: "aws_proxy"
+          /scenarios/{testId}:
+            options:
+              consumes:
+              - "application/json"
+              produces:
+              - "application/json"
+              responses:
+                "200":
+                  description: "200 response"
+                  schema:
+                    $ref: "#/definitions/Empty"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Headers:
+                      type: "string"
+              x-amazon-apigateway-integration:
+                responses:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                passthroughBehavior: "when_no_match"
+                requestTemplates:
+                  application/json: "{\"statusCode\": 200}"
+                type: "mock"
+            x-amazon-apigateway-any-method:
+              x-amazon-apigateway-request-validator : params-only
+              produces:
                 - "application/json"
-                parameters:
+              parameters:
                 - name: "testId"
                   in: "path"
                   required: true
                   type: "string"
-                responses:
-                  "200":
-                    description: "200 response"
-                    schema:
-                      $ref: "#/definitions/Empty"
-                security:
+              responses:
+                "200":
+                  description: "200 response"
+                  schema:
+                    $ref: "#/definitions/Empty"
+              security:
                 - sigv4: []
-                x-amazon-apigateway-integration:
-                  uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApiServices.Arn}/invocations"
-                  responses:
-                    default:
-                      statusCode: "200"
-                  passthroughBehavior: "when_no_match"
-                  httpMethod: "POST"
-                  contentHandling: "CONVERT_TO_TEXT"
-                  type: "aws_proxy"
-            /tasks:
-              options:
-                consumes:
-                - "application/json"
-                produces:
-                - "application/json"
+              x-amazon-apigateway-integration:
+                uri: !Sub "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApiServices.Arn}/invocations"
                 responses:
-                  "200":
-                    description: "200 response"
-                    schema:
-                      $ref: "#/definitions/Empty"
-                    headers:
-                      Access-Control-Allow-Origin:
-                        type: "string"
-                      Access-Control-Allow-Methods:
-                        type: "string"
-                      Access-Control-Allow-Headers:
-                        type: "string"
-                x-amazon-apigateway-integration:
-                  responses:
-                    default:
-                      statusCode: "200"
-                      responseParameters:
-                        method.response.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
-                        method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
-                        method.response.header.Access-Control-Allow-Origin: "'*'"
-                  passthroughBehavior: "when_no_match"
-                  requestTemplates:
-                    application/json: "{\"statusCode\": 200}"
-                  type: "mock"
-              x-amazon-apigateway-any-method:
-                produces:
+                  default:
+                    statusCode: "200"
+                passthroughBehavior: "when_no_match"
+                httpMethod: "POST"
+                contentHandling: "CONVERT_TO_TEXT"
+                type: "aws_proxy"
+          /tasks:
+            options:
+              consumes:
                 - "application/json"
+              produces:
+                - "application/json"
+              responses:
+                "200":
+                  description: "200 response"
+                  schema:
+                    $ref: "#/definitions/Empty"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Headers:
+                      type: "string"
+              x-amazon-apigateway-integration:
                 responses:
-                  "200":
-                    description: "200 response"
-                    schema:
-                      $ref: "#/definitions/Empty"
-                security:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                passthroughBehavior: "when_no_match"
+                requestTemplates:
+                  application/json: "{\"statusCode\": 200}"
+                type: "mock"
+            x-amazon-apigateway-any-method:
+              x-amazon-apigateway-request-validator : params-only
+              produces:
+                - "application/json"
+              responses:
+                "200":
+                  description: "200 response"
+                  schema:
+                    $ref: "#/definitions/Empty"
+              security:
                 - sigv4: []
-                x-amazon-apigateway-integration:
-                  uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApiServices.Arn}/invocations"
-                  responses:
-                    default:
-                      statusCode: "200"
-                  passthroughBehavior: "when_no_match"
-                  httpMethod: "POST"
-                  contentHandling: "CONVERT_TO_TEXT"
-                  type: "aws_proxy"
-          securityDefinitions:
-            sigv4:
-              type: "apiKey"
-              name: "Authorization"
-              in: "header"
-              x-amazon-apigateway-authtype: "awsSigv4"
-          definitions:
-            Empty:
-              type: "object"
-              title: "Empty Schema"
+              x-amazon-apigateway-integration:
+                uri: !Sub "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApiServices.Arn}/invocations"
+                responses:
+                  default:
+                    statusCode: "200"
+                passthroughBehavior: "when_no_match"
+                httpMethod: "POST"
+                contentHandling: "CONVERT_TO_TEXT"
+                type: "aws_proxy"
+        securityDefinitions:
+          sigv4:
+            type: "apiKey"
+            name: "Authorization"
+            in: "header"
+            x-amazon-apigateway-authtype: "awsSigv4"
+        definitions:
+          Empty:
+            type: "object"
+            title: "Empty Schema"
+
 ## Cognito
   CognitoAuthorizedRole:
     Type: "AWS::IAM::Role"
@@ -1259,12 +1298,12 @@ Resources:
               - Effect: "Allow"
                 Action:
                   - "execute-api:Invoke"
-                Resource: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/prod/*
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W11
-            reason: "The wildcard action required for api gateway, limited to a single API"
+                Resource: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/prod/*
+              - Effect: "Allow"
+                Action:
+                  - "s3:PutObject"
+                  - "s3:GetObject"
+                Resource: !Sub ${ScenariosBucket.Arn}/public/*
 
   CognitoUnAuthorizedRole:
     Type: "AWS::IAM::Role"
@@ -1331,10 +1370,8 @@ Resources:
       IdentityPoolName: !Sub ${AWS::StackName}
       AllowUnauthenticatedIdentities: false
       CognitoIdentityProviders:
-        - ClientId:  !Ref CognitoUserPoolClient
-          ProviderName: !Sub
-            - cognito-idp.${region}.amazonaws.com/${client}
-            - { region: !Ref "AWS::Region",  client: !Ref CognitoUserPool}
+        - ClientId: !Ref CognitoUserPoolClient
+          ProviderName: !GetAtt CognitoUserPool.ProviderName
 
   CognitoAttachRole:
     Type: AWS::Cognito::IdentityPoolRoleAttachment
@@ -1363,15 +1400,111 @@ Resources:
         Username: !Ref AdminName
         UserPoolId: !Ref CognitoUserPool
 
-## Custom Resources
-  S3PutNotification:
-    Type: Custom::S3PutNotification
+## Step Functions
+  TaskRunnerStepFunctions:
+    Type: AWS::StepFunctions::StateMachine
     Properties:
-      ServiceToken: !GetAtt CustomResource.Arn
-      Resource: S3PutNotification
-      Bucket: !Ref ScenariosBucket
-      LambdaArn: !GetAtt ResultsParser.Arn
+      RoleArn: !GetAtt TaskRunnerStepFunctionsRole.Arn
+      DefinitionString: !Sub |
+        {
+          "Comment": "Distributed Load Testing on AWS Task Runner",
+          "StartAt": "Check running tests",
+          "States": {
+            "Check running tests": {
+              "Type": "Task",
+              "Resource": "${TaskStatusChecker.Arn}",
+              "InputPath": "$",
+              "OutputPath": "$",
+              "Next": "No running test?"
+            },
+            "No running test?": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.isRunning",
+                  "BooleanEquals": false,
+                  "Next": "Run tasks"
+                }
+              ],
+              "Default": "Test is still running"
+            },
+            "Test is still running": {
+              "Type": "Fail",
+              "Error": "TestAlreadyRunning",
+              "Cause": "The same test is already running."
+            },
+            "Run tasks": {
+              "Type": "Task",
+              "Resource": "${TaskRunner.Arn}",
+              "InputPath": "$",
+              "OutputPath": "$",
+              "Next": "Wait 1 minute"
+            },
+            "Wait 1 minute": {
+              "Comment": "Wait 1 minute",
+              "Type": "Wait",
+              "Seconds": 60,
+              "Next": "Check task status"
+            },
+            "Check task status": {
+              "Type": "Task",
+              "Resource": "${TaskStatusChecker.Arn}",
+              "InputPath": "$",
+              "OutputPath": "$",
+              "Next": "All tasks done?"
+            },
+            "All tasks done?": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.isRunning",
+                  "BooleanEquals": false,
+                  "Next": "Parse result"
+                }
+              ],
+              "Default": "Wait 1 minute"
+            },
+            "Parse result": {
+              "Type": "Task",
+              "Resource": "${ResultsParser.Arn}",
+              "Next": "Done"
+            },
+            "Done": {
+              "Type": "Pass",
+              "End": true
+            }
+          }
+        }
+      Tags:
+        - Key: SolutionId
+          Value: SO0062
 
+  TaskRunnerStepFunctionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - states.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /service-role/
+      Policies:
+        - PolicyName: StepFunctionPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt TaskStatusChecker.Arn
+                  - !GetAtt TaskRunner.Arn
+                  - !GetAtt ResultsParser.Arn
+
+## Custom Resources
   CopyDockerFile:
     Type: Custom::CopyDockerFile
     Properties:
@@ -1410,12 +1543,14 @@ Resources:
             aws_user_pools_web_client_id: '${CognitoUserPoolClient}',
             oauth: {},
             aws_cloud_logic_custom: [
-                {
-                    name: 'dlts',
-                    endpoint: 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod',
-                    region: '${AWS::Region}'
-                }
-            ]
+              {
+                name: 'dlts',
+                endpoint: 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod',
+                region: '${AWS::Region}'
+              }
+            ],
+            aws_user_files_s3_bucket: '${ScenariosBucket}',
+            aws_user_files_s3_bucket_region: '${AWS::Region}'
           }
 
   Uuid:
@@ -1424,16 +1559,16 @@ Resources:
       ServiceToken: !GetAtt CustomResource.Arn
       Resource: UUID
 
-  AnonymousMetric: 
-    Condition: Metrics 
-    Type: Custom::AnonymousMetric 
-    Properties: 
-      ServiceToken: !GetAtt CustomResource.Arn 
-      Resource: AnonymousMetric 
-      Region: !Ref AWS::Region 
-      SolutionId: SO0062 
-      UUID: !GetAtt Uuid.UUID 
-      Version: CODEVERSION 
+  AnonymousMetric:
+    Condition: Metrics
+    Type: Custom::AnonymousMetric
+    Properties:
+      ServiceToken: !GetAtt CustomResource.Arn
+      Resource: AnonymousMetric
+      Region: !Ref AWS::Region
+      SolutionId: SO0062
+      UUID: !GetAtt Uuid.UUID
+      Version: CODE_VERSION
 
 Outputs:
 

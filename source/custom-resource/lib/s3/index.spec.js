@@ -1,89 +1,94 @@
-/*******************************************************************************
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved. 
- *
- * Licensed under the Amazon Software License (the "License").
- * You may not use this file except in compliance with the License.
- * A copy of the License is located at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0    
- *
- * or in the "license" file accompanying this file. This file is distributed
- * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing
- * permissions and limitations under the License.
- *
- ********************************************************************************/
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
-const assert = require('chai').assert;
-const expect = require('chai').expect;
-const path = require('path');
-
-let AWS = require('aws-sdk-mock');
-AWS.setSDK(path.resolve('./node_modules/aws-sdk'));
+// Mock AWS SDK
+const mockS3 = jest.fn();
+const mockAWS = require('aws-sdk');
+mockAWS.S3 = jest.fn(() => ({
+  getObject: mockS3,
+  putObject: mockS3,
+  copyObject: mockS3
+}));
+mockAWS.config = jest.fn(() => ({
+	logger: Function
+}));
 
 const lambda = require('./index.js');
 
 describe('#S3::', () => {
 
-	afterEach(() => {
-    AWS.restore('S3');
+	beforeEach(() => {
+    mockS3.mockReset();
 	});
-
-	it('should return "success" on putNotification sucess', async () => {
-
-		AWS.mock('S3', 'putBucketNotificationConfiguration', Promise.resolve());
-
-    let response = await lambda.putNotification('bucket','lambdaArn')
-    expect(response).to.equal('success');
-	});
-
-  it('should return "ERROR" on putNotification failure', async () => {
-
-    AWS.mock('S3', 'putBucketNotificationConfiguration', Promise.reject('ERROR'));
-
-    await lambda.putNotification('bucket','lambdaArn').catch(err => {
-      expect(err).to.equal('ERROR');
-    });
-  });
 
   it('should return "success" on copyAssets sucess', async () => {
 
-    let data = {Body:"[\"console/file1\",\"console/file2\"]"};
-    let resp = {};
+    const data = { Body: "[\"console/file1\",\"console/file2\"]" };
+    mockS3.mockImplementationOnce(() => {
+			return {
+				promise() {
+					// getObject
+					return Promise.resolve(data);
+				}
+			};
+    }).mockImplementation(() => {
+			return {
+				promise() {
+					// copyObject
+					return Promise.resolve({});
+				}
+			};
+    });
 
-    AWS.mock('S3', 'getObject', Promise.resolve(data));
-    AWS.mock('S3', 'copyObject', Promise.resolve(resp));
-
-    let response = await lambda.copyAssets('srcBucket', 'srcPath', 'manifestFile', 'destBucket')
-    expect(response).to.equal('success');
+    const response = await lambda.copyAssets('srcBucket', 'srcPath', 'manifestFile', 'destBucket');
+    expect(response).toEqual('success');
 	});
 
   it('should return "ERROR" on copyAssets failure', async () => {
-
-    AWS.mock('S3', 'getObject', Promise.reject('ERROR'));
-
-    await lambda.copyAssets('srcBucket', 'srcPath', 'manifestFile', 'destBucket').catch(err => {
-      expect(err).to.equal('ERROR');
+    mockS3.mockImplementation(() => {
+			return {
+				promise() {
+					// getObject
+					return Promise.reject('ERROR');
+				}
+			};
     });
+
+    try {
+      await lambda.copyAssets('srcBucket', 'srcPath', 'manifestFile', 'destBucket');
+    } catch (error) {
+      expect(error).toEqual('ERROR');
+    }
   });
 
   it('should return "success" on ConfigFile sucess', async () => {
+    mockS3.mockImplementation(() => {
+			return {
+				promise() {
+					// putObject
+					return Promise.resolve();
+				}
+			};
+    });
 
-    let file = "configfile";
-
-    AWS.mock('S3', 'putObject', Promise.resolve());
-
-    let response = await lambda.configFile('file', 'destBucket')
-    expect(response).to.equal('success');
+    const response = await lambda.configFile('file', 'destBucket')
+    expect(response).toEqual('success');
 	});
 
   it('should return "ERROR" on ConfigFile failure', async () => {
-
-    AWS.mock('S3', 'putObject', Promise.reject('ERROR'));
-
-    await lambda.configFile('file', 'destBucket').catch(err => {
-      expect(err).to.equal('ERROR');
+    mockS3.mockImplementation(() => {
+			return {
+				promise() {
+					// putObject
+					return Promise.reject('ERROR');
+				}
+			};
     });
-  });
 
+    try {
+      await lambda.configFile('file', 'destBucket');
+    } catch (error) {
+      expect(error).toEqual('ERROR');
+    }
+  });
 });

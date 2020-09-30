@@ -1,10 +1,10 @@
 {
-  "name": "task-runner",
+  "name": "task-status-checker",
   "version": "1.1.0",
   "engines": {
     "node": "^12.x"
   },
-  "description": "triggered by sqs, runs ecs task Definitions",
+  "description": "checks if tasks are running or not",
   "main": "index.js",
   "scripts": {
     "test": "jest lib/*.spec.js --coverage --silent"

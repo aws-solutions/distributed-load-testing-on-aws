@@ -60,11 +60,10 @@ sed -i -e $replace $template_dist_dir/distributed-load-testing-on-aws.template
 # remove tmp file for MACs
 [ -e $template_dist_dir/distributed-load-testing-on-aws.template-e ] && rm -r $template_dist_dir/distributed-load-testing-on-aws.template-e
 
-cd $source_dir
 echo "------------------------------------------------------------------------------"
 echo "Creating custom-resource deployment package"
 echo "------------------------------------------------------------------------------"
-cd custom-resource/
+cd $source_dir/custom-resource/
 rm -rf node_modules/
 npm install --production
 rm package-lock.json
@@ -73,7 +72,7 @@ zip -q -r9 ../../deployment/regional-s3-assets/custom-resource.zip *
 echo "------------------------------------------------------------------------------"
 echo "Creating api-services deployment package"
 echo "------------------------------------------------------------------------------"
-cd ../api-services
+cd $source_dir/api-services
 rm -rf node_modules/
 npm install --production
 rm package-lock.json
@@ -82,7 +81,7 @@ zip -q -r9 $build_dist_dir/api-services.zip *
 echo "------------------------------------------------------------------------------"
 echo "Creating results-parser deployment package"
 echo "------------------------------------------------------------------------------"
-cd ../results-parser
+cd $source_dir/results-parser
 rm -rf node_modules/
 npm install --production
 rm package-lock.json
@@ -91,27 +90,35 @@ zip -q -r9 $build_dist_dir/results-parser.zip *
 echo "------------------------------------------------------------------------------"
 echo "Creating task-runner deployment package"
 echo "------------------------------------------------------------------------------"
-cd ../task-runner
+cd $source_dir/task-runner
 rm -rf node_modules/
 npm install --production
 rm package-lock.json
 zip -q -r9 $build_dist_dir/task-runner.zip *
 
 echo "------------------------------------------------------------------------------"
+echo "Creating task-status-checker deployment package"
+echo "------------------------------------------------------------------------------"
+cd $source_dir/task-status-checker
+rm -rf node_modules/
+npm install --production
+rm package-lock.json
+zip -q -r9 $build_dist_dir/task-status-checker.zip *
+
+echo "------------------------------------------------------------------------------"
 echo "Creating container deployment package"
 echo "------------------------------------------------------------------------------"
-cd ../container
+cd $source_dir/container
 zip -q -r9 ../../deployment/regional-s3-assets/container.zip *
 cp container-manifest.json $build_dist_dir/
 
 echo "------------------------------------------------------------------------------"
-echo "Buildinbg console"
+echo "Building console"
 echo "------------------------------------------------------------------------------"
-cd ../console
+cd $source_dir/console
 [ -e build ] && rm -r build
 [ -e node_modules ] && rm -rf node_modules
 npm install
-touch public/aws_config.js
 npm run build
 mkdir $build_dist_dir/console
 cp -r ./build/* $build_dist_dir/console/
