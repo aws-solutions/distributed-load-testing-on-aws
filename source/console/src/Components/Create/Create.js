@@ -22,7 +22,7 @@ import * as shortid from 'shortid';
 import 'brace/theme/github';
 
 // Upload file size limit
-const FILE_SIZE_LIMIT = 5 * 1024 * 1024;
+const FILE_SIZE_LIMIT = 100 * 1024 * 1024;
 
 // Allowed file extentions
 const FILE_EXTENSIONS = ['jmx'];
