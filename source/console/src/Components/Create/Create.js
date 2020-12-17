@@ -22,16 +22,25 @@ import * as shortid from 'shortid';
 import 'brace/theme/github';
 
 // Upload file size limit
-const FILE_SIZE_LIMIT = 5 * 1024 * 1024;
+const FILE_SIZE_LIMIT = 50 * 1024 * 1024;
 
 // Allowed file extentions
-const FILE_EXTENSIONS = ['jmx'];
+const FILE_EXTENSIONS = ['jmx', 'zip'];
 
 class Create extends React.Component {
 
     constructor(props){
         super(props);
         if (this.props.location.state && this.props.location.state.data.testId) {
+            let fileType = '';
+            if (this.props.location.state.data.testType && this.props.location.state.data.testType !== 'simple') {
+                if (this.props.location.state.data.fileType) {
+                    fileType = this.props.location.state.data.fileType;
+                } else {
+                    fileType = 'script';
+                }
+            }
+
             this.state = {
                 isLoading: false,
                 runningTasks: false,
@@ -50,9 +59,10 @@ class Create extends React.Component {
                     rampUpUnits: this.props.location.state.data.rampUp.slice(-1),
                     endpoint: this.props.location.state.data.endpoint,
                     method: this.props.location.state.data.method,
-                    body: JSON.stringify(this.props.location.state.data.body),
-                    headers: JSON.stringify(this.props.location.state.data.headers),
-                    testType: this.props.location.state.data.testType ? this.props.location.state.data.testType : 'simple'
+                    body: JSON.stringify(this.props.location.state.data.body, null, 2),
+                    headers: JSON.stringify(this.props.location.state.data.headers, null, 2),
+                    testType: this.props.location.state.data.testType ? this.props.location.state.data.testType : 'simple',
+                    fileType: fileType
                 }
             }
         } else {
@@ -76,7 +86,8 @@ class Create extends React.Component {
                     method:'GET',
                     body: '',
                     headers: '',
-                    testType: 'simple'
+                    testType: 'simple',
+                    fileType: ''
                 }
             };
         }
@@ -102,8 +113,6 @@ class Create extends React.Component {
     }
 
     handleSubmit = async () => {
-        this.setState({ isLoading: true });
-
         const values = this.state.formValues;
 
         if (!this.form.current.reportValidity() ) {
@@ -128,7 +137,8 @@ class Create extends React.Component {
                     [values.testName]: {}
                 }
             },
-            testType: values.testType
+            testType: values.testType,
+            fileType: values.fileType
         };
 
         if (values.testType === 'simple') {
@@ -163,7 +173,16 @@ class Create extends React.Component {
             if (this.state.file) {
                 try {
                     const file = this.state.file;
-                    await Storage.put(`test-scenarios/jmeter/${testId}.jmx`, file);
+                    let filename = `${testId}.jmx`;
+
+                    if (file.type && file.type.includes('zip')) {
+                        payload.fileType = 'zip';
+                        filename = `${testId}.zip`;
+                    } else {
+                        payload.fileType = 'script';
+                    }
+
+                    await Storage.put(`test-scenarios/jmeter/${filename}`, file);
                     console.log('Script uploaded successfully');
                 } catch (error) {
                     console.error('Error', error);
@@ -171,9 +190,11 @@ class Create extends React.Component {
             }
         }
 
+        this.setState({ isLoading: true });
+
         try {
             const response = await API.post('dlts', '/scenarios', { body: payload });
-            console.log('Scenario created successfully', response);
+            console.log('Scenario created successfully', response.testId);
             this.props.history.push({ pathname: '/details', state: { testId: response.testId } });
         } catch (err) {
             console.error('Failed to create scenario', err);
@@ -190,6 +211,11 @@ class Create extends React.Component {
     handleInputChange(event) {
         const value = event.target.value;
         const name = event.target.name;
+
+        if (name === 'testType') {
+            this.setState({ file: null });
+        }
+
         this.setFormValue(name, value);
     }
 
@@ -203,12 +229,12 @@ class Create extends React.Component {
 
     handleFileChange(event) {
         const file = event.target.files[0];
-        if (file) {
-            this.setState({
-                file: null,
-                validFile: false
-            });
+        this.setState({
+            file: null,
+            validFile: false
+        });
 
+        if (file) {
             const { name, size } = file;
             const extension = name.split('.').pop();
 
@@ -225,11 +251,6 @@ class Create extends React.Component {
             this.setState({
                 file,
                 validFile: true
-            });
-        } else {
-            this.setState({
-                file: null,
-                validFile: false
             });
         }
     }
@@ -258,8 +279,8 @@ class Create extends React.Component {
         }
     };
 
-    componentDidMount() {
-        this.listTasks();
+    async componentDidMount() {
+        await this.listTasks();
     }
 
     render() {
@@ -433,7 +454,7 @@ class Create extends React.Component {
                                     value={this.state.formValues.testType}
                                     onChange={this.handleInputChange}
                                 >
-                                    <option value="simple">Simple Test</option>
+                                    <option value="simple">Single HTTP Endpoint</option>
                                     <option value="jmeter">JMeter</option>
                                 </Input>
                             </FormGroup>
@@ -480,10 +501,8 @@ class Create extends React.Component {
                                         <Label for="testDescription">HTTP Headers (Optional)</Label>
                                         <AceEditor
                                             id="headers"
-                                            mode="text"
+                                            mode="json"
                                             theme="github"
-                                            showPrintMargin={true}
-                                            showGutter={true}
                                             value={this.state.formValues.headers}
                                             highlightActiveLine={true}
                                             onChange={this.handleHeadersChange}
@@ -506,8 +525,6 @@ class Create extends React.Component {
                                             id="bodyPayload"
                                             mode="json"
                                             theme="github"
-                                            showPrintMargin={true}
-                                            showGutter={true}
                                             highlightActiveLine={true}
                                             onChange={this.handleBodyPayloadChange}
                                             name="bodyPayload"
@@ -530,23 +547,26 @@ class Create extends React.Component {
                                 this.state.formValues.testType !== 'simple' &&
                                 <div>
                                     {
-                                        this.state.testId &&
+                                        ['zip', 'script'].includes(this.state.formValues.fileType) &&
                                         <FormGroup check>
                                             <Label check>
-                                                <Input id="newScriptCheckboux" type="checkbox" onClick={this.handleCheckBox} value={this.state.validFile} /> Choose new script.
+                                                <Input id="newScriptCheckboux" type="checkbox" onClick={this.handleCheckBox} defaultChecked={this.state.chooseNewFile} /> Choose a new file.
                                             </Label>
                                         </FormGroup>
                                     }
                                     {
-                                        (!this.state.testId || this.state.chooseNewFile) &&
+                                        ((this.state.formValues.testType !== 'simple' && !['zip', 'script'].includes(this.state.formValues.fileType)) || this.state.chooseNewFile) &&
                                         <FormGroup>
-                                            <Label for="fileUpload">Script File</Label>
+                                            <Label for="fileUpload">Upload File</Label>
                                             <CustomInput
                                                 type="file"
                                                 id="fileUpload"
                                                 name="fileUpload"
                                                 onChange={this.handleFileChange}
                                                 disabled={this.state.runningTasks} />
+                                            <FormText color="muted">
+                                                You can choose either a <code>.jmx</code> file or a <code>.zip</code> file. Choose <code>.zip</code> file if you have any files to upload other than a <code>.jmx</code> script file.
+                                            </FormText>
                                         </FormGroup>
                                     }
                                 </div>
@@ -557,9 +577,8 @@ class Create extends React.Component {
                                 size="sm"
                                 onClick={this.handleSubmit}
                                 disabled={this.state.runningTasks ||
-                                    (this.state.formValues.testType !== 'simple' && (
-                                        (this.state.chooseNewFile && !this.state.validFile) || (!this.state.testId && !this.state.validFile)
-                                    ))}
+                                    (this.state.formValues.testType !== 'simple' && (!this.state.file && (this.state.chooseNewFile || !['zip', 'script'].includes(this.state.formValues.fileType))))
+                                }
                             >
                                 Submit
                             </Button>

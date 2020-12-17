@@ -6,8 +6,7 @@ const parser = require('xml-js');
 const moment = require('moment');
 const shortid = require('shortid');
 
-const s3 = new AWS.S3();
-const dynamo = new AWS.DynamoDB.DocumentClient({
+const dynamoDb = new AWS.DynamoDB.DocumentClient({
     region: process.env.AWS_REGION
 });
 const cloudwatch = new AWS.CloudWatch({
@@ -16,28 +15,22 @@ const cloudwatch = new AWS.CloudWatch({
 
 /**
  * Parses test result XML from S3 to JSON, and return the result summary.
- * @param {object} content S3 list object content
+ * @param {object} content S3 object body - XML
  * @param {string} testId Test ID
- * @return {Promise<{ stats: object, endPoints: object[], duration: string }>} Test result from one task
+ * @return {Promise<{ stats: object, labels: object[], duration: string }>} Test result from one task
  */
-async function results(content, testId) {
+function results(content, testId) {
     console.log(`Processing results, testId: ${testId}`);
 
     try {
-        // Download xml result
-        const s3GetObjectParam = {
-            Bucket: process.env.SCENARIOS_BUCKET,
-            Key: content.Key
-        };
-        const xmlFile = await s3.getObject(s3GetObjectParam).promise();
         const options = {
             nativeType: true,
             compact: true,
             ignoreAttributes: false
         };
-        const json = parser.xml2js(xmlFile.Body, options);
+        const json = parser.xml2js(content, options);
         const jsonData = json.FinalStatus;
-        let endPoints = [];
+        let labels = [];
         let result = {};
 
         console.log(`xml to json: ${JSON.stringify(jsonData, null, 2)}`);
@@ -45,7 +38,7 @@ async function results(content, testId) {
         // loop through results
         for (let i = 0; i < jsonData.Group.length; i++) {
             const group = jsonData.Group[i];
-            const endpoint = group._attributes.label;
+            const label = group._attributes.label;
             let stats = {
                 rc: []
             };
@@ -61,12 +54,12 @@ async function results(content, testId) {
             if (Array.isArray(group.rc)) {
                 for (let j = 0; j < group.rc.length; j++) {
                     if (group.rc[j]._attributes.param !== '200') {
-                        stats.rc.push({ code: group.rc[j]._attributes.param, count: group.rc[j].value._text });
+                        stats.rc.push({ code: group.rc[j]._attributes.param, count: parseInt(group.rc[j]._attributes.value) });
                     }
                 }
             } else {
                 if (group.rc._attributes.param !== '200') {
-                    stats.rc.push({ code: group.rc._attributes.param, count: group.rc._attributes.value });
+                    stats.rc.push({ code: group.rc._attributes.param, count: parseInt(group.rc._attributes.value) });
                 }
             }
 
@@ -75,11 +68,11 @@ async function results(content, testId) {
                 const perc = 'p' + group.perc[j]._attributes.param.replace('.', '_');
                 stats[perc] = group.perc[j].value._text;
             }
-            // check if the resuts are for the group (label '') or for a specific endpoint
-            // label '' are the average results for all the endpoints.
-            if (endpoint) {
-                stats.endpoint = endpoint;
-                endPoints.push(stats);
+            // check if the resuts are for the group (label '') or for a specific label
+            // label '' is the average results for all the labels.
+            if (label) {
+                stats.label = label;
+                labels.push(stats);
             } else {
                 result = stats;
             }
@@ -88,11 +81,11 @@ async function results(content, testId) {
 
         return {
             stats: result,
-            endPoints,
+            labels,
             duration: jsonData.TestDuration._text
         };
     } catch (error) {
-        console.error(error);
+        console.error('results function error', error);
         throw error;
     }
 }
@@ -101,108 +94,186 @@ async function results(content, testId) {
  * Integrates the all test results and updates DynamoDB record
  * @param {string} testId Test ID
  * @param {object} data Test result data
- *
+ * @param {string} startTime Test start time
  */
- async function finalResults(testId, data) {
+ async function finalResults(testId, data, startTime) {
     console.log(`Parsing Final Results for ${testId}`);
 
-    // function to return the average value of an array
+    /**
+     * Retruns the average value of an array.
+     * @param {number[]} array Number array to get the average value
+     * @return {number} Average number of the numbers in the array
+     */
     const getAvg = (array) => {
         if (array.length === 0) return 0;
         return array.reduce((a, b) => a + b, 0) / array.length;
     };
 
+    /**
+     * Returns the summarized response codes and sum count.
+     * @param {object[]} array Response code object array which includes { code: string, count: number|string } objects
+     * @return {object[]} Summarized response codes and sum count
+     */
+    const getReducedResponceCodes = (array) => {
+        return array.reduce((accumulator, currentValue) => {
+            const { count } = currentValue;
+            currentValue.count = isNaN(parseInt(count)) ? 0 : parseInt(count);
+
+            let existing = accumulator.find(acc => acc.code === currentValue.code);
+            if (existing) {
+                existing.count += currentValue.count;
+            } else {
+                accumulator.push(currentValue);
+            }
+            return accumulator;
+        }, []);
+    };
+
+    /**
+     * Aggregates the all results from Taurus to one result object.
+     * @param {object} stats Stats object which includes all the results from Taurus
+     * @param {object} result Result object which aggregates the same key values into
+     */
+    const createAggregatedData = (stats, result) => {
+        for (let key in stats) {
+            if (key === 'label') {
+                result.label = stats[key];
+            } else if (key === 'rc') {
+                result.rc = result.rc.concat(stats.rc);
+            } else {
+                result[key].push(stats[key]);
+            }
+        }
+    };
+
+    /**
+     * Created the final results
+     * @param {object} source Aggregated Taurus results
+     * @param {object} result Summarized final results
+     */
+    const createFinalResults = (source, result) => {
+        for (let key in source) {
+            switch (key) {
+                case 'label':
+                case 'labels':
+                case 'rc':
+                    result[key] = source[key];
+                    break;
+                case 'fail':
+                case 'succ':
+                case 'throughput':
+                    result[key] = source[key].reduce((a, b) => a + b);
+                    break;
+                case 'bytes':
+                case 'concurrency':
+                case 'testDuration':
+                    result[key] = getAvg(source[key]).toFixed(0);
+                    break;
+                case 'avg_ct':
+                case 'avg_lt':
+                case 'avg_rt':
+                    result[key] = getAvg(source[key]).toFixed(5);
+                    break;
+                default:
+                    result[key] = getAvg(source[key]).toFixed(3);
+            }
+        }
+    };
+
     const endTime = moment().utc().format('YYYY-MM-DD HH:mm:ss');
     let testFinalResults = {};
     let all = {
-        "avg_ct": [],
-        "avg_lt": [],
-        "avg_rt": [],
-        "bytes": [],
-        "concurrency": [],
-        "fail": [],
-        "p0_0": [],
-        "p100_0": [],
-        "p50_0": [],
-        "p90_0": [],
-        "p95_0": [],
-        "p99_0": [],
-        "p99_9": [],
-        "stdev_rt": [],
-        "succ": [],
-        "testDuration": [],
-        "throughput": [],
-        "rc": []
+        avg_ct: [],
+        avg_lt: [],
+        avg_rt: [],
+        bytes: [],
+        concurrency: [],
+        fail: [],
+        p0_0: [],
+        p100_0: [],
+        p50_0: [],
+        p90_0: [],
+        p95_0: [],
+        p99_0: [],
+        p99_9: [],
+        stdev_rt: [],
+        succ: [],
+        testDuration: [],
+        throughput: [],
+        rc: [],
+        labels: []
     };
 
     try {
         for (let result of data)  {
-            const { stats } = result;
-            for (let r in stats) {
-                if (r !== 'rc') {
-                    all[r].push(stats[r]);
-                } else {
-                    // response codes is a list of objects, adding objects to all list.
-                    all.rc = all.rc.concat(stats.rc);
-                }
+            const { labels, stats } = result;
+            createAggregatedData(stats, all);
+
+            // Sub results if any
+            if (labels.length > 0) {
+                all.labels = all.labels.concat(labels);
             }
         }
 
         // find duplicates in response codes and sum count
         if (all.rc.length > 0) {
-            all.rc = all.rc.reduce((accumulator, currentValue) => {
-                const { count } = currentValue;
-                currentValue.count = isNaN(parseInt(count)) ? 0 : parseInt(count);
+            all.rc = getReducedResponceCodes(all.rc);
+        }
 
-                let existing = accumulator.find(acc => acc.code === currentValue.code);
-                if (existing) {
-                    existing.count += currentValue.count;
-                } else {
-                    accumulator.push(currentValue);
+        // summarize the test result per label
+        if (all.labels.length > 0) {
+            let set = new Set();
+            let labels = [];
+
+            for (let label of all.labels) {
+                set.add(label.label);
+            }
+
+            for (let label of set.keys()) {
+                let labelTestFinalResults = {};
+                let labelAll = {
+                    avg_ct: [],
+                    avg_lt: [],
+                    avg_rt: [],
+                    bytes: [],
+                    concurrency: [],
+                    fail: [],
+                    label: '',
+                    p0_0: [],
+                    p100_0: [],
+                    p50_0: [],
+                    p90_0: [],
+                    p95_0: [],
+                    p99_0: [],
+                    p99_9: [],
+                    stdev_rt: [],
+                    succ: [],
+                    testDuration: [],
+                    throughput: [],
+                    rc: []
+                };
+
+                const labelStats = all.labels.filter((stats) => stats.label === label);
+                for (let stat of labelStats) {
+                    createAggregatedData(stat, labelAll);
                 }
-                return accumulator;
-            }, []);
+
+                // find duplicates in response codes and sum count
+                if (labelAll.rc.length > 0) {
+                    labelAll.rc = getReducedResponceCodes(labelAll.rc);
+                }
+
+                // parse all of the results to generate the final results.
+                createFinalResults(labelAll, labelTestFinalResults);
+                labels.push(labelTestFinalResults);
+            }
+
+            all.labels = labels;
         }
 
         // parse all of the results to generate the final results.
-        for (let i in all) {
-            switch (i) {
-                case 'concurrency':
-                case 'testDuration':
-                case 'bytes':
-                    testFinalResults[i] = getAvg(all[i]).toFixed(0);
-                    break;
-                case 'fail':
-                case 'succ':
-                case 'throughput':
-                    testFinalResults[i] = all[i].reduce((a, b) => a + b);
-                    break;
-                case 'avg_ct':
-                case 'avg_lt':
-                case 'avg_rt':
-                    testFinalResults[i] = getAvg(all[i]).toFixed(5);
-                    break;
-                case 'rc':
-                    testFinalResults[i] = all[i];
-                    break;
-                default:
-                    testFinalResults[i] = getAvg(all[i]).toFixed(3);
-            }
-        }
+        createFinalResults(all, testFinalResults);
         console.log('Final Results: ',JSON.stringify(testFinalResults, null, 2));
-
-        // get cloudwatch metrics image for the test.
-        const ddbParams = {
-            TableName: process.env.SCENARIOS_TABLE,
-            Key: {
-                testId: testId
-            },
-            AttributesToGet: [
-                'startTime'
-            ]
-        };
-        const ddbGetResponse = await dynamo.get(ddbParams).promise();
-        console.log(JSON.stringify(ddbGetResponse, null, 2));
 
         const widget = {
             title: 'CloudWatch Metrics',
@@ -221,7 +292,7 @@ async function results(content, testId) {
             stacked: true,
             stat: 'Average',
             view: 'timeSeries',
-            start: new Date(ddbGetResponse.Item.startTime).toISOString(),
+            start: new Date(startTime).toISOString(),
             end: new Date(endTime).toISOString()
         };
         const cwParams = {
@@ -235,8 +306,8 @@ async function results(content, testId) {
         // Update Scenarios Table with final results and history.
         const history = {
             id: shortid.generate(),
-            startTime: ddbGetResponse.Item.startTime,
-            endTime: endTime,
+            startTime,
+            endTime,
             results: testFinalResults
         };
         const ddbUpdateParams = {
@@ -244,13 +315,14 @@ async function results(content, testId) {
             Key: {
                 testId: testId
             },
-            UpdateExpression: 'set #r = :r, #t = :t, #i = :i, #s = :s, #h = list_append(if_not_exists(#h, :l), :h)',
+            UpdateExpression: 'set #r = :r, #t = :t, #i = :i, #s = :s, #h = list_append(if_not_exists(#h, :l), :h), #ct = :ct',
             ExpressionAttributeNames: {
                 '#r': 'results',
                 '#t': 'endTime',
                 '#i': 'metricWidgetImage',
                 '#s': 'status',
-                '#h': 'history'
+                '#h': 'history',
+                '#ct': 'completeTasks'
             },
             ExpressionAttributeValues: {
                 ':r': testFinalResults,
@@ -258,14 +330,16 @@ async function results(content, testId) {
                 ':i': metricWidgetImage,
                 ':s': 'complete',
                 ':h': [history],
-                ':l': []
+                ':l': [],
+                ':ct': data.length
             },
             ReturnValues: 'ALL_NEW'
         };
-        await dynamo.update(ddbUpdateParams).promise();
+        await dynamoDb.update(ddbUpdateParams).promise();
 
-        return 'success';
+        return testFinalResults;
     } catch (error) {
+        console.error('finalResults function error', error);
         throw error;
     }
 }

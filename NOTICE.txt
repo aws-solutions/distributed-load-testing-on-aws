@@ -6,23 +6,32 @@ THIRD PARTY COMPONENTS
 **********************
 This software includes third party software subject to the following copyrights:
 
-AWS SDK under the Apache License Version 2.0
+@fortawesome/fontawesome-svg-core under the Massachusetts Institute of Technology (MIT) license
+@fortawesome/free-brands-svg-icons under the Creative Commons Attribution 4.0 International license and the Massachusetts Institute of Technology (MIT) license
+@fortawesome/free-solid-svg-icons under the Creative Commons Attribution 4.0 International license and the Massachusetts Institute of Technology (MIT) license
+@fortawesome/react-fontawesome under the Massachusetts Institute of Technology (MIT) license
+aws-sdk under the Apache License Version 2.0
 aws-amplify under the Apache License Version 2.0
 aws-amplify-react under the Apache License Version 2.0
-bootstrap under the Massachusetts Institute of Technology (MIT) license
-react under the Massachusetts Institute of Technology (MIT) license
-reactstrap under the Massachusetts Institute of Technology (MIT) license
-react-dom under the Massachusetts Institute of Technology (MIT) license
-react-router under the Massachusetts Institute of Technology (MIT) license
-react-router-dom under the Massachusetts Institute of Technology (MIT) license
-react-scripts under the Massachusetts Institute of Technology (MIT) license
-moment.js under the Massachusetts Institute of Technology (MIT) license
-shortid under the Massachusetts Institute of Technology (MIT) license
-font-awesome under the Massachusetts Institute of Technology (MIT) license
-uuid under the Massachusetts Institute of Technology (MIT) license
 axios under the Massachusetts Institute of Technology (MIT) license
 axios-mock-adapter under the Massachusetts Institute of Technology (MIT) license
-chai under the Massachusetts Institute of Technology (MIT) license
-mocha under the Massachusetts Institute of Technology (MIT) license
-aws-sdk-mock under the Massachusetts Institute of Technology (MIT) license
-
+bootstrap under the Massachusetts Institute of Technology (MIT) license
+brace under the Massachusetts Institute of Technology (MIT) license
+jest under the Massachusetts Institute of Technology (MIT) license
+jetty-alpn-client under the Apache License Version 2.0 and the Eclipse Public License 1.0
+jetty-alpn-openjdk8-client under the Apache License Version 2.0 and the Eclipse Public License 1.0
+jetty-client under the Apache License Version 2.0 and the Eclipse Public License 1.0
+jetty-http under the Apache License Version 2.0 and the Eclipse Public License 1.0
+jetty-io under the Apache License Version 2.0 and the Eclipse Public License 1.0
+jetty-util under the Apache License Version 2.0 and the Eclipse Public License 1.0
+moment under the Massachusetts Institute of Technology (MIT) license
+react under the Massachusetts Institute of Technology (MIT) license
+react-ace under the Massachusetts Institute of Technology (MIT) license
+react-dom under the Massachusetts Institute of Technology (MIT) license
+react-router-dom under the Massachusetts Institute of Technology (MIT) license
+react-scripts under the Massachusetts Institute of Technology (MIT) license
+reactstrap under the Massachusetts Institute of Technology (MIT) license
+shortid under the Massachusetts Institute of Technology (MIT) license
+taurus under the Apache License Version 2.0
+uuid under the Massachusetts Institute of Technology (MIT) license
+xml-js under the Massachusetts Institute of Technology (MIT) license

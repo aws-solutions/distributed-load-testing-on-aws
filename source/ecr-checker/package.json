@@ -1,24 +1,18 @@
 {
-  "name": "results-parser",
+  "name": "ecr-checker",
   "version": "1.2.0",
   "engines": {
     "node": "^12.x"
   },
-  "description": "result parser for indexing xml test results to DynamoDB",
+  "description": "checks if ECR is ready or not",
   "main": "index.js",
   "scripts": {
-    "test": "jest lib/**/*.spec.js --coverage --silent"
+    "test": "jest lib/*.spec.js --coverage --silent"
   },
-  "dependencies": {
-    "axios": "^0.21.0",
-    "moment": "^2.29.1",
-    "shortid": "^2.2.16",
-    "xml-js": "^1.6.11"
-  },
+  "dependencies": {},
   "devDependencies": {
     "aws-sdk": "2.721.0",
-    "jest": "26.6.1",
-    "axios-mock-adapter": "1.19.0"
+    "jest": "26.6.1"
   },
   "repository": {
     "type": "git",

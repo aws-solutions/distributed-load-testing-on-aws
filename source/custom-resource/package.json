@@ -1,6 +1,6 @@
 {
   "name": "custom-resource",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "engines": {
     "node": "^12.x"
   },
@@ -10,14 +10,14 @@
     "test": "jest lib/**/*.spec.js --coverage --silent"
   },
   "dependencies": {
-    "axios": "^0.20.0",
-    "moment": "^2.27.0",
-    "uuid": "^8.3.0"
+    "axios": "^0.21.0",
+    "moment": "^2.29.1",
+    "uuid": "^8.3.1"
   },
   "devDependencies": {
     "aws-sdk": "2.721.0",
-    "jest": "26.4.2",
-    "axios-mock-adapter": "1.18.2"
+    "jest": "26.6.1",
+    "axios-mock-adapter": "1.19.0"
   },
   "repository": {
     "type": "git",

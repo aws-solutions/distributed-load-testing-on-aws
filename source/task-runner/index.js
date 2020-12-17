@@ -13,7 +13,8 @@ exports.handler = async (event) => {
     console.log(JSON.stringify(event, null, 2));
 
     const { scenario } = event;
-    const { testId, taskCount, testType } = scenario;
+    const { testId, taskCount, testType, fileType } = scenario;
+    const API_INTERVAL = parseFloat(process.env.API_INTERVAL) || 10;
 
     try {
         /**
@@ -44,22 +45,11 @@ exports.handler = async (event) => {
                 containerOverrides: [{
                     name: process.env.TASK_IMAGE,
                     environment: [
-                        {
-                            name: 'S3_BUCKET',
-                            value: process.env.SCENARIOS_BUCKET
-                        },
-                        {
-                            name: 'TEST_ID',
-                            value: testId
-                        },
-                        {
-                            name: 'TEST_TYPE',
-                            value: testType
-                        },
-                        {
-                            name: 'PREFIX',
-                            value: prefix
-                        }
+                        { name: 'S3_BUCKET', value: process.env.SCENARIOS_BUCKET },
+                        { name: 'TEST_ID', value: testId },
+                        { name: 'TEST_TYPE', value: testType },
+                        { name: 'FILE_TYPE', value: fileType },
+                        { name: 'PREFIX', value: prefix }
                     ]
                 }]
             }
@@ -70,14 +60,14 @@ exports.handler = async (event) => {
          * more than 10 the task definition will need to be run multiple times.
          * @runTaskCount is the number of sets of 10 in the taskCount
          */
-        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+        const sleep = s => new Promise(resolve => setTimeout(resolve, s * 1000));
         let runTaskCount = taskCount;
         params.count = 10;
         while (runTaskCount >= 10) {
             console.log('RUNNING TEST WITH 10');
             await ecs.runTask(params).promise();
-            console.log('sleep 10 seconds to avoid ThrottlingException');
-            await sleep(10000);
+            console.log(`sleep ${API_INTERVAL} seconds to avoid ThrottlingException`);
+            await sleep(API_INTERVAL);
             runTaskCount -= 10;
         }
 
@@ -92,23 +82,22 @@ exports.handler = async (event) => {
         return { scenario, prefix };
     } catch (err) {
         console.error(err);
+
         // Update DynamoDB with Status FAILED and Error Message
-        let params = {
+        await dynamo.update({
             TableName: process.env.SCENARIOS_TABLE,
-            Key: {
-                testId: testId
-            },
+            Key: { testId },
             UpdateExpression: 'set #s = :s, #e = :e',
             ExpressionAttributeNames: {
                 '#s': 'status',
-                '#e': 'taskError'
+                '#e': 'errorReason'
             },
             ExpressionAttributeValues: {
                 ':s': 'failed',
-                ':e': err
+                ':e': 'Failed to run Fargate tasks.'
             }
-        };
-        await dynamo.update(params).promise();
+        }).promise();
+
         throw err;
     }
 };

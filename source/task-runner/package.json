@@ -1,10 +1,10 @@
 {
   "name": "task-runner",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "engines": {
     "node": "^12.x"
   },
-  "description": "triggered by sqs, runs ecs task Definitions",
+  "description": "Triggered by Step Functions, runs ecs task Definitions",
   "main": "index.js",
   "scripts": {
     "test": "jest lib/*.spec.js --coverage --silent"
@@ -12,7 +12,7 @@
   "dependencies": {},
   "devDependencies": {
     "aws-sdk": "2.721.0",
-    "jest": "26.4.2"
+    "jest": "26.6.1"
   },
   "repository": {
     "type": "git",

@@ -10,8 +10,6 @@ declare var awsConfig;
 class Running extends React.Component {
 
     render() {
-        console.log(this.props.data.tasks)
-
         let provisioning = 0;
         let pending = 0;
         let running = 0;

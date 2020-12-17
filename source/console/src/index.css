@@ -41,7 +41,7 @@ color: #FF9900 !important;
   margin: 5rem auto;
   padding:1rem;
   width: 90%;
-  max-width: 1080px;
+  max-width: 1280px;
 }
 
 .welcome {
@@ -220,6 +220,13 @@ td {
   text-decoration: none;
 }
 
+.btn-link-custom {
+  padding: 0;
+  margin-bottom: 0;
+  font-size: 90%;
+  font-family: "Amazon Ember", "Helvetica", "sans-serif";
+}
+
 .btn.disabled, .btn:disabled {
   opacity: .35;
   background-color:#31465F !important;
@@ -289,6 +296,23 @@ img {
   top: 50%;
   left: 50%;
   text-align: center;
+}
+
+.custom-tab {
+  cursor: pointer;
+}
+
+.custom-tab.active {
+  background-color: #FF9900 !important;
+  border: none;
+}
+
+.custom-tab.active:hover {
+  color: #FFFFFF !important;
+}
+
+.tab-content {
+  padding: 5px 5px 5px 5px;
 }
 
 /********** @media *********/

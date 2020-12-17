@@ -6,7 +6,7 @@ const moment = require('moment');
 
 /**
  * Sends anonymouse metrics.
- * @param {{ taskCount: number, testType: string }} - the number of containers used for the test and the test type
+ * @param {{ taskCount: number, testType: string, fileType: string|undefined }} - the number of containers used for the test, the test type, and the file type
  */
 const send = async (obj) => {
 
@@ -21,13 +21,14 @@ const send = async (obj) => {
             Data: {
                 Type: 'TaskCreate',
                 TestType: obj.testType,
+                FileType: obj.fileType || (obj.testType === 'simple' ? 'none' : 'script'),
                 TaskCount: obj.taskCount
             }
         };
         const params = {
             method: 'post',
             port: 443,
-            url: 'https://metrics.awssolutionsbuilder.com/generic',
+            url: process.env.METRIC_URL,
             headers: {
                 'Content-Type': 'application/json'
             },

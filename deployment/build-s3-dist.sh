@@ -106,11 +106,28 @@ rm package-lock.json
 zip -q -r9 $build_dist_dir/task-status-checker.zip *
 
 echo "------------------------------------------------------------------------------"
+echo "Creating ecr-checker deployment package"
+echo "------------------------------------------------------------------------------"
+cd $source_dir/ecr-checker
+rm -rf node_modules/
+npm install --production
+rm package-lock.json
+zip -q -r9 $build_dist_dir/ecr-checker.zip *
+
+echo "------------------------------------------------------------------------------"
 echo "Creating container deployment package"
 echo "------------------------------------------------------------------------------"
 cd $source_dir/container
+# Downloading jetty 9.4.34.v20201102
+curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-alpn-client/9.4.34.v20201102/jetty-alpn-client-9.4.34.v20201102.jar
+curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-alpn-openjdk8-client/9.4.34.v20201102/jetty-alpn-openjdk8-client-9.4.34.v20201102.jar
+curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-client/9.4.34.v20201102/jetty-client-9.4.34.v20201102.jar
+curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-http/9.4.34.v20201102/jetty-http-9.4.34.v20201102.jar
+curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-io/9.4.34.v20201102/jetty-io-9.4.34.v20201102.jar
+curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-util/9.4.34.v20201102/jetty-util-9.4.34.v20201102.jar
 zip -q -r9 ../../deployment/regional-s3-assets/container.zip *
 cp container-manifest.json $build_dist_dir/
+rm -f *.jar
 
 echo "------------------------------------------------------------------------------"
 echo "Building console"

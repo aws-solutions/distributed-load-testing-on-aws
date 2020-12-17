@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 Description: "(SO0062) - Distributed Load Testing on AWS is a reference architecture to perform application load testing at scale. Version CODE_VERSION"
 
 Parameters:
@@ -51,35 +54,33 @@ Parameters:
     ConstraintDescription: "must be a valid IP CIDR range of the form x.x.x.x/x."
 
 Metadata:
-    AWS::CloudFormation::Interface:
-      ParameterGroups:
-          -
-            Label:
-                default: "Console Access"
-            Parameters:
-                - AdminName
-                - AdminEmail
-          -
-            Label:
-                default: "AWS Fargate VPC Settings"
-            Parameters:
-                - VpcCidrBlock
-                - SubnetACidrBlock
-                - SubnetBCidrBlock
-                - EgressCidr
-      ParameterLabels:
-        AdminName:
-          default: "Console Administrator Name"
-        AdminEmail:
-          default: "Console Administrator Email"
-        VpcCidrBlock:
-          default: "AWS Fargate VPC CIDR Block"
-        SubnetACidrBlock:
-          default: "AWS Fargate Subnet A CIDR Block"
-        SubnetBCidrBlock:
-          default: "AWS Fargate Subnet B CIDR Block"
-        EgressCidr:
-          default: "AWS Fargate SecurityGroup CIDR Block"
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Console Access"
+        Parameters:
+          - AdminName
+          - AdminEmail
+      - Label:
+          default: "AWS Fargate VPC Settings"
+        Parameters:
+          - VpcCidrBlock
+          - SubnetACidrBlock
+          - SubnetBCidrBlock
+          - EgressCidr
+    ParameterLabels:
+      AdminName:
+        default: "Console Administrator Name"
+      AdminEmail:
+        default: "Console Administrator Email"
+      VpcCidrBlock:
+        default: "AWS Fargate VPC CIDR Block"
+      SubnetACidrBlock:
+        default: "AWS Fargate Subnet A CIDR Block"
+      SubnetBCidrBlock:
+        default: "AWS Fargate Subnet B CIDR Block"
+      EgressCidr:
+        default: "AWS Fargate SecurityGroup CIDR Block"
 
 Mappings:
   SourceCode:
@@ -89,6 +90,7 @@ Mappings:
   AnonymousData:
     SendAnonymousData:
       Data: "Yes"
+      URL: https://metrics.awssolutionsbuilder.com/generic
 
 Conditions:
   Metrics: !Equals [ !FindInMap [AnonymousData, SendAnonymousData, Data], "Yes" ]
@@ -106,6 +108,10 @@ Resources:
         - !Ref EcsTaskExecutionRole
         - !Ref ContainerCodeBuildRole
         - !Ref ContainerCodePipelineRole
+        - !Ref LambdaEcrCheckerRole
+        - !Ref LambdaTaskStatusRole
+        - !Ref LambdaCustomRole
+        - !Ref LambdaTaskRole
       PolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -146,6 +152,8 @@ Resources:
         - !Ref LambdaApiRole
         - !Ref LambdaResultsRole
         - !Ref LambdaTaskRole
+        - !Ref LambdaEcrCheckerRole
+        - !Ref LambdaTaskStatusRole
       PolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -154,7 +162,6 @@ Resources:
               - dynamodb:DeleteItem
               - dynamodb:GetItem
               - dynamodb:PutItem
-              - dynamodb:Query
               - dynamodb:Scan
               - dynamodb:UpdateItem
             Resource:
@@ -199,13 +206,6 @@ Resources:
                   - states:StartExecution
                 Resource:
                   - !Ref TaskRunnerStepFunctions
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource:
-                  !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/*
     Metadata:
       cfn_nag:
         rules_to_suppress:
@@ -218,39 +218,27 @@ Resources:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
-          -
-            Effect: Allow
+          - Effect: Allow
             Principal:
               Service:
                 - lambda.amazonaws.com
             Action:
               - sts:AssumeRole
       Policies:
-        -
-          PolicyName: !Sub ${AWS::StackName}-task-lambda-policy
+        - PolicyName: !Sub ${AWS::StackName}-task-lambda-policy
           PolicyDocument:
             Statement:
-              -
-                Effect: Allow
+              - Effect: Allow
                 Action:
                   - ecs:RunTask
                 Resource:
                   - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task/*
                   - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/*:*
-              -
-                Effect: Allow
+              - Effect: Allow
                 Action:
                   - iam:PassRole
                 Resource:
                   - !Sub ${EcsTaskExecutionRole.Arn}
-              -
-                Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource:
-                  !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/*
 
   LambdaTaskStatusRole:
     Type: AWS::IAM::Role
@@ -265,8 +253,7 @@ Resources:
             Action:
               - sts:AssumeRole
       Policies:
-        -
-          PolicyName: !Sub ${AWS::StackName}-task-status-lambda-policy
+        - PolicyName: !Sub ${AWS::StackName}-task-status-lambda-policy
           PolicyDocument:
             Statement:
               - Effect: Allow
@@ -277,20 +264,42 @@ Resources:
               - Effect: Allow
                 Action:
                   - ecs:DescribeTasks
+                  - ecs:StopTask
                 Resource:
                   - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task/*
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource:
-                  !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/*
     Metadata:
       cfn_nag:
         rules_to_suppress:
           - id: W11
             reason: ecs:ListTasks cannot specify resource level.
+
+  LambdaEcrCheckerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-ecr-checker-policy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:DescribeImages
+                Resource:
+                  - !GetAtt EcrRepository.Arn
+              - Effect: Allow
+                Action:
+                  - codebuild:ListBuildsForProject
+                  - codebuild:BatchGetBuilds
+                Resource:
+                  - !GetAtt ContainerCodeBuild.Arn
 
   LambdaResultsRole:
     Type: AWS::IAM::Role
@@ -324,35 +333,23 @@ Resources:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
-          -
-            Effect: Allow
+          - Effect: Allow
             Principal:
               Service:
                 - lambda.amazonaws.com
             Action:
               - sts:AssumeRole
       Policies:
-        -
-          PolicyName: !Sub ${AWS::StackName}-custom-resource-policy
+        - PolicyName: !Sub ${AWS::StackName}-custom-resource-policy
           PolicyDocument:
             Statement:
-              -
-                Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource:
-                  !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/*
-              -
-                Effect: Allow
+              - Effect: Allow
                 Action:
                   - s3:PutObject
                 Resource:
                   - !Sub ${ContainerBucket.Arn}/*
                   - !Sub ${ConsoleBucket.Arn}/*
-              -
-                Effect: Allow
+              - Effect: Allow
                 Action:
                   - s3:GetObject
                 Resource:
@@ -384,12 +381,10 @@ Resources:
             Principal:
               Service: codebuild.amazonaws.com
       Policies:
-        -
-          PolicyName: !Sub ${AWS::StackName}-code-build-policy
+        - PolicyName: !Sub ${AWS::StackName}-code-build-policy
           PolicyDocument:
             Statement:
-              -
-                Effect: Allow
+              - Effect: Allow
                 Action:
                   - ecr:DescribeImages
                   - ecr:PutImage
@@ -402,13 +397,11 @@ Resources:
                   - ecr:GetRepositoryPolicy
                 Resource:
                   - !Sub ${EcrRepository.Arn}
-              -
-                Effect: Allow
+              - Effect: Allow
                 Action:
                   - ecr:GetAuthorizationToken
                 Resource: "*"
-              -
-                Effect: Allow
+              - Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:GetObjectVersion
@@ -438,12 +431,10 @@ Resources:
             Action:
               - sts:AssumeRole
       Policies:
-        -
-          PolicyName: !Sub ${AWS::StackName}-code-pipeline-policy
+        - PolicyName: !Sub ${AWS::StackName}-code-pipeline-policy
           PolicyDocument:
             Statement:
-              -
-                Effect: Allow
+              - Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:GetObjectVersion
@@ -453,8 +444,7 @@ Resources:
                 Resource:
                   - !Sub ${ContainerBucket.Arn}
                   - !Sub ${ContainerBucket.Arn}/*
-              -
-                Effect: Allow
+              - Effect: Allow
                 Action:
                   - codebuild:StartBuild
                   - codebuild:BatchGetBuilds
@@ -492,8 +482,8 @@ Resources:
       CidrBlock: !Ref SubnetACidrBlock
       AvailabilityZone:
         !Select
-            - 0
-            - !GetAZs
+          - 0
+          - !GetAZs
       VpcId: !Ref Vpc
 
   PublicSubnetB:
@@ -502,8 +492,8 @@ Resources:
       CidrBlock: !Ref SubnetBCidrBlock
       AvailabilityZone:
         !Select
-            - 0
-            - !GetAZs
+          - 0
+          - !GetAZs
       VpcId: !Ref Vpc
 
   InternetGateway:
@@ -543,7 +533,7 @@ Resources:
 
 ## ECS Resources
   EcrRepository:
-    # stack delte will fail as the repo is not empty.
+    # stack delete will fail as the repo is not empty.
     DeletionPolicy: Retain
     Type: AWS::ECR::Repository
 
@@ -585,8 +575,7 @@ Resources:
         - FARGATE
       TaskRoleArn: !GetAtt EcsTaskExecutionRole.Arn
       ContainerDefinitions:
-        -
-          Essential: true
+        - Essential: true
           Name: !Sub ${AWS::StackName}-load-tester
           Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcrRepository}:latest
           Memory: 2048
@@ -608,8 +597,7 @@ Resources:
       FilterPattern: "[time, logType=INFO*, logTitle=Current*, numVu, vu, numSucc, succ, numFail, fail, avgRt, x]"
       LogGroupName: !Ref EcsCloudWatchLogGroup
       MetricTransformations:
-        -
-          MetricValue: "$avgRt"
+        - MetricValue: "$avgRt"
           MetricNamespace: "distribuited-load-testing"
           MetricName: "Avg Response Time"
 
@@ -750,25 +738,29 @@ Resources:
       KeySchema:
         - AttributeName: testId
           KeyType: HASH
-      BillingMode: "PAY_PER_REQUEST"
+      BillingMode: PAY_PER_REQUEST
       SSESpecification:
         SSEEnabled: True
       Tags:
         - Key: SolutionId
           Value: SO0062
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W78
+            reason: The table does not require PITR.
 
 ## CloudFront
   ConsoleBucketPolicy:
-    Type: 'AWS::S3::BucketPolicy'
+    Type: AWS::S3::BucketPolicy
     Properties:
       Bucket: !Ref ConsoleBucket
       PolicyDocument:
         Statement:
-          -
-            Effect: Allow
+          - Effect: Allow
             Principal:
               CanonicalUser: !GetAtt ConsoleOriginAccessIdentity.S3CanonicalUserId
-            Action: 's3:GetObject'
+            Action: s3:GetObject
             Resource: !Sub ${ConsoleBucket.Arn}/*
 
   ConsoleOriginAccessIdentity:
@@ -787,8 +779,7 @@ Resources:
           Bucket: !GetAtt LogsBucket.DomainName
           Prefix: cloudfront-logs/
         Origins:
-            -
-              Id: console
+            - Id: console
               DomainName: !Sub "${ConsoleBucket}.s3.${AWS::Region}.amazonaws.com"
               OriginPath: /console
               S3OriginConfig:
@@ -848,11 +839,9 @@ Resources:
         Image: aws/codebuild/standard:4.0
         PrivilegedMode: True
         EnvironmentVariables:
-          -
-            Name: REPOSITORY
+          - Name: REPOSITORY
             Value: !Sub ${EcrRepository}
-          -
-            Name: REPOSITORY_URI
+          - Name: REPOSITORY_URI
             Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcrRepository}
       Source:
         Type: CODEPIPELINE
@@ -861,9 +850,10 @@ Resources:
           phases:
               pre_build:
                 commands:
+                  - aws --version
                   - echo $REPOSITORY
                   - echo $REPOSITORY_URI
-                  - $(aws ecr get-login --region ${AWS::Region} --no-include-email)
+                  - aws ecr get-login-password --region ${AWS::Region} | docker login --username AWS --password-stdin $REPOSITORY_URI
               build:
                 commands:
                   - docker build -t $REPOSITORY:latest .
@@ -871,6 +861,9 @@ Resources:
               post_build:
                 commands:
                   - docker push $REPOSITORY_URI:latest
+      Tags:
+        - Key: SolutionId
+          Value: SO0062
 
   ContainerCodePipeline:
     #wait for the container
@@ -882,11 +875,9 @@ Resources:
         Type: S3
         Location: !Ref ContainerBucket
       Stages:
-        -
-          Name: Source
+        - Name: Source
           Actions:
-            -
-              Name: Source
+            - Name: Source
               ActionTypeId:
                 Category: Source
                 Provider: S3
@@ -897,11 +888,9 @@ Resources:
               Configuration:
                 S3Bucket: !Ref ContainerBucket
                 S3ObjectKey: container.zip
-        -
-          Name: Build
+        - Name: Build
           Actions:
-            -
-              Name: Build
+            - Name: Build
               ActionTypeId:
                 Category: Build
                 Owner: AWS
@@ -914,6 +903,9 @@ Resources:
               Configuration:
                 ProjectName:
                   !Ref ContainerCodeBuild
+      Tags:
+        - Key: SolutionId
+          Value: SO0062
 
 ## Lambda
   CustomResource:
@@ -928,9 +920,17 @@ Resources:
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"],  "custom-resource.zip"]]
       Runtime: nodejs12.x
       Timeout: 120
+      Environment:
+        Variables:
+          METRIC_URL: !FindInMap [AnonymousData, SendAnonymousData, URL]
       Tags:
         - Key: SolutionId
           Value: SO0062
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: CloudWatchLogsPolicy covers a permission to write CloudWatch logs.
 
   ApiServices:
     Type: AWS::Lambda::Function
@@ -948,18 +948,20 @@ Resources:
           SCENARIOS_BUCKET: !Ref ScenariosBucket
           SCENARIOS_TABLE: !Ref ScenariosTable
           TASK_CLUSTER: !Ref EcsCluster
-          TASK_DEFINITION: !Ref EcsTaskDefinition
-          TASK_SECURITY_GROUP: !Ref EcsSecurityGroup
-          TASK_IMAGE: !Sub ${AWS::StackName}-load-tester
-          SUBNET_A: !Ref PublicSubnetA
-          SUBNET_B: !Ref PublicSubnetB
           STATE_MACHINE_ARN: !Ref TaskRunnerStepFunctions
           SOLUTION_ID: SO0062
           UUID: !GetAtt Uuid.UUID
+          VERSION: CODE_VERSION
           SEND_METRIC: !FindInMap [AnonymousData, SendAnonymousData, Data]
+          METRIC_URL: !FindInMap [AnonymousData, SendAnonymousData, URL]
       Tags:
         - Key: SolutionId
           Value: SO0062
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: CloudWatchLogsPolicy covers a permission to write CloudWatch logs.
 
   ResultsParser:
     Type: AWS::Lambda::Function
@@ -976,11 +978,11 @@ Resources:
         Variables:
           SCENARIOS_BUCKET: !Ref ScenariosBucket
           SCENARIOS_TABLE: !Ref ScenariosTable
-          TASK_CLUSTER: !Ref EcsCluster
           SOLUTION_ID: SO0062
           UUID: !GetAtt Uuid.UUID
           VERSION: CODE_VERSION
           SEND_METRIC: !FindInMap [AnonymousData, SendAnonymousData, Data]
+          METRIC_URL: !FindInMap [AnonymousData, SendAnonymousData, URL]
       Tags:
         - Key: SolutionId
           Value: SO0062
@@ -1011,9 +1013,15 @@ Resources:
           TASK_IMAGE: !Sub ${AWS::StackName}-load-tester
           SUBNET_A: !Ref PublicSubnetA
           SUBNET_B: !Ref PublicSubnetB
+          API_INTERVAL: 10
       Tags:
         - Key: SolutionId
           Value: SO0062
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: CloudWatchLogsPolicy covers a permission to write CloudWatch logs.
 
   TaskStatusChecker:
     Type: AWS::Lambda::Function
@@ -1029,9 +1037,40 @@ Resources:
       Environment:
         Variables:
           TASK_CLUSTER: !Ref EcsCluster
+          SCENARIOS_TABLE: !Ref ScenariosTable
       Tags:
         - Key: SolutionId
           Value: SO0062
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: CloudWatchLogsPolicy covers a permission to write CloudWatch logs.
+
+  EcrChecker:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: ECR readiness checker
+      Handler: index.handler
+      Role: !GetAtt LambdaEcrCheckerRole.Arn
+      Code:
+        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"],  "ecr-checker.zip"]]
+      Runtime:  nodejs12.x
+      Timeout: 60
+      Environment:
+        Variables:
+          CODE_BUILD_PROJECT: !Ref ContainerCodeBuild
+          ECR_REPOSITORY_NAME: !Ref EcrRepository
+          SCENARIOS_TABLE: !Ref ScenariosTable
+      Tags:
+        - Key: SolutionId
+          Value: SO0062
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: CloudWatchLogsPolicy covers a permission to write CloudWatch logs.
 
 ## API
   ApiLoggingRole:
@@ -1280,92 +1319,91 @@ Resources:
 
 ## Cognito
   CognitoAuthorizedRole:
-    Type: "AWS::IAM::Role"
+    Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
+        Version: 2012-10-17
         Statement:
-          - Effect: "Allow"
+          - Effect: Allow
             Principal:
-              Federated: "cognito-identity.amazonaws.com"
+              Federated: cognito-identity.amazonaws.com
             Action:
-              - "sts:AssumeRoleWithWebIdentity"
+              - sts:AssumeRoleWithWebIdentity
       Policies:
         - PolicyName: !Sub ${AWS::StackName}-congnito-access-role
           PolicyDocument:
-            Version: "2012-10-17"
+            Version: 2012-10-17
             Statement:
-              - Effect: "Allow"
+              - Effect: Allow
                 Action:
-                  - "execute-api:Invoke"
+                  - execute-api:Invoke
                 Resource: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/prod/*
-              - Effect: "Allow"
+              - Effect: Allow
                 Action:
-                  - "s3:PutObject"
-                  - "s3:GetObject"
+                  - s3:PutObject
+                  - s3:GetObject
                 Resource: !Sub ${ScenariosBucket.Arn}/public/*
 
   CognitoUnAuthorizedRole:
-    Type: "AWS::IAM::Role"
+    Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
+        Version: 2012-10-17
         Statement:
-          - Effect: "Allow"
+          - Effect: Allow
             Principal:
-              Federated: "cognito-identity.amazonaws.com"
+              Federated: cognito-identity.amazonaws.com
             Action:
-              - "sts:AssumeRoleWithWebIdentity"
+              - sts:AssumeRoleWithWebIdentity
 
   CognitoUserPool:
-      Type: "AWS::Cognito::UserPool"
-      Properties:
-          UserPoolName: !Sub ${AWS::StackName}
-          AdminCreateUserConfig:
-              AllowAdminCreateUserOnly: True
-              InviteMessageTemplate:
-                  EmailMessage:
-                      !Sub |
-                        <p>You are invited to join the Distribution Load Testing Solution.</p>
-                        <p>Username: <strong>{username}</strong></p>
-                        <p>Password: <strong>{####}</strong></p>
-                        <p>Console: <strong>https://${ConsoleCloudFront.DomainName}/</strong></p>
-                  EmailSubject: Welcome to Distributed Load Testing
-                  SMSMessage: "Your username is {username} and temporary password is {####}."
-              UnusedAccountValidityDays: 7
-          AliasAttributes:
-              - "email"
-          AutoVerifiedAttributes:
-              - "email"
-          EmailVerificationMessage: "Your Distribution Load Testing console verification code is {####}."
-          EmailVerificationSubject: "Your Distribution Load Testing console verification code"
-          Policies:
-              PasswordPolicy:
-                    MinimumLength: 8
-                    RequireLowercase: True
-                    RequireNumbers: True
-                    RequireSymbols: False
-                    RequireUppercase: True
-          Schema:
-              -
-                AttributeDataType: "String"
-                Name: "email"
-                Required: True
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ${AWS::StackName}
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: True
+        InviteMessageTemplate:
+          EmailMessage:
+            !Sub |
+              <p>You are invited to join the Distribution Load Testing Solution.</p>
+              <p>Username: <strong>{username}</strong></p>
+              <p>Password: <strong>{####}</strong></p>
+              <p>Console: <strong>https://${ConsoleCloudFront.DomainName}/</strong></p>
+          EmailSubject: Welcome to Distributed Load Testing
+          SMSMessage: "Your username is {username} and temporary password is {####}."
+        UnusedAccountValidityDays: 7
+      AliasAttributes:
+        - "email"
+      AutoVerifiedAttributes:
+        - "email"
+      EmailVerificationMessage: "Your Distribution Load Testing console verification code is {####}."
+      EmailVerificationSubject: "Your Distribution Load Testing console verification code"
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: True
+          RequireNumbers: True
+          RequireSymbols: False
+          RequireUppercase: True
+      Schema:
+        - AttributeDataType: "String"
+          Name: "email"
+          Required: True
 
   CognitoUserPoolClient:
-      Type: AWS::Cognito::UserPoolClient
-      Properties:
-          ClientName: !Sub ${AWS::StackName}-app
-          GenerateSecret: False
-          WriteAttributes:
-              - "address"
-              - "email"
-              - "phone_number"
-          RefreshTokenValidity: 1
-          UserPoolId: !Ref CognitoUserPool
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub ${AWS::StackName}-app
+      GenerateSecret: False
+      WriteAttributes:
+        - "address"
+        - "email"
+        - "phone_number"
+      RefreshTokenValidity: 1
+      UserPoolId: !Ref CognitoUserPool
 
   CognitoIdentityPool:
-    Type: "AWS::Cognito::IdentityPool"
+    Type: AWS::Cognito::IdentityPool
     Properties:
       IdentityPoolName: !Sub ${AWS::StackName}
       AllowUnauthenticatedIdentities: false
@@ -1382,23 +1420,20 @@ Resources:
         authenticated: !GetAtt CognitoAuthorizedRole.Arn
 
   CognitoUser:
-    Type: "AWS::Cognito::UserPoolUser"
+    Type: AWS::Cognito::UserPoolUser
     Properties:
-        DesiredDeliveryMediums:
-            - EMAIL
-        ForceAliasCreation: true
-        UserAttributes:
-            -
-                Name: email
-                Value: !Ref AdminEmail
-            -
-                Name: nickname
-                Value: !Ref AdminName
-            -
-                Name: email_verified
-                Value: 'True'
-        Username: !Ref AdminName
-        UserPoolId: !Ref CognitoUserPool
+      DesiredDeliveryMediums:
+        - EMAIL
+      ForceAliasCreation: true
+      UserAttributes:
+        - Name: email
+          Value: !Ref AdminEmail
+        - Name: nickname
+          Value: !Ref AdminName
+        - Name: email_verified
+          Value: 'True'
+      Username: !Ref AdminName
+      UserPoolId: !Ref CognitoUserPool
 
 ## Step Functions
   TaskRunnerStepFunctions:
@@ -1408,8 +1443,32 @@ Resources:
       DefinitionString: !Sub |
         {
           "Comment": "Distributed Load Testing on AWS Task Runner",
-          "StartAt": "Check running tests",
+          "StartAt": "Check ECR is ready",
           "States": {
+            "Check ECR is ready": {
+              "Type": "Task",
+              "Resource": "${EcrChecker.Arn}",
+              "InputPath": "$",
+              "OutputPath": "$",
+              "Next": "ECR is ready?"
+            },
+            "ECR is ready?": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.ecrReady",
+                  "BooleanEquals": true,
+                  "Next": "Check running tests"
+                }
+              ],
+              "Default": "Wait 1 minute - ECR ready"
+            },
+            "Wait 1 minute - ECR ready": {
+              "Comment": "Wait 1 minute to check ECR readiness",
+              "Type": "Wait",
+              "Seconds": 60,
+              "Next": "Check ECR is ready"
+            },
             "Check running tests": {
               "Type": "Task",
               "Resource": "${TaskStatusChecker.Arn}",
@@ -1438,10 +1497,10 @@ Resources:
               "Resource": "${TaskRunner.Arn}",
               "InputPath": "$",
               "OutputPath": "$",
-              "Next": "Wait 1 minute"
+              "Next": "Wait 1 minute - task status"
             },
-            "Wait 1 minute": {
-              "Comment": "Wait 1 minute",
+            "Wait 1 minute - task status": {
+              "Comment": "Wait 1 minute to check task status again",
               "Type": "Wait",
               "Seconds": 60,
               "Next": "Check task status"
@@ -1462,7 +1521,7 @@ Resources:
                   "Next": "Parse result"
                 }
               ],
-              "Default": "Wait 1 minute"
+              "Default": "Wait 1 minute - task status"
             },
             "Parse result": {
               "Type": "Task",
@@ -1503,6 +1562,7 @@ Resources:
                   - !GetAtt TaskStatusChecker.Arn
                   - !GetAtt TaskRunner.Arn
                   - !GetAtt ResultsParser.Arn
+                  - !GetAtt EcrChecker.Arn
 
 ## Custom Resources
   CopyDockerFile:
@@ -1554,7 +1614,7 @@ Resources:
           }
 
   Uuid:
-    Type: "Custom::UUID"
+    Type: Custom::UUID
     Properties:
       ServiceToken: !GetAtt CustomResource.Arn
       Resource: UUID
@@ -1571,15 +1631,12 @@ Resources:
       Version: CODE_VERSION
 
 Outputs:
-
   Console:
     Description: Console URL
     Value: !Sub https://${ConsoleCloudFront.DomainName}/
-
   ApiGatewayEndpoint:
-        Description: "Distributed Load Testing API"
-        Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod"
-
+    Description: "Distributed Load Testing API"
+    Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod"
   SolutionUUID:
     Description: "Solution UUID"
     Value: !GetAtt Uuid.UUID

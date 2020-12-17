@@ -10,6 +10,10 @@ import Results from '../Results/Results.js';
 import Running from '../Running/Running.js';
 import History from '../History/History.js';
 
+import AceEditor from 'react-ace';
+import 'brace';
+import 'brace/theme/github';
+
 class Details extends React.Component {
 
     constructor(props) {
@@ -20,10 +24,12 @@ class Details extends React.Component {
             deleteModal: false,
             cancelModal: false,
             testId: props.location.state,
+            testDuration: 0,
             data: {
                 testName: null,
                 testDescription: null,
                 testType: null,
+                fileType: null,
                 results: {},
                 history: [],
                 taskCount: null,
@@ -46,6 +52,7 @@ class Details extends React.Component {
         this.cancelTest = this.cancelTest.bind(this);
         this.handleStart = this.handleStart.bind(this);
         this.handleDownload = this.handleDownload.bind(this);
+        this.caculateTestDurationSeconds = this.caculateTestDurationSeconds.bind(this);
     }
 
     deleteToggle() {
@@ -108,6 +115,7 @@ class Details extends React.Component {
             data.concurrency = data.testScenario.execution[0].concurrency;
             data.rampUp = data.testScenario.execution[0]['ramp-up'];
             data.holdFor = data.testScenario.execution[0]['hold-for'];
+            const testDuration = this.caculateTestDurationSeconds([data.rampUp, data.holdFor]);
 
             // For migration purpose, old version would have undefined value, then it's a simple test.
             if (!data.testType || ['', 'simple'].includes(data.testType)) {
@@ -118,9 +126,9 @@ class Details extends React.Component {
                 data.headers = data.testScenario.scenarios[`${testName}`].requests[0].headers;
             }
 
-            this.setState({ data: data });
+            this.setState({ data, testDuration });
         } catch (err) {
-            console.log(err);
+            console.error(err);
             alert(err);
         }
     }
@@ -136,6 +144,21 @@ class Details extends React.Component {
             alert(err);
         }
     };
+
+    caculateTestDurationSeconds = (items) => {
+        let seconds = 0;
+
+        for (let item of items) {
+            // On the UI, the item format would be always Xm or Xs (X is a number).
+            if (item.endsWith('m')) {
+                seconds += parseInt(item.slice(0, item.length - 1)) * 60;
+            } else {
+                seconds += parseInt(item.slice(0, item.length - 1));
+            }
+        }
+
+        return seconds;
+    }
 
     componentDidMount = async () => {
         if (!this.state.testId) {
@@ -182,13 +205,14 @@ class Details extends React.Component {
             payload.testScenario.scenarios[data.testName] = {
                 script: `${testId}.jmx`
             };
+            payload.fileType = data.fileType;
         }
 
         this.setState({ isLoading: true });
 
         try {
             const response = await API.post('dlts', '/scenarios', { body: payload });
-            console.log('Scenario started successfully', response);
+            console.log('Scenario started successfully', response.testId);
             await this.reloadData();
         } catch (err) {
             console.error('Failed to start scenario', err);
@@ -199,7 +223,10 @@ class Details extends React.Component {
     async handleDownload() {
         try {
             const { testId } = this.state.testId;
-            const url = await Storage.get(`test-scenarios/jmx/${testId}.jmx`, { expires: 10 });
+            const { testType } = this.state.data;
+
+            let filename = this.state.data.fileType === 'zip' ? `${testId}.zip` : `${testId}.jmx`
+            const url = await Storage.get(`test-scenarios/${testType}/${filename}`, { expires: 10 });
             window.open(url, '_blank');
         } catch (error) {
             console.error('Error', error);
@@ -207,7 +234,7 @@ class Details extends React.Component {
     }
 
     render() {
-        const { data } = this.state;
+        const { data, testDuration } = this.state;
 
         const cancelled = (
             <div className="box">
@@ -219,7 +246,9 @@ class Details extends React.Component {
         const failed = (
             <div className="box">
                 <h2>Test Failed</h2>
-                <pre>{JSON.stringify(data.taskError, null, 2)}</pre>
+                <h6>
+                    <pre>{JSON.stringify(data.taskError, null, 2) || data.errorReason}</pre>
+                </h6>
             </div>
         )
 
@@ -269,20 +298,48 @@ class Details extends React.Component {
                                         <Col sm="9">{ data.method }</Col>
                                     </Row>
                                     <Row className="detail">
-                                        <Col sm="3"><b>BODY</b></Col>
-                                        <Col sm="9">{ JSON.stringify(data.body) }</Col>
+                                        <Col sm="3"><b>HEADERS</b></Col>
+                                        <Col sm="9">
+                                            <AceEditor
+                                                id="headers"
+                                                name="headers"
+                                                value={ JSON.stringify(data.headers, null, 2) }
+                                                mode="json"
+                                                theme="github"
+                                                width="100%"
+                                                maxLines={10}
+                                                showPrintMargin={false}
+                                                showGutter={false}
+                                                readOnly={true}
+                                                editorProps={{$blockScrolling: true}}
+                                            />
+                                        </Col>
                                     </Row>
                                     <Row className="detail">
-                                        <Col sm="3"><b>HEADERS</b></Col>
-                                        <Col sm="9">{ JSON.stringify(data.headers) }</Col>
+                                        <Col sm="3"><b>BODY</b></Col>
+                                        <Col sm="9">
+                                            <AceEditor
+                                                id="body"
+                                                name="body"
+                                                value={ JSON.stringify(data.body, null, 2) }
+                                                mode="json"
+                                                theme="github"
+                                                width="100%"
+                                                maxLines={10}
+                                                showPrintMargin={false}
+                                                showGutter={false}
+                                                readOnly={true}
+                                                editorProps={{$blockScrolling: true}}
+                                            />
+                                        </Col>
                                     </Row>
                                 </div>
                             }
                             {
                                 data.testType && data.testType !== '' && data.testType !== 'simple' &&
                                 <Row className="detail">
-                                    <Col sm="3"><b>SCRIPT</b></Col>
-                                    <Col sm="9"><Button color="link" size="sm" onClick={this.handleDownload}>Download</Button></Col>
+                                    <Col sm="3"><b>{ data.fileType === 'zip' ? 'ZIP' : 'SCRIPT' }</b></Col>
+                                    <Col sm="9"><Button className="btn-link-custom" color="link" size="sm" onClick={this.handleDownload}>Download</Button></Col>
                                 </Row>
                             }
                         </Col>
@@ -304,7 +361,7 @@ class Details extends React.Component {
                             }
                             <Row className="detail">
                                 <Col sm="4"><b>TASK COUNT</b></Col>
-                                <Col sm="8">{data.taskCount}</Col>
+                                <Col sm="8">{data.taskCount} {data.status === 'complete' && data.completeTasks !== undefined && `(${data.completeTasks} completed)`}</Col>
                             </Row>
 
                             <Row className="detail">
@@ -323,22 +380,11 @@ class Details extends React.Component {
                     </Row>
                 </div>
 
-                {(() => {
-                    switch (data.status) {
-                    case 'complete':
-                        return <Results data={data} />;
-                    case 'cancelled':
-                        return <div>{cancelled}</div>;
-                    case 'failed':
-                        return <div>{failed}</div>;
-                    case 'running':
-                        return <Running data={data} />;
-                    default:
-                        return <div></div>;
-                    }
-                })()}
-
-                { data.status ==='running' ? <div></div> : <History data={data} /> }
+                { data.status === 'complete' && <Results data={data} testDuration={testDuration} /> }
+                { data.status === 'cancelled' && cancelled }
+                { data.status === 'failed' && failed }
+                { data.status === 'running' && <Running data={data} /> }
+                { data.status !== 'running' && <History data={data} /> }
 
             </div>
         )

@@ -4,6 +4,9 @@ build/
 dev/
 global-s3-assets/
 regional-s3-assets/
+open-source/
+console_new/
+**/aws_config.js
 
 .pnp
 .pnp.js

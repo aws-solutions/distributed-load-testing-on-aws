@@ -7,16 +7,33 @@ const MockAdapter = require('axios-mock-adapter');
 const lambda = require('./index.js');
 
 const _duration = 300.0;
-const _testType = 'jmeter';
 
 describe('#SEND METRICS', () => {
 
-	it('should return "200" on a send metrics sucess', async () => {
+	it('should return "200" on a send metrics sucess for simple test', async () => {
 
 		let mock = new MockAdapter(axios);
 		mock.onPost().reply(200, {});
 
-		let response = await lambda.send({ duration: _duration, testType: _testType });
+		let response = await lambda.send({ totalDuration: _duration, testType: 'simple', testResult: 'completed' });
+		expect(response).toEqual(200);
+	});
+
+	it('should return "200" on a send metrics sucess for zip JMeter test', async () => {
+
+		let mock = new MockAdapter(axios);
+		mock.onPost().reply(200, {});
+
+		let response = await lambda.send({ totalDuration: _duration, testType: 'jmeter', fileType: 'zip',  testResult: 'failed' });
+		expect(response).toEqual(200);
+	});
+
+	it('should return "200" on a send metrics sucess for script JMeter test', async () => {
+
+		let mock = new MockAdapter(axios);
+		mock.onPost().reply(200, {});
+
+		let response = await lambda.send({ totalDuration: _duration, testType: 'jmeter', testResult: 'cancelled' });
 		expect(response).toEqual(200);
 	});
 
@@ -25,7 +42,7 @@ describe('#SEND METRICS', () => {
 		let mock = new MockAdapter(axios);
 		mock.onPost().networkError();
 
-		await lambda.send({ duration: _duration, testType: _testType }).catch(err => {
+		await lambda.send({ totalDuration: _duration, testType: 'simple',  testResult: 'completed' }).catch(err => {
 			expect(err.toString()).toEqual("TypeError: Cannot read property 'status' of undefined");
 		});
 	});

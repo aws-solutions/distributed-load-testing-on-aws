@@ -21,9 +21,6 @@ exports.handler = async (event, context) => {
                         UUID: uuid.v4()
                     };
                     break;
-                case ('S3PutNotification'):
-                    await s3.putNotification(config.Bucket, config.LambdaArn);
-                    break;
                 case ('CopyAssets'):
                     await s3.copyAssets(config.SrcBucket, config.SrcPath, config.ManifestFile, config.DestBucket);
                     break;
@@ -31,9 +28,7 @@ exports.handler = async (event, context) => {
                     await s3.configFile(config.AwsExports, config.DestBucket);
                     break;
                 case ('AnonymousMetric'):
-                    if (resource === 'AnonymousMetric') {
-                        await metrics.send(config, event.RequestType);
-                    }
+                    await metrics.send(config, event.RequestType);
                     break;
                 default:
                     throw Error(resource + ' not defined as a resource');
@@ -47,17 +42,13 @@ exports.handler = async (event, context) => {
                     await s3.configFile(config.AwsExports, config.DestBucket);
                     break;
                 case ('AnonymousMetric'):
-                    if (resource === 'AnonymousMetric') {
-                        await metrics.send(config, event.RequestType);
-                    }
+                    await metrics.send(config, event.RequestType);
                     break;
                 default:
                     break;
             }
         } else if (event.RequestType === 'Delete') {
-            if (resource === 'AnonymousMetric') {
-                await metrics.send(config, event.RequestType);
-            }
+            await metrics.send(config, event.RequestType);
         }
 
         await cfn.send(event, context, 'SUCCESS', responseData, resource);

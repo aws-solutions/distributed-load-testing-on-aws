@@ -75,24 +75,24 @@ class App extends React.Component {
             <NavbarBrand href="/"> <FontAwesomeIcon icon={faAws} size="lg" color="#FF9900" id="logo" /> Distributed Load Testing</NavbarBrand>
             <NavbarToggler onClick={this.toggleNavbar} className="mr-2" />
             <Collapse isOpen={!this.state.collapsed} navbar>
-            <Nav className="mr-auto" navbar>
-            <NavItem>
-              <Link to={'/dashboard'} className="nav-link" id="dashboard">
-                <FontAwesomeIcon id="icon" icon={faBars} /> Dashboard
-              </Link>
-            </NavItem>
-            <NavItem>
-              <Link to= {{
-                    pathname:"/create",
-                    state:{ data:{}}
-                    }}
-                    className="nav-link"
-                    id="createTest"
-              >
-                <FontAwesomeIcon id="icon" icon={faPlusSquare} /> Create Test
-              </Link>
-            </NavItem>
-            </Nav>
+              <Nav className="mr-auto" navbar>
+                <NavItem>
+                  <Link to={'/dashboard'} className="nav-link" id="dashboard">
+                    <FontAwesomeIcon id="icon" icon={faBars} /> Dashboard
+                  </Link>
+                </NavItem>
+                <NavItem>
+                  <Link to= {{
+                        pathname:"/create",
+                        state:{ data:{}}
+                        }}
+                        className="nav-link"
+                        id="createTest"
+                  >
+                    <FontAwesomeIcon id="icon" icon={faPlusSquare} /> Create Test
+                  </Link>
+                </NavItem>
+              </Nav>
               <Nav className="ml-auto" navbar>
                 <NavItem>
                   <Link to="" onClick={this.signOut} className="nav-link" id="signOut">
@@ -100,7 +100,7 @@ class App extends React.Component {
                   </Link>
                 </NavItem>
               </Nav>
-              </Collapse>
+            </Collapse>
           </Navbar>
 
           <div className="main">
@@ -117,10 +117,9 @@ class App extends React.Component {
                  rel="noopener noreferrer">
                   solution home page <FontAwesomeIcon size="sm" icon={faExternalLinkAlt}/>
               </a></p>
-          </div>
+            </div>
           </div>
         </Router>
-
       </div>
     )
   }

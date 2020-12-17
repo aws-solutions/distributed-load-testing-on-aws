@@ -21,7 +21,7 @@ const send = async (config, type) => {
         const params = {
             method: 'post',
             port: 443,
-            url: 'https://metrics.awssolutionsbuilder.com/generic',
+            url: process.env.METRIC_URL,
             headers: {
                 'Content-Type': 'application/json'
             },

@@ -33,7 +33,7 @@ exports.handler = async (event) => {
                         data = await scenarios.createTest(config);
                         //sending anonymous metrics (task Count) to aws
                         if (process.env.SEND_METRIC === 'Yes') {
-                            await metrics.send({ taskCount: config.taskCount, testType: config.testType });
+                            await metrics.send({ taskCount: config.taskCount, testType: config.testType, fileType: config.fileType });
                         }
                         break;
                     default:

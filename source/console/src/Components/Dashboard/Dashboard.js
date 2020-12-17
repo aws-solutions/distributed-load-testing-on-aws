@@ -14,8 +14,7 @@ class Dashboard extends React.Component {
         super(props);
         this.state = {
             Items: [],
-            isLoading: true,
-            noData: false
+            isLoading: true
         }
     }
 
@@ -27,14 +26,16 @@ class Dashboard extends React.Component {
 
         try {
             const data = await API.get('dlts', '/scenarios');
-            this.setState({
-                Items: data.Items,
-                isLoading:false
+            data.Items.sort((a, b) => {
+                if (!a.startTime) a.startTime = '';
+                if (!b.startTime) b.startTime = '';
+                return b.startTime.localeCompare(a.startTime)
             });
 
-            if (data.Items.length === 0 ) {
-                this.setState({ noData:true });
-            }
+            this.setState({
+                Items: data.Items,
+                isLoading: false
+            });
         } catch (err) {
             alert(err);
         }

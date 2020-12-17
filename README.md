@@ -14,7 +14,7 @@ The Distributed Load Testing Solution leverages managed, highly available and hi
 ![Architecture](architecture.png)
 
 ## Deployment
-The solution is deployed using a CloudFormation template with a lambda backed custom resource. For details on deploying the solution please see the details on the solution home page: [Distributed Load Testing](https://aws.amazon.com/solutions/distributed-load-testing-on-aws/)
+The solution is deployed using a CloudFormation template with a lambda backed custom resource. For details on deploying the solution please see the details on the solution home page: [Distributed Load Testing](https://aws.amazon.com/solutions/implementations/distributed-load-testing-on-aws/)
 
 ## Source Code
 
@@ -30,14 +30,17 @@ The Taurus DockerFile and bash script run at start of the test to download the t
 **source/custom-resource**<br/>
 A NodeJS Lambda function used as a CloudFormation custom resource for configuring Amazon S3 bucket notifications and to send anonymous metrics.
 
+**source/ecr-checker**<br/>
+A NodeJS Lambda function that checks if the Amazon ECR is ready or not.
+
 **source/results-parser**<br/>
 A NodeJS Lambda function used to write the xml output from the docker images to Amazon DynamoDB and generate the final results for each test.
 
 **source/task-runner**<br/>
-A NodeJS Lambda function that runs the Amaazon ECS task definition for each test.
+A NodeJS Lambda function that runs the Amazon ECS task definition for each test.
 
 **source/task-status-checker**<br/>
-A NodeJS Lambda function that checks if the Amaazon ECS tasks are running or not.
+A NodeJS Lambda function that checks if the Amazon ECS tasks are running or not.
 
 ## Creating a custom build
 The solution can be deployed through the CloudFormation template available on the solution home page: [Distributed Load Testing](https://aws.amazon.com/solutions/implementations/distributed-load-testing-on-aws/).

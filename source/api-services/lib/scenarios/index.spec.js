@@ -67,7 +67,6 @@ const config = {
 }
 
 process.env.SCENARIOS_BUCKET = 'bucket';
-process.env.TASK_DEFINITION = 'task';
 process.env.STATE_MACHINE_ARN = 'arn:of:state:machine';
 
 const lambda = require('./index.js');

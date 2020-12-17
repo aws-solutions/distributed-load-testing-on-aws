@@ -49,7 +49,14 @@ const createTest = async (config) => {
         let data;
 
         const { testName, testDescription, testType } = config;
-        let { testId, testScenario, taskCount } = config;
+        let { testId, testScenario, taskCount, fileType } = config;
+
+        // When no fileType, fileType is script.
+        if (testType === 'simple') {
+            fileType = 'none';
+        } else if (!fileType) {
+            fileType = 'script';
+        }
 
         // When acessing API directly and no testId
         if (testId === undefined) {
@@ -185,7 +192,8 @@ const createTest = async (config) => {
                 scenario: {
                     testId: testId,
                     taskCount: taskCount,
-                    testType: testType
+                    testType: testType,
+                    fileType: fileType
                 }
             })
         }).promise();
@@ -196,7 +204,7 @@ const createTest = async (config) => {
             Key: {
                 testId: testId
             },
-            UpdateExpression: 'set #n = :n, #d = :d, #c = :c, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #tt = :tt',
+            UpdateExpression: 'set #n = :n, #d = :d, #c = :c, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #tt = :tt, #ft = :ft',
             ExpressionAttributeNames: {
                 '#n': 'testName',
                 '#d': 'testDescription',
@@ -206,7 +214,8 @@ const createTest = async (config) => {
                 '#r': 'results',
                 '#st': 'startTime',
                 '#et': 'endTime',
-                '#tt': 'testType'
+                '#tt': 'testType',
+                '#ft': 'fileType'
             },
             ExpressionAttributeValues: {
                 ':n': testName,
@@ -217,7 +226,8 @@ const createTest = async (config) => {
                 ':r': {},
                 ':st': startTime,
                 ':et': 'running',
-                ':tt': testType
+                ':tt': testType,
+                ':ft': fileType
             },
             ReturnValues: 'ALL_NEW'
         };
