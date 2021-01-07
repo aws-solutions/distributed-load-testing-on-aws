@@ -10,7 +10,7 @@
     "test": "jest lib/**/*.spec.js --coverage --silent"
   },
   "dependencies": {
-    "axios": "^0.20.0",
+    "axios": "^0.21.1",
     "moment": "^2.27.0",
     "shortid": "^2.2.15"
   },
