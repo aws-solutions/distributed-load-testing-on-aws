@@ -53,6 +53,21 @@ Parameters:
     AllowedPattern: "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))"
     ConstraintDescription: "must be a valid IP CIDR range of the form x.x.x.x/x."
 
+  CreateNATGateway:
+    Type: String
+    Default: "no"
+    Description: If you use NAT Gateway, set this parameter to true
+    AllowedValues: 
+      - "yes"
+      - "no"
+
+  SubnetNatCidrBlock:
+    Type: String
+    Default: 192.168.32.0/20
+    Description: CIDR block for nat subnet of the AWS Fargate VPC
+    AllowedPattern: "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))"
+    ConstraintDescription: "must be a valid IP CIDR range of the form x.x.x.x/x."
+
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -68,6 +83,8 @@ Metadata:
           - SubnetACidrBlock
           - SubnetBCidrBlock
           - EgressCidr
+          - CreateNATGateway
+          - SubnetNatCidrBlock
     ParameterLabels:
       AdminName:
         default: "Console Administrator Name"
@@ -81,6 +98,10 @@ Metadata:
         default: "AWS Fargate Subnet B CIDR Block"
       EgressCidr:
         default: "AWS Fargate SecurityGroup CIDR Block"
+      CreateNATGateway:
+        default: "Do you want to make a NAT Gateway?"
+      SubnetNatCidrBlock:
+        default: "AWS Fargate Subnet NAT CIDR Block"
 
 Mappings:
   SourceCode:
@@ -94,6 +115,7 @@ Mappings:
 
 Conditions:
   Metrics: !Equals [ !FindInMap [AnonymousData, SendAnonymousData, Data], "Yes" ]
+  CreateNAT: !Equals [ !Ref CreateNATGateway, "yes" ]
 
 Resources:
 
@@ -476,7 +498,7 @@ Resources:
           - id: W60
             reason: This VPC is used by Fargates only, so it does not require to have VPC flow logs.
 
-  PublicSubnetA:
+  SubnetA:
     Type: AWS::EC2::Subnet
     Properties:
       CidrBlock: !Ref SubnetACidrBlock
@@ -486,10 +508,21 @@ Resources:
           - !GetAZs
       VpcId: !Ref Vpc
 
-  PublicSubnetB:
+  SubnetB:
     Type: AWS::EC2::Subnet
     Properties:
       CidrBlock: !Ref SubnetBCidrBlock
+      AvailabilityZone:
+        !Select
+          - 0
+          - !GetAZs
+      VpcId: !Ref Vpc
+
+  SubnetNat:
+    Condition: CreateNAT
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref SubnetNatCidrBlock
       AvailabilityZone:
         !Select
           - 0
@@ -505,31 +538,65 @@ Resources:
     Properties:
       VpcId: !Ref Vpc
 
+  NatEIP:
+    Condition: CreateNAT
+    Type: AWS::EC2::EIP
+
+  NatGateway:
+    Condition: CreateNAT
+    Type: AWS::EC2::NatGateway
+    Properties: 
+      AllocationId: !GetAtt NatEIP.AllocationId
+      SubnetId: !Ref SubnetNat
+
+  NatRouteTable:
+    Condition: CreateNAT
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+
   GatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       VpcId: !Ref Vpc
       InternetGatewayId: !Ref InternetGateway
 
-  RouteToInternet:
+  MainRouteTableRouteToInternet:
     Type: AWS::EC2::Route
     DependsOn: GatewayAttachment
     Properties:
       DestinationCidrBlock: 0.0.0.0/0
       RouteTableId: !Ref MainRouteTable
+      GatewayId: !If [CreateNAT, !Ref "AWS::NoValue", !Ref InternetGateway]
+      NatGatewayId: !If [CreateNAT, !Ref NatGateway, !Ref "AWS::NoValue"]
+
+  NatRouteTableRouteToInternet:
+    Condition: CreateNAT
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref NatRouteTable
       GatewayId: !Ref InternetGateway
 
   RouteTableAssociationA:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref MainRouteTable
-      SubnetId: !Ref PublicSubnetA
+      SubnetId: !Ref SubnetA
 
   RouteTableAssociationB:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref MainRouteTable
-      SubnetId: !Ref PublicSubnetB
+      SubnetId: !Ref SubnetB
+
+  RouteTableAssociationNat:
+    Condition: CreateNAT
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref NatRouteTable
+      SubnetId: !Ref SubnetNat
 
 ## ECS Resources
   EcrRepository:
@@ -1011,8 +1078,8 @@ Resources:
           TASK_DEFINITION: !Ref EcsTaskDefinition
           TASK_SECURITY_GROUP: !Ref EcsSecurityGroup
           TASK_IMAGE: !Sub ${AWS::StackName}-load-tester
-          SUBNET_A: !Ref PublicSubnetA
-          SUBNET_B: !Ref PublicSubnetB
+          SUBNET_A: !Ref SubnetA
+          SUBNET_B: !Ref SubnetB
           API_INTERVAL: 10
       Tags:
         - Key: SolutionId
