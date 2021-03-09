@@ -349,7 +349,7 @@ class Create extends React.Component {
                                     type="number"
                                     name="taskCount"
                                     id="taskCount"
-                                    max={100}
+                                    max={1000}
                                     min={1}
                                     step={1}
                                     required
@@ -357,7 +357,7 @@ class Create extends React.Component {
                                 />
                                 <FormText color="muted">
                                     Number of docker containers that will be launched in the Fargate cluster to run the
-                                    test scenario, max value 100.
+                                    test scenario, max value 1000.
                                 </FormText>
                             </FormGroup>
 

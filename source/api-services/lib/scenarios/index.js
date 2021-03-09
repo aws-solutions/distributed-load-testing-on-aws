@@ -132,9 +132,9 @@ const createTest = async (config) => {
         }
         if (!numRegex.test(taskCount)
             || parseInt(taskCount) < 1
-            || parseInt(taskCount) > 100) {
+            || parseInt(taskCount) > 1000) {
             throw {
-                message: 'Task count should be positive number between 1 to 100.',
+                message: 'Task count should be positive number between 1 to 1000.',
                 code: 'InvalidParameter',
                 status: 400
              };

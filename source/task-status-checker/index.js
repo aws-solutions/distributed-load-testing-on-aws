@@ -99,7 +99,7 @@ exports.handler = async (event) => {
 
 /**
  * Returns the list of ECS cluster's task ARNs.
- * The maximum number of tasks at once is 100.
+ * The maximum number of tasks at once is 1000.
  * @param {string|undefined} nextToken The next token to get list tasks
  * @return {Promise<{ Tasks: Array<String>|undefined, NextToken: String|undefined }>} The list of ECS cluster's task ARNs
  */
