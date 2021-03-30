@@ -49,6 +49,7 @@ To make changes to the solution, download or clone this repo, update the source 
 ### Prerequisites:
 * [AWS Command Line Interface](https://aws.amazon.com/cli/)
 * Node.js 12.x or later
+* Optionally, a Docker Hub account (to alleviate [anonymous access rate limiting](https://www.docker.com/increase-rate-limits))
 
 ### 1. Clone the Distributed Load Testing on AWS solution repository
 Clone the ```distributed-load-testing-on-aws``` GitHub repositroy, then make the desired code changes.
@@ -97,6 +98,20 @@ aws s3 cp ./global-s3-assets/ s3://$DIST_OUTPUT_BUCKET-$REGION/$SOLUTION_NAME/$V
 
 ### 7. Launch the CloudFormation template.
 * Get the link of the `distributed-load-testing-on-aws.template` uploaded to your Amazon S3 bucket.
+* _Optionally, the Docker image pipeline can use your own Docker Hub account, instead of authenticating anonymously._
+	1. _Create a temporary `dockerhub_creds.json` file containing your Docker Hub credentials:_
+		```
+		{
+			"username": "your_dockerhub_username",
+			"password": "your_dockerhub_access_token"
+		}
+		```
+	2. _Create an AWS Secrets Manager secret containing these credentials:_
+		```bash
+		aws secretsmanager create-secret --name dockerhub --description "for $SOLUTION_NAME $VERSION" --secret-string file://dockerhub_creds.json
+        rm dockerhub_creds.json
+		```
+	3. _Make note of the secret ARN returned in the previous step, and provide it when asked during launch of the CloudFormation stack below._
 * Deploy the Distributed Load Testing on AWS solution to your account by launching a new AWS CloudFormation stack using the link of the `distributed-load-testing-on-aws.template`.
 
 ***

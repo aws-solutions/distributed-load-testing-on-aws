@@ -19,6 +19,13 @@ Parameters:
     AllowedPattern: '^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
     ConstraintDescription: "Admin email must be a valid email address"
 
+  SecretsManagerDockerHubCredsArn:
+    Type: String
+    Default: ''
+    Description: ARN of an AWS Secrets Manager secret containing your Docker Hub username and password (or access token) to alleviate Docker Hub anonymous access rate limiting
+    AllowedPattern: "^$|^arn:aws:secretsmanager:.*$"
+    ConstraintDescription: "must be a valid AWS Secrets Manager secret ARN or left blank"
+
   VpcCidrBlock:
     Type: String
     Default: 192.168.0.0/16
@@ -68,6 +75,10 @@ Metadata:
           - SubnetACidrBlock
           - SubnetBCidrBlock
           - EgressCidr
+      - Label:
+          default: "(Optional) Docker Hub Account"
+        Parameters:
+          - SecretsManagerDockerHubCredsArn
     ParameterLabels:
       AdminName:
         default: "Console Administrator Name"
@@ -81,6 +92,8 @@ Metadata:
         default: "AWS Fargate Subnet B CIDR Block"
       EgressCidr:
         default: "AWS Fargate SecurityGroup CIDR Block"
+      SecretsManagerDockerHubCredsArn:
+        default: "AWS Secrets Manager secret for Docker Hub credentials"
 
 Mappings:
   SourceCode:
@@ -94,6 +107,7 @@ Mappings:
 
 Conditions:
   Metrics: !Equals [ !FindInMap [AnonymousData, SendAnonymousData, Data], "Yes" ]
+  UseDockerHubCreds: !Not [ !Equals [ !Ref SecretsManagerDockerHubCredsArn, '' ] ]
 
 Resources:
 
@@ -412,6 +426,14 @@ Resources:
                 Resource:
                     - !Sub ${ContainerBucket.Arn}
                     - !Sub ${ContainerBucket.Arn}/*
+              - !If
+                  - UseDockerHubCreds
+                  - Effect: Allow
+                    Action:
+                      - secretsmanager:GetSecretValue
+                    Resource:
+                      - !Ref SecretsManagerDockerHubCredsArn
+                  - !Ref "AWS::NoValue"
     Metadata:
       cfn_nag:
         rules_to_suppress:
@@ -843,6 +865,18 @@ Resources:
             Value: !Sub ${EcrRepository}
           - Name: REPOSITORY_URI
             Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcrRepository}
+          - !If
+            - UseDockerHubCreds
+            - Name: DOCKERHUB_USERNAME
+              Type: SECRETS_MANAGER
+              Value: !Sub '${SecretsManagerDockerHubCredsArn}:username'
+            - !Ref "AWS::NoValue"
+          - !If
+            - UseDockerHubCreds
+            - Name: DOCKERHUB_PASSWORD
+              Type: SECRETS_MANAGER
+              Value: !Sub '${SecretsManagerDockerHubCredsArn}:password'
+            - !Ref "AWS::NoValue"
       Source:
         Type: CODEPIPELINE
         BuildSpec: !Sub |
@@ -850,16 +884,17 @@ Resources:
           phases:
               pre_build:
                 commands:
-                  - aws --version
-                  - echo $REPOSITORY
-                  - echo $REPOSITORY_URI
-                  - aws ecr get-login-password --region ${AWS::Region} | docker login --username AWS --password-stdin $REPOSITORY_URI
+                  - "[ -z $DOCKERHUB_USERNAME ] || docker login --username $DOCKERHUB_USERNAME --password $DOCKERHUB_PASSWORD"
               build:
                 commands:
                   - docker build -t $REPOSITORY:latest .
                   - docker tag $REPOSITORY:latest $REPOSITORY_URI:latest
               post_build:
                 commands:
+                  - aws --version
+                  - echo $REPOSITORY
+                  - echo $REPOSITORY_URI
+                  - aws ecr get-login-password --region ${AWS::Region} | docker login --username AWS --password-stdin $REPOSITORY_URI
                   - docker push $REPOSITORY_URI:latest
       Tags:
         - Key: SolutionId
