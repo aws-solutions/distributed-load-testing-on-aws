@@ -1002,7 +1002,7 @@ Resources:
         S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"],  "task-runner.zip"]]
       Runtime: nodejs12.x
-      Timeout: 180
+      Timeout: 900
       Environment:
         Variables:
           SCENARIOS_BUCKET: !Ref ScenariosBucket
