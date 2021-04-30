@@ -36,8 +36,16 @@ if [ "$TEST_TYPE" != "simple" ]; then
   fi
 fi
 
+#Download python script
+
+if [ -z "$IPNETWORK" ]; then
+    python3 $SCRIPT
+else 
+    python3 $SCRIPT $IPNETWORK $IPHOSTS
+fi
+
 echo "Running test"
-bzt test.json -o modules.console.disable=true | tee -a result.tmp
+stdbuf -i0 -o0 -e0 bzt test.json -o modules.console.disable=true | stdbuf -i0 -o0 -e0 tee -a result.tmp | sed -u -e "s|^|$TEST_ID |"
 CALCULATED_DURATION=`cat result.tmp | grep -m1 "Test duration" | awk -F ' ' '{ print $5 }' | awk -F ':' '{ print ($1 * 3600) + ($2 * 60) + $3 }'`
 
 # upload custom results to S3 if any

@@ -4,7 +4,7 @@
 const scenarios = require('./lib/scenarios/');
 const metrics = require('./lib/metrics/');
 
-exports.handler = async (event) => {
+exports.handler = async (event, context) => {
     console.log(JSON.stringify(event, null, 2));
 
     const resource = event.resource;
@@ -30,7 +30,17 @@ exports.handler = async (event) => {
                         data = await scenarios.listTests();
                         break;
                     case 'POST':
-                        data = await scenarios.createTest(config);
+                        if(config.scheduleStep)
+                        {
+                            const contextValues = {
+                                functionName: context.functionName,
+                                functionArn: context.invokedFunctionArn
+                            }
+                            data = await scenarios.scheduleTest(event, contextValues);
+                        }
+                        else {
+                            data = await scenarios.createTest(config);
+                        }
                         //sending anonymous metrics (task Count) to aws
                         if (process.env.SEND_METRIC === 'Yes') {
                             await metrics.send({ taskCount: config.taskCount, testType: config.testType, fileType: config.fileType });
@@ -51,7 +61,7 @@ exports.handler = async (event) => {
                         data = await scenarios.cancelTest(testId);
                         break;
                     case 'DELETE':
-                        data = await scenarios.deleteTest(testId);
+                        data = await scenarios.deleteTest(testId, context.functionName);
                         break;
                     default:
                         throw new Error(errMsg);

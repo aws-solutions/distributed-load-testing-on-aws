@@ -4,13 +4,23 @@
 const AWS = require('aws-sdk');
 const moment = require('moment');
 const shortid = require('shortid');
-
+const { SOLUTION_ID, VERSION } = process.env; 
+let options = {};
+if (SOLUTION_ID && VERSION && SOLUTION_ID.trim() && VERSION.trim()) {
+  options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${VERSION}`;
+}
 AWS.config.logger = console;
 
-const s3 = new AWS.S3();
-const dynamoDB = new AWS.DynamoDB.DocumentClient({ region: process.env.AWS_REGION });
-const stepFunctions = new AWS.StepFunctions({ region : process.env.AWS_REGION });
-const ecs = new AWS.ECS({ region: process.env.AWS_REGION });
+const s3 = new AWS.S3(options);
+const lambda = new AWS.Lambda(options);
+options.region = process.env.AWS_REGION;
+const dynamoDB = new AWS.DynamoDB.DocumentClient(options);
+const stepFunctions = new AWS.StepFunctions(options);
+const ecs = new AWS.ECS(options);
+const cloudwatch = new AWS.CloudWatch(options);
+const cloudwatchLogs = new AWS.CloudWatchLogs(options);
+const cloudwatchevents = new AWS.CloudWatchEvents(options);
+
 
 /**
  * @function listTests
@@ -27,7 +37,9 @@ const listTests = async () => {
                 'testName',
                 'testDescription',
                 'status',
-                'startTime'
+                'startTime',
+                'nextRun',
+                'scheduleRecurrence'
             ],
         };
         return await dynamoDB.scan(params).promise();
@@ -35,6 +47,199 @@ const listTests = async () => {
         throw err;
     }
 };
+
+/**
+ * @function scheduleTest
+ * Description: Schedules test and returns a consolidated list of test scenarios
+ * @event {object} test sevent information
+ * @context {object} the lambda context information
+ */
+const scheduleTest = async (event, context) => {
+    try{
+        let config = JSON.parse(event.body);
+        const { testId, scheduleDate, scheduleTime } = config;
+        const [ hour, minute ] = scheduleTime.split(':');
+        let [ year, month, day ] = scheduleDate.split('-');
+        let nextRun = `${year}-${month}-${day} ${hour}:${minute}:00`;
+        const functionName = context.functionName;
+        const functionArn = context.functionArn;
+        let scheduleRecurrence = "";
+
+        //check if rule exists, delete rule if exists
+        let rulesResponse = await cloudwatchevents.listRules({NamePrefix: testId}).promise();
+
+        for(let rule of rulesResponse.Rules) {
+            let ruleName = rule.Name;
+            await cloudwatchevents.removeTargets({Rule: ruleName, Ids: [ruleName]}).promise();
+            await lambda.removePermission({FunctionName: functionName, StatementId: ruleName}).promise();
+            await cloudwatchevents.deleteRule({Name: ruleName}).promise();
+        }
+
+
+        if(config.scheduleStep === 'create') {
+            //Schedule for 1 min prior to account for time it takes to create rule
+            const createRun = moment([year, parseInt(month, 10) - 1, day, hour, minute]).subtract(1, 'minute').format('YYYY-MM-DD HH:mm:ss');
+            let [ createDate, createTime ] = createRun.split(" ");
+            const [ createHour, createMin ] = createTime.split(':');
+            const [ createYear, createMonth, createDay ] = createDate.split('-');
+            const cronStart = `cron(${createMin} ${createHour} ${createDay} ${createMonth} ? ${createYear})`;
+            scheduleRecurrence = config.recurrence;
+
+            //Create rule to create schedule 
+            const createRuleParams = {
+                Name: `${testId}Create`,
+                Description: `Create test schedule for: ${testId}`,
+                ScheduleExpression: cronStart,
+                State: 'ENABLED'
+            };
+            let ruleArn = await cloudwatchevents.putRule(createRuleParams).promise();
+
+            //Add permissions to lambda
+            let permissionParams = {
+                Action: "lambda:InvokeFunction",
+                FunctionName: functionName,
+                Principal: "events.amazonaws.com",
+                SourceArn: ruleArn.RuleArn,
+                StatementId: `${testId}Create`
+            }
+            await lambda.addPermission(permissionParams).promise();
+
+            //modify schedule step in input params
+            config.scheduleStep = "start";
+            event.body = JSON.stringify(config);
+
+            //add target
+            let createTargetParams = {
+                Rule: `${testId}Create`,
+                Targets: [{
+                    Arn: functionArn,
+                    Id: `${testId}Create`,
+                    Input: JSON.stringify(event),
+                }]
+            };
+            await cloudwatchevents.putTargets(createTargetParams).promise();
+        } else {
+            //create schedule expression
+            let scheduleString;
+            if(config.recurrence) {
+                scheduleRecurrence = config.recurrence;
+                switch(config.recurrence) {
+                    case "daily":
+                        scheduleString = "rate(1 day)";
+                        break;
+                    case "weekly":
+                        scheduleString = "rate(7 days)";
+                        break;
+                    case "biweekly":
+                        scheduleString = "rate(14 days)";
+                        break;
+                    case "monthly":
+                        scheduleString = `cron(${minute} ${hour} ${day} * ? *)`;
+                        break;
+                    default: throw {
+                        message: `Invalid recurrence value.`,
+                        code: 'InvalidParameter',
+                        status: 400
+                    };
+                }
+            } else {
+                scheduleString = `cron(${minute} ${hour} ${day} ${month} ? ${year})`;
+            }
+
+            //Create rule to run on schedule
+            const ruleParams = {
+                Name: `${testId}Scheduled`,
+                Description: `Scheduled tests for ${testId}`,
+                ScheduleExpression: scheduleString,
+                State: 'ENABLED'
+            };
+            let ruleArn = await cloudwatchevents.putRule(ruleParams).promise();
+
+            //Add permissions to lambda
+            let permissionParams = {
+                Action: "lambda:InvokeFunction",
+                FunctionName: functionName,
+                Principal: "events.amazonaws.com",
+                SourceArn: ruleArn.RuleArn,
+                StatementId: `${testId}Scheduled`
+            };
+            await lambda.addPermission(permissionParams).promise();
+
+            //remove schedule step in params
+            delete config.scheduleStep;
+            event.body = JSON.stringify(config);
+
+            //add target to rule
+            let targetParams = {
+                Rule: `${testId}Scheduled`,
+                Targets: [{
+                    Arn: functionArn,
+                    Id: `${testId}Scheduled`,
+                    Input: JSON.stringify(event),
+                }]
+            };
+            await cloudwatchevents.putTargets(targetParams).promise();
+
+            //Remove rule created during create schedule step 
+            if(config.recurrence) {
+                let ruleName = `${testId}Create`;
+                await cloudwatchevents.removeTargets({Rule: ruleName, Ids: [ruleName]}).promise();
+                await lambda.removePermission({FunctionName: functionName, StatementId: ruleName}).promise();
+                await cloudwatchevents.deleteRule({Name: ruleName}).promise();                
+            }
+        }
+
+        //Update DynamoDB if table was not already updated by "create" schedule step
+        if(config.scheduleStep || !config.recurrence) {
+            let params = {
+                TableName: process.env.SCENARIOS_TABLE,
+                Key: {
+                    testId: testId
+                },
+                UpdateExpression: 'set #n = :n, #d = :d, #c = :c, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #nr = :nr, #sr = :sr, #tt = :tt, #ft = :ft',
+                ExpressionAttributeNames: {
+                    '#n': 'testName',
+                    '#d': 'testDescription',
+                    '#c': 'taskCount',
+                    '#t': 'testScenario',
+                    '#s': 'status',
+                    '#r': 'results',
+                    '#st': 'startTime',
+                    '#et': 'endTime',
+                    '#nr': 'nextRun',
+                    '#sr': 'scheduleRecurrence',
+                    '#tt': 'testType',
+                    '#ft': 'fileType'
+                },
+                ExpressionAttributeValues: {
+                    ':n': config.testName,
+                    ':d': config.testDescription,
+                    ':c': config.taskCount,
+                    ':t': JSON.stringify(config.testScenario),
+                    ':s': 'scheduled',
+                    ':r': {},
+                    ':st': "",
+                    ':et': '',
+                    ':nr': nextRun,
+                    ':sr': scheduleRecurrence,
+                    ':tt': config.testType,
+                    ':ft': config.fileType
+                },
+                ReturnValues: 'ALL_NEW'
+            };
+            let data = await dynamoDB.update(params).promise();
+
+            console.log(`Schedule test complete: ${JSON.stringify(data, null, 2)}`);
+
+            return data.Attributes;
+        }
+        else {
+            console.log(`Succesfully created schedule rule for test: ${testId}`);
+        }
+    } catch (err) {
+        throw err;
+    }
+}; 
 
 /**
  * @function createTest
@@ -67,6 +272,30 @@ const createTest = async (config) => {
         const numRegex = /^\d+$/;
         const timeRegex = /[a-z]+|[^a-z]+/gi;
         const timeUnits = ['ms', 's', 'm', 'h', 'd'];
+        let nextRun = "";
+        let scheduleRecurrence = "";
+        if(config.recurrence){
+            scheduleRecurrence = config.recurrence;
+            switch(config.recurrence) {
+                case "daily":
+                    nextRun = moment().utc().add(1, 'd').format('YYYY-MM-DD HH:mm:ss');
+                    break;
+                case "weekly":
+                    nextRun = moment().utc().add(7, 'd').format('YYYY-MM-DD HH:mm:ss');
+                    break;
+                case "biweekly":
+                    nextRun = moment().utc().add(14, 'd').format('YYYY-MM-DD HH:mm:ss');
+                    break;
+                case "monthly":
+                    nextRun = moment().utc().add(1, 'M').format('YYYY-MM-DD HH:mm:ss');
+                    break;
+                default: throw {
+                    message: `Invalid recurrence value.`,
+                    code: 'InvalidParameter',
+                    status: 400
+                };
+            }
+        }
 
         /**
          * Validates if time unit are valid.
@@ -132,9 +361,9 @@ const createTest = async (config) => {
         }
         if (!numRegex.test(taskCount)
             || parseInt(taskCount) < 1
-            || parseInt(taskCount) > 100) {
+            || parseInt(taskCount) > 1000) {
             throw {
-                message: 'Task count should be positive number between 1 to 100.',
+                message: 'Task count should be positive number between 1 to 1000.',
                 code: 'InvalidParameter',
                 status: 400
              };
@@ -146,10 +375,9 @@ const createTest = async (config) => {
             testScenario.execution[0].concurrency = testScenario.execution[0].concurrency.trim();
         }
         if (!numRegex.test(testScenario.execution[0].concurrency)
-            || parseInt(testScenario.execution[0].concurrency) < 1
-            || parseInt(testScenario.execution[0].concurrency) > 200) {
+            || parseInt(testScenario.execution[0].concurrency) < 1) {
             throw {
-                message: 'Concurrency should be positive number between 1 to 200.',
+                message: 'Concurrency should be positive number',
                 code: 'InvalidParameter',
                 status: 400
              };
@@ -204,7 +432,7 @@ const createTest = async (config) => {
             Key: {
                 testId: testId
             },
-            UpdateExpression: 'set #n = :n, #d = :d, #c = :c, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #tt = :tt, #ft = :ft',
+            UpdateExpression: 'set #n = :n, #d = :d, #c = :c, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #nr = :nr, #sr = :sr, #tt = :tt, #ft = :ft',
             ExpressionAttributeNames: {
                 '#n': 'testName',
                 '#d': 'testDescription',
@@ -214,6 +442,8 @@ const createTest = async (config) => {
                 '#r': 'results',
                 '#st': 'startTime',
                 '#et': 'endTime',
+                '#nr': 'nextRun',
+                '#sr': 'scheduleRecurrence',
                 '#tt': 'testType',
                 '#ft': 'fileType'
             },
@@ -226,6 +456,8 @@ const createTest = async (config) => {
                 ':r': {},
                 ':st': startTime,
                 ':et': 'running',
+                ':nr': nextRun,
+                ':sr': scheduleRecurrence,
                 ':tt': testType,
                 ':ft': fileType
             },
@@ -259,7 +491,7 @@ const getTest = async (testId) => {
         };
         data = await dynamoDB.get(params).promise();
         data = data.Item;
-        //covert testSceario back into an object
+        //convert testScenario back into an object
         data.testScenario = JSON.parse(data.testScenario);
 
         if (data.status === 'running') {
@@ -268,25 +500,32 @@ const getTest = async (testId) => {
             //1. Get list of task for testId
             data.tasks = [];
             params = {
-                cluster: process.env.TASK_CLUSTER
+                cluster: process.env.TASK_CLUSTER,
+                startedBy: testId
             };
+            let tasks = [];
+            let tasksResponse;
+            do {
+                tasksResponse = await ecs.listTasks(params).promise();
+                tasks = tasks.concat(tasksResponse.taskArns);
+                params.nextToken = tasksResponse.nextToken;
+            
+            } while(tasksResponse.nextToken);
 
-            const tasks = await ecs.listTasks(params).promise();
-
-            //2. check if any running task are associated with the testId
-            if (tasks.taskArns && tasks.taskArns.length !== 0 ) {
+            //2. describe tasks
+            if (tasks.length !== 0 ) {
                 params = {
                     cluster: process.env.TASK_CLUSTER,
-                    tasks: tasks.taskArns
                 };
 
-                const testTasks = await ecs.describeTasks(params).promise();
-
-                //3. list any tasks associated with the testId
-                for (let i in testTasks.tasks) {
-                    if (testTasks.tasks[i].group === testId) {
-                        data.tasks.push(testTasks.tasks[i]);
-                    }
+                let describeTasksResponse;
+                while(tasks.length > 0)
+                {
+                    //get groups of 100 tasks
+                    params.tasks = tasks.splice(0, 100);
+                    describeTasksResponse = await ecs.describeTasks(params).promise();
+                    //add tasks to returned value for use in UI
+                    data.tasks = data.tasks.concat(describeTasksResponse.tasks);
                 }
             }
         }
@@ -301,19 +540,53 @@ const getTest = async (testId) => {
  * @function deleteTest
  * Description: deletes all data related to a specific testId
  * @testId {string} the unique id of test scenario to delete
- * e.
+ * @functionName {string} the name of the task runner lambda function
  */
-const deleteTest = async (testId) => {
+const deleteTest = async (testId, functionName) => {
     console.log(`Delete test, testId: ${testId}`);
+    try {
+        //delete metric filter, if no metric filters log error and continue delete
+        const metrics = ["numVu", "numSucc", "numFail", "avgRt"];
+        for (let metric of metrics) {
+            let deleteMetricFilterParams = {
+                filterName: `${process.env.TASK_CLUSTER}-Ecs${metric}-${testId}`,
+                logGroupName: process.env.ECS_LOG_GROUP
+            };
+            await cloudwatchLogs.deleteMetricFilter(deleteMetricFilterParams).promise();
+        }
+    } catch (err) {
+        if(err.code === 'ResourceNotFoundException') {
+            console.error(err);
+        }
+        else {
+            throw err;
+        }
+    }
 
     try {
+        //Delete Dashboard
+        const deleteDashboardParams = { DashboardNames: [ `EcsLoadTesting-${testId}` ] };
+        await cloudwatch.deleteDashboards(deleteDashboardParams).promise();
+
+
+        //Get Rules
+        let rulesResponse = await cloudwatchevents.listRules({NamePrefix: testId}).promise();
+        //Delete Rule
+        for(let rule of rulesResponse.Rules) {
+            let ruleName = rule.Name;
+            await cloudwatchevents.removeTargets({Rule: ruleName, Ids: [ruleName]}).promise();
+            await lambda.removePermission({FunctionName: functionName, StatementId: ruleName}).promise();
+            await cloudwatchevents.deleteRule({Name: ruleName}).promise();
+        }
+
+ 
         const params = {
             TableName: process.env.SCENARIOS_TABLE,
             Key: {
                 testId: testId
             }
         };
-        await dynamoDB.delete(params).promise();
+        await dynamoDB.delete(params).promise();        
 
         return 'success';
     } catch (err) {
@@ -332,44 +605,18 @@ const cancelTest = async (testId) => {
     console.log(`Cancel test for testId: ${testId}`);
 
     try {
-        let data, params;
-
-        //1. get a list of all running tasks
+        //cancel tasks
+        let params;
         params = {
-            cluster: process.env.TASK_CLUSTER,
-            desiredStatus: 'RUNNING'
+            FunctionName: process.env.TASK_CANCELER_ARN, 
+            InvocationType: "Event", 
+            Payload: JSON.stringify({
+                testId: testId
+            })
         };
+        await lambda.invoke(params).promise(); 
 
-        data =  await ecs.listTasks(params).promise();
-
-        //2. check if any running task are associated with the testId
-        if (data.taskArns && data.taskArns.length !== 0 ) {
-            params = {
-                cluster: process.env.TASK_CLUSTER,
-                tasks: data.taskArns
-            };
-
-            data = await ecs.describeTasks(params).promise();
-
-            //3. stop any tasks associated with the testId
-            for (let i in data.tasks) {
-                if (data.tasks[i].group === testId) {
-
-                    console.log('Stopping ', data.tasks[i].taskArn);
-                    params = {
-                        cluster: process.env.TASK_CLUSTER,
-                        task: data.tasks[i].taskArn
-                    };
-                    await ecs.stopTask(params).promise();
-                } else {
-                    console.log('no task running for testId: ',testId);
-                }
-            }
-        } else {
-            console.log('no task running for testId: ',testId);
-        }
-
-        //4. Update the status in the scenarios table.
+        //Update the status in the scenarios table.
         params = {
             TableName: process.env.SCENARIOS_TABLE,
             Key: {
@@ -380,12 +627,12 @@ const cancelTest = async (testId) => {
                 '#s':'status'
             },
             ExpressionAttributeValues: {
-                ':s': 'cancelled'
+                ':s': 'cancelling'
             }
         };
         await dynamoDB.update(params).promise();
 
-        return 'test cancelled';
+        return 'test cancelling';
     } catch (err) {
         throw err;
     }
@@ -403,8 +650,14 @@ const listTasks = async () => {
         let params = {
             cluster: process.env.TASK_CLUSTER
         };
-        const data = await ecs.listTasks(params).promise();
-        return data.taskArns;
+        let data = await ecs.listTasks(params).promise();
+        let taskArns = data.taskArns;
+        while(data.nextToken) {
+            params.nextToken = data.nextToken;
+            data = await ecs.listTasks(params).promise();
+            taskArns.push(data.taskArns);
+        }
+        return taskArns;
     } catch (err) {
         throw err;
     }
@@ -416,5 +669,6 @@ module.exports = {
     getTest: getTest,
     deleteTest: deleteTest,
     cancelTest: cancelTest,
-    listTasks:listTasks
+    listTasks:listTasks,
+    scheduleTest:scheduleTest
 };

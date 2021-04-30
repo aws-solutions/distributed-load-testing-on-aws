@@ -16,7 +16,7 @@ npm test
 
 cd $source_dir/task-runner
 npm install --silent
-npm test
+npm test 
 
 cd $source_dir/task-status-checker
 npm install --silent
@@ -25,3 +25,7 @@ npm test
 cd $source_dir/ecr-checker
 npm install --silent
 npm test
+
+cd $source_dir/task-canceler
+npm install --silent
+npm test 

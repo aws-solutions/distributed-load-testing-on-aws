@@ -27,7 +27,9 @@ mockAWS.DynamoDB.DocumentClient = jest.fn(() => ({
 process.env = {
   CODE_BUILD_PROJECT: 'mock-codebuild-project',
   ECR_REPOSITORY_NAME: 'mock-ecr-repository',
-  SCENARIOS_TABLE: 'mock-scenario-table'
+  SCENARIOS_TABLE: 'mock-scenario-table',
+  SOLUTION_ID: 'SO0062',
+  VERSION: '1.3.0'
 };
 
 const lambda = require('../index');

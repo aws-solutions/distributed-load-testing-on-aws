@@ -3,8 +3,12 @@
 
 const AWS = require('aws-sdk');
 AWS.config.logger = console;
-
-const s3 = new AWS.S3();
+const { SOLUTION_ID, VERSION } = process.env; 
+let options = {};
+if (SOLUTION_ID && VERSION && SOLUTION_ID.trim() && VERSION.trim()) {
+  options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${VERSION}`;
+}
+const s3 = new AWS.S3(options);
 
 /**
  * Copy Console assets and Container assets from source to destination buckets

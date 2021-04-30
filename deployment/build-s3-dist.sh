@@ -88,6 +88,15 @@ rm package-lock.json
 zip -q -r9 $build_dist_dir/results-parser.zip *
 
 echo "------------------------------------------------------------------------------"
+echo "Creating task-canceler deployment package"
+echo "------------------------------------------------------------------------------"
+cd $source_dir/task-canceler
+rm -rf node_modules/
+npm install --production
+rm package-lock.json
+zip -q -r9 $build_dist_dir/task-canceler.zip *
+
+echo "------------------------------------------------------------------------------"
 echo "Creating task-runner deployment package"
 echo "------------------------------------------------------------------------------"
 cd $source_dir/task-runner

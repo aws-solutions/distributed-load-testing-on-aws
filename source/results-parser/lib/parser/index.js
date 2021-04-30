@@ -5,13 +5,14 @@ const AWS = require('aws-sdk');
 const parser = require('xml-js');
 const moment = require('moment');
 const shortid = require('shortid');
-
-const dynamoDb = new AWS.DynamoDB.DocumentClient({
-    region: process.env.AWS_REGION
-});
-const cloudwatch = new AWS.CloudWatch({
-    region: process.env.AWS_REGION
-});
+const { SOLUTION_ID, VERSION } = process.env; 
+let options = {};
+if (SOLUTION_ID && VERSION && SOLUTION_ID.trim() && VERSION.trim()) {
+  options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${VERSION}`;
+}
+options.region = process.env.AWS_REGION;
+const dynamoDb = new AWS.DynamoDB.DocumentClient(options);
+const cloudwatch = new AWS.CloudWatch(options);
 
 /**
  * Parses test result XML from S3 to JSON, and return the result summary.
@@ -280,16 +281,52 @@ function results(content, testId) {
             width: 600,
             height: 395,
             metrics : [
-               [
-                   "distribuited-load-testing", "Avg Response Time",
+                [
+                   "distributed-load-testing", `${testId}-avgRt`,
                     {
                         color:'#FF9900',
                         label:'Avg Response Time'
                     }
+                ],
+                [
+                    ".", `${testId}-numVu`, 
+                    {
+                        "color": "#1f77b4",
+                        "yAxis": "right", 
+                        "stat": "Sum", 
+                        "label": "Virtual Users"
+                    }
+                ],
+                [
+                    ".", `${testId}-numSucc`, 
+                    {
+                        "color": "#2CA02C",
+                        "yAxis": "right", 
+                        "stat": "Sum", 
+                        "label": "Succcess"
+                    }
+                ],
+                [
+                    ".", `${testId}-numFail`, 
+                    {
+                        "color": "#D62728",
+                        "yAxis": "right", 
+                        "stat": "Sum", 
+                        "label": "Failures"
+                    }
                 ]
             ],
             period: 10,
-            stacked: true,
+            yAxis: {
+                "left": {
+                    "showUnits": false,
+                    "label": "Seconds"
+                },
+                "right": {
+                    "showUnits": false,
+                    "label": "Total"
+                }
+            },
             stat: 'Average',
             view: 'timeSeries',
             start: new Date(startTime).toISOString(),

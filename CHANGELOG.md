@@ -3,6 +3,49 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.3.0] - 2021-04-30
+### Added
+- Support for up to 1000 tasks
+  - Added TaskCanceler lambda to cancel tasks
+  - Added steps in step function to support launching 1000 tasks
+  - Added StartedBy tag to tasks for use by task listing functions
+  - Modified all ECS task listing functions to support listing 1000 tasks
+  - Modified TaskRunning lambda function to support being called multiple times from step functions
+- Tests start simultaneously 
+  - Added ecscontroller.py to container package
+  - Added ecslistener.py to container package
+  - TaskRunner lambda launches worker tasks first, then leader task once workers are running
+- Run tests concurrently
+  - Removed disabling of submit buttons if there is a test running
+  - Unbuffered bzt output and added test Id to CloudWatch logs for access to test specific logs
+- Added support for Docker Hub login 
+  - Added Secrets manager parameter to include secret containing Docker Hub credentials
+- Included more metrics
+  - Added virtual users, failures, and successes to graph
+  - Added individual CloudWatch dashboards and widget for each metric for real time results
+- Added support for scheduling tests
+  - Added scheduling options to form
+  - Added scheduled CloudWatch rules to start tests on schedule
+- Added next run and recurrence to dashboard page in UI
+- Added recurrence to details page in UI
+- Added SolutionId and TestId tag to Fargate tasks and SolutionId tag to API Gateway
+
+### Changed
+- Merge [#50](https://github.com/awslabs/distributed-load-testing-on-aws/pull/50/) by [@naxxster](https://github.com/naxxster)
+- Increased Task Count limits
+- Changed ETA for running tasks to be dynamic based on number of tasks
+- Increased task cpu and memory to handle increased cpu load
+- Package versions
+- Improved unit tests
+- UI changes
+  - Changed update button to edit in details page
+  - Changed submit button to "Run Now" or "Schedule" in create page
+  - Changed details URL to include test id
+  - Changed concurrency message to provide guidelines to determine max concurrency
+
+### Removed
+- Concurrency Limits
+- Removed aggregated CloudWatch dashboard and metric
 
 ## [1.2.0] - 2020-12-17
 ### Added

@@ -4,7 +4,7 @@ body {
   /*font-size: 1rem; */
   font-size: 90%;
   font-family: "Amazon Ember", "Helvetica", "sans-serif";
-  font-weight: 200;
+  font-weight: 300;
   background-color: #F1F1F1;
 }
 
@@ -70,7 +70,7 @@ color: #FF9900 !important;
 }
 
 .create-box {
-  height: 950px;
+  height: 1050px;
 }
 
 .info>.popover{
@@ -163,6 +163,15 @@ td {
   text-transform: uppercase;
 }
 
+.cancelling {
+  color: #EE6723;
+  text-transform: uppercase;
+}
+
+.recurrence {
+  text-transform: uppercase;
+}
+
 .warning {
   text-align: center;
   color: #DC3545;
@@ -172,6 +181,11 @@ td {
 
 .failed {
   color: #DC3545;
+  text-transform: uppercase;
+}
+
+.scheduled {
+  color: #53C9ED;
   text-transform: uppercase;
 }
 

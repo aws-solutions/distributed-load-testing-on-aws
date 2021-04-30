@@ -20,6 +20,8 @@ jest.mock('xml-js', () => {
 	};
 });
 
+process.env.SOLUTION_ID = 'SO0062';
+process.env.VERSION = '1.3.0';
 const lambda = require('./index.js');
 
 describe('#RESULTS PARSER::', () => {

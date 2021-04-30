@@ -4,8 +4,13 @@
 const parser = require('./lib/parser/');
 const metrics = require('./lib/metrics/');
 const AWS = require('aws-sdk');
-const s3 = new AWS.S3();
-const dynamoDb = new AWS.DynamoDB.DocumentClient();
+const { SOLUTION_ID, VERSION } = process.env; 
+let options = {};
+if (SOLUTION_ID && VERSION && SOLUTION_ID.trim() && VERSION.trim()) {
+  options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${VERSION}`;
+}
+const s3 = new AWS.S3(options);
+const dynamoDb = new AWS.DynamoDB.DocumentClient(options);
 
 exports.handler = async (event) => {
     console.log(JSON.stringify(event, null, 2));
@@ -29,7 +34,7 @@ exports.handler = async (event) => {
         let totalDuration = 0;
         let testResult = status;
 
-        if (!['cancelled', 'failed'].includes(status)) {
+        if (!['cancelling', 'cancelled', 'failed'].includes(status)) {
             const bucket = process.env.SCENARIOS_BUCKET;
             let resultList = [];
             let nextContinuationToken = undefined;

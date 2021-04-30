@@ -64,8 +64,10 @@ class Dashboard extends React.Component {
                         <td className="desc">{item.testDescription}</td>
                         <td>{item.startTime}</td>
                         <td className={item.status}>{item.status}</td>
+                        <td>{item.nextRun}</td>
+                        <td className="recurrence">{item.scheduleRecurrence}</td>
                         <td className="td-center">
-                            <Link id={`detailLink-${item.testId}`} to= {{ pathname: "/details", state: { testId: item.testId } }}>
+                            <Link id={`detailLink-${item.testId}`} to= {{ pathname: `/details/${item.testId}`, state: { testId: item.testId } }}>
                                 <FontAwesomeIcon icon={faArrowAltCircleRight} size="lg" />
                             </Link>
                         </td>
@@ -90,6 +92,8 @@ class Dashboard extends React.Component {
                                 <th>Description</th>
                                 <th>Last Run (UTC)</th>
                                 <th>Status</th>
+                                <th>Next Run (UTC)</th>
+                                <th>Recurrence</th>
                                 <th className="td-center">Details</th>
                             </tr>
                         </thead>

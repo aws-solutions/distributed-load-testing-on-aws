@@ -12,7 +12,8 @@ mockAWS.S3 = jest.fn(() => ({
 mockAWS.config = jest.fn(() => ({
 	logger: Function
 }));
-
+process.env.SOLUTION_ID = 'SO0062';
+process.env.VERSION = '1.3.0';
 const lambda = require('./index.js');
 
 describe('#S3::', () => {

@@ -36,6 +36,9 @@ A NodeJS Lambda function that checks if the Amazon ECR is ready or not.
 **source/results-parser**<br/>
 A NodeJS Lambda function used to write the xml output from the docker images to Amazon DynamoDB and generate the final results for each test.
 
+**source/task-canceler**<br/>
+A NodeJS Lambda function used to stop tasks for a test that has been cancelled.
+
 **source/task-runner**<br/>
 A NodeJS Lambda function that runs the Amazon ECS task definition for each test.
 

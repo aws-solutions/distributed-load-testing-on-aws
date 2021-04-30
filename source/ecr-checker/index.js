@@ -2,9 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const AWS = require('aws-sdk');
-const codeBuild = new AWS.CodeBuild();
-const ecr = new AWS.ECR();
-const dynamoDb = new AWS.DynamoDB.DocumentClient();
+const { SOLUTION_ID, VERSION } = process.env; 
+let options = {};
+if (SOLUTION_ID && VERSION && SOLUTION_ID.trim() && VERSION.trim()) {
+  options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${VERSION}`;
+}
+const codeBuild = new AWS.CodeBuild(options);
+const ecr = new AWS.ECR(options);
+const dynamoDb = new AWS.DynamoDB.DocumentClient(options);
 const { CODE_BUILD_PROJECT, ECR_REPOSITORY_NAME, SCENARIOS_TABLE } = process.env;
 
 /**

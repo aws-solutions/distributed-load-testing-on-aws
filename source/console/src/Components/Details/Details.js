@@ -23,7 +23,7 @@ class Details extends React.Component {
             runningTasks: false,
             deleteModal: false,
             cancelModal: false,
-            testId: props.location.state,
+            testId: props.match.params.testId,
             testDuration: 0,
             data: {
                 testName: null,
@@ -43,7 +43,10 @@ class Details extends React.Component {
                     execution: [],
                     reporting: [],
                     scenarios: {}
-                }
+                },
+                scheduleDate: null,
+                scheduleTime: null,
+                recurrence: null
             }
         }
         this.deleteToggle = this.deleteToggle.bind(this);
@@ -68,23 +71,23 @@ class Details extends React.Component {
     }
 
     deleteTest = async () => {
-        const { testId } = this.state.testId;
+        const testId = this.state.testId;
         try {
             await API.del('dlts', `/scenarios/${testId}`);
         } catch (err) {
             alert(err);
         }
-        this.props.history.push("dashboard");
+        this.props.history.push("../dashboard");
     }
 
     cancelTest = async () => {
-        const { testId } = this.state.testId;
+        const testId = this.state.testId;
         try {
             await API.post('dlts', `/scenarios/${testId}`);
         } catch (err) {
             alert(err);
         }
-        this.props.history.push("dashboard");
+        this.props.history.push("../dashboard");
     }
 
     reloadData = async () => {
@@ -108,7 +111,7 @@ class Details extends React.Component {
     }
 
     getTest = async () => {
-        const { testId } = this.state.testId;
+        const testId = this.state.testId;
         try {
             const data = await API.get('dlts', `/scenarios/${testId}`);
             const { testName } = data;
@@ -116,6 +119,13 @@ class Details extends React.Component {
             data.rampUp = data.testScenario.execution[0]['ramp-up'];
             data.holdFor = data.testScenario.execution[0]['hold-for'];
             const testDuration = this.caculateTestDurationSeconds([data.rampUp, data.holdFor]);
+            if(data.nextRun) {
+                const [ scheduleDate, scheduleTime ] = data.nextRun.split(' ');
+                data.scheduleDate = scheduleDate;
+                data.scheduleTime = scheduleTime.split(':', 2).join(':');
+                data.recurrence = data.scheduleRecurrence;
+                delete data.nextRun;
+            }
 
             // For migration purpose, old version would have undefined value, then it's a simple test.
             if (!data.testType || ['', 'simple'].includes(data.testType)) {
@@ -162,14 +172,15 @@ class Details extends React.Component {
 
     componentDidMount = async () => {
         if (!this.state.testId) {
-            this.props.history.push('/');
+            this.props.history.push('../');
+        } else {
+            await this.getTest();
+            await this.listTasks();
         }
-        await this.getTest();
-        await this.listTasks();
     }
 
     async handleStart() {
-        const { testId } = this.state.testId;
+        const testId = this.state.testId;
         const { data } = this.state;
         let payload = {
             testId,
@@ -222,7 +233,7 @@ class Details extends React.Component {
 
     async handleDownload() {
         try {
-            const { testId } = this.state.testId;
+            const testId = this.state.testId;
             const { testType } = this.state.data;
 
             let filename = this.state.data.fileType === 'zip' ? `${testId}.zip` : `${testId}.jmx`
@@ -265,9 +276,9 @@ class Details extends React.Component {
                         [
                             <Button id="deleteButton" key="deleteButton" color="danger" onClick={this.deleteToggle} size="sm">Delete</Button>,
                             <Link key="update_link" to= {{ pathname: '/create', state: { data } }}>
-                                <Button id="updateButton" key="updateButton" size="sm">Update</Button>
+                                <Button id="updateButton" key="updateButton" size="sm">Edit</Button>
                             </Link>,
-                            <Button id="startButton" key="startButton" onClick={this.handleStart} size="sm" disabled={this.state.runningTasks}>Start</Button>
+                            <Button id="startButton" key="startButton" onClick={this.handleStart} size="sm">Start</Button>
                         ]
                     }
                 </div>
@@ -359,6 +370,13 @@ class Details extends React.Component {
                                     <Col sm="8">{data.endTime}</Col>
                                 </Row>
                             }
+                            {
+                                data.recurrence && data.recurrence !== '' &&
+                                <Row className="detail">
+                                    <Col sm="4"><b>RECURRENCE</b></Col>
+                                    <Col sm="8" className="recurrence">{data.recurrence}</Col>
+                                </Row>
+                            }
                             <Row className="detail">
                                 <Col sm="4"><b>TASK COUNT</b></Col>
                                 <Col sm="8">{data.taskCount} {data.status === 'complete' && data.completeTasks !== undefined && `(${data.completeTasks} completed)`}</Col>
@@ -383,7 +401,7 @@ class Details extends React.Component {
                 { data.status === 'complete' && <Results data={data} testDuration={testDuration} /> }
                 { data.status === 'cancelled' && cancelled }
                 { data.status === 'failed' && failed }
-                { data.status === 'running' && <Running data={data} /> }
+                { data.status === 'running' && <Running data={data} testId={this.state.testId}/> }
                 { data.status !== 'running' && <History data={data} /> }
 
             </div>

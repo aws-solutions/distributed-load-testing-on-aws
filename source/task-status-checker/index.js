@@ -2,12 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const AWS = require('aws-sdk');
-const ecs = new AWS.ECS();
-const dynamoDb = new AWS.DynamoDB.DocumentClient();
+const { SOLUTION_ID, VERSION } = process.env; 
+let options = {};
+if (SOLUTION_ID && VERSION && SOLUTION_ID.trim() && VERSION.trim()) {
+  options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${VERSION}`;
+}
+const ecs = new AWS.ECS(options);
+const dynamoDb = new AWS.DynamoDB.DocumentClient(options);
+const lambda = new AWS.Lambda(options);
 
 exports.handler = async (event) => {
   console.log(JSON.stringify(event, null, 2));
-  const { scenario } = event;
+  const { scenario, taskRunner } = event;
   const { testId } = scenario;
 
   try {
@@ -32,11 +38,15 @@ exports.handler = async (event) => {
           break;
         }
 
+        //tasks within group that are launched
         runningTasks = runningTasks.concat(describedTasks.tasks.filter(task => task.group === testId));
       }
     } while (nextToken);
-
-    const result = { scenario, isRunning };
+    //get number of tasks in running state
+    let numTasksRunning = runningTasks.reduce(((accumulator, task) => task.lastStatus === "RUNNING" ? ++accumulator : accumulator), 0);
+    //add 1 to match scenario total for step functions
+    numTasksRunning++;
+    const result = { scenario, isRunning, numTasksRunning, taskRunner };
 
     /**
      * When prefix is provided, it means tests are running.
@@ -50,24 +60,18 @@ exports.handler = async (event) => {
 
       if (runningTaskCount > 0) {
         result.isRunning = true;
-
-        if (runningTaskCount < taskCount) {
+        //check if running task count is less than worker count
+        if (runningTaskCount < taskCount - 1) {
           result.timeoutCount = event.timeoutCount ? event.timeoutCount - 1 : 10;
 
           if (result.timeoutCount === 0) {
             // Stop the ECS tasks
-            const promises = [];
-
-            for (let task of runningTasks) {
-              promises.push(
-                ecs.stopTask({
-                  cluster: process.env.TASK_CLUSTER,
-                  task: task.taskArn
-                }).promise()
-              );
-            }
-
-            await Promise.all(promises);
+            const params = {
+              FunctionName: process.env.TASK_CANCELER_ARN, 
+              InvocationType: "Event", 
+              Payload: JSON.stringify({testId: testId})
+            };
+            await lambda.invoke(params).promise();
             result.isRunning = false;
           }
         }
