@@ -56,6 +56,10 @@ Parameters:
   DockerHubSecret:
     Type: String
     Description: Name of Secrets Manager Secret containing Docker Hub credentials
+
+  WhiteListIPs:
+    Type: CommaDelimitedList
+    Description: (Optional) List of IP ranges allowed to access the solution. 
   
 Metadata:
   AWS::CloudFormation::Interface:
@@ -75,7 +79,11 @@ Metadata:
       - Label: 
           default: "Secrets Manager Secret"
         Parameters:
-          - DockerHubSecret
+          - DockerHubSecret 
+      - Label: 
+          default: "Web ACL settings"
+        Parameters:
+          - WhiteListIPs 
     ParameterLabels:
       AdminName:
         default: "Console Administrator Name"
@@ -91,6 +99,9 @@ Metadata:
         default: "AWS Fargate SecurityGroup CIDR Block"
       DockerHubSecret:
         default: "Docker Hub credentials Secret"
+      WhiteListIPs:
+        default: "If not set, the solution will be reachable by the public (e.g. 54.1.1.1/32, 3.2.2.2/32, 64.3.3.3/32)" 
+         
 Mappings:
   Solution:
     Config:
@@ -106,7 +117,7 @@ Mappings:
 Conditions:
   Metrics: !Equals [ !FindInMap [Solution, Config, SendAnonymousData], "Yes" ]
   SecretProvided: !Not [!Equals [!Ref DockerHubSecret, ""]]
-
+  WhiteListIPProvided: !Not [ !Equals [!Select [ "0", !Ref WhiteListIPs ], ""]]
 
 Resources:
 
@@ -1977,6 +1988,54 @@ Resources:
       SolutionId: !FindInMap [Solution, Config, SolutionId]
       UUID: !GetAtt Uuid.UUID
       Version: !FindInMap [Solution, Config, CodeVersion]
+
+# WebACL resources
+  WebACL:
+    Condition: WhiteListIPProvided
+    Type: 'AWS::WAFv2::WebACL'
+    Properties: 
+      Name: webacl
+      Description: Web access control list for DLTA       
+      Scope: CLOUDFRONT      
+      DefaultAction:       # By default all access is blocked
+        Block:
+          CustomResponse:
+            ResponseCode: 503
+      Rules: 
+        - Name: WhiteListRule
+          Priority: 0        
+          Action: 
+            Allow:
+              CustomRequestHandling:
+                InsertHeaders:
+                  - Name: AllowActionHeader1Name
+                    Value: AllowActionHeader1Value
+                  - Name: AllowActionHeader2Name
+                    Value: AllowActionHeader2Value
+          Statement:
+            IPSetReferenceStatement: 
+              Arn: !GetAtt WhiteListIPSet.Arn
+          VisibilityConfig: 
+            CloudWatchMetricsEnabled: true
+            MetricName: dlta-webacl-rule-0
+            SampledRequestsEnabled: true              
+      Tags:
+        - Key: SolutionId
+          Value: !FindInMap [Solution, Config, SolutionId]
+      VisibilityConfig: 
+        CloudWatchMetricsEnabled: true
+        MetricName: dlta-webacl
+        SampledRequestsEnabled: true
+
+  WhiteListIPSet:
+    Condition: WhiteListIPProvided
+    Type: 'AWS::WAFv2::IPSet'
+    Properties:
+      Description: Web ACL White List IP Set
+      Name: whitelistipset
+      Scope: CLOUDFRONT
+      IPAddressVersion: IPV4
+      Addresses: !Ref WhiteListIPs   
 
 Outputs:
   Console:
