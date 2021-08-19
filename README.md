@@ -54,7 +54,7 @@ To make changes to the solution, download or clone this repo, update the source 
 * Node.js 12.x or later
 
 ### 1. Clone the Distributed Load Testing on AWS solution repository
-Clone the ```distributed-load-testing-on-aws``` GitHub repositroy, then make the desired code changes.
+Clone the ```distributed-load-testing-on-aws``` GitHub repository, then make the desired code changes.
 
 ```bash
 git clone https://github.com/awslabs/distributed-load-testing-on-aws.git
