@@ -7,8 +7,8 @@
 # ./build-s3-dist.sh source-bucket-base-name trademarked-solution-name version-code
 #
 # Paramenters:
-#  - source-bucket-base-name: Name for the S3 bucket location where the template will source the Lambda
-#    code from. The template will append '-[region_name]' to this bucket name.
+#  - source-bucket-base-name: Name for the S3 bucket location where the AWS CloudFormation template will source the Lambda
+#    code from. The AWS Lambda code is contained in the zip files.  The template will append '-[region_name]' to this bucket name.
 #    For example: ./build-s3-dist.sh solutions my-solution v1.0.0
 #    The template will then expect the source code to be located in the solutions-[region_name] bucket
 #
