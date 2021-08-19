@@ -636,7 +636,7 @@ Resources:
       CidrBlock: !Ref SubnetBCidrBlock
       AvailabilityZone:
         !Select
-          - 0
+          - 1
           - !GetAZs
       VpcId: !Ref Vpc
 
