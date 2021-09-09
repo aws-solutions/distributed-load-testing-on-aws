@@ -102,6 +102,10 @@ aws s3 cp ./global-s3-assets/ s3://$DIST_OUTPUT_BUCKET-$REGION/$SOLUTION_NAME/$V
 * Get the link of the `distributed-load-testing-on-aws.template` uploaded to your Amazon S3 bucket.
 * Deploy the Distributed Load Testing on AWS solution to your account by launching a new AWS CloudFormation stack using the link of the `distributed-load-testing-on-aws.template`.
 
+
+## Collection of operational metrics
+This solution collects anonymous operational metrics to help AWS improve the quality and features of the solution. For more information, including how to disable this capability, please see the [implementation guide](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/operational-metrics.html).
+
 ***
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.<br />
