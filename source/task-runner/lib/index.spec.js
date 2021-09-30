@@ -10,7 +10,7 @@ const mockDynamoDb = {
 };
 const mockEcs = {
 	runTask: jest.fn(),
-	listTasks: jest.fn(), 
+	listTasks: jest.fn(),
 	describeTasks: jest.fn()
 };
 const mockCloudWatch = {
@@ -77,7 +77,7 @@ const mockParam = {
 	networkConfiguration: {
 		awsvpcConfiguration: {
 			assignPublicIp: 'ENABLED',
-			securityGroups: [ process.env.TASK_SECURITY_GROUP ],
+			securityGroups: [process.env.TASK_SECURITY_GROUP],
 			subnets: [
 				process.env.SUBNET_A,
 				process.env.SUBNET_B
@@ -93,14 +93,15 @@ const mockParam = {
 				{ name: 'TEST_TYPE', value: 'simple' },
 				{ name: 'FILE_TYPE', value: 'none' },
 				{ name: 'PREFIX', value: prefix },
-				{ name: 'SCRIPT', value: 'ecslistener.py'}
+				{ name: 'SCRIPT', value: 'ecslistener.py' }
 			]
 		}]
 	},
+	propagateTags: "TASK_DEFINITION",
 	startedBy: "testId",
 	tags: [
-		{key: "TestId", value: 'testId'},
-		{key: "SolutionId", value: process.env.SOLUTION_ID}
+		{ key: "TestId", value: 'testId' },
+		{ key: "SolutionId", value: process.env.SOLUTION_ID }
 	]
 };
 
@@ -108,8 +109,8 @@ let describeTasksReturn = (numTasks, param) => {
 	taskList = [];
 	ipNetwork = "1.1";
 	ipHosts = [];
-	for(let i=0; i < numTasks; i++) {
-		taskList.push({containers: [{networkInterfaces: [{privateIpv4Address: `1.1.1.${i}`}]}]});
+	for (let i = 0; i < numTasks; i++) {
+		taskList.push({ containers: [{ networkInterfaces: [{ privateIpv4Address: `1.1.1.${i}` }] }] });
 		ipHosts.push(`1.${i}`);
 	}
 
@@ -119,7 +120,7 @@ let describeTasksReturn = (numTasks, param) => {
 };
 let getTaskIds = (numTasks) => {
 	tasks = []
-	for( i=0; i<numTasks; i++ ) {
+	for (i = 0; i < numTasks; i++) {
 		let num = i > 9 ? i - 10 : i;
 		tasks.push(`a/${num}`);
 	}
@@ -128,8 +129,8 @@ let getTaskIds = (numTasks) => {
 
 let runTaskReturn = (numTasks) => {
 	let tasks = [];
-	for(let i =0; i < numTasks; i++) {
-		tasks.push({taskArn: `a/${i}`})
+	for (let i = 0; i < numTasks; i++) {
+		tasks.push({ taskArn: `a/${i}` })
 	}
 	return tasks;
 }
@@ -153,14 +154,14 @@ describe('#TASK RUNNER:: ', () => {
 	});
 
 	it('should return scenario and prefix when running ECS worker tasks succeeds', async () => {
-		mockCloudWatchLogs.putMetricFilter.mockImplementation(() =>{
+		mockCloudWatchLogs.putMetricFilter.mockImplementation(() => {
 			return {
 				promise() {
 					return Promise.resolve();
 				}
 			}
 		});
-		mockCloudWatch.putDashboard.mockImplementation(() =>{
+		mockCloudWatch.putDashboard.mockImplementation(() => {
 			return {
 				promise() {
 					return Promise.resolve();
@@ -170,32 +171,32 @@ describe('#TASK RUNNER:: ', () => {
 
 		mockEcs.runTask.mockImplementationOnce(() => {
 			let taskList = runTaskReturn(4);
-				return {
-					promise() {
-						return Promise.resolve({
-							tasks: taskList
+			return {
+				promise() {
+					return Promise.resolve({
+						tasks: taskList
 					});
 				}
 			};
 		});
-			
+
 		mockDynamoDb.get.mockImplementationOnce(() => {
-				return {
-					promise() {
-						return Promise.resolve({
-							Item: { status: 'running' }
+			return {
+				promise() {
+					return Promise.resolve({
+						Item: { status: 'running' }
 					});
 				}
 			};
 		});
 
 		mockEcs.listTasks.mockImplementationOnce(() => {
-				return {
-					promise() {
-						return Promise.resolve({taskArns: [1,2,3,4]});
-					}
+			return {
+				promise() {
+					return Promise.resolve({ taskArns: [1, 2, 3, 4] });
 				}
-			});
+			}
+		});
 
 		const response = await lambda.handler(event, mockContext);
 		let expectedResponse = {
@@ -213,14 +214,14 @@ describe('#TASK RUNNER:: ', () => {
 		expect(response).toEqual(expectedResponse);
 	});
 	it('should return scenario and prefix when running more than 10 ECS workers succeeds', async () => {
-		mockCloudWatchLogs.putMetricFilter.mockImplementation(() =>{
+		mockCloudWatchLogs.putMetricFilter.mockImplementation(() => {
 			return {
 				promise() {
 					return Promise.resolve();
 				}
 			}
 		});
-		mockCloudWatch.putDashboard.mockImplementation(() =>{
+		mockCloudWatch.putDashboard.mockImplementation(() => {
 			return {
 				promise() {
 					return Promise.resolve();
@@ -244,16 +245,16 @@ describe('#TASK RUNNER:: ', () => {
 					promise() {
 						return Promise.resolve({
 							tasks: taskList
-					});
-				}
-			};
-		});
+						});
+					}
+				};
+			});
 
 		mockDynamoDb.get.mockImplementationOnce(() => {
-				return {
-					promise() {
-						return Promise.resolve({
-							Item: { status: 'running' }
+			return {
+				promise() {
+					return Promise.resolve({
+						Item: { status: 'running' }
 					});
 				}
 			};
@@ -264,7 +265,7 @@ describe('#TASK RUNNER:: ', () => {
 			taskList = taskList.concat(runTaskReturn(9));
 			return {
 				promise() {
-					return Promise.resolve({taskArns: taskList});
+					return Promise.resolve({ taskArns: taskList });
 				}
 			};
 		});
@@ -287,10 +288,10 @@ describe('#TASK RUNNER:: ', () => {
 		expect(mockEcs.runTask).toHaveBeenNthCalledWith(2, { ...mockParam, count: 9 });
 		expect(response).toEqual(expectedResponse);
 	});
-	it('should return when launching leader task is successful', async () => {	
+	it('should return when launching leader task is successful', async () => {
 		mockParam.overrides.containerOverrides[0].environment[5].value = 'ecscontroller.py';
-		mockParam.overrides.containerOverrides[0].environment.push({"name": "IPNETWORK", "value": ""});
-		mockParam.overrides.containerOverrides[0].environment.push({"name": "IPHOSTS", "value": ""});
+		mockParam.overrides.containerOverrides[0].environment.push({ "name": "IPNETWORK", "value": "" });
+		mockParam.overrides.containerOverrides[0].environment.push({ "name": "IPHOSTS", "value": "" });
 		event.taskRunner = {}
 		let taskIds = getTaskIds(5);
 		event.taskRunner.taskIds = taskIds;
@@ -300,7 +301,7 @@ describe('#TASK RUNNER:: ', () => {
 		mockEcs.describeTasks.mockImplementationOnce(() => {
 			return {
 				promise() {
-					return Promise.resolve({tasks: taskList});
+					return Promise.resolve({ tasks: taskList });
 				}
 			};
 		});
@@ -340,14 +341,14 @@ describe('#TASK RUNNER:: ', () => {
 
 	});
 	it('should return scenario and prefix when API_INTERVAL is not provided but running ECS tasks succeeds', async () => {
-		mockCloudWatchLogs.putMetricFilter.mockImplementation(() =>{
+		mockCloudWatchLogs.putMetricFilter.mockImplementation(() => {
 			return {
 				promise() {
 					return Promise.resolve();
 				}
 			}
 		});
-		mockCloudWatch.putDashboard.mockImplementation(() =>{
+		mockCloudWatch.putDashboard.mockImplementation(() => {
 			return {
 				promise() {
 					return Promise.resolve();
@@ -390,14 +391,14 @@ describe('#TASK RUNNER:: ', () => {
 	});
 
 	it('should throw "ECS ERROR" when ECS.runTask fails', async () => {
-		mockCloudWatchLogs.putMetricFilter.mockImplementation(() =>{
+		mockCloudWatchLogs.putMetricFilter.mockImplementation(() => {
 			return {
 				promise() {
 					return Promise.resolve();
 				}
 			}
 		});
-		mockCloudWatch.putDashboard.mockImplementation(() =>{
+		mockCloudWatch.putDashboard.mockImplementation(() => {
 			return {
 				promise() {
 					return Promise.resolve();
@@ -424,33 +425,33 @@ describe('#TASK RUNNER:: ', () => {
 			await lambda.handler(event);
 		} catch (error) {
 			expect(mockEcs.runTask).toHaveBeenCalledWith({ ...mockParam, count: 1 });
-      		expect(mockDynamoDb.update).toHaveBeenCalledWith({
-        		TableName: process.env.SCENARIOS_TABLE,
-        		Key: {
-        		    testId: event.scenario.testId
-        		},
-        		UpdateExpression: 'set #s = :s, #e = :e',
-        		ExpressionAttributeNames: {
-							'#s': 'status',
-							'#e': 'errorReason'
-        		},
-        		ExpressionAttributeValues: {
-							':s': 'failed',
-							':e': 'Failed to run Fargate tasks.'
-        		}
-      		});
+			expect(mockDynamoDb.update).toHaveBeenCalledWith({
+				TableName: process.env.SCENARIOS_TABLE,
+				Key: {
+					testId: event.scenario.testId
+				},
+				UpdateExpression: 'set #s = :s, #e = :e',
+				ExpressionAttributeNames: {
+					'#s': 'status',
+					'#e': 'errorReason'
+				},
+				ExpressionAttributeValues: {
+					':s': 'failed',
+					':e': 'Failed to run Fargate tasks.'
+				}
+			});
 			expect(error).toEqual('ECS ERROR');
 		}
 	});
 	it('should throw an error when DynamoDB.DocumentClient.update fails and not update the DynamoDB', async () => {
-		mockCloudWatchLogs.putMetricFilter.mockImplementation(() =>{
+		mockCloudWatchLogs.putMetricFilter.mockImplementation(() => {
 			return {
 				promise() {
 					return Promise.resolve();
 				}
 			}
 		});
-		mockCloudWatch.putDashboard.mockImplementation(() =>{
+		mockCloudWatch.putDashboard.mockImplementation(() => {
 			return {
 				promise() {
 					return Promise.resolve();
@@ -476,21 +477,21 @@ describe('#TASK RUNNER:: ', () => {
 			await lambda.handler(event);
 		} catch (error) {
 			expect(mockEcs.runTask).toHaveBeenCalledWith({ ...mockParam, count: 1 });
-      		expect(mockDynamoDb.update).toHaveBeenCalledWith({
-        		TableName: process.env.SCENARIOS_TABLE,
-        		Key: {
-							testId: event.scenario.testId
-        		},
-        		UpdateExpression: 'set #s = :s, #e = :e',
-        		ExpressionAttributeNames: {
-							'#s': 'status',
-							'#e': 'errorReason'
-        		},
-        		ExpressionAttributeValues: {
-							':s': 'failed',
-							':e': 'Failed to run Fargate tasks.'
-        		}
-      		});
+			expect(mockDynamoDb.update).toHaveBeenCalledWith({
+				TableName: process.env.SCENARIOS_TABLE,
+				Key: {
+					testId: event.scenario.testId
+				},
+				UpdateExpression: 'set #s = :s, #e = :e',
+				ExpressionAttributeNames: {
+					'#s': 'status',
+					'#e': 'errorReason'
+				},
+				ExpressionAttributeValues: {
+					':s': 'failed',
+					':e': 'Failed to run Fargate tasks.'
+				}
+			});
 			expect(error).toEqual('DynamoDB.DocumentClient.update failed');
 		}
 	});

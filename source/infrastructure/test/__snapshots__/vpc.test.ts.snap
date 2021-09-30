@@ -1,0 +1,157 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DLT VPC Test 1`] = `
+Object {
+  "Resources": Object {
+    "TestVPCDLTFargateIG4FFBAA11": Object {
+      "Properties": Object {
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::InternetGateway",
+    },
+    "TestVPCDLTFargateRT6952750D": Object {
+      "Properties": Object {
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+        "VpcId": Object {
+          "Ref": "TestVPCDLTFargateVpc0EC32C36",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "TestVPCDLTFargateVpc0EC32C36": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W60",
+              "reason": "This VPC is used for the test runner Fargate tasks only, it does not require VPC flow logs.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "CidrBlock": "10.0.0.0/16",
+        "EnableDnsHostnames": true,
+        "EnableDnsSupport": true,
+        "Tags": Array [
+          Object {
+            "Key": "Name",
+            "Value": Object {
+              "Ref": "AWS::StackName",
+            },
+          },
+          Object {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::VPC",
+    },
+    "TestVPCDLTGatewayattachment7F5F62C2": Object {
+      "Properties": Object {
+        "InternetGatewayId": Object {
+          "Ref": "TestVPCDLTFargateIG4FFBAA11",
+        },
+        "VpcId": Object {
+          "Ref": "TestVPCDLTFargateVpc0EC32C36",
+        },
+      },
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+    },
+    "TestVPCDLTRoute5972150C": Object {
+      "DependsOn": Array [
+        "TestVPCDLTGatewayattachment7F5F62C2",
+      ],
+      "Properties": Object {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": Object {
+          "Ref": "TestVPCDLTFargateIG4FFBAA11",
+        },
+        "RouteTableId": Object {
+          "Ref": "TestVPCDLTFargateRT6952750D",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "TestVPCDLTRouteTableAssociationAD1563098": Object {
+      "Properties": Object {
+        "RouteTableId": Object {
+          "Ref": "TestVPCDLTFargateRT6952750D",
+        },
+        "SubnetId": Object {
+          "Ref": "TestVPCDLTSubnetA8E320A43",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "TestVPCDLTRouteTableAssociationB831818FD": Object {
+      "Properties": Object {
+        "RouteTableId": Object {
+          "Ref": "TestVPCDLTFargateRT6952750D",
+        },
+        "SubnetId": Object {
+          "Ref": "TestVPCDLTSubnetB7A2BD254",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "TestVPCDLTSubnetA8E320A43": Object {
+      "Properties": Object {
+        "AvailabilityZone": Object {
+          "Fn::Select": Array [
+            0,
+            Object {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "10.0.0.0/24",
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+        "VpcId": Object {
+          "Ref": "TestVPCDLTFargateVpc0EC32C36",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "TestVPCDLTSubnetB7A2BD254": Object {
+      "Properties": Object {
+        "AvailabilityZone": Object {
+          "Fn::Select": Array [
+            1,
+            Object {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "10.0.1.0/24",
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+        "VpcId": Object {
+          "Ref": "TestVPCDLTFargateVpc0EC32C36",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+  },
+}
+`;

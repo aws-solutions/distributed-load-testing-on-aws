@@ -12,7 +12,7 @@
   "dependencies": {
     "axios": "^0.21.0",
     "moment": "^2.29.1",
-    "shortid": "^2.2.16",
+    "nanoid": "^3.1.25",
     "xml-js": "^1.6.11"
   },
   "devDependencies": {

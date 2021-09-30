@@ -145,6 +145,10 @@ td {
   text-align: center;
 }
 
+.rowActive {
+  background-color: #BBD4DD;
+}
+
 .desc {
   max-width: 20rem;
 }

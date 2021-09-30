@@ -27,7 +27,7 @@ const lambda = require('./index.js');
 describe('#RESULTS PARSER::', () => {
 	process.env.SCENARIOS_BUCKET = 'scenario_bucket';
 	const content = 'XML_FILE_CONTENT';
-	const testId =  'abcd';
+	const testId = 'abcd';
 	const json = {
 		"FinalStatus": {
 			"TestDuration": {
@@ -122,14 +122,14 @@ describe('#RESULTS PARSER::', () => {
 		}
 	};
 	const resultJson = {
-    avg_ct: 0.23043,
-    p95_0: 4.896,
-    rc: [
-    	{
-    		code: 'UnknownHostException',
-    		count: 20753
-    	}
-    ],
+		avg_ct: 0.23043,
+		p95_0: 4.896,
+		rc: [
+			{
+				code: 'UnknownHostException',
+				count: 20753
+			}
+		],
 		testDuration: 123
 	};
 	const finalData = [
@@ -200,7 +200,7 @@ describe('#RESULTS PARSER::', () => {
 		p99_0: '0.013',
 		p99_9: '0.105',
 		p100_0: '0.396',
-		rc: [ { code: 'UnknownHostException', count: 41506 } ],
+		rc: [{ code: 'UnknownHostException', count: 41506 }],
 		stdev_rt: '0.010',
 		succ: 0,
 		testDuration: '39',
@@ -221,7 +221,7 @@ describe('#RESULTS PARSER::', () => {
 				p99_0: '0.013',
 				p99_9: '0.105',
 				p100_0: '0.396',
-				rc: [ { code: 'UnknownHostException', count: 41506 } ],
+				rc: [{ code: 'UnknownHostException', count: 41506 }],
 				stdev_rt: '0.010',
 				succ: 0,
 				testDuration: '39',
@@ -230,6 +230,9 @@ describe('#RESULTS PARSER::', () => {
 		]
 	};
 	const startTime = '2020-09-01 00:00:00'
+	const taskCount = 2
+	const testScenario = "{\"execution\":[{\"concurrency\":20,\"ramp-up\":\"10s\",\"hold-for\":\"2m\",\"scenario\":\"test1-5-err\"}],\"scenarios\":{\"test1-5-err\":{\"script\":\"ryWOD3EDT.jmx\"}},\"reporting\":[{\"module\":\"final-stats\",\"summary\":true,\"percentiles\":true,\"summary-labels\":true,\"test-duration\":true,\"dump-xml\":\"/tmp/artifacts/results.xml\"}]}"
+	const testDescription = 'This test description'
 
 	beforeEach(() => {
 		mockDynamoDB.mockReset();
@@ -324,7 +327,7 @@ describe('#RESULTS PARSER::', () => {
 			};
 		});
 
-		const response = await lambda.finalResults(testId, finalData, startTime);
+		const response = await lambda.finalResults(testId, finalData, startTime, taskCount, testScenario, testDescription);
 		expect(response).toEqual(finalAggregatedResult);
 	});
 
@@ -351,7 +354,7 @@ describe('#RESULTS PARSER::', () => {
 		});
 
 		try {
-			await lambda.finalResults(testId, finalData, startTime);
+			await lambda.finalResults(testId, finalData, startTime, taskCount, testScenario, testDescription);
 		} catch (error) {
 			expect(error).toEqual('CLOUDWATCH ERROR');
 		}
@@ -375,7 +378,7 @@ describe('#RESULTS PARSER::', () => {
 		});
 
 		try {
-			await lambda.finalResults(testId, finalData, startTime);
+			await lambda.finalResults(testId, finalData, startTime, taskCount, testScenario, testDescription);
 		} catch (error) {
 			expect(error).toEqual('DB UPDATE ERROR');
 		}

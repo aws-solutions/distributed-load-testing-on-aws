@@ -28,9 +28,10 @@ react under the Massachusetts Institute of Technology (MIT) license
 react-ace under the Massachusetts Institute of Technology (MIT) license
 react-dom under the Massachusetts Institute of Technology (MIT) license
 react-router-dom under the Massachusetts Institute of Technology (MIT) license
+react-router-hash-link under the Massachusetts Institute of Technology (MIT) license
 react-scripts under the Massachusetts Institute of Technology (MIT) license
 reactstrap under the Massachusetts Institute of Technology (MIT) license
-shortid under the Massachusetts Institute of Technology (MIT) license
+nanoid under the Massachusetts Institute of Technology (MIT) license
 taurus under the Apache License Version 2.0
 uuid under the Massachusetts Institute of Technology (MIT) license
 xml-js under the Massachusetts Institute of Technology (MIT) license

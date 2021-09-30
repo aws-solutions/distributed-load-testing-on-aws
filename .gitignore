@@ -7,6 +7,7 @@ regional-s3-assets/
 open-source/
 console_new/
 **/aws_config.js
+deployment/ecr/*.jar
 
 .pnp
 .pnp.js

@@ -4,10 +4,10 @@
 const parser = require('./lib/parser/');
 const metrics = require('./lib/metrics/');
 const AWS = require('aws-sdk');
-const { SOLUTION_ID, VERSION } = process.env; 
+const { SOLUTION_ID, VERSION } = process.env;
 let options = {};
 if (SOLUTION_ID && VERSION && SOLUTION_ID.trim() && VERSION.trim()) {
-  options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${VERSION}`;
+    options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${VERSION}`;
 }
 const s3 = new AWS.S3(options);
 const dynamoDb = new AWS.DynamoDB.DocumentClient(options);
@@ -26,11 +26,14 @@ exports.handler = async (event) => {
             AttributesToGet: [
                 'startTime',
                 'status',
-                'testType'
+                'taskCount',
+                'testType',
+                'testScenario',
+                'testDescription'
             ]
         };
         const ddbGetResponse = await dynamoDb.get(ddbParams).promise();
-        const { startTime, status, testType } = ddbGetResponse.Item;
+        const { startTime, status, taskCount, testType, testScenario, testDescription } = ddbGetResponse.Item;
         let totalDuration = 0;
         let testResult = status;
 
@@ -78,7 +81,7 @@ exports.handler = async (event) => {
                 console.log('All Tasks Complete');
 
                 // Parser final results and update dynamodb
-                await parser.finalResults(testId, data, startTime);
+                await parser.finalResults(testId, data, startTime, taskCount, testScenario, testDescription, testType);
                 testResult = 'completed';
             } else {
                 // If there's no result files in S3 bucket, there's a possibility that the test failed in the Fargate tasks.
@@ -105,7 +108,7 @@ exports.handler = async (event) => {
         }
 
         return 'success';
-	} catch (error) {
+    } catch (error) {
         console.error(error);
 
         await dynamoDb.update({

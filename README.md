@@ -24,14 +24,8 @@ A NodeJS Lambda function for the API microservices. Integrated with Amazon API G
 **source/console**<br/>
 ReactJS Single page application to provide a GUI to the solutions. Authenticated through Amazon Cognito this dashboard allows users to Create tests and view the final results.
 
-**source/container**<br/>
-The Taurus DockerFile and bash script run at start of the test to download the test definition from S3. This is the source file for the image pipeline to build and deploy the Docker image to Amazon ECR. Details on Taurus can be found [here](https://gettaurus.org/).
-
 **source/custom-resource**<br/>
 A NodeJS Lambda function used as a CloudFormation custom resource for configuring Amazon S3 bucket notifications and to send anonymous metrics.
-
-**source/ecr-checker**<br/>
-A NodeJS Lambda function that checks if the Amazon ECR is ready or not.
 
 **source/results-parser**<br/>
 A NodeJS Lambda function used to write the xml output from the docker images to Amazon DynamoDB and generate the final results for each test.
@@ -51,7 +45,7 @@ To make changes to the solution, download or clone this repo, update the source 
 
 ### Prerequisites:
 * [AWS Command Line Interface](https://aws.amazon.com/cli/)
-* Node.js 12.x or later
+* Node.js 14.x or later
 
 ### 1. Clone the Distributed Load Testing on AWS solution repository
 Clone the ```distributed-load-testing-on-aws``` GitHub repository, then make the desired code changes.
@@ -74,6 +68,8 @@ export REGION=aws-region-code # the AWS region to launch the solution (e.g. us-e
 export DIST_OUTPUT_BUCKET=my-bucket-name # bucket where customized code will reside
 export SOLUTION_NAME=my-solution-name
 export VERSION=my-version # version number for the customized code
+export PUBLIC_ECR_REGISTRY=public.ecr.aws/awssolutions/distributed-load-testing-on-aws-load-tester # replace with the container registry and image if you want to use a different container image
+export PUBLIC_ECR_TAG=v2.0 # replace with the container image tag if you want to use a different container image
 ```
 
 ### 4. Create an Amazon S3 Bucket
@@ -102,10 +98,13 @@ aws s3 cp ./global-s3-assets/ s3://$DIST_OUTPUT_BUCKET-$REGION/$SOLUTION_NAME/$V
 * Get the link of the `distributed-load-testing-on-aws.template` uploaded to your Amazon S3 bucket.
 * Deploy the Distributed Load Testing on AWS solution to your account by launching a new AWS CloudFormation stack using the link of the `distributed-load-testing-on-aws.template`.
 
+## Creating a custom container build
+This solution uses a public Amazon Elastic Container Registry (Amazon ECR) image repository managed by AWS to store the solution container image that is used to run the configured tests. If you want to customize the container image, you can rebuild and push the image into an ECR image repository in your own AWS account.
+For details on how to customize the container image, please see the **Container image customization** section of the [implementation guide](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/container-image.html).
 
 ## Collection of operational metrics
-This solution collects anonymous operational metrics to help AWS improve the quality and features of the solution. For more information, including how to disable this capability, please see the [implementation guide](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/operational-metrics.html).
 
+This solution collects anonymous operational metrics to help AWS improve the quality and features of the solution. For more information, including how to disable this capability, please see the [implementation guide](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/operational-metrics.html).
 ***
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.<br />

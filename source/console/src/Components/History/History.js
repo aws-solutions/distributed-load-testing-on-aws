@@ -3,12 +3,30 @@
 
 import React from 'react';
 import { Table } from 'reactstrap';
+import { HashLink } from "react-router-hash-link";
 
 class Results extends React.Component {
+    constructor(props) {
+        super(props);
+        this.clickedLink = props.clickedLink;
+        this.state = {
+            rowIsActive: 0
+        }
+    }
 
-      render() {
+    activeRow(index) {
+        this.setState({
+            rowIsActive: index
+        });
+    }
+
+    onClick(id, index) {
+        this.clickedLink(id);
+        this.activeRow(index);
+    }
+
+    render() {
         const history = this.props.data.history || [];
-
         return (
             <div>
                 <div className="box">
@@ -16,41 +34,31 @@ class Results extends React.Component {
                     <Table borderless responsive>
                         <thead>
                             <tr>
-                                <th>RunTime</th>
-                                <th>AvgRt</th>
-                                <th>AvgLt</th>
-                                <th>AvgCt</th>
-                                <th>100%</th>
-                                <th>99.9%</th>
-                                <th>99.0%</th>
-                                <th>95%</th>
-                                <th>90%</th>
-                                <th>50%</th>
-                                <th>0%</th>
+                                <th>Run Time</th>
+                                <th>Task Count</th>
+                                <th>Concurrency</th>
+                                <th>Average Response Time</th>
+                                <th>Success %</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
-                        {
-                            history.map (i => (
-                                <tr key= { i.id }>
-                                    <td>{ i.endTime }</td>
-                                    <td>{ i.results.avg_rt }</td>
-                                    <td>{ i.results.avg_lt }</td>
-                                    <td>{ i.results.avg_ct }</td>
-                                    <td>{ i.results.p100_0 }</td>
-                                    <td>{ i.results.p99_9 }</td>
-                                    <td>{ i.results.p99_0 }</td>
-                                    <td>{ i.results.p95_0 }</td>
-                                    <td>{ i.results.p90_0 }</td>
-                                    <td>{ i.results.p50_0 }</td>
-                                    <td>{ i.results.p0_0 }</td>
-                                </tr>
-                            ))
-                        }
+                            {
+                                history.map((i, index) => (
+                                    <tr key={i.id} className={this.state.rowIsActive === index ? 'rowActive' : ''}>
+                                        <td>{i.endTime}</td>
+                                        <td>{i.taskCount}</td>
+                                        <td>{i.results.concurrency}</td>
+                                        <td>{i.results.avg_rt}s</td>
+                                        <td>{i.succPercent}%</td>
+                                        <td><HashLink className="text-link" onClick={() => this.onClick(i.id, index)} to="#TestResults">View details</HashLink></td>
+                                    </tr>
+                                ))
+                            }
                         </tbody>
                     </Table>
                 </div>
-            </div>
+            </div >
         )
     }
 

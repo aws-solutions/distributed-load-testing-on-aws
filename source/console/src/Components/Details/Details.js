@@ -49,6 +49,7 @@ class Details extends React.Component {
                 recurrence: null
             }
         }
+        this.clickedLink = this.clickedLink.bind(this);
         this.deleteToggle = this.deleteToggle.bind(this);
         this.deleteTest = this.deleteTest.bind(this);
         this.cancelToggle = this.cancelToggle.bind(this);
@@ -57,6 +58,7 @@ class Details extends React.Component {
         this.handleDownload = this.handleDownload.bind(this);
         this.caculateTestDurationSeconds = this.caculateTestDurationSeconds.bind(this);
     }
+
 
     deleteToggle() {
         this.setState(prevState => ({
@@ -93,50 +95,73 @@ class Details extends React.Component {
     reloadData = async () => {
         this.setState({
             isLoading: true,
-            data:{
-                results:{},
-                history:[],
-                concurrency:null,
-                rampUp:null,
+            data: {
+                results: {},
+                history: [],
+                concurrency: null,
+                rampUp: null,
                 holdFor: null,
-                endpoint:null,
-                method:null,
-                body:{},
-                header:{},
-                taskArns:[]
+                endpoint: null,
+                method: null,
+                body: {},
+                header: {},
+                taskArns: []
             }
         })
         await this.getTest();
         this.setState({ isLoading: false });
     }
 
+    // sets newTestId to be the past test ID and calls getHistoricalTest to retrieve values
+    clickedLink = async (testId) => {
+        this.getHistoricalTest(testId);
+    }
+
+    // Sets the state with values from a previous run of the test
+    getHistoricalTest(testId) {
+        try {
+            const testRun = this.state.data.history
+                .find((e) => e.id === testId);
+            const data = {
+                ...testRun,
+                testName: testRun.testScenario.execution[0].scenario,
+                history: this.state.data.history,
+                testId: this.state.data.testId,
+            }
+            this.setTestData(data);
+        } catch (err) {
+            alert(err);
+        }
+    }
+
+    // sets common state values to be presented, either current or past tests
+    setTestData(data) {
+        data.concurrency = data.testScenario.execution[0].concurrency;
+        data.rampUp = data.testScenario.execution[0]['ramp-up'];
+        data.holdFor = data.testScenario.execution[0]['hold-for'];
+        const testDuration = this.caculateTestDurationSeconds([data.rampUp, data.holdFor]);
+        if (!data.testType || ['', 'simple'].includes(data.testType)) {
+            data.testType = 'simple';
+            data.endpoint = data.testScenario.scenarios[`${data.testName}`].requests[0].url;
+            data.method = data.testScenario.scenarios[`${data.testName}`].requests[0].method;
+            data.body = data.testScenario.scenarios[`${data.testName}`].requests[0].body;
+            data.headers = data.testScenario.scenarios[`${data.testName}`].requests[0].headers;
+        }
+        this.setState({ data, testDuration });
+    }
+
     getTest = async () => {
         const testId = this.state.testId;
         try {
             const data = await API.get('dlts', `/scenarios/${testId}`);
-            const { testName } = data;
-            data.concurrency = data.testScenario.execution[0].concurrency;
-            data.rampUp = data.testScenario.execution[0]['ramp-up'];
-            data.holdFor = data.testScenario.execution[0]['hold-for'];
-            const testDuration = this.caculateTestDurationSeconds([data.rampUp, data.holdFor]);
-            if(data.nextRun) {
-                const [ scheduleDate, scheduleTime ] = data.nextRun.split(' ');
+            if (data.nextRun) {
+                const [scheduleDate, scheduleTime] = data.nextRun.split(' ');
                 data.scheduleDate = scheduleDate;
                 data.scheduleTime = scheduleTime.split(':', 2).join(':');
                 data.recurrence = data.scheduleRecurrence;
                 delete data.nextRun;
             }
-
-            // For migration purpose, old version would have undefined value, then it's a simple test.
-            if (!data.testType || ['', 'simple'].includes(data.testType)) {
-                data.testType = 'simple';
-                data.endpoint = data.testScenario.scenarios[`${testName}`].requests[0].url;
-                data.method = data.testScenario.scenarios[`${testName}`].requests[0].method;
-                data.body = data.testScenario.scenarios[`${testName}`].requests[0].body;
-                data.headers = data.testScenario.scenarios[`${testName}`].requests[0].headers;
-            }
-
-            this.setState({ data, testDuration });
+            this.setTestData(data);
         } catch (err) {
             console.error(err);
             alert(err);
@@ -269,17 +294,17 @@ class Details extends React.Component {
                     <h1>Load Test Details</h1>
                     {
                         data.status === 'running' ?
-                        [
-                            <Button id="cancelButton" key="cancelButton" color="danger" onClick={this.cancelToggle} size="sm">Cancel</Button>,
-                            <Button id="refreshButton" key="refreshButton" onClick={ this.reloadData } size="sm">Refresh</Button>
-                        ] :
-                        [
-                            <Button id="deleteButton" key="deleteButton" color="danger" onClick={this.deleteToggle} size="sm">Delete</Button>,
-                            <Link key="update_link" to= {{ pathname: '/create', state: { data } }}>
-                                <Button id="updateButton" key="updateButton" size="sm">Edit</Button>
-                            </Link>,
-                            <Button id="startButton" key="startButton" onClick={this.handleStart} size="sm">Start</Button>
-                        ]
+                            [
+                                <Button id="cancelButton" key="cancelButton" color="danger" onClick={this.cancelToggle} size="sm">Cancel</Button>,
+                                <Button id="refreshButton" key="refreshButton" onClick={this.reloadData} size="sm">Refresh</Button>
+                            ] :
+                            [
+                                <Button id="deleteButton" key="deleteButton" color="danger" onClick={this.deleteToggle} size="sm">Delete</Button>,
+                                <Link key="update_link" to={{ pathname: '/create', state: { data } }}>
+                                    <Button id="updateButton" key="updateButton" size="sm">Edit</Button>
+                                </Link>,
+                                <Button id="startButton" key="startButton" onClick={this.handleStart} size="sm">Start</Button>
+                            ]
                     }
                 </div>
                 <div className="box">
@@ -302,11 +327,11 @@ class Details extends React.Component {
                                 <div>
                                     <Row className="detail">
                                         <Col sm="3"><b>ENDPOINT</b></Col>
-                                        <Col sm="9">{ data.endpoint }</Col>
+                                        <Col sm="9">{data.endpoint}</Col>
                                     </Row>
                                     <Row className="detail">
                                         <Col sm="3"><b>METHOD</b></Col>
-                                        <Col sm="9">{ data.method }</Col>
+                                        <Col sm="9">{data.method}</Col>
                                     </Row>
                                     <Row className="detail">
                                         <Col sm="3"><b>HEADERS</b></Col>
@@ -314,7 +339,7 @@ class Details extends React.Component {
                                             <AceEditor
                                                 id="headers"
                                                 name="headers"
-                                                value={ JSON.stringify(data.headers, null, 2) }
+                                                value={JSON.stringify(data.headers, null, 2)}
                                                 mode="json"
                                                 theme="github"
                                                 width="100%"
@@ -322,7 +347,7 @@ class Details extends React.Component {
                                                 showPrintMargin={false}
                                                 showGutter={false}
                                                 readOnly={true}
-                                                editorProps={{$blockScrolling: true}}
+                                                editorProps={{ $blockScrolling: true }}
                                             />
                                         </Col>
                                     </Row>
@@ -332,7 +357,7 @@ class Details extends React.Component {
                                             <AceEditor
                                                 id="body"
                                                 name="body"
-                                                value={ JSON.stringify(data.body, null, 2) }
+                                                value={JSON.stringify(data.body, null, 2)}
                                                 mode="json"
                                                 theme="github"
                                                 width="100%"
@@ -340,7 +365,7 @@ class Details extends React.Component {
                                                 showPrintMargin={false}
                                                 showGutter={false}
                                                 readOnly={true}
-                                                editorProps={{$blockScrolling: true}}
+                                                editorProps={{ $blockScrolling: true }}
                                             />
                                         </Col>
                                     </Row>
@@ -349,7 +374,7 @@ class Details extends React.Component {
                             {
                                 data.testType && data.testType !== '' && data.testType !== 'simple' &&
                                 <Row className="detail">
-                                    <Col sm="3"><b>{ data.fileType === 'zip' ? 'ZIP' : 'SCRIPT' }</b></Col>
+                                    <Col sm="3"><b>{data.fileType === 'zip' ? 'ZIP' : 'SCRIPT'}</b></Col>
                                     <Col sm="9"><Button className="btn-link-custom" color="link" size="sm" onClick={this.handleDownload}>Download</Button></Col>
                                 </Row>
                             }
@@ -384,32 +409,32 @@ class Details extends React.Component {
 
                             <Row className="detail">
                                 <Col sm="4"><b>CONCURRENCY</b></Col>
-                                <Col sm="8">{ data.concurrency }</Col>
+                                <Col sm="8">{data.concurrency}</Col>
                             </Row>
                             <Row className="detail">
                                 <Col sm="4"><b>RAMP UP</b></Col>
-                                <Col sm="8">{ data.rampUp }</Col>
+                                <Col sm="8">{data.rampUp}</Col>
                             </Row>
                             <Row className="detail">
                                 <Col sm="4"><b>HOLD FOR</b></Col>
-                                <Col sm="8">{ data.holdFor }</Col>
+                                <Col sm="8">{data.holdFor}</Col>
                             </Row>
                         </Col>
                     </Row>
                 </div>
 
-                { data.status === 'complete' && <Results data={data} testDuration={testDuration} /> }
-                { data.status === 'cancelled' && cancelled }
-                { data.status === 'failed' && failed }
-                { data.status === 'running' && <Running data={data} testId={this.state.testId}/> }
-                { data.status !== 'running' && <History data={data} /> }
+                {data.status === 'complete' && <Results data={data} testDuration={testDuration} />}
+                {data.status === 'cancelled' && cancelled}
+                {data.status === 'failed' && failed}
+                {data.status === 'running' && <Running data={data} testId={this.state.testId} />}
+                {data.status !== 'running' && <History data={data} clickedLink={this.clickedLink} />}
 
             </div>
         )
 
         return (
             <div>
-                { this.state.isLoading ? <div className="loading"><Spinner color="secondary" /></div> : details }
+                {this.state.isLoading ? <div className="loading"><Spinner color="secondary" /></div> : details}
                 <Modal isOpen={this.state.deleteModal} toggle={this.deleteToggle}>
                     <ModalHeader>Warning</ModalHeader>
                     <ModalBody>

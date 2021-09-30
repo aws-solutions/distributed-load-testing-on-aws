@@ -4,16 +4,27 @@
 const AWS = require('aws-sdk');
 const parser = require('xml-js');
 const moment = require('moment');
-const shortid = require('shortid');
-const { SOLUTION_ID, VERSION } = process.env; 
+const { customAlphabet } = require('nanoid');
+const { SOLUTION_ID, VERSION } = process.env;
 let options = {};
 if (SOLUTION_ID && VERSION && SOLUTION_ID.trim() && VERSION.trim()) {
-  options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${VERSION}`;
+    options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${VERSION}`;
 }
 options.region = process.env.AWS_REGION;
 const dynamoDb = new AWS.DynamoDB.DocumentClient(options);
 const cloudwatch = new AWS.CloudWatch(options);
 
+
+const ALPHA_NUMERIC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+/**
+ * Generates an unique ID based on the parameter length.
+ * @param length The length of the unique ID
+ * @returns The unique ID
+ */
+function generateUniqueId(length) {
+    const nanoid = customAlphabet(ALPHA_NUMERIC, length);
+    return nanoid();
+}
 /**
  * Parses test result XML from S3 to JSON, and return the result summary.
  * @param {object} content S3 object body - XML
@@ -96,10 +107,15 @@ function results(content, testId) {
  * @param {string} testId Test ID
  * @param {object} data Test result data
  * @param {string} startTime Test start time
+ * @param {string} taskCount number of tasks run for the test
+ * @param {object} testScenario Test run details
+ * @param {string} testDescription Test description
+ * @param {string} testType Test type
  */
- async function finalResults(testId, data, startTime) {
+async function finalResults(testId, data, startTime, taskCount, testScenario, testDescription, testType) {
     console.log(`Parsing Final Results for ${testId}`);
 
+    const thisTestScenario = JSON.parse(testScenario);
     /**
      * Retruns the average value of an array.
      * @param {number[]} array Number array to get the average value
@@ -206,7 +222,7 @@ function results(content, testId) {
     };
 
     try {
-        for (let result of data)  {
+        for (let result of data) {
             const { labels, stats } = result;
             createAggregatedData(stats, all);
 
@@ -274,44 +290,44 @@ function results(content, testId) {
 
         // parse all of the results to generate the final results.
         createFinalResults(all, testFinalResults);
-        console.log('Final Results: ',JSON.stringify(testFinalResults, null, 2));
+        console.log('Final Results: ', JSON.stringify(testFinalResults, null, 2));
 
         const widget = {
             title: 'CloudWatch Metrics',
             width: 600,
             height: 395,
-            metrics : [
+            metrics: [
                 [
-                   "distributed-load-testing", `${testId}-avgRt`,
+                    "distributed-load-testing", `${testId}-avgRt`,
                     {
-                        color:'#FF9900',
-                        label:'Avg Response Time'
+                        color: '#FF9900',
+                        label: 'Avg Response Time'
                     }
                 ],
                 [
-                    ".", `${testId}-numVu`, 
+                    ".", `${testId}-numVu`,
                     {
                         "color": "#1f77b4",
-                        "yAxis": "right", 
-                        "stat": "Sum", 
+                        "yAxis": "right",
+                        "stat": "Sum",
                         "label": "Virtual Users"
                     }
                 ],
                 [
-                    ".", `${testId}-numSucc`, 
+                    ".", `${testId}-numSucc`,
                     {
                         "color": "#2CA02C",
-                        "yAxis": "right", 
-                        "stat": "Sum", 
+                        "yAxis": "right",
+                        "stat": "Sum",
                         "label": "Succcess"
                     }
                 ],
                 [
-                    ".", `${testId}-numFail`, 
+                    ".", `${testId}-numFail`,
                     {
                         "color": "#D62728",
-                        "yAxis": "right", 
-                        "stat": "Sum", 
+                        "yAxis": "right",
+                        "stat": "Sum",
                         "label": "Failures"
                     }
                 ]
@@ -339,20 +355,29 @@ function results(content, testId) {
 
         const image = await cloudwatch.getMetricWidgetImage(cwParams).promise();
         const metricWidgetImage = Buffer.from(image.MetricWidgetImage).toString('base64');
+        const succPercent = ((testFinalResults.succ / testFinalResults.throughput) * 100).toFixed(2);
+        const status = 'complete';
 
         // Update Scenarios Table with final results and history.
         const history = {
-            id: shortid.generate(),
+            id: generateUniqueId(10),
             startTime,
             endTime,
-            results: testFinalResults
+            results: testFinalResults,
+            status,
+            succPercent,
+            taskCount,
+            metricWidgetImage,
+            testScenario: thisTestScenario,
+            testDescription,
+            testType
         };
         const ddbUpdateParams = {
             TableName: process.env.SCENARIOS_TABLE,
             Key: {
                 testId: testId
             },
-            UpdateExpression: 'set #r = :r, #t = :t, #i = :i, #s = :s, #h = list_append(if_not_exists(#h, :l), :h), #ct = :ct',
+            UpdateExpression: 'set #r = :r, #t = :t, #i = :i, #s = :s, #h = list_append(:h, if_not_exists(#h, :l)), #ct = :ct',
             ExpressionAttributeNames: {
                 '#r': 'results',
                 '#t': 'endTime',
@@ -365,7 +390,7 @@ function results(content, testId) {
                 ':r': testFinalResults,
                 ':t': endTime,
                 ':i': metricWidgetImage,
-                ':s': 'complete',
+                ':s': status,
                 ':h': [history],
                 ':l': [],
                 ':ct': data.length

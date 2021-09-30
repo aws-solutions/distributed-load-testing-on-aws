@@ -1,0 +1,189 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DLT ECS Test 1`] = `
+Object {
+  "Resources": Object {
+    "TestECSDLTCloudWatchLogsGroup505959A6": Object {
+      "DeletionPolicy": "Retain",
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W84",
+              "reason": "KMS encryption unnecessary for log group",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "RetentionInDays": 365,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TestECSDLTECR0AA15B8E": Object {
+      "DeletionPolicy": "Retain",
+      "Properties": Object {
+        "ImageScanningConfiguration": Object {
+          "ScanOnPush": true,
+        },
+      },
+      "Type": "AWS::ECR::Repository",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TestECSDLTEcsCluster7C6F0F5D": Object {
+      "Properties": Object {
+        "ClusterName": Object {
+          "Ref": "AWS::StackName",
+        },
+        "ClusterSettings": Array [
+          Object {
+            "Name": "containerInsights",
+            "Value": "enabled",
+          },
+        ],
+        "Tags": Array [
+          Object {
+            "Key": "CloudFormation Stack",
+            "Value": Object {
+              "Ref": "AWS::StackName",
+            },
+          },
+          Object {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+      },
+      "Type": "AWS::ECS::Cluster",
+    },
+    "TestECSDLTEcsSecurityGroupFE5016DC": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W40",
+              "reason": "IpProtocol set to -1 (any) as ports are not known prior to running tests",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "GroupDescription": "DLTS Tasks Security Group",
+        "VpcId": "vpc-1a2b3c4d5e",
+      },
+      "Type": "AWS::EC2::SecurityGroup",
+    },
+    "TestECSDLTSecGroupEgressFC1E4757": Object {
+      "Properties": Object {
+        "CidrIp": "0.0.0.0/0",
+        "Description": "Allow tasks to call out to external resources",
+        "GroupId": Object {
+          "Ref": "TestECSDLTEcsSecurityGroupFE5016DC",
+        },
+        "IpProtocol": "-1",
+      },
+      "Type": "AWS::EC2::SecurityGroupEgress",
+    },
+    "TestECSDLTSecGroupIngress78B83F3F": Object {
+      "Properties": Object {
+        "Description": "Allow tasks to communicate",
+        "FromPort": 50000,
+        "GroupId": Object {
+          "Ref": "TestECSDLTEcsSecurityGroupFE5016DC",
+        },
+        "IpProtocol": "tcp",
+        "SourceSecurityGroupId": Object {
+          "Ref": "TestECSDLTEcsSecurityGroupFE5016DC",
+        },
+        "ToPort": 50000,
+      },
+      "Type": "AWS::EC2::SecurityGroupIngress",
+    },
+    "TestECSDLTTaskDefinitionB261038E": Object {
+      "Properties": Object {
+        "ContainerDefinitions": Array [
+          Object {
+            "Essential": true,
+            "Image": "PUBLIC_ECR_REGISTRY/distributed-load-testing-on-aws-load-tester:PUBLIC_ECR_TAG",
+            "LogConfiguration": Object {
+              "LogDriver": "awslogs",
+              "Options": Object {
+                "awslogs-group": Object {
+                  "Ref": "TestECSDLTCloudWatchLogsGroup505959A6",
+                },
+                "awslogs-region": Object {
+                  "Ref": "AWS::Region",
+                },
+                "awslogs-stream-prefix": "load-testing",
+              },
+            },
+            "Memory": 4096,
+            "Name": Object {
+              "Fn::Join": Array [
+                "",
+                Array [
+                  Object {
+                    "Ref": "AWS::StackName",
+                  },
+                  "-load-tester",
+                ],
+              ],
+            },
+          },
+        ],
+        "Cpu": "2048",
+        "ExecutionRoleArn": Object {
+          "Fn::GetAtt": Array [
+            "TestECSDLTTaskExecutionRole104D057B",
+            "Arn",
+          ],
+        },
+        "Memory": "4096",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": Array [
+          "FARGATE",
+        ],
+        "TaskRoleArn": Object {
+          "Fn::GetAtt": Array [
+            "TestECSDLTTaskExecutionRole104D057B",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::ECS::TaskDefinition",
+    },
+    "TestECSDLTTaskExecutionRole104D057B": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "ecs-tasks.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": Array [
+          Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "arn:",
+                Object {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+  },
+}
+`;

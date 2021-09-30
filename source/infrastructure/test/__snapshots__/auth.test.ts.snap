@@ -1,0 +1,315 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DLT API Test 1`] = `
+Object {
+  "Resources": Object {
+    "TestAuthCognitoAttachRole3C8C2843": Object {
+      "Properties": Object {
+        "IdentityPoolId": Object {
+          "Ref": "TestAuthDLTIdentityPoolCE53676D",
+        },
+        "Roles": Object {
+          "authenticated": Object {
+            "Fn::GetAtt": Array [
+              "TestAuthDLTCognitoAuthorizedRole00B36330",
+              "Arn",
+            ],
+          },
+          "unauthenticated": Object {
+            "Fn::GetAtt": Array [
+              "TestAuthDLTCognitoUnauthorizedRole3D399466",
+              "Arn",
+            ],
+          },
+        },
+      },
+      "Type": "AWS::Cognito::IdentityPoolRoleAttachment",
+    },
+    "TestAuthCognitoUser7FC8B6DF": Object {
+      "Properties": Object {
+        "DesiredDeliveryMediums": Array [
+          "EMAIL",
+        ],
+        "ForceAliasCreation": true,
+        "UserAttributes": Array [
+          Object {
+            "Name": "email",
+            "Value": "test@test.com",
+          },
+          Object {
+            "Name": "nickname",
+            "Value": "testname",
+          },
+          Object {
+            "Name": "email_verified",
+            "Value": "true",
+          },
+        ],
+        "UserPoolId": Object {
+          "Ref": "TestAuthDLTUserPool047D7286",
+        },
+        "Username": "testname",
+      },
+      "Type": "AWS::Cognito::UserPoolUser",
+    },
+    "TestAuthDLTCognitoAuthorizedRole00B36330": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": Object {
+                "ForAnyValue:StringLike": Object {
+                  "cognito-identity.amazonaws.com:amr": "authenticated",
+                },
+                "StringEquals": Object {
+                  "cognito-identity.amazonaws.com:aud": Object {
+                    "Ref": "TestAuthDLTIdentityPoolCE53676D",
+                  },
+                },
+              },
+              "Effect": "Allow",
+              "Principal": Object {
+                "Federated": "cognito-identity.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              Object {
+                "Ref": "AWS::StackName",
+              },
+              " Identity Pool authenticated role",
+            ],
+          ],
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": "execute-api:Invoke",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":execute-api:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":apiId12345/prod/*",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "s3:PutObject",
+                    "s3:GetObject",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:s3:::DOC-EXAMPLE-BUCKET/public/*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "InvokeApiPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestAuthDLTCognitoUnauthorizedRole3D399466": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": Object {
+                "ForAnyValue:StringLike": Object {
+                  "cognito-identity.amazonaws.com:amr": "unauthenticated",
+                },
+                "StringEquals": Object {
+                  "cognito-identity.amazonaws.com:aud": Object {
+                    "Ref": "TestAuthDLTIdentityPoolCE53676D",
+                  },
+                },
+              },
+              "Effect": "Allow",
+              "Principal": Object {
+                "Federated": "cognito-identity.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestAuthDLTIdentityPoolCE53676D": Object {
+      "Properties": Object {
+        "AllowUnauthenticatedIdentities": false,
+        "CognitoIdentityProviders": Array [
+          Object {
+            "ClientId": Object {
+              "Ref": "TestAuthDLTUserPoolClient68D1C3B2",
+            },
+            "ProviderName": Object {
+              "Fn::GetAtt": Array [
+                "TestAuthDLTUserPool047D7286",
+                "ProviderName",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Cognito::IdentityPool",
+    },
+    "TestAuthDLTUserPool047D7286": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "AccountRecoverySetting": Object {
+          "RecoveryMechanisms": Array [
+            Object {
+              "Name": "verified_phone_number",
+              "Priority": 1,
+            },
+            Object {
+              "Name": "verified_email",
+              "Priority": 2,
+            },
+          ],
+        },
+        "AdminCreateUserConfig": Object {
+          "AllowAdminCreateUserOnly": true,
+          "InviteMessageTemplate": Object {
+            "EmailMessage": "
+                <p>
+                   Please use the credentials below to login to the Distributed Load Testing console.
+                </p>
+                <p>
+                    Username: <strong>{username}</strong>
+                </p>
+                <p>
+                    Password: <strong>{####}</strong>
+                </p>
+                <p>
+                    Console: <strong>https://test.com/</strong>
+                </p>
+              ",
+            "EmailSubject": "Welcome to Distributed Load Testing",
+            "SMSMessage": "Your username is {username} and temporary password is {####}.",
+          },
+        },
+        "AliasAttributes": Array [
+          "email",
+        ],
+        "AutoVerifiedAttributes": Array [
+          "email",
+        ],
+        "EmailVerificationMessage": "The verification code to your new account is {####}",
+        "EmailVerificationSubject": "Verify your new account",
+        "Policies": Object {
+          "PasswordPolicy": Object {
+            "MinimumLength": 12,
+            "RequireLowercase": true,
+            "RequireNumbers": true,
+            "RequireSymbols": true,
+            "RequireUppercase": true,
+          },
+        },
+        "Schema": Array [
+          Object {
+            "Mutable": true,
+            "Name": "email",
+            "Required": true,
+          },
+        ],
+        "SmsVerificationMessage": "The verification code to your new account is {####}",
+        "UserPoolAddOns": Object {
+          "AdvancedSecurityMode": "ENFORCED",
+        },
+        "UserPoolName": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              Object {
+                "Ref": "AWS::StackName",
+              },
+              "-user-pool",
+            ],
+          ],
+        },
+        "VerificationMessageTemplate": Object {
+          "DefaultEmailOption": "CONFIRM_WITH_CODE",
+          "EmailMessage": "The verification code to your new account is {####}",
+          "EmailSubject": "Verify your new account",
+          "SmsMessage": "The verification code to your new account is {####}",
+        },
+      },
+      "Type": "AWS::Cognito::UserPool",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "TestAuthDLTUserPoolClient68D1C3B2": Object {
+      "Properties": Object {
+        "AllowedOAuthFlows": Array [
+          "implicit",
+          "code",
+        ],
+        "AllowedOAuthFlowsUserPoolClient": true,
+        "AllowedOAuthScopes": Array [
+          "profile",
+          "phone",
+          "email",
+          "openid",
+          "aws.cognito.signin.user.admin",
+        ],
+        "CallbackURLs": Array [
+          "https://example.com",
+        ],
+        "ClientName": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              Object {
+                "Ref": "AWS::StackName",
+              },
+              "-userpool-client",
+            ],
+          ],
+        },
+        "GenerateSecret": false,
+        "RefreshTokenValidity": 1440,
+        "SupportedIdentityProviders": Array [
+          "COGNITO",
+        ],
+        "TokenValidityUnits": Object {
+          "RefreshToken": "minutes",
+        },
+        "UserPoolId": Object {
+          "Ref": "TestAuthDLTUserPool047D7286",
+        },
+        "WriteAttributes": Array [
+          "address",
+          "email",
+          "phone_number",
+        ],
+      },
+      "Type": "AWS::Cognito::UserPoolClient",
+    },
+  },
+}
+`;

@@ -3,11 +3,11 @@
 
 const AWS = require('aws-sdk');
 const moment = require('moment');
-const shortid = require('shortid');
-const { SOLUTION_ID, VERSION } = process.env; 
+const { customAlphabet } = require('nanoid');
+const { SOLUTION_ID, VERSION } = process.env;
 let options = {};
 if (SOLUTION_ID && VERSION && SOLUTION_ID.trim() && VERSION.trim()) {
-  options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${VERSION}`;
+    options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${VERSION}`;
 }
 AWS.config.logger = console;
 
@@ -21,6 +21,17 @@ const cloudwatch = new AWS.CloudWatch(options);
 const cloudwatchLogs = new AWS.CloudWatchLogs(options);
 const cloudwatchevents = new AWS.CloudWatchEvents(options);
 
+
+const ALPHA_NUMERIC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+/**
+ * Generates an unique ID based on the parameter length.
+ * @param length The length of the unique ID
+ * @returns The unique ID
+ */
+function generateUniqueId(length) {
+    const nanoid = customAlphabet(ALPHA_NUMERIC, length);
+    return nanoid();
+}
 
 /**
  * @function listTests
@@ -55,33 +66,33 @@ const listTests = async () => {
  * @context {object} the lambda context information
  */
 const scheduleTest = async (event, context) => {
-    try{
+    try {
         let config = JSON.parse(event.body);
         const { testId, scheduleDate, scheduleTime } = config;
-        const [ hour, minute ] = scheduleTime.split(':');
-        let [ year, month, day ] = scheduleDate.split('-');
+        const [hour, minute] = scheduleTime.split(':');
+        let [year, month, day] = scheduleDate.split('-');
         let nextRun = `${year}-${month}-${day} ${hour}:${minute}:00`;
         const functionName = context.functionName;
         const functionArn = context.functionArn;
         let scheduleRecurrence = "";
 
         //check if rule exists, delete rule if exists
-        let rulesResponse = await cloudwatchevents.listRules({NamePrefix: testId}).promise();
+        let rulesResponse = await cloudwatchevents.listRules({ NamePrefix: testId }).promise();
 
-        for(let rule of rulesResponse.Rules) {
+        for (let rule of rulesResponse.Rules) {
             let ruleName = rule.Name;
-            await cloudwatchevents.removeTargets({Rule: ruleName, Ids: [ruleName]}).promise();
-            await lambda.removePermission({FunctionName: functionName, StatementId: ruleName}).promise();
-            await cloudwatchevents.deleteRule({Name: ruleName}).promise();
+            await cloudwatchevents.removeTargets({ Rule: ruleName, Ids: [ruleName] }).promise();
+            await lambda.removePermission({ FunctionName: functionName, StatementId: ruleName }).promise();
+            await cloudwatchevents.deleteRule({ Name: ruleName }).promise();
         }
 
 
-        if(config.scheduleStep === 'create') {
+        if (config.scheduleStep === 'create') {
             //Schedule for 1 min prior to account for time it takes to create rule
             const createRun = moment([year, parseInt(month, 10) - 1, day, hour, minute]).subtract(1, 'minute').format('YYYY-MM-DD HH:mm:ss');
-            let [ createDate, createTime ] = createRun.split(" ");
-            const [ createHour, createMin ] = createTime.split(':');
-            const [ createYear, createMonth, createDay ] = createDate.split('-');
+            let [createDate, createTime] = createRun.split(" ");
+            const [createHour, createMin] = createTime.split(':');
+            const [createYear, createMonth, createDay] = createDate.split('-');
             const cronStart = `cron(${createMin} ${createHour} ${createDay} ${createMonth} ? ${createYear})`;
             scheduleRecurrence = config.recurrence;
 
@@ -121,9 +132,9 @@ const scheduleTest = async (event, context) => {
         } else {
             //create schedule expression
             let scheduleString;
-            if(config.recurrence) {
+            if (config.recurrence) {
                 scheduleRecurrence = config.recurrence;
-                switch(config.recurrence) {
+                switch (config.recurrence) {
                     case "daily":
                         scheduleString = "rate(1 day)";
                         break;
@@ -181,16 +192,16 @@ const scheduleTest = async (event, context) => {
             await cloudwatchevents.putTargets(targetParams).promise();
 
             //Remove rule created during create schedule step 
-            if(config.recurrence) {
+            if (config.recurrence) {
                 let ruleName = `${testId}Create`;
-                await cloudwatchevents.removeTargets({Rule: ruleName, Ids: [ruleName]}).promise();
-                await lambda.removePermission({FunctionName: functionName, StatementId: ruleName}).promise();
-                await cloudwatchevents.deleteRule({Name: ruleName}).promise();                
+                await cloudwatchevents.removeTargets({ Rule: ruleName, Ids: [ruleName] }).promise();
+                await lambda.removePermission({ FunctionName: functionName, StatementId: ruleName }).promise();
+                await cloudwatchevents.deleteRule({ Name: ruleName }).promise();
             }
         }
 
         //Update DynamoDB if table was not already updated by "create" schedule step
-        if(config.scheduleStep || !config.recurrence) {
+        if (config.scheduleStep || !config.recurrence) {
             let params = {
                 TableName: process.env.SCENARIOS_TABLE,
                 Key: {
@@ -239,7 +250,7 @@ const scheduleTest = async (event, context) => {
     } catch (err) {
         throw err;
     }
-}; 
+};
 
 /**
  * @function createTest
@@ -265,7 +276,7 @@ const createTest = async (config) => {
 
         // When acessing API directly and no testId
         if (testId === undefined) {
-            testId = shortid.generate();
+            testId = generateUniqueId(10);
         }
 
         const startTime = moment().utc().format('YYYY-MM-DD HH:mm:ss');
@@ -274,9 +285,9 @@ const createTest = async (config) => {
         const timeUnits = ['ms', 's', 'm', 'h', 'd'];
         let nextRun = "";
         let scheduleRecurrence = "";
-        if(config.recurrence){
+        if (config.recurrence) {
             scheduleRecurrence = config.recurrence;
-            switch(config.recurrence) {
+            switch (config.recurrence) {
                 case "daily":
                     nextRun = moment().utc().add(1, 'd').format('YYYY-MM-DD HH:mm:ss');
                     break;
@@ -366,7 +377,7 @@ const createTest = async (config) => {
                 message: 'Task count should be positive number between 1 to 1000.',
                 code: 'InvalidParameter',
                 status: 400
-             };
+            };
         }
         taskCount = parseInt(taskCount);
 
@@ -380,7 +391,7 @@ const createTest = async (config) => {
                 message: 'Concurrency should be positive number',
                 code: 'InvalidParameter',
                 status: 400
-             };
+            };
         }
         testScenario.execution[0].concurrency = parseInt(testScenario.execution[0].concurrency);
 
@@ -401,7 +412,7 @@ const createTest = async (config) => {
             "dump-xml": "/tmp/artifacts/results.xml"
         }];
 
-        console.log('TEST:: ', JSON.stringify(testScenario, null, 2) );
+        console.log('TEST:: ', JSON.stringify(testScenario, null, 2));
 
         // 1. Write test scenario to S3
         params = {
@@ -509,18 +520,17 @@ const getTest = async (testId) => {
                 tasksResponse = await ecs.listTasks(params).promise();
                 tasks = tasks.concat(tasksResponse.taskArns);
                 params.nextToken = tasksResponse.nextToken;
-            
-            } while(tasksResponse.nextToken);
+
+            } while (tasksResponse.nextToken);
 
             //2. describe tasks
-            if (tasks.length !== 0 ) {
+            if (tasks.length !== 0) {
                 params = {
                     cluster: process.env.TASK_CLUSTER,
                 };
 
                 let describeTasksResponse;
-                while(tasks.length > 0)
-                {
+                while (tasks.length > 0) {
                     //get groups of 100 tasks
                     params.tasks = tasks.splice(0, 100);
                     describeTasksResponse = await ecs.describeTasks(params).promise();
@@ -555,7 +565,7 @@ const deleteTest = async (testId, functionName) => {
             await cloudwatchLogs.deleteMetricFilter(deleteMetricFilterParams).promise();
         }
     } catch (err) {
-        if(err.code === 'ResourceNotFoundException') {
+        if (err.code === 'ResourceNotFoundException') {
             console.error(err);
         }
         else {
@@ -565,28 +575,28 @@ const deleteTest = async (testId, functionName) => {
 
     try {
         //Delete Dashboard
-        const deleteDashboardParams = { DashboardNames: [ `EcsLoadTesting-${testId}` ] };
+        const deleteDashboardParams = { DashboardNames: [`EcsLoadTesting-${testId}`] };
         await cloudwatch.deleteDashboards(deleteDashboardParams).promise();
 
 
         //Get Rules
-        let rulesResponse = await cloudwatchevents.listRules({NamePrefix: testId}).promise();
+        let rulesResponse = await cloudwatchevents.listRules({ NamePrefix: testId }).promise();
         //Delete Rule
-        for(let rule of rulesResponse.Rules) {
+        for (let rule of rulesResponse.Rules) {
             let ruleName = rule.Name;
-            await cloudwatchevents.removeTargets({Rule: ruleName, Ids: [ruleName]}).promise();
-            await lambda.removePermission({FunctionName: functionName, StatementId: ruleName}).promise();
-            await cloudwatchevents.deleteRule({Name: ruleName}).promise();
+            await cloudwatchevents.removeTargets({ Rule: ruleName, Ids: [ruleName] }).promise();
+            await lambda.removePermission({ FunctionName: functionName, StatementId: ruleName }).promise();
+            await cloudwatchevents.deleteRule({ Name: ruleName }).promise();
         }
 
- 
+
         const params = {
             TableName: process.env.SCENARIOS_TABLE,
             Key: {
                 testId: testId
             }
         };
-        await dynamoDB.delete(params).promise();        
+        await dynamoDB.delete(params).promise();
 
         return 'success';
     } catch (err) {
@@ -608,13 +618,13 @@ const cancelTest = async (testId) => {
         //cancel tasks
         let params;
         params = {
-            FunctionName: process.env.TASK_CANCELER_ARN, 
-            InvocationType: "Event", 
+            FunctionName: process.env.TASK_CANCELER_ARN,
+            InvocationType: "Event",
             Payload: JSON.stringify({
                 testId: testId
             })
         };
-        await lambda.invoke(params).promise(); 
+        await lambda.invoke(params).promise();
 
         //Update the status in the scenarios table.
         params = {
@@ -624,7 +634,7 @@ const cancelTest = async (testId) => {
             },
             UpdateExpression: 'set #s = :s',
             ExpressionAttributeNames: {
-                '#s':'status'
+                '#s': 'status'
             },
             ExpressionAttributeValues: {
                 ':s': 'cancelling'
@@ -652,7 +662,7 @@ const listTasks = async () => {
         };
         let data = await ecs.listTasks(params).promise();
         let taskArns = data.taskArns;
-        while(data.nextToken) {
+        while (data.nextToken) {
             params.nextToken = data.nextToken;
             data = await ecs.listTasks(params).promise();
             taskArns.push(data.taskArns);
@@ -669,6 +679,6 @@ module.exports = {
     getTest: getTest,
     deleteTest: deleteTest,
     cancelTest: cancelTest,
-    listTasks:listTasks,
-    scheduleTest:scheduleTest
+    listTasks: listTasks,
+    scheduleTest: scheduleTest
 };

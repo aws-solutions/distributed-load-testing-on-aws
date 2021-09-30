@@ -3,6 +3,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.0.0] - 2021-09-30
+⚠ BREAKING CHANGES
+Version 2.0.0 does not support upgrading from previous versions.
+### Added
+- Support to view complete data from previous test runs, including test configuration, test data, and Amazon CloudWatch dashboards
+  - Results History now has a `View details` link to display data from previous test runs
+- Support for an existing Amazon VPC
+- Launch Fargate tasks in multiple availability zones
+- Using AWS CDK source code to generate the AWS CloudFormation template
+
+### Changed
+- Results History displays:
+  - Run Time
+  - Task Count
+  - Concurrency
+  - Average Response Time
+  - Success %
+- Tags created in CloudFormation propagated to Fargate test tasks
+- Test ids only contain alphanumeric characters
+
+### Removed
+- Remove AWS CodePipeline, AWS CodeBuild, and Amazon ECR image repository resource creation by AWS CloudFormation stack
+  - The solution's container image is stored in a public ECR image repository managed by AWS
+- Remove `ECRChecker` lambda function and state machine stage
+
 ## [1.3.0] - 2021-04-30
 ### Added
 - Support for up to 1000 tasks

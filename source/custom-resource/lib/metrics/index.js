@@ -15,7 +15,8 @@ const send = async (config, type) => {
             TimeStamp: moment().utc().format('YYYY-MM-DD HH:mm:ss.S'),
             Data: {
                 Type: type,
-                Region: config.Region
+                Region: config.Region,
+                ExistingVpc: config.existingVPC
             }
         };
         const params = {

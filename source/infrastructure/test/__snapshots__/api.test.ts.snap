@@ -1,0 +1,1020 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DLT API Test 1`] = `
+Object {
+  "Outputs": Object {
+    "TestAPIDLTApiEndpointF4A49BAE": Object {
+      "Value": Object {
+        "Fn::Join": Array [
+          "",
+          Array [
+            "https://",
+            Object {
+              "Ref": "TestAPIDLTApi434DC190",
+            },
+            ".execute-api.",
+            Object {
+              "Ref": "AWS::Region",
+            },
+            ".",
+            Object {
+              "Ref": "AWS::URLSuffix",
+            },
+            "/",
+            Object {
+              "Ref": "TestAPIDLTApiDeploymentStageprodA10AE629",
+            },
+            "/",
+          ],
+        ],
+      },
+    },
+  },
+  "Resources": Object {
+    "TestAPIAPIAllRequestValidator9A179146": Object {
+      "Properties": Object {
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+        "ValidateRequestBody": true,
+        "ValidateRequestParameters": true,
+      },
+      "Type": "AWS::ApiGateway::RequestValidator",
+    },
+    "TestAPIAPILoggingRoleA1147DD8": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "apigateway.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:DescribeLogGroups",
+                    "logs:DescribeLogStreams",
+                    "logs:PutLogEvents",
+                    "logs:GetLogEvents",
+                    "logs:FilterLogEvent",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":logs:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "apiLoggingPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestAPIAPILogsF31ED289": Object {
+      "DeletionPolicy": "Retain",
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W84",
+              "reason": "KMS encryption unnecessary for log group",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "RetentionInDays": 365,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TestAPIApiAccountConfig56C718B5": Object {
+      "DependsOn": Array [
+        "TestAPIDLTApi434DC190",
+      ],
+      "Properties": Object {
+        "CloudWatchRoleArn": Object {
+          "Fn::GetAtt": Array [
+            "TestAPIAPILoggingRoleA1147DD8",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::ApiGateway::Account",
+    },
+    "TestAPIDLTAPIServicesLambda1C09DECC": Object {
+      "DependsOn": Array [
+        "TestAPIDLTAPIServicesLambdaRole446F20B1",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            Object {
+              "id": "W89",
+              "reason": "VPC not needed for lambda",
+            },
+            Object {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": "test-bucket-region",
+          "S3Key": "testPrefix//api-services.zip",
+        },
+        "Description": "API microservices for creating, updating, listing and deleting test scenarios",
+        "Environment": Object {
+          "Variables": Object {
+            "ECS_LOG_GROUP": Object {
+              "Ref": "TestLogGroup4EEF7AD4",
+            },
+            "METRIC_URL": "http://testurl.com",
+            "SCENARIOS_BUCKET": "testScenarioBucketName",
+            "SCENARIOS_TABLE": "testDDBTable",
+            "SEND_METRIC": "Yes",
+            "SOLUTION_ID": "testId",
+            "STATE_MACHINE_ARN": "arn:aws:states:us-east-1:111122223333:stateMachine:HelloWorld-StateMachine",
+            "TASK_CANCELER_ARN": "arn:aws:lambda:us-east-1:111122223333:function:HelloFunction",
+            "TASK_CLUSTER": "testECSCluster",
+            "UUID": "abc123",
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "TestAPIDLTAPIServicesLambdaRole446F20B1",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs14.x",
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": "testId",
+          },
+        ],
+        "Timeout": 120,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TestAPIDLTAPIServicesLambdaDLTApiInvokePermissionFDC1055F": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "TestAPIDLTAPIServicesLambda1C09DECC",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              Object {
+                "Ref": "TestAPIDLTApi434DC190",
+              },
+              "/*",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "TestAPIDLTAPIServicesLambdaRole446F20B1": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "ecs:ListTasks does not support resource level permissions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": "ecs:ListTasks",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": Array [
+                    "ecs:RunTask",
+                    "ecs:DescribeTasks",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Array [
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":ecs:",
+                          Object {
+                            "Ref": "AWS::Region",
+                          },
+                          ":",
+                          Object {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":task/*",
+                        ],
+                      ],
+                    },
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":ecs:",
+                          Object {
+                            "Ref": "AWS::Region",
+                          },
+                          ":",
+                          Object {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":task-definition/",
+                        ],
+                      ],
+                    },
+                  ],
+                },
+                Object {
+                  "Action": "iam:PassRole",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:iam::1234567890:role/MyRole-AJJHDSKSDF",
+                },
+                Object {
+                  "Action": "states:StartExecution",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:states:us-east-1:111122223333:stateMachine:HelloWorld-StateMachine",
+                },
+                Object {
+                  "Action": "logs:DeleteMetricFilter",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::GetAtt": Array [
+                      "TestLogGroup4EEF7AD4",
+                      "Arn",
+                    ],
+                  },
+                },
+                Object {
+                  "Action": "cloudwatch:DeleteDashboards",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":cloudwatch::",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":dashboard/EcsLoadTesting*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "DLTAPIServicesLambdaPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestAPIDLTApi434DC190": Object {
+      "Properties": Object {
+        "Description": "Distributed Load Testing API - version testVersion",
+        "EndpointConfiguration": Object {
+          "Types": Array [
+            "EDGE",
+          ],
+        },
+        "Name": "DLTApi",
+      },
+      "Type": "AWS::ApiGateway::RestApi",
+    },
+    "TestAPIDLTApiAccount780DB186": Object {
+      "DependsOn": Array [
+        "TestAPIDLTApi434DC190",
+      ],
+      "Properties": Object {
+        "CloudWatchRoleArn": Object {
+          "Fn::GetAtt": Array [
+            "TestAPIDLTApiCloudWatchRole67C0F1C4",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::ApiGateway::Account",
+    },
+    "TestAPIDLTApiCloudWatchRole67C0F1C4": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "apigateway.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": Array [
+          Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "arn:",
+                Object {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestAPIDLTApiDeployment7935ADA287019c10d28ca4c24b1843e7ae095419": Object {
+      "DependsOn": Array [
+        "TestAPIAPIAllRequestValidator9A179146",
+        "TestAPIDLTApiOPTIONS380FFB97",
+        "TestAPIDLTApiscenariostestIdANY5DE40CF0",
+        "TestAPIDLTApiscenariostestIdOPTIONSF10FECFD",
+        "TestAPIDLTApiscenariostestId0D5FBA86",
+        "TestAPIDLTApiscenariosANYEC9F0ED6",
+        "TestAPIDLTApiscenariosOPTIONS6968DE71",
+        "TestAPIDLTApiscenariosB730E59C",
+        "TestAPIDLTApitasksANYA8531185",
+        "TestAPIDLTApitasksOPTIONS151B5B68",
+        "TestAPIDLTApitasksF74AF050",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W68",
+              "reason": "The solution does not require the usage plan.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Description": "Automatically created by the RestApi construct",
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Deployment",
+    },
+    "TestAPIDLTApiDeploymentStageprodA10AE629": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W64",
+              "reason": "The solution does not require the usage plan.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AccessLogSetting": Object {
+          "DestinationArn": Object {
+            "Fn::GetAtt": Array [
+              "TestAPIAPILogsF31ED289",
+              "Arn",
+            ],
+          },
+          "Format": "{\\"requestId\\":\\"$context.requestId\\",\\"ip\\":\\"$context.identity.sourceIp\\",\\"user\\":\\"$context.identity.user\\",\\"caller\\":\\"$context.identity.caller\\",\\"requestTime\\":\\"$context.requestTime\\",\\"httpMethod\\":\\"$context.httpMethod\\",\\"resourcePath\\":\\"$context.resourcePath\\",\\"status\\":\\"$context.status\\",\\"protocol\\":\\"$context.protocol\\",\\"responseLength\\":\\"$context.responseLength\\"}",
+        },
+        "DeploymentId": Object {
+          "Ref": "TestAPIDLTApiDeployment7935ADA287019c10d28ca4c24b1843e7ae095419",
+        },
+        "MethodSettings": Array [
+          Object {
+            "HttpMethod": "*",
+            "LoggingLevel": "INFO",
+            "ResourcePath": "/*",
+          },
+        ],
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+        "StageName": "prod",
+        "TracingEnabled": true,
+      },
+      "Type": "AWS::ApiGateway::Stage",
+    },
+    "TestAPIDLTApiOPTIONS380FFB97": Object {
+      "Properties": Object {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": Object {
+          "IntegrationResponses": Array [
+            Object {
+              "ResponseParameters": Object {
+                "method.response.header.Access-Control-Allow-Headers": "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "200",
+            },
+          ],
+          "RequestTemplates": Object {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": Array [
+          Object {
+            "ResponseParameters": Object {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "ResourceId": Object {
+          "Fn::GetAtt": Array [
+            "TestAPIDLTApi434DC190",
+            "RootResourceId",
+          ],
+        },
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiscenariosANYEC9F0ED6": Object {
+      "Properties": Object {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "ANY",
+        "Integration": Object {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": Array [
+            Object {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "arn:",
+                Object {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                Object {
+                  "Fn::GetAtt": Array [
+                    "TestAPIDLTAPIServicesLambda1C09DECC",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": Array [
+          Object {
+            "ResponseModels": Object {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": Object {
+          "Ref": "TestAPIAPIAllRequestValidator9A179146",
+        },
+        "ResourceId": Object {
+          "Ref": "TestAPIDLTApiscenariosB730E59C",
+        },
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiscenariosB730E59C": Object {
+      "Properties": Object {
+        "ParentId": Object {
+          "Fn::GetAtt": Array [
+            "TestAPIDLTApi434DC190",
+            "RootResourceId",
+          ],
+        },
+        "PathPart": "scenarios",
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "TestAPIDLTApiscenariosOPTIONS6968DE71": Object {
+      "Properties": Object {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": Object {
+          "IntegrationResponses": Array [
+            Object {
+              "ResponseParameters": Object {
+                "method.response.header.Access-Control-Allow-Headers": "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "200",
+            },
+          ],
+          "RequestTemplates": Object {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": Array [
+          Object {
+            "ResponseParameters": Object {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "ResourceId": Object {
+          "Ref": "TestAPIDLTApiscenariosB730E59C",
+        },
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiscenariostestId0D5FBA86": Object {
+      "Properties": Object {
+        "ParentId": Object {
+          "Ref": "TestAPIDLTApiscenariosB730E59C",
+        },
+        "PathPart": "{testId}",
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "TestAPIDLTApiscenariostestIdANY5DE40CF0": Object {
+      "Properties": Object {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "ANY",
+        "Integration": Object {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": Array [
+            Object {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "arn:",
+                Object {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                Object {
+                  "Fn::GetAtt": Array [
+                    "TestAPIDLTAPIServicesLambda1C09DECC",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": Array [
+          Object {
+            "ResponseModels": Object {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": Object {
+          "Ref": "TestAPIAPIAllRequestValidator9A179146",
+        },
+        "ResourceId": Object {
+          "Ref": "TestAPIDLTApiscenariostestId0D5FBA86",
+        },
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiscenariostestIdOPTIONSF10FECFD": Object {
+      "Properties": Object {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": Object {
+          "IntegrationResponses": Array [
+            Object {
+              "ResponseParameters": Object {
+                "method.response.header.Access-Control-Allow-Headers": "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "200",
+            },
+          ],
+          "RequestTemplates": Object {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": Array [
+          Object {
+            "ResponseParameters": Object {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "ResourceId": Object {
+          "Ref": "TestAPIDLTApiscenariostestId0D5FBA86",
+        },
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApitasksANYA8531185": Object {
+      "Properties": Object {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "ANY",
+        "Integration": Object {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": Array [
+            Object {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "arn:",
+                Object {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                Object {
+                  "Fn::GetAtt": Array [
+                    "TestAPIDLTAPIServicesLambda1C09DECC",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": Array [
+          Object {
+            "ResponseModels": Object {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": Object {
+          "Ref": "TestAPIAPIAllRequestValidator9A179146",
+        },
+        "ResourceId": Object {
+          "Ref": "TestAPIDLTApitasksF74AF050",
+        },
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApitasksF74AF050": Object {
+      "Properties": Object {
+        "ParentId": Object {
+          "Fn::GetAtt": Array [
+            "TestAPIDLTApi434DC190",
+            "RootResourceId",
+          ],
+        },
+        "PathPart": "tasks",
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "TestAPIDLTApitasksOPTIONS151B5B68": Object {
+      "Properties": Object {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": Object {
+          "IntegrationResponses": Array [
+            Object {
+              "ResponseParameters": Object {
+                "method.response.header.Access-Control-Allow-Headers": "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "200",
+            },
+          ],
+          "RequestTemplates": Object {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": Array [
+          Object {
+            "ResponseParameters": Object {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "ResourceId": Object {
+          "Ref": "TestAPIDLTApitasksF74AF050",
+        },
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPILambdaApiEventsPolicyEADD5133": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "events:PutTargets",
+                "events:PutRule",
+                "events:DeleteRule",
+                "events:RemoveTargets",
+              ],
+              "Effect": "Allow",
+              "Resource": Array [
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      "arn:",
+                      Object {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":events:",
+                      Object {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      Object {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":rule/*Scheduled",
+                    ],
+                  ],
+                },
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      "arn:",
+                      Object {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":events:",
+                      Object {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      Object {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":rule/*Create",
+                    ],
+                  ],
+                },
+              ],
+            },
+            Object {
+              "Action": "events:ListRules",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Fn::Join": Array [
+                  "",
+                  Array [
+                    "arn:",
+                    Object {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":events:",
+                    Object {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    Object {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":rule/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestAPILambdaApiEventsPolicyEADD5133",
+        "Roles": Array [
+          Object {
+            "Ref": "TestAPIDLTAPIServicesLambdaRole446F20B1",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestAPILambdaApiPermissionPolicy195B9388": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "lambda:AddPermission",
+                "lambda:RemovePermission",
+              ],
+              "Effect": "Allow",
+              "Resource": Object {
+                "Fn::GetAtt": Array [
+                  "TestAPIDLTAPIServicesLambda1C09DECC",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestAPILambdaApiPermissionPolicy195B9388",
+        "Roles": Array [
+          Object {
+            "Ref": "TestAPIDLTAPIServicesLambdaRole446F20B1",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestLogGroup4EEF7AD4": Object {
+      "DeletionPolicy": "Retain",
+      "Properties": Object {
+        "RetentionInDays": 731,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TestPolicyCC05E598": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "cloudwatch:Get*",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestPolicyCC05E598",
+        "Roles": Array [
+          Object {
+            "Ref": "TestAPIDLTAPIServicesLambdaRole446F20B1",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+  },
+}
+`;

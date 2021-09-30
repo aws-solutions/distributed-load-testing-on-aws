@@ -7,8 +7,8 @@
 # ./build-s3-dist.sh source-bucket-base-name trademarked-solution-name version-code
 #
 # Paramenters:
-#  - source-bucket-base-name: Name for the S3 bucket location where the AWS CloudFormation template will source the Lambda
-#    code from. The AWS Lambda code is contained in the zip files.  The template will append '-[region_name]' to this bucket name.
+#  - source-bucket-base-name: Name for the S3 bucket location where the AWS CloudFormation template will source the Lambda code from. 
+#    The AWS Lambda code is contained in the zip files. The template will append '-[region_name]' to this bucket name.
 #    For example: ./build-s3-dist.sh solutions my-solution v1.0.0
 #    The template will then expect the source code to be located in the solutions-[region_name] bucket
 #
@@ -46,8 +46,10 @@ mkdir -p $template_dist_dir $build_dist_dir
 echo "------------------------------------------------------------------------------"
 echo "CloudFormation Template"
 echo "------------------------------------------------------------------------------"
-cp $template_dir/distributed-load-testing-on-aws.yaml $template_dist_dir/distributed-load-testing-on-aws.template
 
+cd $source_dir/infrastructure
+npm install
+node_modules/aws-cdk/bin/cdk synth --asset-metadata false --path-metadata false > $template_dist_dir/distributed-load-testing-on-aws.template
 replace="s/CODE_BUCKET/$1/g"
 echo "sed -i -e $replace"
 sed -i -e $replace $template_dist_dir/distributed-load-testing-on-aws.template
@@ -55,6 +57,16 @@ replace="s/SOLUTION_NAME/$2/g"
 echo "sed -i -e $replace"
 sed -i -e $replace $template_dist_dir/distributed-load-testing-on-aws.template
 replace="s/CODE_VERSION/$3/g"
+echo "sed -i -e $replace"
+sed -i -e $replace $template_dist_dir/distributed-load-testing-on-aws.template
+
+echo "***** public ECR registry: $PUBLIC_ECR_REGISTRY"
+replace="s|PUBLIC_ECR_REGISTRY|$PUBLIC_ECR_REGISTRY|g"
+echo "sed -i -e $replace"
+sed -i -e $replace $template_dist_dir/distributed-load-testing-on-aws.template
+
+echo "***** public ECR tag: $PUBLIC_ECR_TAG"
+replace="s/PUBLIC_ECR_TAG/$PUBLIC_ECR_TAG/g"
 echo "sed -i -e $replace"
 sed -i -e $replace $template_dist_dir/distributed-load-testing-on-aws.template
 # remove tmp file for MACs
@@ -115,18 +127,9 @@ rm package-lock.json
 zip -q -r9 $build_dist_dir/task-status-checker.zip *
 
 echo "------------------------------------------------------------------------------"
-echo "Creating ecr-checker deployment package"
-echo "------------------------------------------------------------------------------"
-cd $source_dir/ecr-checker
-rm -rf node_modules/
-npm install --production
-rm package-lock.json
-zip -q -r9 $build_dist_dir/ecr-checker.zip *
-
-echo "------------------------------------------------------------------------------"
 echo "Creating container deployment package"
 echo "------------------------------------------------------------------------------"
-cd $source_dir/container
+cd $template_dir/ecr/distributed-load-testing-on-aws-load-tester
 # Downloading jetty 9.4.34.v20201102
 curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-alpn-client/9.4.34.v20201102/jetty-alpn-client-9.4.34.v20201102.jar
 curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-alpn-openjdk8-client/9.4.34.v20201102/jetty-alpn-openjdk8-client-9.4.34.v20201102.jar
@@ -134,9 +137,6 @@ curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-client/9.4.34.v20
 curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-http/9.4.34.v20201102/jetty-http-9.4.34.v20201102.jar
 curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-io/9.4.34.v20201102/jetty-io-9.4.34.v20201102.jar
 curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-util/9.4.34.v20201102/jetty-util-9.4.34.v20201102.jar
-zip -q -r9 ../../deployment/regional-s3-assets/container.zip *
-cp container-manifest.json $build_dist_dir/
-rm -f *.jar
 
 echo "------------------------------------------------------------------------------"
 echo "Building console"
@@ -152,8 +152,8 @@ cp -r ./build/* $build_dist_dir/console/
 echo "------------------------------------------------------------------------------"
 echo "Generate console manifest file"
 echo "------------------------------------------------------------------------------"
-cd $build_dist_dir
-manifest=(`find console -type f | sed 's|^./||'`)
+cd $build_dist_dir/console
+manifest=(`find * -type f ! -iname ".DS_Store"`)
 manifest_json=$(IFS=,;printf "%s" "${manifest[*]}")
 echo "[\"$manifest_json\"]" | sed 's/,/","/g' > ./console-manifest.json
 

@@ -12,7 +12,7 @@
   "dependencies": {
     "axios": "^0.21.1",
     "moment": "^2.27.0",
-    "shortid": "^2.2.15"
+    "nanoid": "^3.1.25"
   },
   "devDependencies": {
     "aws-sdk": "2.804.0",

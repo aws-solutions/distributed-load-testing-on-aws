@@ -3,10 +3,10 @@
 
 const AWS = require('aws-sdk');
 AWS.config.logger = console;
-const { SOLUTION_ID, VERSION } = process.env; 
+const { SOLUTION_ID, VERSION } = process.env;
 let options = {};
 if (SOLUTION_ID && VERSION && SOLUTION_ID.trim() && VERSION.trim()) {
-  options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${VERSION}`;
+	options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${VERSION}`;
 }
 const s3 = new AWS.S3(options);
 
@@ -18,7 +18,7 @@ const copyAssets = async (srcBucket, srcPath, manifestFile, destBucket) => {
 		// get file manifest from s3
 		const getParams = {
 			Bucket: srcBucket,
-			Key:`${srcPath}/${manifestFile}`
+			Key: `${srcPath}/${manifestFile}`
 		};
 
 		const data = await s3.getObject(getParams).promise();
@@ -49,7 +49,7 @@ const configFile = async (file, destBucket) => {
 		//write exports file to the console
 		const params = {
 			Bucket: destBucket,
-			Key:'console/assets/aws_config.js',
+			Key: 'assets/aws_config.js',
 			Body: file
 		};
 		console.log(`creating config file: ${JSON.stringify(params)}`);

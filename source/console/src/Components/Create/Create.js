@@ -23,8 +23,20 @@ import {
     TabContent,
     TabPane,
 } from 'reactstrap';
-import * as shortid from 'shortid';
+import { customAlphabet } from 'nanoid';
 import 'brace/theme/github';
+
+
+const ALPHA_NUMERIC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+/**
+ * Generates an unique ID based on the parameter length.
+ * @param length The length of the unique ID
+ * @returns The unique ID
+ */
+function generateUniqueId(length) {
+    const nanoid = customAlphabet(ALPHA_NUMERIC, length);
+    return nanoid();
+}
 
 // Upload file size limit
 const FILE_SIZE_LIMIT = 50 * 1024 * 1024;
@@ -34,7 +46,7 @@ const FILE_EXTENSIONS = ['jmx', 'zip'];
 
 class Create extends React.Component {
 
-    constructor(props){
+    constructor(props) {
         super(props);
         if (this.props.location.state && this.props.location.state.data.testId) {
             let fileType = '';
@@ -89,16 +101,16 @@ class Create extends React.Component {
                 activeTab: '1',
                 submitLabel: 'Run Now',
                 formValues: {
-                    testName:'',
+                    testName: '',
                     testDescription: '',
                     taskCount: 0,
-                    concurrency:0,
+                    concurrency: 0,
                     holdFor: 0,
-                    holdForUnits:'m',
+                    holdForUnits: 'm',
                     rampUp: 0,
                     rampUpUnits: 'm',
                     endpoint: '',
-                    method:'GET',
+                    method: 'GET',
                     body: '',
                     headers: '',
                     testType: 'simple',
@@ -128,19 +140,19 @@ class Create extends React.Component {
         try {
             return JSON.parse(str);
         } catch (err) {
-             return false;
+            return false;
         }
     }
 
     handleSubmit = async () => {
         const values = this.state.formValues;
 
-        if (!this.form.current.reportValidity() ) {
+        if (!this.form.current.reportValidity()) {
             this.setState({ isLoading: false });
             return false;
         }
 
-        const testId = this.state.testId ? this.state.testId : shortid.generate();
+        const testId = this.state.testId || generateUniqueId(10);
         let payload = {
             testId,
             testName: values.testName,
@@ -161,11 +173,11 @@ class Create extends React.Component {
             fileType: values.fileType
         };
 
-        if(!!parseInt(values.onSchedule)) {
+        if (!!parseInt(values.onSchedule)) {
             payload.scheduleDate = values.scheduleDate;
             payload.scheduleTime = values.scheduleTime;
             payload.scheduleStep = "start";
-            if(this.state.activeTab === '2') {
+            if (this.state.activeTab === '2') {
                 payload.scheduleStep = "create";
                 payload.recurrence = values.recurrence;
             }
@@ -244,8 +256,7 @@ class Create extends React.Component {
 
         if (name === 'testType') {
             this.setState({ file: null });
-        } else if (name === 'onSchedule')
-        {
+        } else if (name === 'onSchedule') {
             this.setState({ submitLabel: value === '1' ? 'Schedule' : 'Run Now' })
         }
 
@@ -304,7 +315,7 @@ class Create extends React.Component {
     listTasks = async () => {
         try {
             const data = await API.get('dlts', '/tasks');
-            if (data.length !== 0 ) {
+            if (data.length !== 0) {
                 this.setState({ runningTasks: true });
                 this.setState({ availableTasks: 1000 - data.length });
             }
@@ -314,8 +325,7 @@ class Create extends React.Component {
     };
 
     toggleTab(tab) {
-        if(this.state.activeTab !== tab)
-        {
+        if (this.state.activeTab !== tab) {
             this.setState({ activeTab: tab });
         }
     }
@@ -329,12 +339,12 @@ class Create extends React.Component {
         const cancel = () => {
             return this.state.testId === null ?
                 this.props.history.push('/') :
-                this.props.history.push({ pathname: `/details/${this.state.testId}`, state: { testId: this.state.testId }})
+                this.props.history.push({ pathname: `/details/${this.state.testId}`, state: { testId: this.state.testId } })
         }
 
         const heading = (
             <div className="box">
-                <h1>{ this.state.testId === null ? 'Create' : 'Update' } Load Test</h1>
+                <h1>{this.state.testId === null ? 'Create' : 'Update'} Load Test</h1>
             </div>
         )
         const currentDate = new Date().toISOString().split('T')[0];
@@ -407,14 +417,14 @@ class Create extends React.Component {
                                 />
                                 <FormText color="muted">
                                     The number of concurrent virtual users generated per task. The recommended limit based on default settings is 200 virtual users.
-                                    Concurrency is limited by CPU and Memory. Please see the &nbsp; 
+                                    Concurrency is limited by CPU and Memory. Please see the &nbsp;
                                     <a className="text-link"
                                         href={"https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/considerations.html#load-testing-limits"}
                                         target="_blank"
                                         rel="noopener noreferrer">
-                                            implementation guide
-                                    </a> 
-                                   &nbsp;for instructions on how to determine the amount concurrency your test can support.
+                                        implementation guide
+                                    </a>
+                                    &nbsp;for instructions on how to determine the amount concurrency your test can support.
                                 </FormText>
                             </FormGroup>
                             <FormGroup>
@@ -503,7 +513,7 @@ class Create extends React.Component {
                                 <Nav tabs>
                                     <NavItem>
                                         <NavLink
-                                            classname="custom-tab"
+                                            className="custom-tab"
                                             active={this.state.activeTab === '1'}
                                             onClick={() => this.toggleTab('1')}
                                         >
@@ -512,7 +522,7 @@ class Create extends React.Component {
                                     </NavItem>
                                     <NavItem>
                                         <NavLink
-                                            classname="custom-tab"
+                                            className="custom-tab"
                                             active={this.state.activeTab === '2'}
                                             onClick={() => this.toggleTab('2')}
                                         >
@@ -524,7 +534,7 @@ class Create extends React.Component {
                                     <TabPane tabId='1'>
                                         <FormGroup>
                                             <InputGroup inline>
-                                            <Label for="scheduleDate">Date:&nbsp;</Label>
+                                                <Label for="scheduleDate">Date:&nbsp;</Label>
                                                 &nbsp;
                                                 <Input inline
                                                     type="date"
@@ -550,17 +560,17 @@ class Create extends React.Component {
                                                     required={parseInt(this.state.formValues.onSchedule) === 1}
                                                 >
                                                 </Input>
-                                                </InputGroup>
-                                                <FormText color="muted">
-                                                    The date and time(UTC) to run the test.
-                                                </FormText>
+                                            </InputGroup>
+                                            <FormText color="muted">
+                                                The date and time(UTC) to run the test.
+                                            </FormText>
                                         </FormGroup>
                                     </TabPane>
                                     <TabPane tabId='2'>
                                         <FormGroup>
                                             <InputGroup inline>
-                                            <Label for="scheduleDate">Date:&nbsp;</Label>
-                                            &nbsp;
+                                                <Label for="scheduleDate">Date:&nbsp;</Label>
+                                                &nbsp;
                                                 <Input inline
                                                     type="date"
                                                     name="scheduleDate"
@@ -574,7 +584,7 @@ class Create extends React.Component {
                                                 &nbsp;
                                                 <Label for="scheduleTime">Time:&nbsp;</Label>
                                                 &nbsp;
-                                                    <Input inline
+                                                <Input inline
                                                     type="time"
                                                     name="scheduleTime"
                                                     id="time"
@@ -583,63 +593,63 @@ class Create extends React.Component {
                                                     onChange={this.handleInputChange}
                                                     required={this.state.activeTab === '2'}
                                                 />
-                                                </InputGroup>
-                                                <FormText color="muted">
-                                                    The date and time(UTC) to first run the test.
-                                                </FormText>
+                                            </InputGroup>
+                                            <FormText color="muted">
+                                                The date and time(UTC) to first run the test.
+                                            </FormText>
                                         </FormGroup>
                                         <FormGroup>
                                             <InputGroup inline>
-                                            <Label>Recurence:&nbsp;</Label>
-                                            &nbsp;
-                                            <CustomInput inline
-                                                type="radio"
-                                                name="recurrence"
-                                                id="daily"
-                                                value="daily"
-                                                checked={this.state.formValues.recurrence === 'daily'}
-                                                required={this.state.activeTab === '2'}
-                                                onChange={this.handleInputChange}
-                                                label="Daily"
-                                            />
-                                            <CustomInput inline
-                                                type="radio"
-                                                name="recurrence"
-                                                id="weekly"
-                                                value="weekly"
-                                                checked={this.state.formValues.recurrence === 'weekly'}
-                                                required={this.state.activeTab === '2'}
-                                                onChange={this.handleInputChange}
-                                                label="Weekly"
-                                            />
-                                            <CustomInput inline
-                                                type="radio"
-                                                name="recurrence"
-                                                id="biweekly"
-                                                value="biweekly"
-                                                checked={this.state.formValues.recurrence === 'biweekly'}
-                                                required={this.state.activeTab === '2'}
-                                                onChange={this.handleInputChange}
-                                                label="Biweekly"
-                                            />
-                                            <CustomInput inline
-                                                type="radio"
-                                                name="recurrence"
-                                                id="monthly"
-                                                value="monthly"
-                                                checked={this.state.formValues.recurrence === 'monthly'}
-                                                required={this.state.activeTab === '2'}
-                                                onChange={this.handleInputChange}
-                                                label="Monthly"
-                                            />
-                                            </InputGroup> 
+                                                <Label>Recurence:&nbsp;</Label>
+                                                &nbsp;
+                                                <CustomInput inline
+                                                    type="radio"
+                                                    name="recurrence"
+                                                    id="daily"
+                                                    value="daily"
+                                                    checked={this.state.formValues.recurrence === 'daily'}
+                                                    required={this.state.activeTab === '2'}
+                                                    onChange={this.handleInputChange}
+                                                    label="Daily"
+                                                />
+                                                <CustomInput inline
+                                                    type="radio"
+                                                    name="recurrence"
+                                                    id="weekly"
+                                                    value="weekly"
+                                                    checked={this.state.formValues.recurrence === 'weekly'}
+                                                    required={this.state.activeTab === '2'}
+                                                    onChange={this.handleInputChange}
+                                                    label="Weekly"
+                                                />
+                                                <CustomInput inline
+                                                    type="radio"
+                                                    name="recurrence"
+                                                    id="biweekly"
+                                                    value="biweekly"
+                                                    checked={this.state.formValues.recurrence === 'biweekly'}
+                                                    required={this.state.activeTab === '2'}
+                                                    onChange={this.handleInputChange}
+                                                    label="Biweekly"
+                                                />
+                                                <CustomInput inline
+                                                    type="radio"
+                                                    name="recurrence"
+                                                    id="monthly"
+                                                    value="monthly"
+                                                    checked={this.state.formValues.recurrence === 'monthly'}
+                                                    required={this.state.activeTab === '2'}
+                                                    onChange={this.handleInputChange}
+                                                    label="Monthly"
+                                                />
+                                            </InputGroup>
                                             <FormText color="muted">
                                                 How often to run the test.
                                             </FormText>
                                         </FormGroup>
                                     </TabPane>
                                 </TabContent>
-                            </Collapse> 
+                            </Collapse>
                         </div>
                     </Col>
                     <Col sm="6">
@@ -710,7 +720,7 @@ class Create extends React.Component {
                                             name="headers"
                                             width="100%"
                                             height="190px"
-                                            editorProps={{$blockScrolling: true}}
+                                            editorProps={{ $blockScrolling: true }}
                                             setOptions={{
                                                 showLineNumbers: true,
                                                 tabSize: 2,
@@ -732,7 +742,7 @@ class Create extends React.Component {
                                             value={this.state.formValues.body}
                                             width="100%"
                                             height="190px"
-                                            editorProps={{$blockScrolling: true}}
+                                            editorProps={{ $blockScrolling: true }}
                                             setOptions={{
                                                 showLineNumbers: true,
                                                 tabSize: 2,
@@ -803,7 +813,7 @@ class Create extends React.Component {
             <div>
                 <form ref={this.form} onSubmit={e => e.preventDefault()}>
 
-                    { heading }
+                    {heading}
 
                     <div>
                         {this.state.isLoading ? <div className="loading"><Spinner color="secondary" /></div> : createTestForm}

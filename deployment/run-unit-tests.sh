@@ -22,10 +22,10 @@ cd $source_dir/task-status-checker
 npm install --silent
 npm test
 
-cd $source_dir/ecr-checker
-npm install --silent
-npm test
-
 cd $source_dir/task-canceler
 npm install --silent
 npm test 
+
+cd $source_dir/infrastructure
+npm install --silent
+npm test

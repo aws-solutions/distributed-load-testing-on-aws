@@ -1,0 +1,89 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DLT API Test 1`] = `
+Object {
+  "Resources": Object {
+    "TestCustomResourcesConsoleConfigB02EE6D7": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "AwsExports": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "const awsConfig = {
+            cw_dashboard: 'https://console.aws.amazon.com/cloudwatch/home?region=",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              "#dashboards:name=',
+            ecs_dashboard: 'https://",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ".console.aws.amazon.com/ecs/home?region=",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              "#/clusters/",
+              Object {
+                "Ref": "AWS::StackName",
+              },
+              "/tasks',
+            aws_project_region: '",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              "',
+            aws_cognito_region: '",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              "',
+            aws_cognito_identity_pool_id: 'testIdentityPool',
+            aws_user_pools_id: 'testUserPool',
+            aws_user_pools_web_client_id: 'testUserPoolClient',
+            oauth: {},
+            aws_cloud_logic_custom: [
+                {
+                    name: 'dlts',
+                    endpoint: 'http://testEndpointUrl.com',
+                    region: '",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              "'
+                }
+            ],
+            aws_user_files_s3_bucket: 'testScenariosBucket',
+            aws_user_files_s3_bucket_region: '",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              "'
+        }",
+            ],
+          ],
+        },
+        "DestBucket": "testConsoleBucket",
+        "Resource": "ConfigFile",
+        "ServiceToken": "testcustomlambda",
+      },
+      "Type": "Custom::CopyConfigFiles",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "TestCustomResourcesCopyConsoleFilesA46BE1B8": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "DestBucket": "testConsoleBucket",
+        "ManifestFile": "console-manifest.json",
+        "Resource": "CopyAssets",
+        "ServiceToken": "testcustomlambda",
+        "SrcBucket": "testCodeBucket",
+        "SrcPath": "testCodePrefix//console",
+      },
+      "Type": "Custom::CopyConsoleFiles",
+      "UpdateReplacePolicy": "Delete",
+    },
+  },
+}
+`;

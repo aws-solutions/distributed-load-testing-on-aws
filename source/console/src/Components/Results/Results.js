@@ -15,10 +15,10 @@ class Results extends React.Component {
         this.showResult = this.showResult.bind(this);
         this.caculateBandwidth = this.caculateBandwidth.bind(this);
         this.state = {
-          info: false,
-          activeTab: 'summary'
+            info: false,
+            activeTab: 'summary'
         };
-      }
+    }
 
     toggle() {
         this.setState({
@@ -116,7 +116,7 @@ class Results extends React.Component {
                     <Col sm="3">
                         <div className="result">
                             Avg Bandwidth
-                            <p>{ this.caculateBandwidth(data.bytes, testDuration) }</p>
+                            <p>{this.caculateBandwidth(data.bytes, testDuration)}</p>
                         </div>
                     </Col>
                 </Row>
@@ -151,7 +151,7 @@ class Results extends React.Component {
                     </Row>
                 }
                 <Row>
-                { errors }
+                    {errors}
                 </Row>
                 <Row>
                     <Col sm="3">
@@ -208,7 +208,7 @@ class Results extends React.Component {
 
                 labelContents.push(
                     <TabPane tabId={label} key={`${label}+${i}`}>
-                        { this.showResult(labels[i], testDuration) }
+                        {this.showResult(labels[i], testDuration)}
                     </TabPane>
                 );
             }
@@ -216,7 +216,7 @@ class Results extends React.Component {
 
         return (
             <div>
-                <div className="box">
+                <div className="box" id="TestResults">
                     <h2>Test Results</h2>
                     <Button id="info" color="link"><FontAwesomeIcon id="icon" icon={faInfoCircle} /> Info</Button>
                     <Row>
@@ -225,15 +225,15 @@ class Results extends React.Component {
                                 <NavItem>
                                     <NavLink className="custom-tab" active={this.state.activeTab === 'summary'} onClick={() => { this.toggleTab('summary') }}>Summary</NavLink>
                                 </NavItem>
-                                { labelTabs }
+                                {labelTabs}
                             </Nav>
                         </Col>
                         <Col xs="6" sm="9" md="9">
                             <TabContent activeTab={this.state.activeTab}>
                                 <TabPane tabId="summary">
-                                    { this.showResult(results, testDuration, this.props.data.metricWidgetImage) }
+                                    {this.showResult(results, testDuration, this.props.data.metricWidgetImage)}
                                 </TabPane>
-                                { labelContents }
+                                {labelContents}
                             </TabContent>
                         </Col>
                     </Row>
