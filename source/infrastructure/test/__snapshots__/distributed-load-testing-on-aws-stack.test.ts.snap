@@ -187,12 +187,12 @@ Object {
     },
     "ExistingSubnetA": Object {
       "AllowedPattern": "(?:^$|^subnet-[a-zA-Z0-9-]+)",
-      "Description": "First exsiting subnet",
+      "Description": "First existing subnet",
       "Type": "String",
     },
     "ExistingSubnetB": Object {
       "AllowedPattern": "(?:^$|^subnet-[a-zA-Z0-9-]+)",
-      "Description": "Second exsiting subnet",
+      "Description": "Second existing subnet",
       "Type": "String",
     },
     "ExistingVPCId": Object {
