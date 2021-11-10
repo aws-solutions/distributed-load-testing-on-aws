@@ -95,13 +95,13 @@ export class DLTStack extends Stack {
 
     const existingSubnetA = new CfnParameter(this, 'ExistingSubnetA', {
       type: 'String',
-      description: 'First exsiting subnet',
+      description: 'First existing subnet',
       allowedPattern: '(?:^$|^subnet-[a-zA-Z0-9-]+)'
     });
 
     const existingSubnetB = new CfnParameter(this, 'ExistingSubnetB', {
       type: 'String',
-      description: 'Second exsiting subnet',
+      description: 'Second existing subnet',
       allowedPattern: '(?:^$|^subnet-[a-zA-Z0-9-]+)'
     });
 
