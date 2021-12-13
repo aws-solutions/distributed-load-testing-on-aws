@@ -5,6 +5,7 @@ import React from 'react';
 import { Row, Col, Button, Popover, PopoverHeader, PopoverBody, Nav, NavItem, NavLink, TabContent, TabPane } from 'reactstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faInfoCircle } from '@fortawesome/free-solid-svg-icons';
+import { Storage } from 'aws-amplify';
 
 class Results extends React.Component {
     constructor(props) {
@@ -16,7 +17,9 @@ class Results extends React.Component {
         this.caculateBandwidth = this.caculateBandwidth.bind(this);
         this.state = {
             info: false,
-            activeTab: 'summary'
+            activeTab: 'summary',
+            metricImage: undefined,
+            metricImageLocation: undefined
         };
     }
 
@@ -68,14 +71,85 @@ class Results extends React.Component {
     }
 
     /**
+     * Retrieve the CloudWatch widget image from S3
+     * Store the base64 encoded image string in state
+     * @param {string} metricS3ImageLocation 
+     */
+    retrieveImage = async (metricS3ImageLocation) => {
+        try {
+            const image = await Storage.get(metricS3ImageLocation, { contentType: 'data:image/jpeg;base64', download: true });
+            const imageBodyText = await image.Body.text();
+            this.setState({ metricImage: imageBodyText });
+        } catch (error) {
+            console.error('There was an error trying to retrieve the CloudWatch widget image from S3: ', error);
+            this.setState({ metricImage: undefined });
+        }
+    }
+
+    /**
+     * Checks if the variable is undefined
+     * @param {any} value The input variable 
+     * @returns {boolean} Returns true if the variable is undefined
+     */
+    isUndefined(value) {
+        return typeof value === 'undefined';
+    }
+
+    /*
+     * Initital load of the CloudWatch widget image depending upon set value returned in `this.props.data`
+     * Either `this.props.data.metricS3Location` will be populated (if base64 image string is stored in S3)
+     * or `this.props.data.metricWidgetImage` will be populated (if base64 image string is stored in DynamoDB)
+     */
+    componentDidMount = async () => {
+        if (!this.isUndefined(this.props.data.metricS3Location)) {
+            await this.retrieveImage(this.props.data.metricS3Location);
+            this.setState({ metricImageLocation: this.props.data.metricS3Location });
+        } else if (!this.isUndefined(this.props.data.metricWidgetImage)) {
+            this.setState({ metricImage: this.props.data.metricWidgetImage });
+        } else {
+            console.log("The CloudWatch metric widget could not be retrieved.");
+            this.setState({
+                metricImage: undefined,
+                metricImageLocation: undefined
+            });
+        }
+    }
+
+    /*
+     * Update the CloudWatch widget image in showResult onClick event for View Details
+     * This includes backwards compatability for images stored as a string in DynamoDB
+     * Either `this.props.data.metricWidgetImage` or `this.props.data.metricS3Location` are populated by the solution
+     * `this.props.data.metricWidgetImage` is from the previous method of storing the base64 encoded image in DynamoBD
+     * `this.props.data.metricS3Location` is the new method where the image is stored in S3 and the location is stored in DynamoDB
+     */
+    componentDidUpdate = async () => {
+        if (!this.isUndefined(this.props.data.metricS3Location) && this.props.data.metricS3Location !== this.state.metricImageLocation) {
+            await this.retrieveImage(this.props.data.metricS3Location);
+            this.setState({ metricImageLocation: this.props.data.metricS3Location });
+        } else if (this.isUndefined(this.props.data.metricS3Location) && !this.isUndefined(this.props.data.metricWidgetImage) && this.props.data.metricWidgetImage !== this.state.metricImage) {
+            this.setState({
+                metricImage: this.props.data.metricWidgetImage,
+                metricImageLocation: undefined
+            });
+        } else if (this.isUndefined(this.props.data.metricS3Location) && this.isUndefined(this.props.data.metricWidgetImage)) {
+            console.log("The CloudWatch metric widget could not be retrieved.");
+            this.setState({
+                metricImage: undefined,
+                metricImageLocation: undefined
+            });
+        }
+    }
+
+    /**
      * Show the result into DIV.
      * @param {object} data Result data to show
      * @param {number} testDuration Test duration
-     * @param {blob} metricWidgetImage CloudWatch metric widget image
      * @return {JSX.IntrinsicElements} Result DIV from the data
      */
-    showResult(data, testDuration, metricWidgetImage) {
+    showResult(data, testDuration) {
+
         testDuration = parseInt(testDuration);
+        const image = this.state.metricImage;
 
         let errors;
         if (data.rc && data.rc.length > 0) {
@@ -179,9 +253,9 @@ class Results extends React.Component {
                         </div>
                     </Col>
                     {
-                        metricWidgetImage &&
+                        image &&
                         <Col sm="9">
-                            <img src={`data:image/jpeg;base64,${metricWidgetImage}`} alt='avRt' />
+                            <img src={`data:image/jpeg;base64, ${image}`} alt='avRt' />
                         </Col>
                     }
                 </Row>
@@ -230,8 +304,8 @@ class Results extends React.Component {
                         </Col>
                         <Col xs="6" sm="9" md="9">
                             <TabContent activeTab={this.state.activeTab}>
-                                <TabPane tabId="summary">
-                                    {this.showResult(results, testDuration, this.props.data.metricWidgetImage)}
+                                <TabPane tabId="summary" >
+                                    {this.showResult(results, testDuration)}
                                 </TabPane>
                                 {labelContents}
                             </TabContent>

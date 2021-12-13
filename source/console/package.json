@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws-ui",
-  "version": "1.3.0",
+  "version": "2.0.1",
   "private": true,
   "dependencies": {
     "@aws-amplify/ui-react": "^1.0.2",
@@ -24,7 +24,8 @@
     "start": "react-scripts start",
     "build": "GENERATE_SOURCEMAP=false INLINE_RUNTIME_CHUNK=false react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "clean": "rm -rf node_modules package-lock.json"
   },
   "eslintConfig": {
     "extends": "react-app"

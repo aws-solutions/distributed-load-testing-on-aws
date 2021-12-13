@@ -1,4 +1,4 @@
-// Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import { Construct, RemovalPolicy, Tags } from '@aws-cdk/core';
 import { AttributeType, BillingMode, Table, TableEncryption } from '@aws-cdk/aws-dynamodb';

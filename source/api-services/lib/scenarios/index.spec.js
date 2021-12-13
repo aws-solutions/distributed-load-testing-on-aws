@@ -44,7 +44,7 @@ mockAWS.CloudWatchEvents = jest.fn(() => ({
 	deleteRule: mockCloudWatchEvents,
 	listRules: mockCloudWatchEvents,
 }));
-mockAWS.Lambda= jest.fn(() => ({
+mockAWS.Lambda = jest.fn(() => ({
 	addPermission: mockLambda,
 	removePermission: mockLambda,
 	update: mockDynamoDB,
@@ -56,18 +56,18 @@ Date.now = jest.fn(() => new Date("2017-04-22T02:28:37.000Z"));
 
 const testId = '1234';
 const listData = {
-    Items:[
-        {testId:'1234'},
-        {testId:'5678'}
-    ]
+	Items: [
+		{ testId: '1234' },
+		{ testId: '5678' }
+	]
 }
 const getData = {
-  Item:{
-    testId:'1234',
-    name: 'mytest',
-    status: 'running',
-		testScenario:"{\"name\":\"example\"}"
-  }
+	Item: {
+		testId: '1234',
+		name: 'mytest',
+		status: 'running',
+		testScenario: "{\"name\":\"example\"}"
+	}
 }
 
 const tasks = {
@@ -75,11 +75,11 @@ const tasks = {
 }
 
 const updateData = {
-	Attributes:{testStatus:'running'}
+	Attributes: { testStatus: 'running' }
 }
 const config = {
 	testName: "mytest",
-	testDescription:"test",
+	testDescription: "test",
 	taskCount: "4",
 	testScenario: {
 		execution: [
@@ -101,18 +101,19 @@ const context = {
 
 const rulesResponse = {
 	Rules: [
-	{
-		Arn: 'arn:of:rule/123',
-		Name: '123'
-	}
-]};
+		{
+			Arn: 'arn:of:rule/123',
+			Name: '123'
+		}
+	]
+};
 
 process.env.SCENARIOS_BUCKET = 'bucket';
 process.env.STATE_MACHINE_ARN = 'arn:of:state:machine';
 process.env.LAMBDA_ARN = 'arn:of:apilambda';
 process.env.TASK_CANCELER_ARN = 'arn:of:taskCanceler';
 process.env.SOLUTION_ID = 'SO0062';
-process.env.VERSION = '1.3.0';
+process.env.VERSION = '2.0.1';
 
 const lambda = require('./index.js');
 
@@ -159,22 +160,22 @@ describe('#SCENARIOS API:: ', () => {
 				}
 			};
 		});
-		mockEcs.mockImplementationOnce(() =>{
+		mockEcs.mockImplementationOnce(() => {
 			return {
 				promise() {
 					//describeTasks
 					return Promise.resolve({
 						tasks: [
-							{group: testId},
-							{group: testId},
-							{group: "notTestId"}
+							{ group: testId },
+							{ group: testId },
+							{ group: "notTestId" }
 						]
 					});
 				}
 			}
 		});
 
-		
+
 
 		const response = await lambda.getTest(testId);
 		expect(response.name).toEqual('mytest');
@@ -251,7 +252,7 @@ describe('#SCENARIOS API:: ', () => {
 				}
 			}
 		});
-		
+
 		const response = await lambda.deleteTest(testId, context.functionName);
 		expect(response).toEqual('success');
 	});
@@ -305,7 +306,7 @@ describe('#SCENARIOS API:: ', () => {
 				}
 			}
 		});
-		
+
 		const response = await lambda.deleteTest(testId, context.functionName);
 		expect(response).toEqual('success');
 	});
@@ -486,7 +487,7 @@ describe('#SCENARIOS API:: ', () => {
 		//reset config
 		delete config.recurrence;
 	});
-	it('should return SUCCESS when "CANCELTEST" finds running tasks and returns success', async() => {
+	it('should return SUCCESS when "CANCELTEST" finds running tasks and returns success', async () => {
 
 		mockLambda.mockImplementationOnce(() => {
 			return {
@@ -509,16 +510,16 @@ describe('#SCENARIOS API:: ', () => {
 		expect(response).toEqual("test cancelling");
 
 	});
-	it('should return SUCCESS when "SCHEDULETEST" returns success and scheduleStep is "create"', async() => {
+	it('should return SUCCESS when "SCHEDULETEST" returns success and scheduleStep is "create"', async () => {
 		config.scheduleStep = 'create';
 		config.recurrence = 'daily';
-		eventInput = {body: JSON.stringify(config)};
-		
+		eventInput = { body: JSON.stringify(config) };
+
 		mockCloudWatchEvents.mockImplementationOnce(() => {
 			return {
 				promise() {
 					//listRule
-					return Promise.resolve({Rules: []});
+					return Promise.resolve({ Rules: [] });
 				}
 			}
 		});
@@ -565,16 +566,16 @@ describe('#SCENARIOS API:: ', () => {
 		delete config.recurrence;
 		delete config.scheduleStep;
 	});
-	it('should return SUCCESS and record proper next daily run when "SCHEDULETEST" returns success when scheduleStep is start and recurrence exists', async() => {
+	it('should return SUCCESS and record proper next daily run when "SCHEDULETEST" returns success when scheduleStep is start and recurrence exists', async () => {
 		config.scheduleStep = 'start';
 		config.recurrence = 'daily';
-		eventInput = {body: JSON.stringify(config)};
+		eventInput = { body: JSON.stringify(config) };
 
 		mockCloudWatchEvents.mockImplementationOnce(() => {
 			return {
 				promise() {
 					//listRule
-					return Promise.resolve({Rules: []});
+					return Promise.resolve({ Rules: [] });
 				}
 			}
 		});
@@ -582,7 +583,7 @@ describe('#SCENARIOS API:: ', () => {
 			return {
 				promise() {
 					//putRule
-					return Promise.resolve({RuleArn: 'arn:of:rule/123'});
+					return Promise.resolve({ RuleArn: 'arn:of:rule/123' });
 				}
 			}
 		});
@@ -645,10 +646,10 @@ describe('#SCENARIOS API:: ', () => {
 		delete config.recurrence;
 		delete config.scheduleStep;
 	});
-	it('should return SUCCESS and record proper next weekly run when "SCHEDULETEST" returns success withe scheduleStep is start and recurrence exists', async() => {
+	it('should return SUCCESS and record proper next weekly run when "SCHEDULETEST" returns success withe scheduleStep is start and recurrence exists', async () => {
 		config.scheduleStep = 'start';
 		config.recurrence = 'weekly';
-		eventInput = {body: JSON.stringify(config)};
+		eventInput = { body: JSON.stringify(config) };
 
 
 		mockCloudWatchEvents.mockImplementationOnce(() => {
@@ -687,7 +688,7 @@ describe('#SCENARIOS API:: ', () => {
 			return {
 				promise() {
 					//putRule
-					return Promise.resolve({RuleArn: 'arn:of:rule/123'});
+					return Promise.resolve({ RuleArn: 'arn:of:rule/123' });
 				}
 			}
 		});
@@ -750,16 +751,16 @@ describe('#SCENARIOS API:: ', () => {
 		delete config.recurrence;
 		delete config.scheduleStep;
 	});
-	it('should return SUCCESS and record proper next biweekly run when "SCHEDULETEST" returns success withe scheduleStep is start and recurrence exists', async() => {
+	it('should return SUCCESS and record proper next biweekly run when "SCHEDULETEST" returns success withe scheduleStep is start and recurrence exists', async () => {
 		config.scheduleStep = 'start';
 		config.recurrence = 'biweekly';
-		eventInput = {body: JSON.stringify(config)};
+		eventInput = { body: JSON.stringify(config) };
 
 		mockCloudWatchEvents.mockImplementationOnce(() => {
 			return {
 				promise() {
 					//listRule
-					return Promise.resolve({Rules: []});
+					return Promise.resolve({ Rules: [] });
 				}
 			}
 		});
@@ -767,7 +768,7 @@ describe('#SCENARIOS API:: ', () => {
 			return {
 				promise() {
 					//putRule
-					return Promise.resolve({RuleArn: 'arn:of:rule/123'});
+					return Promise.resolve({ RuleArn: 'arn:of:rule/123' });
 				}
 			}
 		});
@@ -830,16 +831,16 @@ describe('#SCENARIOS API:: ', () => {
 		delete config.recurrence;
 		delete config.scheduleStep;
 	});
-	it('should return SUCCESS and record proper next monthly run when "SCHEDULETEST" returns success and scheduleStep is start and recurrence exists', async() => {
+	it('should return SUCCESS and record proper next monthly run when "SCHEDULETEST" returns success and scheduleStep is start and recurrence exists', async () => {
 		config.scheduleStep = 'start';
 		config.recurrence = 'monthly';
-		eventInput = {body: JSON.stringify(config)};
+		eventInput = { body: JSON.stringify(config) };
 
 		mockCloudWatchEvents.mockImplementationOnce(() => {
 			return {
 				promise() {
 					//listRule
-					return Promise.resolve({Rules: []});
+					return Promise.resolve({ Rules: [] });
 				}
 			}
 		});
@@ -847,7 +848,7 @@ describe('#SCENARIOS API:: ', () => {
 			return {
 				promise() {
 					//putRule
-					return Promise.resolve({RuleArn: 'arn:of:rule/123'});
+					return Promise.resolve({ RuleArn: 'arn:of:rule/123' });
 				}
 			}
 		});
@@ -910,15 +911,15 @@ describe('#SCENARIOS API:: ', () => {
 		delete config.recurrence;
 		delete config.scheduleStep;
 	});
-	it('should return SUCCESS, and records proper nextRun when "SCHEDULETEST" returns success withe scheduleStep is start and no recurrence', async() => {
+	it('should return SUCCESS, and records proper nextRun when "SCHEDULETEST" returns success withe scheduleStep is start and no recurrence', async () => {
 		config.scheduleStep = 'start';
-		eventInput = {body: JSON.stringify(config)};
+		eventInput = { body: JSON.stringify(config) };
 
 		mockCloudWatchEvents.mockImplementationOnce(() => {
 			return {
 				promise() {
 					//listRule
-					return Promise.resolve({Rules: []});
+					return Promise.resolve({ Rules: [] });
 				}
 			}
 		});
@@ -926,7 +927,7 @@ describe('#SCENARIOS API:: ', () => {
 			return {
 				promise() {
 					//putRule
-					return Promise.resolve({RuleArn: 'arn:of:rule/123'});
+					return Promise.resolve({ RuleArn: 'arn:of:rule/123' });
 				}
 			}
 		});
@@ -1053,7 +1054,7 @@ describe('#SCENARIOS API:: ', () => {
 					return Promise.resolve();
 				}
 			};
-		});	
+		});
 
 		mockCloudWatchEvents.mockImplementationOnce(() => {
 			return {
@@ -1109,7 +1110,7 @@ describe('#SCENARIOS API:: ', () => {
 					return Promise.resolve();
 				}
 			};
-		});	
+		});
 
 		mockCloudWatchEvents.mockImplementationOnce(() => {
 			return {
@@ -1139,7 +1140,7 @@ describe('#SCENARIOS API:: ', () => {
 			expect(error).toEqual('METRICS ERROR');
 		}
 	});
-  	it('should return "STEP FUNCTIONS ERROR" when "CREATETEST" fails', async () => {
+	it('should return "STEP FUNCTIONS ERROR" when "CREATETEST" fails', async () => {
 		mockS3.mockImplementation(() => {
 			return {
 				promise() {
@@ -1204,7 +1205,7 @@ describe('#SCENARIOS API:: ', () => {
 		} catch (error) {
 			expect(error.code).toEqual('InvalidParameter');
 		}
-		
+
 		//reset config
 		config.taskCount = "4";
 	});
@@ -1238,7 +1239,7 @@ describe('#SCENARIOS API:: ', () => {
 		} catch (error) {
 			expect(error.code).toEqual('InvalidParameter');
 		}
-		
+
 		//reset config
 		config.testScenario.execution[0]["hold-for"] = "1m";
 	});
@@ -1276,30 +1277,30 @@ describe('#SCENARIOS API:: ', () => {
 		//reset config
 		delete config.recurrence;
 	});
-	it('should return InvalidParameter when "SCHEDULETEST" fails due to invalid recurrence', async() => {
+	it('should return InvalidParameter when "SCHEDULETEST" fails due to invalid recurrence', async () => {
 		config.scheduleStep = 'start';
 		config.recurrence = 'invalid';
-		eventInput = {body: JSON.stringify(config)};
+		eventInput = { body: JSON.stringify(config) };
 
 		mockCloudWatchEvents.mockImplementationOnce(() => {
 			return {
 				promise() {
 					//listRule
-					return Promise.resolve({Rules: []});
+					return Promise.resolve({ Rules: [] });
 				}
 			}
 		});
 
-		try{
+		try {
 			await lambda.scheduleTest(eventInput, context)
-		} catch(error) {
+		} catch (error) {
 			expect(error.code).toEqual("InvalidParameter");
 		}
 		//reset config
 		delete config.recurrence
 		delete config.scheduleStep
 	});
-	it('should return "DB ERROR" when CANCELTEST fails', async() => {
+	it('should return "DB ERROR" when CANCELTEST fails', async () => {
 
 		mockLambda.mockImplementationOnce(() => {
 			return {
@@ -1318,13 +1319,13 @@ describe('#SCENARIOS API:: ', () => {
 			};
 		});
 
-		try{
+		try {
 			await lambda.cancelTest(testId)
-		} catch(error) {
+		} catch (error) {
 			expect(error).toEqual("DB ERROR");
 		}
 	});
-	it('should return "ECS ERROR" when listTasks fails', async() => {
+	it('should return "ECS ERROR" when listTasks fails', async () => {
 
 		mockEcs.mockImplementationOnce(() => {
 			return {
@@ -1335,9 +1336,9 @@ describe('#SCENARIOS API:: ', () => {
 			}
 		});
 
-		try{
+		try {
 			await lambda.listTasks()
-		} catch(error) {
+		} catch (error) {
 			expect(error).toEqual("ECS ERROR");
 		}
 	});

@@ -15,7 +15,7 @@ const mockLambda = {
   invoke: jest.fn()
 };
 mockAWS.ECS = jest.fn(() => ({
-	listTasks: mockEcs.listTasks,
+  listTasks: mockEcs.listTasks,
   describeTasks: mockEcs.describeTasks,
   stopTask: mockEcs.stopTask
 }));
@@ -30,7 +30,7 @@ process.env = {
   TASK_CLUSTER: 'mock-task-cluster',
   SCENARIOS_TABLE: 'mock-scenario-table',
   TASK_CANCELER_ARN: 'mock-task-canceler-arn',
-  VERSION: '1.3.0',
+  VERSION: '2.0.1',
   SOLUTION_ID: 'SO0062'
 };
 
@@ -69,7 +69,7 @@ describe('task-status-cheker', () => {
     mockEcs.listTasks.mockImplementationOnce(() => {
       return {
         promise() {
-          return Promise.resolve({ taskArns: [ 'arn:of:ecs:task' ] });
+          return Promise.resolve({ taskArns: ['arn:of:ecs:task'] });
         }
       };
     });
@@ -83,7 +83,7 @@ describe('task-status-cheker', () => {
 
     const response = await lambda.handler(event);
     expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
-    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: [ 'arn:of:ecs:task' ] });
+    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task'] });
     expect(response).toEqual({
       scenario: event.scenario,
       isRunning: false,
@@ -96,13 +96,13 @@ describe('task-status-cheker', () => {
     mockEcs.listTasks.mockImplementationOnce(() => {
       return {
         promise() {
-          return Promise.resolve({ taskArns: [ 'arn:of:ecs:task1' ], nextToken: 'next' });
+          return Promise.resolve({ taskArns: ['arn:of:ecs:task1'], nextToken: 'next' });
         }
       };
     }).mockImplementationOnce(() => {
       return {
         promise() {
-          return Promise.resolve({ taskArns: [ 'arn:of:ecs:task2' ] });
+          return Promise.resolve({ taskArns: ['arn:of:ecs:task2'] });
         }
       };
     });
@@ -123,8 +123,8 @@ describe('task-status-cheker', () => {
     const response = await lambda.handler(event);
     expect(mockEcs.listTasks).toHaveBeenNthCalledWith(1, { cluster: process.env.TASK_CLUSTER });
     expect(mockEcs.listTasks).toHaveBeenNthCalledWith(2, { cluster: process.env.TASK_CLUSTER, nextToken: 'next' });
-    expect(mockEcs.describeTasks).toHaveBeenNthCalledWith(1, { cluster: process.env.TASK_CLUSTER, tasks: [ 'arn:of:ecs:task1' ], });
-    expect(mockEcs.describeTasks).toHaveBeenNthCalledWith(2, { cluster: process.env.TASK_CLUSTER, tasks: [ 'arn:of:ecs:task2' ], });
+    expect(mockEcs.describeTasks).toHaveBeenNthCalledWith(1, { cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task1'], });
+    expect(mockEcs.describeTasks).toHaveBeenNthCalledWith(2, { cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task2'], });
     expect(response).toEqual({
       scenario: event.scenario,
       isRunning: false,
@@ -137,7 +137,7 @@ describe('task-status-cheker', () => {
     mockEcs.listTasks.mockImplementationOnce(() => {
       return {
         promise() {
-          return Promise.resolve({ taskArns: [ 'arn:of:ecs:task' ] });
+          return Promise.resolve({ taskArns: ['arn:of:ecs:task'] });
         }
       };
     });
@@ -151,7 +151,7 @@ describe('task-status-cheker', () => {
 
     const response = await lambda.handler(event);
     expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
-    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: [ 'arn:of:ecs:task' ] });
+    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task'] });
     expect(response).toEqual({
       scenario: event.scenario,
       isRunning: true,
@@ -186,7 +186,7 @@ describe('task-status-cheker', () => {
     mockEcs.listTasks.mockImplementation(() => {
       return {
         promise() {
-          return Promise.resolve({ taskArns: [ 'arn:of:ecs:task1', 'arn:of:ecs:task2' ] });
+          return Promise.resolve({ taskArns: ['arn:of:ecs:task1', 'arn:of:ecs:task2'] });
         }
       };
     });
@@ -200,7 +200,7 @@ describe('task-status-cheker', () => {
 
     const response = await lambda.handler(event);
     expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
-    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: [ 'arn:of:ecs:task1', 'arn:of:ecs:task2' ] });
+    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task1', 'arn:of:ecs:task2'] });
     expect(response).toEqual({
       scenario: event.scenario,
       isRunning: true,
@@ -215,7 +215,7 @@ describe('task-status-cheker', () => {
     mockEcs.listTasks.mockImplementation(() => {
       return {
         promise() {
-          return Promise.resolve({ taskArns: [ 'arn:of:ecs:task1' ] });
+          return Promise.resolve({ taskArns: ['arn:of:ecs:task1'] });
         }
       };
     });
@@ -229,7 +229,7 @@ describe('task-status-cheker', () => {
 
     const response = await lambda.handler(event);
     expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
-    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: [ 'arn:of:ecs:task1' ] });
+    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task1'] });
     expect(response).toEqual({
       scenario: event.scenario,
       isRunning: true,
@@ -244,7 +244,7 @@ describe('task-status-cheker', () => {
     mockEcs.listTasks.mockImplementation(() => {
       return {
         promise() {
-          return Promise.resolve({ taskArns: [ 'arn:of:ecs:task1' ] });
+          return Promise.resolve({ taskArns: ['arn:of:ecs:task1'] });
         }
       };
     });
@@ -266,11 +266,11 @@ describe('task-status-cheker', () => {
     event.timeoutCount = 1;
     const response = await lambda.handler(event);
     expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
-    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: [ 'arn:of:ecs:task1' ] });
-    expect(mockLambda.invoke).toHaveBeenCalledWith({ 
-      FunctionName: process.env.TASK_CANCELER_ARN, 
-      InvocationType: 'Event', 
-      Payload: JSON.stringify({testId: 'xyz'})
+    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task1'] });
+    expect(mockLambda.invoke).toHaveBeenCalledWith({
+      FunctionName: process.env.TASK_CANCELER_ARN,
+      InvocationType: 'Event',
+      Payload: JSON.stringify({ testId: 'xyz' })
     });
     expect(response).toEqual({
       scenario: event.scenario,
@@ -325,7 +325,7 @@ describe('task-status-cheker', () => {
     mockEcs.listTasks.mockImplementationOnce(() => {
       return {
         promise() {
-          return Promise.resolve({ taskArns: [ 'arn:of:ecs:task' ] });
+          return Promise.resolve({ taskArns: ['arn:of:ecs:task'] });
         }
       };
     });
@@ -348,7 +348,7 @@ describe('task-status-cheker', () => {
       await lambda.handler(event);
     } catch (error) {
       expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
-      expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: [ 'arn:of:ecs:task' ] });
+      expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task'] });
       expect(mockDynamoDb.update).toHaveBeenCalledWith({
         TableName: process.env.SCENARIOS_TABLE,
         Key: {
@@ -372,7 +372,7 @@ describe('task-status-cheker', () => {
     mockEcs.listTasks.mockImplementationOnce(() => {
       return {
         promise() {
-          return Promise.resolve({ taskArns: [ 'arn:of:ecs:task' ] });
+          return Promise.resolve({ taskArns: ['arn:of:ecs:task'] });
         }
       };
     });
@@ -402,8 +402,8 @@ describe('task-status-cheker', () => {
       await lambda.handler(event);
     } catch (error) {
       expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
-      expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: [ 'arn:of:ecs:task' ] });
-      expect(mockLambda.invoke).toHaveBeenCalledWith({ 
+      expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task'] });
+      expect(mockLambda.invoke).toHaveBeenCalledWith({
         FunctionName: process.env.TASK_CANCELER_ARN,
         InvocationType: "Event",
         Payload: JSON.stringify({ testId: 'xyz' })
