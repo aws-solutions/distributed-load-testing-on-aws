@@ -4,25 +4,25 @@
 // Mock AWS SDK
 const mockAWS = require('aws-sdk');
 const mockDynamoDb = {
-	update: jest.fn()
+    update: jest.fn()
 };
 const mockEcs = {
-	listTasks: jest.fn(), 
-	stopTask: jest.fn()
+    listTasks: jest.fn(),
+    stopTask: jest.fn()
 };
 
 mockAWS.ECS = jest.fn(() => ({
-	listTasks: mockEcs.listTasks,
-	stopTask: mockEcs.stopTask
+    listTasks: mockEcs.listTasks,
+    stopTask: mockEcs.stopTask
 }));
 mockAWS.DynamoDB.DocumentClient = jest.fn(() => ({
-	update: mockDynamoDb.update
+    update: mockDynamoDb.update
 }));
 
 process.env = {
     TASK_CLUSTER: "arn:of:taskCluster",
     SCENARIOS_TABLE: "arn:of:scenariosTable",
-    VERSION: "1.3.0",
+    VERSION: "2.0.1",
     SOLUTION_ID: "sO0062"
 };
 
@@ -36,28 +36,28 @@ let event = {
 
 let listTasksResponse = (numTasks) => {
     let taskList = [];
-    for( i=0; i< numTasks; i++) {
+    for (i = 0; i < numTasks; i++) {
         taskList.push(`arn:of:task${i}`);
     }
-    return {taskArns: taskList};
+    return { taskArns: taskList };
 }
 
 describe('#TASK RUNNER:: ', () => {
-	beforeEach(() => {
-		mockEcs.stopTask.mockReset();
-		mockEcs.listTasks.mockReset();
-		mockDynamoDb.update.mockReset();
-	});
+    beforeEach(() => {
+        mockEcs.stopTask.mockReset();
+        mockEcs.listTasks.mockReset();
+        mockDynamoDb.update.mockReset();
+    });
 
-	it('Should return test canceled when there is less than 100 tasks to delete', async () => {
+    it('Should return test canceled when there is less than 100 tasks to delete', async () => {
         let listResponse = listTasksResponse(1);
         mockEcs.listTasks.mockImplementationOnce(() => {
-			return {
-				promise() {
-					return Promise.resolve(listResponse);
-				}
-			}
-		});
+            return {
+                promise() {
+                    return Promise.resolve(listResponse);
+                }
+            }
+        });
 
         mockEcs.stopTask.mockImplementationOnce(() => {
             return {
@@ -67,12 +67,12 @@ describe('#TASK RUNNER:: ', () => {
             }
         });
         mockEcs.listTasks.mockImplementationOnce(() => {
-			return {
-				promise() {
-					return Promise.resolve({taskArns: []});
-				}
-			}
-		});
+            return {
+                promise() {
+                    return Promise.resolve({ taskArns: [] });
+                }
+            }
+        });
 
         mockDynamoDb.update.mockImplementationOnce(() => {
             return {
@@ -81,27 +81,27 @@ describe('#TASK RUNNER:: ', () => {
                 }
             }
         });
-        
+
         const response = await lambda.handler(event);
-		expect(response).toEqual('test cancelled');
+        expect(response).toEqual('test cancelled');
     });
     it('Should return test canceled when and call listTasks multiple times when nextToken', async () => {
         let listResponse = listTasksResponse(1);
         mockEcs.listTasks.mockImplementationOnce(() => {
-			return {
-				promise() {
-					return Promise.resolve({taskArns: listResponse.taskArns, nextToken: "a1"});
-				}
-			}
-		});
+            return {
+                promise() {
+                    return Promise.resolve({ taskArns: listResponse.taskArns, nextToken: "a1" });
+                }
+            }
+        });
         delete listResponse.nextToken;
         mockEcs.listTasks.mockImplementationOnce(() => {
-			return {
-				promise() {
-					return Promise.resolve(listResponse);
-				}
-			}
-		});
+            return {
+                promise() {
+                    return Promise.resolve(listResponse);
+                }
+            }
+        });
 
         mockEcs.stopTask.mockImplementation(() => {
             return {
@@ -111,12 +111,12 @@ describe('#TASK RUNNER:: ', () => {
             }
         });
         mockEcs.listTasks.mockImplementationOnce(() => {
-			return {
-				promise() {
-					return Promise.resolve({taskArns: []});
-				}
-			}
-		});
+            return {
+                promise() {
+                    return Promise.resolve({ taskArns: [] });
+                }
+            }
+        });
 
         mockDynamoDb.update.mockImplementationOnce(() => {
             return {
@@ -125,29 +125,29 @@ describe('#TASK RUNNER:: ', () => {
                 }
             }
         });
-        
+
         const response = await lambda.handler(event);
 
-		expect(mockEcs.listTasks).toHaveBeenCalledTimes(3);
-		expect(response).toEqual('test cancelled');
+        expect(mockEcs.listTasks).toHaveBeenCalledTimes(3);
+        expect(response).toEqual('test cancelled');
     });
     it('Should return "test canceled" and wait between stopTask when more than 100 tasks', async () => {
         let listResponse = listTasksResponse(50);
         mockEcs.listTasks.mockImplementationOnce(() => {
-			return {
-				promise() {
-					return Promise.resolve({taskArns: listResponse.taskArns, nextToken: "a1"});
-				}
-			}
-		});
+            return {
+                promise() {
+                    return Promise.resolve({ taskArns: listResponse.taskArns, nextToken: "a1" });
+                }
+            }
+        });
         listResponseSecondCall = listTasksResponse(51);
         mockEcs.listTasks.mockImplementationOnce(() => {
-			return {
-				promise() {
-					return Promise.resolve(listResponseSecondCall);
-				}
-			}
-		});
+            return {
+                promise() {
+                    return Promise.resolve(listResponseSecondCall);
+                }
+            }
+        });
 
         mockEcs.stopTask.mockImplementation(() => {
             return {
@@ -157,12 +157,12 @@ describe('#TASK RUNNER:: ', () => {
             }
         });
         mockEcs.listTasks.mockImplementationOnce(() => {
-			return {
-				promise() {
-					return Promise.resolve({taskArns: []});
-				}
-			}
-		});
+            return {
+                promise() {
+                    return Promise.resolve({ taskArns: [] });
+                }
+            }
+        });
 
         mockDynamoDb.update.mockImplementationOnce(() => {
             return {
@@ -171,22 +171,22 @@ describe('#TASK RUNNER:: ', () => {
                 }
             }
         });
-        
+
         const response = await lambda.handler(event);
 
-		expect(mockEcs.stopTask).toHaveBeenCalledTimes(101);
-		expect(response).toEqual('test cancelled');
+        expect(mockEcs.stopTask).toHaveBeenCalledTimes(101);
+        expect(response).toEqual('test cancelled');
     });
     //negative tests
     it('Should return "test canceled" and wait between stopTask when more than 100 tasks', async () => {
         let listResponse = listTasksResponse(50);
         mockEcs.listTasks.mockImplementationOnce(() => {
-			return {
-				promise() {
-					return Promise.reject("List Tasks Error");
-				}
-			}
-		});
+            return {
+                promise() {
+                    return Promise.reject("List Tasks Error");
+                }
+            }
+        });
 
         mockEcs.stopTask.mockImplementation(() => {
             return {
@@ -196,12 +196,12 @@ describe('#TASK RUNNER:: ', () => {
             }
         });
         mockEcs.listTasks.mockImplementationOnce(() => {
-			return {
-				promise() {
-					return Promise.resolve({taskArns: []});
-				}
-			}
-		});
+            return {
+                promise() {
+                    return Promise.resolve({ taskArns: [] });
+                }
+            }
+        });
 
         mockDynamoDb.update.mockImplementationOnce(() => {
             return {

@@ -128,7 +128,10 @@ export class CognitoAuthConstruct extends Construct {
                                 's3:PutObject',
                                 's3:GetObject'
                             ],
-                            resources: [`${props.scenariosBucketArn}/public/*`]
+                            resources: [
+                                `${props.scenariosBucketArn}/public/*`,
+                                `${props.scenariosBucketArn}/cloudWatchImages/*`
+                            ]
                         })
                     ]
                 })

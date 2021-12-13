@@ -1409,20 +1409,36 @@ Object {
                     "s3:GetObject",
                   ],
                   "Effect": "Allow",
-                  "Resource": Object {
-                    "Fn::Join": Array [
-                      "",
-                      Array [
-                        Object {
-                          "Fn::GetAtt": Array [
-                            "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
-                            "Arn",
-                          ],
-                        },
-                        "/public/*",
+                  "Resource": Array [
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          Object {
+                            "Fn::GetAtt": Array [
+                              "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+                              "Arn",
+                            ],
+                          },
+                          "/public/*",
+                        ],
                       ],
-                    ],
-                  },
+                    },
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          Object {
+                            "Fn::GetAtt": Array [
+                              "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+                              "Arn",
+                            ],
+                          },
+                          "/cloudWatchImages/*",
+                        ],
+                      ],
+                    },
+                  ],
                 },
               ],
               "Version": "2012-10-17",

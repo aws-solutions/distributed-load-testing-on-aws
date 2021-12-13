@@ -13,9 +13,9 @@ if (SOLUTION_ID && VERSION && SOLUTION_ID.trim() && VERSION.trim()) {
 options.region = process.env.AWS_REGION;
 const dynamoDb = new AWS.DynamoDB.DocumentClient(options);
 const cloudwatch = new AWS.CloudWatch(options);
+const s3 = new AWS.S3(options);
 
-
-const ALPHA_NUMERIC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+const ALPHA_NUMERIC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 /**
  * Generates an unique ID based on the parameter length.
  * @param length The length of the unique ID
@@ -353,8 +353,20 @@ async function finalResults(testId, data, startTime, taskCount, testScenario, te
         };
         console.log(widget);
 
+        // Write the image to S3, store the object key in DDB
         const image = await cloudwatch.getMetricWidgetImage(cwParams).promise();
         const metricWidgetImage = Buffer.from(image.MetricWidgetImage).toString('base64');
+        const metricImageTitle = `${widget.title}-${widget.start}`;
+        const metricS3ObjectKey = `cloudwatch-images/${testId}/${metricImageTitle}`;
+        const s3PutObjectParams = {
+            Body: metricWidgetImage,
+            Bucket: process.env.SCENARIOS_BUCKET,
+            Key: `public/${metricS3ObjectKey}`,
+            ContentEncoding: 'base64',
+            ContentType: 'image/jpeg'
+        };
+        await s3.putObject(s3PutObjectParams).promise();
+
         const succPercent = ((testFinalResults.succ / testFinalResults.throughput) * 100).toFixed(2);
         const status = 'complete';
 
@@ -367,7 +379,7 @@ async function finalResults(testId, data, startTime, taskCount, testScenario, te
             status,
             succPercent,
             taskCount,
-            metricWidgetImage,
+            metricS3Location: metricS3ObjectKey,
             testScenario: thisTestScenario,
             testDescription,
             testType
@@ -377,11 +389,11 @@ async function finalResults(testId, data, startTime, taskCount, testScenario, te
             Key: {
                 testId: testId
             },
-            UpdateExpression: 'set #r = :r, #t = :t, #i = :i, #s = :s, #h = list_append(:h, if_not_exists(#h, :l)), #ct = :ct',
+            UpdateExpression: 'set #r = :r, #t = :t, #msl = :msl, #s = :s, #h = list_append(:h, if_not_exists(#h, :l)), #ct = :ct',
             ExpressionAttributeNames: {
                 '#r': 'results',
                 '#t': 'endTime',
-                '#i': 'metricWidgetImage',
+                '#msl': 'metricS3Location',
                 '#s': 'status',
                 '#h': 'history',
                 '#ct': 'completeTasks'
@@ -389,7 +401,7 @@ async function finalResults(testId, data, startTime, taskCount, testScenario, te
             ExpressionAttributeValues: {
                 ':r': testFinalResults,
                 ':t': endTime,
-                ':i': metricWidgetImage,
+                ':msl': metricS3ObjectKey,
                 ':s': status,
                 ':h': [history],
                 ':l': [],

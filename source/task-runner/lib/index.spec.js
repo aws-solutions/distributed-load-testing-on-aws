@@ -54,7 +54,7 @@ process.env = {
 	TASK_IMAGE: 'mock-task-image',
 	ECS_LOG_GROUP: 'mock-ecs-log-group',
 	SOLUTION_ID: 'SO0062',
-	VERSION: '1.3.0'
+	VERSION: '2.0.1'
 };
 
 const lambda = require('../index.js');

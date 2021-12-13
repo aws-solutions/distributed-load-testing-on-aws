@@ -22,7 +22,7 @@ const cloudwatchLogs = new AWS.CloudWatchLogs(options);
 const cloudwatchevents = new AWS.CloudWatchEvents(options);
 
 
-const ALPHA_NUMERIC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+const ALPHA_NUMERIC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 /**
  * Generates an unique ID based on the parameter length.
  * @param length The length of the unique ID
@@ -41,6 +41,7 @@ const listTests = async () => {
     console.log('List tests');
 
     try {
+        const response = { 'Items': [] };
         const params = {
             TableName: process.env.SCENARIOS_TABLE,
             AttributesToGet: [
@@ -53,7 +54,13 @@ const listTests = async () => {
                 'scheduleRecurrence'
             ],
         };
-        return await dynamoDB.scan(params).promise();
+        do {
+            const testScenarios = await dynamoDB.scan(params).promise();
+            response.Items.push(...testScenarios.Items);
+            params.ExclusiveStartKey = testScenarios.LastEvaluatedKey;
+        } while (params.ExclusiveStartKey);
+        return response;
+
     } catch (err) {
         throw err;
     }

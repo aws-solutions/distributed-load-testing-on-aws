@@ -4,6 +4,7 @@
 // Mock AWS SDK
 const mockDynamoDB = jest.fn();
 const mockCloudWatch = jest.fn();
+const mockS3 = jest.fn();
 const mockAWS = require('aws-sdk');
 mockAWS.CloudWatch = jest.fn(() => ({
 	getMetricWidgetImage: mockCloudWatch
@@ -11,6 +12,10 @@ mockAWS.CloudWatch = jest.fn(() => ({
 mockAWS.DynamoDB.DocumentClient = jest.fn(() => ({
 	update: mockDynamoDB,
 }));
+mockAWS.S3 = jest.fn(() => ({
+	putObject: mockS3
+}));
+
 
 // Mock xml-js
 const mockParse = jest.fn();
@@ -21,7 +26,7 @@ jest.mock('xml-js', () => {
 });
 
 process.env.SOLUTION_ID = 'SO0062';
-process.env.VERSION = '1.3.0';
+process.env.VERSION = '2.0.1';
 const lambda = require('./index.js');
 
 describe('#RESULTS PARSER::', () => {
@@ -238,6 +243,7 @@ describe('#RESULTS PARSER::', () => {
 		mockDynamoDB.mockReset();
 		mockCloudWatch.mockReset();
 		mockParse.mockReset();
+		mockS3.mockReset();
 	});
 
 	//Positive tests
@@ -327,6 +333,15 @@ describe('#RESULTS PARSER::', () => {
 			};
 		});
 
+		mockS3.mockImplementation(() => {
+			return {
+				promise() {
+					// putObject
+					return Promise.resolve();
+				}
+			};
+		});
+
 		const response = await lambda.finalResults(testId, finalData, startTime, taskCount, testScenario, testDescription);
 		expect(response).toEqual(finalAggregatedResult);
 	});
@@ -373,6 +388,15 @@ describe('#RESULTS PARSER::', () => {
 				promise() {
 					// getMetricWidgetImage
 					return Promise.resolve({ MetricWidgetImage: 'CloudWatchImage' });
+				}
+			};
+		});
+
+		mockS3.mockImplementation(() => {
+			return {
+				promise() {
+					// putObject
+					return Promise.resolve();
 				}
 			};
 		});
