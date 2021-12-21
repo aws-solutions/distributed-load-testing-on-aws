@@ -33,6 +33,11 @@ if [ "$TEST_TYPE" != "simple" ]; then
     fi
 
     sed -i -e "s|$TEST_ID.jmx|$JMETER_SCRIPT|g" test.json
+
+    # copy bundled plugin jars to jmeter extenstion folder to make them available to jmeter
+    JMETER_EXT_PATH=`find ~/.bzt/jmeter-taurus -type d -name "ext"`
+    BUNDLED_PLUGIN_DIR=`find $PWD -type d -name "plugins"`
+    cp -v $BUNDLED_PLUGIN_DIR/*.jar $JMETER_EXT_PATH
   fi
 fi
 
