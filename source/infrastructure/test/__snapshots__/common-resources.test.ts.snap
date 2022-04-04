@@ -191,10 +191,6 @@ Object {
               "id": "W35",
               "reason": "This is the logging bucket, it does not require logging.",
             },
-            Object {
-              "id": "W51",
-              "reason": "Since the bucket does not allow the public access, it does not require to have bucket policy.",
-            },
           ],
         },
       },
@@ -224,6 +220,53 @@ Object {
       },
       "Type": "AWS::S3::Bucket",
       "UpdateReplacePolicy": "Retain",
+    },
+    "TestCommonResourcesLogsBucketPolicyAB18A08E": Object {
+      "Properties": Object {
+        "Bucket": Object {
+          "Ref": "TestCommonResourcesLogsBucket5B4DBD4F",
+        },
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "s3:*",
+              "Condition": Object {
+                "Bool": Object {
+                  "aws:SecureTransport": "false",
+                },
+              },
+              "Effect": "Deny",
+              "Principal": Object {
+                "AWS": "*",
+              },
+              "Resource": Array [
+                Object {
+                  "Fn::GetAtt": Array [
+                    "TestCommonResourcesLogsBucket5B4DBD4F",
+                    "Arn",
+                  ],
+                },
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      Object {
+                        "Fn::GetAtt": Array [
+                          "TestCommonResourcesLogsBucket5B4DBD4F",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
     },
     "TestCommonResourcesUUIDFDB821D1": Object {
       "DeletionPolicy": "Delete",
