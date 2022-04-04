@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.2] - 2022-03-31
+
+### Added
+
+- Enabled encryption in transit for the logging S3 bucket.
+
 ## [2.0.1] - 2021-12-13
 
 Version 2.0.1 supports upgrading from version 2.0.0 but not from version 1.3.0 and below
@@ -58,14 +64,14 @@ Version 2.0.0 does not support upgrading from previous versions.
   - Added StartedBy tag to tasks for use by task listing functions
   - Modified all ECS task listing functions to support listing 1000 tasks
   - Modified TaskRunning lambda function to support being called multiple times from step functions
-- Tests start simultaneously 
+- Tests start simultaneously
   - Added ecscontroller.py to container package
   - Added ecslistener.py to container package
   - TaskRunner lambda launches worker tasks first, then leader task once workers are running
 - Run tests concurrently
   - Removed disabling of submit buttons if there is a test running
   - Unbuffered bzt output and added test Id to CloudWatch logs for access to test specific logs
-- Added support for Docker Hub login 
+- Added support for Docker Hub login
   - Added Secrets manager parameter to include secret containing Docker Hub credentials
 - Included more metrics
   - Added virtual users, failures, and successes to graph

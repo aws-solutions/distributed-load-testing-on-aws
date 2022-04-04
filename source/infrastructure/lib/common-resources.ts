@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { Aws, CfnCondition, CfnCustomResource, CfnResource, Construct, CustomResource, Duration, RemovalPolicy, Stack, Tags } from '@aws-cdk/core';
 import { BlockPublicAccess, Bucket, BucketAccessControl, BucketEncryption, IBucket } from '@aws-cdk/aws-s3';
-import { Effect, Policy, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from '@aws-cdk/aws-iam';
+import { AnyPrincipal, Effect, Policy, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from '@aws-cdk/aws-iam';
 import { Code, Function as LambdaFunction, Runtime } from '@aws-cdk/aws-lambda';
 
 /**
@@ -77,14 +77,23 @@ export class CommonResourcesContruct extends Construct {
     });
     Tags.of(this.s3LogsBucket).add('SolutionId', props.solutionId);
 
+    this.s3LogsBucket.addToResourcePolicy(
+      new PolicyStatement({
+        actions: ['s3:*'],
+        conditions: {
+          Bool: { 'aws:SecureTransport': 'false' }
+        },
+        effect: Effect.DENY,
+        principals: [new AnyPrincipal()],
+        resources: [this.s3LogsBucket.bucketArn, this.s3LogsBucket.arnForObjects('*')]
+      })
+    );
+
     const s3LogsBucketResource = this.s3LogsBucket.node.defaultChild as CfnResource;
     s3LogsBucketResource.addMetadata('cfn_nag', {
       rules_to_suppress: [{
         id: 'W35',
         reason: 'This is the logging bucket, it does not require logging.'
-      }, {
-        id: 'W51',
-        reason: 'Since the bucket does not allow the public access, it does not require to have bucket policy.'
       }]
     })
 
