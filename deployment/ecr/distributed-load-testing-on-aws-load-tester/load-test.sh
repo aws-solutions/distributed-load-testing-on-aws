@@ -35,7 +35,7 @@ if [ "$TEST_TYPE" != "simple" ]; then
     sed -i -e "s|$TEST_ID.jmx|$JMETER_SCRIPT|g" test.json
 
     # copy bundled plugin jars to jmeter extension folder to make them available to jmeter
-    BUNDLED_PLUGIN_DIR=`find $PWD -maxdepth 1 -type d -name "plugins"`
+    BUNDLED_PLUGIN_DIR=`find $PWD -type d -name "plugins" | head -n 1`
     # attempt to copy only if a /plugins folder is present in upload
     if [ -z "$BUNDLED_PLUGIN_DIR" ]; then
       echo "skipping plugin installation (no /plugins folder in upload)"
