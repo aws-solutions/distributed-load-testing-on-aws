@@ -33,6 +33,22 @@ if [ "$TEST_TYPE" != "simple" ]; then
     fi
 
     sed -i -e "s|$TEST_ID.jmx|$JMETER_SCRIPT|g" test.json
+
+    # copy bundled plugin jars to jmeter extension folder to make them available to jmeter
+    BUNDLED_PLUGIN_DIR=`find $PWD -type d -name "plugins" | head -n 1`
+    # attempt to copy only if a /plugins folder is present in upload
+    if [ -z "$BUNDLED_PLUGIN_DIR" ]; then
+      echo "skipping plugin installation (no /plugins folder in upload)"
+    else
+      # ensure the jmeter extensions folder exists
+      JMETER_EXT_PATH=`find ~/.bzt/jmeter-taurus -type d -name "ext"`
+      if [ -z "$JMETER_EXT_PATH" ]; then
+        # fail fast - if plugins bundled they will be needed for the tests
+        echo "jmeter extension path (~/.bzt/jmeter-taurus/**/ext) not found - cannot install bundled plugins"
+        exit 1
+      fi
+      cp -v $BUNDLED_PLUGIN_DIR/*.jar $JMETER_EXT_PATH
+    fi
   fi
 fi
 
