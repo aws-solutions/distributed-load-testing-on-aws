@@ -176,8 +176,9 @@ exports.handler = async (event, context) => {
                     if (item.name === 'SCRIPT') item.value = "ecscontroller.py";
                 });
                 leaderParams.overrides.containerOverrides[0].environment.push(
-                    { name: "WORKERNUM", value: workerNum++ }
+                    { name: "WORKERNUM", value: `${workerNum}` }
                 )
+                workerNum++;
 
                 //run leader node task
                 console.log('STARTING LEADER NODE AND RUNNING TESTS');
@@ -189,19 +190,22 @@ exports.handler = async (event, context) => {
                 console.log('Starting Task');
                 params.overrides.containerOverrides[0].environment.pop();
                 params.overrides.containerOverrides[0].environment.push(
-                    { name: "WORKERNUM", value: workerNum++ }
+                    { name: "WORKERNUM", value: `${workerNum}` }
                 )
+                workerNum++;
                 await ecs.runTask(params).promise();
                 runTaskCount -= 1;
             }
         } else {
             //function to run workers, and keep track of amount run
             let launchWorkers = async (runTaskCount, workerNum, params) => {
+                const count = 1;
                 let taskParams = Object.assign({}, params);
-                taskParams.count = 1;
+                taskParams.count = count;
                 params.overrides.containerOverrides[0].environment.push(
-                    { name: "WORKERNUM", value: workerNum++ }
+                    { name: "WORKERNUM", value: `${workerNum}` }
                 )
+                workerNum++;
                 //run tasks
                 console.log(`STARTING ${count} WORKER TASKS`);
                 runTaskResponse = await ecs.runTask(taskParams).promise();
