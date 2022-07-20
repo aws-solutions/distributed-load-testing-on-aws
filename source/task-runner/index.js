@@ -20,6 +20,7 @@ exports.handler = async (event, context) => {
     const { testId, taskCount, testType, fileType } = scenario;
     const API_INTERVAL = parseFloat(process.env.API_INTERVAL) || 10;
     let runTaskCount = event.taskRunner ? event.taskRunner.runTaskCount : taskCount;
+    let workerNum = event.taskRunner ? event.taskRunner.workerNum : 1;
     let timeRemaining;
     let isRunning = true;
 
@@ -174,6 +175,9 @@ exports.handler = async (event, context) => {
                 leaderParams.overrides.containerOverrides[0].environment.forEach(item => {
                     if (item.name === 'SCRIPT') item.value = "ecscontroller.py";
                 });
+                leaderParams.overrides.containerOverrides[0].environment.push(
+                    { name: "WORKERNUM", value: workerNum++ }
+                )
 
                 //run leader node task
                 console.log('STARTING LEADER NODE AND RUNNING TESTS');
@@ -184,16 +188,20 @@ exports.handler = async (event, context) => {
                 params.count = runTaskCount;
                 console.log('Starting Task');
                 params.overrides.containerOverrides[0].environment.pop();
+                params.overrides.containerOverrides[0].environment.push(
+                    { name: "WORKERNUM", value: workerNum++ }
+                )
                 await ecs.runTask(params).promise();
                 runTaskCount -= 1;
             }
         } else {
             //function to run workers, and keep track of amount run
-            let launchWorkers = async (runTaskCount, params) => {
-                //adjust parameters if less than 10
-                const count = runTaskCount > 10 ? 10 : runTaskCount - 1;
-                let taskParams = count >= 10 ? params : Object.assign({}, params);
-                taskParams.count = count;
+            let launchWorkers = async (runTaskCount, workerNum, params) => {
+                let taskParams = Object.assign({}, params);
+                taskParams.count = 1;
+                params.overrides.containerOverrides[0].environment.push(
+                    { name: "WORKERNUM", value: workerNum++ }
+                )
                 //run tasks
                 console.log(`STARTING ${count} WORKER TASKS`);
                 runTaskResponse = await ecs.runTask(taskParams).promise();
@@ -209,7 +217,7 @@ exports.handler = async (event, context) => {
             };
             do {
                 //run tasks
-                runTaskCount = await launchWorkers(runTaskCount, params);
+                runTaskCount = await launchWorkers(runTaskCount, workerNum, params);
 
                 //get time left 
                 timeRemaining = context.getRemainingTimeInMillis();
@@ -255,7 +263,7 @@ exports.handler = async (event, context) => {
             } while (runTaskCount > 1 && parseInt(timeRemaining, 10) > 60000); //end if out of time or no tasks left
         }
         console.log('success');
-        return { scenario, prefix, isRunning, taskRunner: { runTaskCount, taskIds } };
+        return { scenario, prefix, isRunning, taskRunner: { runTaskCount, taskIds, workerNum } };
     } catch (err) {
         console.error(err);
 
