@@ -6,7 +6,7 @@ if [ "$ALP_AWS_ACCESS_ID" == "" ]; then
     echo "You have not configured your aws credentials. Please configure them now."
     printf "AWS access id: " && read ALP_AWS_ACCESS_ID
     printf "AWS secret key: " && read ALP_AWS_SECRET_KEY
-    printf "AWS region [us-east-2]: " && read ALP_AWS_REGION
+    printf "AWS region [us-east-1]: " && read ALP_AWS_REGION
     if [ "$ALP_AWS_ACCESS_ID" = "" ] || [ "$ALP_AWS_SECRET_KEY" = "" ]; then
         echo "Invalid keys. Skipping setup"
         exit 0
