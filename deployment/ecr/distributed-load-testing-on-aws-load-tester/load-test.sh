@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # set a uuid for the results xml file name in S3
-#UUID=$(cat /proc/sys/kernel/random/uuid)
-UUID=$WORKERNUM
+UUID=$(cat /proc/sys/kernel/random/uuid)
+#UUID=$WORKERNUM
 
 echo "S3_BUCKET:: ${S3_BUCKET}"
 echo "TEST_ID:: ${TEST_ID}"
@@ -18,7 +18,7 @@ TEST_TYPE=custom
 
 if [ "$TEST_TYPE" = "custom" ]; then
   echo "WORKER: $WORKERNUM" > /tmp/setup.log
-  ./setup-env.sh >> /tmp/setup.log
+  ./setup-env.sh >>/tmp/setup.log 2>&1
   RES=$?
   echo "RETURN VALUE $RES" >> /tmp/setup.log
   aws s3 cp /tmp/setup.log s3://$S3_BUCKET/results/${TEST_ID}/SetupLogs/${PREFIX}-${UUID}.log
