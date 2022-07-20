@@ -86,7 +86,7 @@ export class FargateECSTestRunnerContruct extends Construct {
                 {
                     essential: true,
                     name: `${Aws.STACK_NAME}-load-tester`,
-                    image: 'PUBLIC_ECR_REGISTRY/distributed-load-testing-on-aws-load-tester:PUBLIC_ECR_TAG',
+                    image: 'PUBLIC_ECR_REGISTRY:PUBLIC_ECR_TAG',
                     memory: 4096,
                     logConfiguration: {
                         logDriver: 'awslogs',
