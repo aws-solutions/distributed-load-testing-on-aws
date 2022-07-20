@@ -2,6 +2,7 @@
 
 set -eux
 
+unset PREFIX
 export NVM_DIR="/root/.nvm"
 mkdir -p "$NVM_DIR"
 curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
