@@ -8,5 +8,5 @@ import { DLTStack } from '../lib/distributed-load-testing-on-aws-stack';
 
 const app = new cdk.App();
 new DLTStack(app, 'DLTStack', {
-    description: '(SO0062) - Distributed Load Testing on AWS is a reference architecture to perform application load testing at scale. Version CODE_VERSION'
+    description: 'Distributed Load Testing for Pulse-ALP. Version CODE_VERSION'
 });
