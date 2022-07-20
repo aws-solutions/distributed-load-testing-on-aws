@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # set a uuid for the results xml file name in S3
-UUID=$(cat /proc/sys/kernel/random/uuid)
+#UUID=$(cat /proc/sys/kernel/random/uuid)
+UUID=$WORKERNUM
 
 echo "S3_BUCKET:: ${S3_BUCKET}"
 echo "TEST_ID:: ${TEST_ID}"
@@ -13,8 +14,17 @@ echo "UUID ${UUID}"
 echo "Download test scenario"
 aws s3 cp s3://$S3_BUCKET/test-scenarios/$TEST_ID.json test.json
 
-# download JMeter jmx file
-if [ "$TEST_TYPE" != "simple" ]; then
+TEST_TYPE=custom
+
+if [ "$TEST_TYPE" = "custom" ]; then
+  echo "WORKER: $WORKERNUM" > /tmp/setup.log
+  ./setup-env.sh >> /tmp/setup.log
+  RES=$?
+  echo "RETURN VALUE $RES" >> /tmp/setup.log
+  aws s3 cp /tmp/setup.log s3://$S3_BUCKET/results/${TEST_ID}/SetupLogs/${PREFIX}-${UUID}.log
+  exit 0
+elif [ "$TEST_TYPE" = "jmeter" ]; then
+  # download JMeter jmx file
   # Copy *.jar to JMeter library path. See the Taurus JMeter path: https://gettaurus.org/docs/JMeter/
   JMETER_LIB_PATH=`find ~/.bzt/jmeter-taurus -type d -name "lib"`
   echo "cp $PWD/*.jar $JMETER_LIB_PATH"
