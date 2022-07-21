@@ -17,11 +17,22 @@ aws s3 cp s3://$S3_BUCKET/test-scenarios/$TEST_ID.json test.json
 TEST_TYPE=custom
 
 if [ "$TEST_TYPE" = "custom" ]; then
-  echo "WORKER: $WORKERNUM" > /tmp/setup.log
+  echo "S3_BUCKET:: ${S3_BUCKET}" >> /tmp/setup.log
+  echo "TEST_ID:: ${TEST_ID}" >> /tmp/setup.log
+  echo "TEST_TYPE:: ${TEST_TYPE}" >> /tmp/setup.log
+  echo "FILE_TYPE:: ${FILE_TYPE}" >> /tmp/setup.log
+  echo "PREFIX:: ${PREFIX}" >> /tmp/setup.log
+  echo "UUID ${UUID}" >> /tmp/setup.log
+  echo "WORKER: $WORKERNUM" >> /tmp/setup.log
   ./setup-env.sh >>/tmp/setup.log 2>&1
   RES=$?
   echo "RETURN VALUE $RES" >> /tmp/setup.log
   aws s3 cp /tmp/setup.log s3://$S3_BUCKET/results/${TEST_ID}/SetupLogs/${PREFIX}-${UUID}.log
+  if [ -z "$IPNETWORK" ]; then
+      python3 $SCRIPT
+  else 
+      python3 $SCRIPT $IPNETWORK $IPHOSTS
+  fi
   exit 0
 elif [ "$TEST_TYPE" = "jmeter" ]; then
   # download JMeter jmx file
