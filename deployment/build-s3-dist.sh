@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # This assumes all of the OS-level configuration has been completed and git repo has already been cloned
 #
@@ -27,109 +27,122 @@ set -e
 
 # Get reference for all important folders
 template_dir="$PWD"
-template_dist_dir="$template_dir/global-s3-assets"
-build_dist_dir="$template_dir/regional-s3-assets"
-source_dir="$template_dir/../source"
+template_dist_dir="${template_dir}/global-s3-assets"
+build_dist_dir="${template_dir}/regional-s3-assets"
+source_dir="${template_dir}/../source"
 
 echo "------------------------------------------------------------------------------"
 echo "Rebuild distribution"
 echo "------------------------------------------------------------------------------"
-rm -rf $template_dist_dir
-mkdir -p $template_dist_dir
-rm -rf $build_dist_dir
-mkdir -p $build_dist_dir
+rm -rf ${template_dist_dir}
+mkdir -p ${template_dist_dir}
+rm -rf ${build_dist_dir}
+mkdir -p ${build_dist_dir}
 
-[ -e $template_dist_dir ] && rm -r $template_dist_dir
-[ -e $build_dist_dir ] && rm -r $build_dist_dir
-mkdir -p $template_dist_dir $build_dist_dir
+echo "--------------------------------------------------------------------------------------"
+echo "CloudFormation Template generation - for main solution stack and regional deployments"
+echo "--------------------------------------------------------------------------------------"
+export CODE_BUCKET=$1
+export SOLUTION_NAME=$2
+export CODE_VERSION=$3
+export PUBLIC_ECR_REGISTRY=${PUBLIC_ECR_REGISTRY}
+export PUBLIC_ECR_TAG=${PUBLIC_ECR_TAG}
 
-echo "------------------------------------------------------------------------------"
-echo "CloudFormation Template"
-echo "------------------------------------------------------------------------------"
+# Change these 
+main_cfn_template=${SOLUTION_NAME}
+regional_cfn_template=${main_cfn_template}-regional
 
-cd $source_dir/infrastructure
+declare -A templates=(
+  [${main_cfn_template}]=${template_dist_dir}
+  [${regional_cfn_template}]=${build_dist_dir}
+)
+
+cd ${source_dir}/infrastructure
+npm run clean
 npm install
-node_modules/aws-cdk/bin/cdk synth --asset-metadata false --path-metadata false > $template_dist_dir/distributed-load-testing-on-aws.template
-replace="s/CODE_BUCKET/$1/g"
-echo "sed -i -e $replace"
-sed -i -e $replace $template_dist_dir/distributed-load-testing-on-aws.template
-replace="s/SOLUTION_NAME/$2/g"
-echo "sed -i -e $replace"
-sed -i -e $replace $template_dist_dir/distributed-load-testing-on-aws.template
-replace="s/CODE_VERSION/$3/g"
-echo "sed -i -e $replace"
-sed -i -e $replace $template_dist_dir/distributed-load-testing-on-aws.template
 
-echo "***** public ECR registry: $PUBLIC_ECR_REGISTRY"
-replace="s|PUBLIC_ECR_REGISTRY|$PUBLIC_ECR_REGISTRY|g"
-echo "sed -i -e $replace"
-sed -i -e $replace $template_dist_dir/distributed-load-testing-on-aws.template
+for template in "${!templates[@]}"; do
+  node_modules/aws-cdk/bin/cdk synth --asset-metadata false --path-metadata false -a "npx ts-node --prefer-ts-exts bin/${template}.ts" > ${templates[$template]}/${template}.template
+  if [ $? -eq 0 ]
+  then
+    echo "Build for ${template} succeeded"
+  else
+    echo "******************************************************************************"
+    echo "Build FAILED for ${template}"
+    echo "******************************************************************************"
+    exit 1
+  fi
+done
 
-echo "***** public ECR tag: $PUBLIC_ECR_TAG"
-replace="s/PUBLIC_ECR_TAG/$PUBLIC_ECR_TAG/g"
-echo "sed -i -e $replace"
-sed -i -e $replace $template_dist_dir/distributed-load-testing-on-aws.template
-# remove tmp file for MACs
-[ -e $template_dist_dir/distributed-load-testing-on-aws.template-e ] && rm -r $template_dist_dir/distributed-load-testing-on-aws.template-e
+# Setup solution utils package
+cd ${source_dir}/solution-utils
+rm -rf node_modules 
+npm install --production
+rm -rf package-lock.json
 
-echo "------------------------------------------------------------------------------"
-echo "Creating custom-resource deployment package"
-echo "------------------------------------------------------------------------------"
-cd $source_dir/custom-resource/
+# Creating custom resource resources for both stacks
+main_stack_custom_resource_files="index.js node_modules lib/*"
+regional_stack_custom_resource_files="index.js node_modules lib/cfn lib/metrics lib/config-storage lib/iot"
+
+declare -a stacks=(
+  "main"
+  "regional"
+)
+
+cd ${source_dir}/custom-resource
 rm -rf node_modules/
 npm install --production
 rm package-lock.json
-zip -q -r9 ../../deployment/regional-s3-assets/custom-resource.zip *
+for stack in "${stacks[@]}"; do
+  cp ${stack}-index.js index.js
+  files_to_zip=${stack}_stack_custom_resource_files
+  zip -q -r ${build_dist_dir}/${stack}-custom-resource.zip ${!files_to_zip}
+  rm index.js
+  if [ $? -eq 0 ]
+  then
+    echo "Build for ${stack}-custom-resource.zip succeeded"
+  else
+    echo "******************************************************************************"
+    echo "Build FAILED for ${stack}-custom-resource.zip"
+    echo "******************************************************************************"
+    exit 1
+  fi
+done
 
-echo "------------------------------------------------------------------------------"
-echo "Creating api-services deployment package"
-echo "------------------------------------------------------------------------------"
-cd $source_dir/api-services
-rm -rf node_modules/
-npm install --production
-rm package-lock.json
-zip -q -r9 $build_dist_dir/api-services.zip *
+# Create lambda packages
+declare -a packages=(
+    "api-services"
+    "results-parser"
+    "task-canceler"
+    "task-runner"
+    "task-status-checker"
+    "real-time-data-publisher"
+)
 
-echo "------------------------------------------------------------------------------"
-echo "Creating results-parser deployment package"
-echo "------------------------------------------------------------------------------"
-cd $source_dir/results-parser
-rm -rf node_modules/
-npm install --production
-rm package-lock.json
-zip -q -r9 $build_dist_dir/results-parser.zip *
-
-echo "------------------------------------------------------------------------------"
-echo "Creating task-canceler deployment package"
-echo "------------------------------------------------------------------------------"
-cd $source_dir/task-canceler
-rm -rf node_modules/
-npm install --production
-rm package-lock.json
-zip -q -r9 $build_dist_dir/task-canceler.zip *
-
-echo "------------------------------------------------------------------------------"
-echo "Creating task-runner deployment package"
-echo "------------------------------------------------------------------------------"
-cd $source_dir/task-runner
-rm -rf node_modules/
-npm install --production
-rm package-lock.json
-zip -q -r9 $build_dist_dir/task-runner.zip *
-
-echo "------------------------------------------------------------------------------"
-echo "Creating task-status-checker deployment package"
-echo "------------------------------------------------------------------------------"
-cd $source_dir/task-status-checker
-rm -rf node_modules/
-npm install --production
-rm package-lock.json
-zip -q -r9 $build_dist_dir/task-status-checker.zip *
+for package in "${packages[@]}"; do
+  echo "------------------------------------------------------------------------------"
+  echo "Creating $package deployment package"
+  echo "------------------------------------------------------------------------------"
+  cd ${source_dir}/${package}
+  rm -rf node_modules/
+  npm install --production
+  rm package-lock.json
+  zip -q -r9 ${build_dist_dir}/${package}.zip *
+  if [ $? -eq 0 ]
+  then
+    echo "Build for ${package} succeeded"
+  else
+    echo "******************************************************************************"
+    echo "Build FAILED for ${package}"
+    echo "******************************************************************************"
+    exit 1
+  fi
+done
 
 echo "------------------------------------------------------------------------------"
 echo "Creating container deployment package"
 echo "------------------------------------------------------------------------------"
-cd $template_dir/ecr/distributed-load-testing-on-aws-load-tester
+cd ${template_dir}/ecr/distributed-load-testing-on-aws-load-tester
 # Downloading jetty 9.4.34.v20201102
 curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-alpn-client/9.4.34.v20201102/jetty-alpn-client-9.4.34.v20201102.jar
 curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-alpn-openjdk8-client/9.4.34.v20201102/jetty-alpn-openjdk8-client-9.4.34.v20201102.jar
@@ -141,21 +154,21 @@ curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-util/9.4.34.v2020
 echo "------------------------------------------------------------------------------"
 echo "Building console"
 echo "------------------------------------------------------------------------------"
-cd $source_dir/console
+cd ${source_dir}/console
 [ -e build ] && rm -r build
 [ -e node_modules ] && rm -rf node_modules
 npm install
 npm run build
-mkdir $build_dist_dir/console
-cp -r ./build/* $build_dist_dir/console/
+mkdir ${build_dist_dir}/console
+cp -r ./build/* ${build_dist_dir}/console/
 
 echo "------------------------------------------------------------------------------"
 echo "Generate console manifest file"
 echo "------------------------------------------------------------------------------"
-cd $build_dist_dir/console
+cd ${build_dist_dir}/console
 manifest=(`find * -type f ! -iname ".DS_Store"`)
 manifest_json=$(IFS=,;printf "%s" "${manifest[*]}")
-echo "[\"$manifest_json\"]" | sed 's/,/","/g' > ./console-manifest.json
+echo "[\"${manifest_json}\"]" | sed 's/,/","/g' > ./console-manifest.json
 
 echo "------------------------------------------------------------------------------"
 echo "Build S3 Packaging Complete"

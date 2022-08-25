@@ -1,0 +1,409 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DLT API Test 1`] = `
+Object {
+  "Mappings": Object {
+    "ServiceprincipalMap": Object {
+      "af-south-1": Object {
+        "states": "states.af-south-1.amazonaws.com",
+      },
+      "ap-east-1": Object {
+        "states": "states.ap-east-1.amazonaws.com",
+      },
+      "ap-northeast-1": Object {
+        "states": "states.ap-northeast-1.amazonaws.com",
+      },
+      "ap-northeast-2": Object {
+        "states": "states.ap-northeast-2.amazonaws.com",
+      },
+      "ap-northeast-3": Object {
+        "states": "states.ap-northeast-3.amazonaws.com",
+      },
+      "ap-south-1": Object {
+        "states": "states.ap-south-1.amazonaws.com",
+      },
+      "ap-southeast-1": Object {
+        "states": "states.ap-southeast-1.amazonaws.com",
+      },
+      "ap-southeast-2": Object {
+        "states": "states.ap-southeast-2.amazonaws.com",
+      },
+      "ap-southeast-3": Object {
+        "states": "states.ap-southeast-3.amazonaws.com",
+      },
+      "ca-central-1": Object {
+        "states": "states.ca-central-1.amazonaws.com",
+      },
+      "cn-north-1": Object {
+        "states": "states.cn-north-1.amazonaws.com",
+      },
+      "cn-northwest-1": Object {
+        "states": "states.cn-northwest-1.amazonaws.com",
+      },
+      "eu-central-1": Object {
+        "states": "states.eu-central-1.amazonaws.com",
+      },
+      "eu-north-1": Object {
+        "states": "states.eu-north-1.amazonaws.com",
+      },
+      "eu-south-1": Object {
+        "states": "states.eu-south-1.amazonaws.com",
+      },
+      "eu-south-2": Object {
+        "states": "states.eu-south-2.amazonaws.com",
+      },
+      "eu-west-1": Object {
+        "states": "states.eu-west-1.amazonaws.com",
+      },
+      "eu-west-2": Object {
+        "states": "states.eu-west-2.amazonaws.com",
+      },
+      "eu-west-3": Object {
+        "states": "states.eu-west-3.amazonaws.com",
+      },
+      "me-south-1": Object {
+        "states": "states.me-south-1.amazonaws.com",
+      },
+      "sa-east-1": Object {
+        "states": "states.sa-east-1.amazonaws.com",
+      },
+      "us-east-1": Object {
+        "states": "states.us-east-1.amazonaws.com",
+      },
+      "us-east-2": Object {
+        "states": "states.us-east-2.amazonaws.com",
+      },
+      "us-gov-east-1": Object {
+        "states": "states.us-gov-east-1.amazonaws.com",
+      },
+      "us-gov-west-1": Object {
+        "states": "states.us-gov-west-1.amazonaws.com",
+      },
+      "us-iso-east-1": Object {
+        "states": "states.amazonaws.com",
+      },
+      "us-iso-west-1": Object {
+        "states": "states.amazonaws.com",
+      },
+      "us-isob-east-1": Object {
+        "states": "states.amazonaws.com",
+      },
+      "us-west-1": Object {
+        "states": "states.us-west-1.amazonaws.com",
+      },
+      "us-west-2": Object {
+        "states": "states.us-west-2.amazonaws.com",
+      },
+    },
+  },
+  "Resources": Object {
+    "TaskRunnerStepFunctionStepFunctionsLogGroup39F53B04": Object {
+      "DeletionPolicy": "Retain",
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W84",
+              "reason": "KMS encryption unnecessary for log group",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "LogGroupName": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "/aws/vendedlogs/states/StepFunctionsLogGroup",
+              Object {
+                "Ref": "AWS::StackName",
+              },
+              "abc-def-xyz",
+            ],
+          ],
+        },
+        "RetentionInDays": 365,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TaskRunnerStepFunctionTaskRunnerStepFunctionsC50015AC": Object {
+      "DependsOn": Array [
+        "TaskRunnerStepFunctionTaskRunnerStepFunctionsRoleDefaultPolicyACCEC854",
+        "TaskRunnerStepFunctionTaskRunnerStepFunctionsRole706897AC",
+      ],
+      "Properties": Object {
+        "DefinitionString": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "{\\"StartAt\\":\\"Regions for testing\\",\\"States\\":{\\"Regions for testing\\":{\\"Type\\":\\"Map\\",\\"ResultPath\\":null,\\"Next\\":\\"Parse result\\",\\"InputPath\\":\\"$\\",\\"Parameters\\":{\\"testTaskConfig.$\\":\\"$$.Map.Item.Value\\",\\"testId.$\\":\\"$.testId\\",\\"testType.$\\":\\"$.testType\\",\\"fileType.$\\":\\"$.fileType\\",\\"showLive.$\\":\\"$.showLive\\",\\"prefix.$\\":\\"$.prefix\\"},\\"Iterator\\":{\\"StartAt\\":\\"Check running tests\\",\\"States\\":{\\"Check running tests\\":{\\"Next\\":\\"No running tests\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke\\",\\"Parameters\\":{\\"FunctionName\\":\\"",
+              Object {
+                "Fn::GetAtt": Array [
+                  "TestFunction22AD90FC",
+                  "Arn",
+                ],
+              },
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"No running tests\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Run workers\\"}],\\"Default\\":\\"Test is still running\\"},\\"Test is still running\\":{\\"Type\\":\\"Fail\\",\\"Error\\":\\"TestAlreadyRunning\\",\\"Cause\\":\\"The same test is already running.\\"},\\"Run workers\\":{\\"Next\\":\\"Requires leader?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke\\",\\"Parameters\\":{\\"FunctionName\\":\\"",
+              Object {
+                "Fn::GetAtt": Array [
+                  "TestFunction22AD90FC",
+                  "Arn",
+                ],
+              },
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Requires leader?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Cancel Test\\"},{\\"Variable\\":\\"$.taskIds\\",\\"IsPresent\\":false,\\"Next\\":\\"Wait 1 minute - task status\\"}],\\"Default\\":\\"Wait 1 minute - worker status\\"},\\"Wait 1 minute - worker status\\":{\\"Type\\":\\"Wait\\",\\"Comment\\":\\"Wait 1 minute to check task status again\\",\\"Seconds\\":60,\\"Next\\":\\"Check worker status\\"},\\"Check worker status\\":{\\"Next\\":\\"Are all workers running?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke\\",\\"Parameters\\":{\\"FunctionName\\":\\"",
+              Object {
+                "Fn::GetAtt": Array [
+                  "TestFunction22AD90FC",
+                  "Arn",
+                ],
+              },
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Are all workers running?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Cancel Test\\"},{\\"Variable\\":\\"$.numTasksRunning\\",\\"NumericEqualsPath\\":\\"$.numTasksTotal\\",\\"Next\\":\\"Run leader task\\"}],\\"Default\\":\\"Wait 1 minute - worker status\\"},\\"Cancel Test\\":{\\"Next\\":\\"Map End\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"ResultPath\\":null,\\"Resource\\":\\"arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke\\",\\"Parameters\\":{\\"FunctionName\\":\\"",
+              Object {
+                "Fn::GetAtt": Array [
+                  "TestFunction22AD90FC",
+                  "Arn",
+                ],
+              },
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Run leader task\\":{\\"Next\\":\\"Wait 1 minute - task status\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Catch\\":[{\\"ErrorEquals\\":[\\"States.ALL\\"],\\"ResultPath\\":\\"$.error\\",\\"Next\\":\\"Cancel Test\\"}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke\\",\\"Parameters\\":{\\"FunctionName\\":\\"",
+              Object {
+                "Fn::GetAtt": Array [
+                  "TestFunction22AD90FC",
+                  "Arn",
+                ],
+              },
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Wait 1 minute - task status\\":{\\"Type\\":\\"Wait\\",\\"Comment\\":\\"Wait 1 minute to check task status again\\",\\"Seconds\\":60,\\"Next\\":\\"Check task status\\"},\\"Check task status\\":{\\"Next\\":\\"Are all tasks done?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke\\",\\"Parameters\\":{\\"FunctionName\\":\\"",
+              Object {
+                "Fn::GetAtt": Array [
+                  "TestFunction22AD90FC",
+                  "Arn",
+                ],
+              },
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Are all tasks done?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Map End\\"}],\\"Default\\":\\"Wait 1 minute - task status\\"},\\"Map End\\":{\\"Type\\":\\"Pass\\",\\"End\\":true}}},\\"ItemsPath\\":\\"$.testTaskConfig\\"},\\"Parse result\\":{\\"Next\\":\\"Done\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"Resource\\":\\"arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke\\",\\"Parameters\\":{\\"FunctionName\\":\\"",
+              Object {
+                "Fn::GetAtt": Array [
+                  "TestFunction22AD90FC",
+                  "Arn",
+                ],
+              },
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Done\\":{\\"Type\\":\\"Succeed\\"}}}",
+            ],
+          ],
+        },
+        "LoggingConfiguration": Object {
+          "Destinations": Array [
+            Object {
+              "CloudWatchLogsLogGroup": Object {
+                "LogGroupArn": Object {
+                  "Fn::GetAtt": Array [
+                    "TaskRunnerStepFunctionStepFunctionsLogGroup39F53B04",
+                    "Arn",
+                  ],
+                },
+              },
+            },
+          ],
+          "IncludeExecutionData": false,
+          "Level": "ALL",
+        },
+        "RoleArn": Object {
+          "Fn::GetAtt": Array [
+            "TaskRunnerStepFunctionTaskRunnerStepFunctionsRole706897AC",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::StepFunctions::StateMachine",
+    },
+    "TaskRunnerStepFunctionTaskRunnerStepFunctionsRole706897AC": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "CloudWatch logs actions do not support resource level permissions",
+            },
+            Object {
+              "id": "W12",
+              "reason": "CloudWatch logs actions do not support resource level permissions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": Object {
+                  "Fn::FindInMap": Array [
+                    "ServiceprincipalMap",
+                    Object {
+                      "Ref": "AWS::Region",
+                    },
+                    "states",
+                  ],
+                },
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TaskRunnerStepFunctionTaskRunnerStepFunctionsRoleDefaultPolicyACCEC854": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W12",
+              "reason": "CloudWatch logs actions do not support resource level permissions",
+            },
+            Object {
+              "id": "W76",
+              "reason": "The IAM policy is written for least-privilege access.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "logs:CreateLogDelivery",
+                "logs:GetLogDelivery",
+                "logs:UpdateLogDelivery",
+                "logs:DeleteLogDelivery",
+                "logs:ListLogDeliveries",
+                "logs:PutResourcePolicy",
+                "logs:DescribeResourcePolicies",
+                "logs:DescribeLogGroups",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            Object {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": Array [
+                Object {
+                  "Fn::GetAtt": Array [
+                    "TestFunction22AD90FC",
+                    "Arn",
+                  ],
+                },
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      Object {
+                        "Fn::GetAtt": Array [
+                          "TestFunction22AD90FC",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TaskRunnerStepFunctionTaskRunnerStepFunctionsRoleDefaultPolicyACCEC854",
+        "Roles": Array [
+          Object {
+            "Ref": "TaskRunnerStepFunctionTaskRunnerStepFunctionsRole706897AC",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestFunction22AD90FC": Object {
+      "DependsOn": Array [
+        "TestRole6C9272DF",
+      ],
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": "testbucket",
+          "S3Key": "custom-resource.zip",
+        },
+        "Handler": "index.handler",
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "TestRole6C9272DF",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs14.x",
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TestRole6C9272DF": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": "*",
+                  "Effect": "Deny",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "DenyPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+  },
+}
+`;

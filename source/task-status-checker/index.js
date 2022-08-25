@@ -2,19 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const AWS = require('aws-sdk');
-const { SOLUTION_ID, VERSION } = process.env; 
+const utils = require('solution-utils');
 let options = {};
-if (SOLUTION_ID && VERSION && SOLUTION_ID.trim() && VERSION.trim()) {
-  options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${VERSION}`;
-}
-const ecs = new AWS.ECS(options);
+
+options = utils.getOptions(options);
 const dynamoDb = new AWS.DynamoDB.DocumentClient(options);
 const lambda = new AWS.Lambda(options);
 
+const checkTestStatus = async (testId, isRunning) => {
+  let data;
+  const ddbParams = {
+    TableName: process.env.SCENARIOS_TABLE,
+    Key: {
+      testId: testId
+    },
+    AttributesToGet: [
+      'status'
+    ]
+  };
+  data = await dynamoDb.get(ddbParams).promise();
+  const { status } = data.Item;
+  return status === 'running' && isRunning;
+};
+
 exports.handler = async (event) => {
   console.log(JSON.stringify(event, null, 2));
-  const { scenario, taskRunner } = event;
-  const { testId } = scenario;
+
+  const { testId, taskRunner } = event;
+  const { region, taskCluster } = event.testTaskConfig;
+  options = utils.getOptions(options);
+  options.region = region;
+  const ecs = new AWS.ECS(options);
 
   try {
     let nextToken = null;
@@ -23,12 +41,12 @@ exports.handler = async (event) => {
 
     // Runs while loop while there are tasks in the ECS cluster. Then, call describeTasks to get task's group, which is test ID.
     do {
-      const response = await listTasks(nextToken);
+      const response = await listTasks(nextToken, region, taskCluster);
       nextToken = response.NextToken;
 
       if (response.Tasks.length > 0) {
         const describedTasks = await ecs.describeTasks({
-          cluster: process.env.TASK_CLUSTER,
+          cluster: taskCluster,
           tasks: response.Tasks
         }).promise();
 
@@ -43,11 +61,16 @@ exports.handler = async (event) => {
       }
     } while (nextToken);
     //get number of tasks in running state
-    let numTasksRunning = runningTasks.reduce(((accumulator, task) => task.lastStatus === "RUNNING" ? ++accumulator : accumulator), 0);
+    let numTasksRunning = 0;
+    runningTasks.forEach((task) => task.lastStatus === "RUNNING" && ++numTasksRunning);
     //add 1 to match scenario total for step functions
     numTasksRunning++;
-    const result = { scenario, isRunning, numTasksRunning, taskRunner };
+    const result = event;
 
+    result.isRunning = isRunning;
+    result.numTasksRunning = numTasksRunning;
+    result.taskRunner = taskRunner;
+    result.numTasksTotal = runningTasks.length + 1;
     /**
      * When prefix is provided, it means tests are running.
      * To prevent infinitely running tests, after 10 times (10 minutes) retries, stop the ECS cluster tasks after any tasks complete.
@@ -56,7 +79,7 @@ exports.handler = async (event) => {
     if (event.prefix) {
       result.prefix = event.prefix;
       const runningTaskCount = runningTasks.length;
-      const { taskCount } = scenario;
+      const { taskCount } = event.testTaskConfig;
 
       if (runningTaskCount > 0) {
         result.isRunning = true;
@@ -67,9 +90,12 @@ exports.handler = async (event) => {
           if (result.timeoutCount === 0) {
             // Stop the ECS tasks
             const params = {
-              FunctionName: process.env.TASK_CANCELER_ARN, 
-              InvocationType: "Event", 
-              Payload: JSON.stringify({testId: testId})
+              FunctionName: process.env.TASK_CANCELER_ARN,
+              InvocationType: "Event",
+              Payload: JSON.stringify({
+                testId: testId,
+                testTaskConfig: event.testTaskConfig
+              })
             };
             await lambda.invoke(params).promise();
             result.isRunning = false;
@@ -77,7 +103,7 @@ exports.handler = async (event) => {
         }
       }
     }
-
+    result.isRunning = await checkTestStatus(testId, result.isRunning);
     return result;
   } catch (error) {
     console.error(error);
@@ -99,7 +125,7 @@ exports.handler = async (event) => {
 
     throw error;
   }
-}
+};
 
 /**
  * Returns the list of ECS cluster's task ARNs.
@@ -107,12 +133,13 @@ exports.handler = async (event) => {
  * @param {string|undefined} nextToken The next token to get list tasks
  * @return {Promise<{ Tasks: Array<String>|undefined, NextToken: String|undefined }>} The list of ECS cluster's task ARNs
  */
-async function listTasks(nextToken) {
-  let param = { cluster: process.env.TASK_CLUSTER };
+async function listTasks(nextToken, region, taskCluster) {
+  options.region = region;
+  const ecs = new AWS.ECS(options);
+  let param = { cluster: taskCluster };
   if (nextToken) {
     param.nextToken = nextToken;
   }
-
   const response = await ecs.listTasks(param).promise();
   return {
     Tasks: response.taskArns,

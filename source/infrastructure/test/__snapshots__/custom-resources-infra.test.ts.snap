@@ -1,0 +1,240 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DLT API Test 1`] = `
+Object {
+  "Resources": Object {
+    "TestCustomResourceInfraCustomResourceLambda92E822A7": Object {
+      "DependsOn": Array [
+        "TestCustomResourceInfraCustomResourceLambdaRoleDefaultPolicy46B2072F",
+        "TestCustomResourceInfraCustomResourceLambdaRole03671AE8",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            Object {
+              "id": "W89",
+              "reason": "VPC not needed for lambda",
+            },
+            Object {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": Object {
+            "Ref": "testSourceCodeBucketC577B176",
+          },
+          "S3Key": "test/source/prefix/main-custom-resource.zip",
+        },
+        "Description": "CFN Lambda backed custom resource to deploy assets to s3",
+        "Environment": Object {
+          "Variables": Object {
+            "DDB_TABLE": "scenarioTestTable",
+            "MAIN_REGION": "test-region-1",
+            "METRIC_URL": "http://testurl.com",
+            "S3_BUCKET": "scenariotestbucket",
+            "SOLUTION_ID": "S0XXX",
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "TestCustomResourceInfraCustomResourceLambdaRole03671AE8",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs14.x",
+        "Timeout": 120,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TestCustomResourceInfraCustomResourceLambdaRole03671AE8": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "iot:DescribeEndpoint and iot:DetachPrincipalPolicy cannot specify the resource.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": "s3:GetObject",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        Object {
+                          "Fn::GetAtt": Array [
+                            "testSourceCodeBucketC577B176",
+                            "Arn",
+                          ],
+                        },
+                        "/*",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "s3:PutObject",
+                    "s3:DeleteObject",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":s3:::scenariotestbucket/*",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "dynamodb:PutItem",
+                    "dynamodb:DeleteItem",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":dynamodb:test-region-1:",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":table/scenarioTestTable",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "iot:DescribeEndpoint",
+                    "iot:DetachPrincipalPolicy",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "iot:ListTargetsForPolicy",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iot:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":policy/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "CustomResourcePolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestCustomResourceInfraCustomResourceLambdaRoleDefaultPolicy46B2072F": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "s3:PutObject",
+              "Effect": "Allow",
+              "Resource": Array [
+                "test:console:bucket:arn",
+                "test:console:bucket:arn/*",
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestCustomResourceInfraCustomResourceLambdaRoleDefaultPolicy46B2072F",
+        "Roles": Array [
+          Object {
+            "Ref": "TestCustomResourceInfraCustomResourceLambdaRole03671AE8",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestPolicyCC05E598": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "cloudwatch:Get*",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestPolicyCC05E598",
+        "Roles": Array [
+          Object {
+            "Ref": "TestCustomResourceInfraCustomResourceLambdaRole03671AE8",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "testSourceCodeBucketC577B176": Object {
+      "DeletionPolicy": "Retain",
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Retain",
+    },
+  },
+}
+`;

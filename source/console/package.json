@@ -1,34 +1,15 @@
 {
   "name": "distributed-load-testing-on-aws-ui",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "private": true,
-  "dependencies": {
-    "@aws-amplify/ui-react": "^1.0.2",
-    "@fortawesome/fontawesome-svg-core": "^1.2.18",
-    "@fortawesome/free-brands-svg-icons": "^5.8.2",
-    "@fortawesome/free-solid-svg-icons": "^5.8.2",
-    "@fortawesome/react-fontawesome": "^0.1.4",
-    "aws-amplify": "^3.3.20",
-    "bootstrap": "^4.6.0",
-    "brace": "^0.11.1",
-    "nanoid": "^3.1.25",
-    "react": "^17.0.1",
-    "react-ace": "^9.3.0",
-    "react-dom": "^17.0.1",
-    "react-router-dom": "^5.2.0",
-    "react-router-hash-link": "^2.4.3",
-    "react-scripts": "^4.0.3",
-    "reactstrap": "^8.9.0"
-  },
+  "license": "Apache-2.0",
+  "author": "aws-solution-builders",
   "scripts": {
-    "start": "react-scripts start",
     "build": "GENERATE_SOURCEMAP=false INLINE_RUNTIME_CHUNK=false react-scripts build",
-    "test": "react-scripts test",
+    "clean": "rm -rf node_modules package-lock.json",
     "eject": "react-scripts eject",
-    "clean": "rm -rf node_modules package-lock.json"
-  },
-  "eslintConfig": {
-    "extends": "react-app"
+    "start": "react-scripts start",
+    "test": "react-scripts test"
   },
   "browserslist": {
     "production": [
@@ -42,7 +23,28 @@
       "last 1 safari version"
     ]
   },
-  "author": "aws-solution-builders",
-  "license": "Apache-2.0",
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "dependencies": {
+    "@aws-amplify/pubsub": "4.4.10",
+    "@aws-amplify/ui-components": "^1.9.6",
+    "@aws-amplify/ui-react": "^1.0.2",
+    "aws-amplify": "4.3.31",
+    "aws-sdk": "^2.1082.0",
+    "bootstrap": "^4.6.0",
+    "bootstrap-icons": "^1.8.1",
+    "brace": "^0.11.1",
+    "chart.js": "^3.7.1",
+    "chartjs-adapter-moment": "^1.0.0",
+    "moment": "^2.29.1",
+    "react": "^17.0.1",
+    "react-ace": "^9.3.0",
+    "react-dom": "^17.0.1",
+    "react-router-dom": "^5.2.0",
+    "react-scripts": "^4.0.3",
+    "reactstrap": "^8.9.0",
+    "solution-utils": "file:../solution-utils"
+  },
   "readme": "./README.md"
 }

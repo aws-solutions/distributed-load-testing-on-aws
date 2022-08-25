@@ -46,6 +46,7 @@ run_tests() {
 
   # prepare coverage reports
   prepare_jest_coverage_report $component_name
+  rm -rf coverage node_modules package-lock.json
 }
 
 # Run unit tests
@@ -57,9 +58,11 @@ coverage_reports_top_path=$source_dir/test/coverage-reports
 
 # Test packages
 declare -a packages=(
+    "solution-utils"
     "api-services"
     "custom-resource"
     "infrastructure"
+    "real-time-data-publisher"
     "results-parser"
     "task-canceler"
     "task-runner"

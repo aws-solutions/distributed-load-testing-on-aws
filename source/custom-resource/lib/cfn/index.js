@@ -4,10 +4,6 @@
 const axios = require('axios');
 
 const send = async (event, context, responseStatus, responseData, physicalResourceId) => {
-
-
-  let data;
-
   try {
     const responseBody = JSON.stringify({
       Status: responseStatus,
@@ -28,15 +24,14 @@ const send = async (event, context, responseStatus, responseData, physicalResour
       },
       data: responseBody
     };
-    data = await axios(params);
+    await axios(params);
   }
   catch (err) {
+    console.error(`There was an error sending the response to CloudFormation: ${err}`);
     throw err;
   }
-  return data.status;
 };
 
-
 module.exports = {
-	send: send
+  send: send
 };

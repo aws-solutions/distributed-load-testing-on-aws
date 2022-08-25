@@ -2,16 +2,27 @@
 
 # set a uuid for the results xml file name in S3
 UUID=$(cat /proc/sys/kernel/random/uuid)
-
+pypid=0
 echo "S3_BUCKET:: ${S3_BUCKET}"
 echo "TEST_ID:: ${TEST_ID}"
 echo "TEST_TYPE:: ${TEST_TYPE}"
 echo "FILE_TYPE:: ${FILE_TYPE}"
 echo "PREFIX:: ${PREFIX}"
-echo "UUID ${UUID}"
+echo "UUID:: ${UUID}"
+echo "LIVE_DATA_ENABLED:: ${LIVE_DATA_ENABLED}"
+
+sigterm_handler() {
+  if [ $pypid -ne 0 ]; then
+    echo "container received SIGTERM."
+    kill -15 $pypid
+    wait $pypid
+    exit 143 #128 + 15
+  fi
+}
+trap 'sigterm_handler' SIGTERM
 
 echo "Download test scenario"
-aws s3 cp s3://$S3_BUCKET/test-scenarios/$TEST_ID.json test.json
+aws s3 cp s3://$S3_BUCKET/test-scenarios/$TEST_ID-$AWS_REGION.json test.json
 
 # download JMeter jmx file
 if [ "$TEST_TYPE" != "simple" ]; then
@@ -53,15 +64,17 @@ if [ "$TEST_TYPE" != "simple" ]; then
 fi
 
 #Download python script
-
 if [ -z "$IPNETWORK" ]; then
-    python3 $SCRIPT
+    python3 -u $SCRIPT $TIMEOUT &
+    pypid=$!
+    wait $pypid
+    pypid=0
 else 
-    python3 $SCRIPT $IPNETWORK $IPHOSTS
+    python3 -u $SCRIPT $IPNETWORK $IPHOSTS
 fi
 
 echo "Running test"
-stdbuf -i0 -o0 -e0 bzt test.json -o modules.console.disable=true | stdbuf -i0 -o0 -e0 tee -a result.tmp | sed -u -e "s|^|$TEST_ID |"
+stdbuf -i0 -o0 -e0 bzt test.json -o modules.console.disable=true | stdbuf -i0 -o0 -e0 tee -a result.tmp | sed -u -e "s|^|$TEST_ID $LIVE_DATA_ENABLED |"
 CALCULATED_DURATION=`cat result.tmp | grep -m1 "Test duration" | awk -F ' ' '{ print $5 }' | awk -F ':' '{ print ($1 * 3600) + ($2 * 60) + $3 }'`
 
 # upload custom results to S3 if any
@@ -78,7 +91,7 @@ if [ "$TEST_TYPE" != "simple" ]; then
 
   echo "Files to upload as results"
   cat results.txt
-
+  
   files=(`cat results.txt`)
   for f in "${files[@]}"; do
     p="s3://$S3_BUCKET/results/$TEST_ID/JMeter_Result/$PREFIX/$UUID/$f"
@@ -100,8 +113,12 @@ if [ -f /tmp/artifacts/results.xml ]; then
     xmlstarlet ed -L -u /FinalStatus/TestDuration -v $CALCULATED_DURATION /tmp/artifacts/results.xml
   fi
 
-  echo "Uploading results"
-  aws s3 cp /tmp/artifacts/results.xml s3://$S3_BUCKET/results/${TEST_ID}/${PREFIX}-${UUID}.xml
+  echo "Uploading results, bzt log, and JMeter log, out, and err files"
+  aws s3 cp /tmp/artifacts/results.xml s3://$S3_BUCKET/results/${TEST_ID}/${PREFIX}-${UUID}-${AWS_REGION}.xml
+  aws s3 cp /tmp/artifacts/bzt.log s3://$S3_BUCKET/results/${TEST_ID}/bzt-${PREFIX}-${UUID}-${AWS_REGION}.log
+  aws s3 cp /tmp/artifacts/jmeter.log s3://$S3_BUCKET/results/${TEST_ID}/jmeter-${PREFIX}-${UUID}-${AWS_REGION}.log
+  aws s3 cp /tmp/artifacts/jmeter.out s3://$S3_BUCKET/results/${TEST_ID}/jmeter-${PREFIX}-${UUID}-${AWS_REGION}.out
+  aws s3 cp /tmp/artifacts/jmeter.err s3://$S3_BUCKET/results/${TEST_ID}/jmeter-${PREFIX}-${UUID}-${AWS_REGION}.err
 else
-  echo "There might be an error happened while the test."
+  echo "An error occurred while the test was running."
 fi

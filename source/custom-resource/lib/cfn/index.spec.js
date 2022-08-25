@@ -22,23 +22,28 @@ const _context = {
 
 const _responseStatus = 'ok';
 
-const  _responseData = {
+const _responseData = {
   test: 'testing'
 };
 
-describe('#CFN RESONSE::',() => {
+describe('#CFN RESPONSE::', () => {
 
-  it('should return "200" on a send cfn response sucess', async () => {
+  it('should succeed on send cfn', async () => {
 
     let mock = new MockAdapter(axios);
     mock.onPut().reply(200, {});
 
-    lambda.send(_event, _context, _responseStatus, _responseData, (err, res) => {
-      expect(res.status).toEqual(200);
+    lambda.send(_event, _context, _responseStatus, _responseData, () => {
+      expect(mock).toHaveBeenCalledTimes(1);
+      expect(mock).toHaveBeenCalledWith(_event);
+      expect('responseBody').toBeDefined();
+      expect('responseBody').toHaveProperty('Status', 'ok');
+      expect('responseBody').toHaveProperty('StackId', 'StackId');
+      expect('responseBody').toHaveProperty('Data', { test: 'testing' });
     });
   });
 
-  it('should return "Network Error" on connection timedout', async () => {
+  it('should return error on connection timeout', async () => {
 
     let mock = new MockAdapter(axios);
     mock.onPut().networkError();

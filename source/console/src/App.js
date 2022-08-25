@@ -3,8 +3,6 @@
 
 import React from 'react';
 import { BrowserRouter as Router, Route, Switch, Link } from "react-router-dom";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlusSquare, faSignOutAlt, faBars, faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons';
 import {
   Collapse,
   Navbar,
@@ -17,14 +15,48 @@ import {
 //Amplify
 import Amplify, { Auth } from 'aws-amplify';
 import { withAuthenticator } from '@aws-amplify/ui-react';
+import { AuthState, onAuthUIStateChange } from '@aws-amplify/ui-components';
+import { PubSub, AWSIoTProvider } from '@aws-amplify/pubsub';
+import AWS from 'aws-sdk';
 
 //Components
 import Dashboard from './Components/Dashboard/Dashboard.js';
 import Create from './Components/Create/Create.js';
 import Details from './Components/Details/Details.js';
+import RegionalModal from './Components/RegionalModal/RegionalModal.js';
 
 declare var awsConfig;
+Amplify.addPluggable(new AWSIoTProvider({
+  aws_pubsub_region: awsConfig.aws_project_region,
+  aws_pubsub_endpoint: 'wss://' + awsConfig.aws_iot_endpoint + '/mqtt'
+}));
+PubSub.configure(awsConfig);
 Amplify.configure(awsConfig);
+
+/**
+ * Need to attach IoT Policy to Identity in order to subscribe.
+ */
+onAuthUIStateChange(async (nextAuthState) => {
+  if (nextAuthState === AuthState.SignedIn) {
+    const credentials = await Auth.currentCredentials();
+    const identityId = credentials.identityId;
+    AWS.config.update({
+      region: awsConfig.aws_project_region,
+      credentials: Auth.essentialCredentials(credentials)
+    });
+
+    const params = {
+      policyName: awsConfig.aws_iot_policy_name,
+      principal: identityId
+    };
+
+    try {
+      await new AWS.Iot().attachPrincipalPolicy(params).promise();
+    } catch (error) {
+      console.error('Error occurred while attaching principal policy', error);
+    }
+  }
+});
 
 class App extends React.Component {
 
@@ -33,8 +65,10 @@ class App extends React.Component {
     this.noMatch = this.noMatch.bind(this);
     this.signOut = this.signOut.bind(this);
     this.toggleNavbar = this.toggleNavbar.bind(this);
+    this.toggleRegionalModal = this.toggleRegionalModal.bind(this);
     this.state = {
-      collapsed: true
+      collapsed: true,
+      regionalModal: false
     };
   }
 
@@ -54,6 +88,12 @@ class App extends React.Component {
     });
   }
 
+  toggleRegionalModal() {
+    this.setState({
+      regionalModal: !this.state.regionalModal
+    });
+  }
+
   signOut() {
     Auth.signOut();
     window.location.reload();
@@ -70,25 +110,31 @@ class App extends React.Component {
               <Nav className="mr-auto" navbar>
                 <NavItem>
                   <Link to={'/dashboard'} className="nav-link" id="dashboard">
-                    <FontAwesomeIcon id="icon" icon={faBars} /> Dashboard
+                    <i className="bi bi-list" /> Dashboard
                   </Link>
                 </NavItem>
                 <NavItem>
-                  <Link to= {{
-                        pathname:"/create",
-                        state:{ data:{}}
-                        }}
-                        className="nav-link"
-                        id="createTest"
+                  <Link to={{
+                    pathname: "/create",
+                    state: { data: {} }
+                  }}
+                    className="nav-link"
+                    id="createTest"
+                    params={{ mainRegion: awsConfig.aws_project_region }}
                   >
-                    <FontAwesomeIcon id="icon" icon={faPlusSquare} /> Create Test
+                    <i className="bi bi-plus-square-fill" /> Create Test
                   </Link>
+                </NavItem>
+                <NavItem className="nav-link" onClick={this.toggleRegionalModal}>
+                  <i className="bi bi-globe" /> Manage Regions
+                  {this.state.regionalModal && <RegionalModal regionalModal={this.state.regionalModal} toggleRegionalModal={this.toggleRegionalModal} />}
                 </NavItem>
               </Nav>
               <Nav className="ml-auto" navbar>
                 <NavItem>
                   <Link to="" onClick={this.signOut} className="nav-link" id="signOut">
-                    <FontAwesomeIcon id="icon" icon={faSignOutAlt} /> Sign Out
+                    <i className="bi bi-box-arrow-right" /> Sign Out
+
                   </Link>
                 </NavItem>
               </Nav>
@@ -105,15 +151,15 @@ class App extends React.Component {
             </Switch>
             <div className="footer">
               <p>For help please see the <a className="text-link" href="https://aws.amazon.com/solutions/distributed-load-testing-on-aws/"
-                 target="_blank"
-                 rel="noopener noreferrer">
-                  solution home page <FontAwesomeIcon size="sm" icon={faExternalLinkAlt}/>
+                target="_blank"
+                rel="noopener noreferrer">
+                solution home page <i className="bi bi-box-arrow-up-right" />
               </a></p>
             </div>
           </div>
         </Router>
       </div>
-    )
+    );
   }
 }
 

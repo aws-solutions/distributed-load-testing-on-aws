@@ -1,10 +1,13 @@
 {
   "name": "results-parser",
-  "version": "2.0.1",
-  "engines": {
-    "node": "^12.x"
-  },
+  "version": "3.0.0",
   "description": "result parser for indexing xml test results to DynamoDB",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aws-solutions/distributed-load-testing-on-aws"
+  },
+  "license": "Apache-2.0",
+  "author": "aws-solution-builders",
   "main": "index.js",
   "scripts": {
     "clean": "rm -rf node_modules package-lock.json",
@@ -13,7 +16,7 @@
   "dependencies": {
     "axios": "^0.21.0",
     "moment": "^2.29.1",
-    "nanoid": "^3.1.25",
+    "solution-utils": "file:../solution-utils",
     "xml-js": "^1.6.11"
   },
   "devDependencies": {
@@ -21,11 +24,8 @@
     "axios-mock-adapter": "1.19.0",
     "jest": "26.6.3"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/aws-solutions/distributed-load-testing-on-aws"
+  "engines": {
+    "node": "^14.x"
   },
-  "author": "aws-solution-builders",
-  "license": "Apache-2.0",
   "readme": "./README.md"
 }

@@ -1,25 +1,27 @@
 {
-    "name": "task-canceler",
-    "version": "2.0.1",
-    "engines": {
-        "node": "^12.x"
-    },
-    "description": "Triggered by api-services lambda function, cancels ecs tasks",
-    "main": "index.js",
-    "scripts": {
-        "clean": "rm -rf node_modules package-lock.json",
-        "test": "jest lib/*.spec.js --coverage --silent"
-    },
-    "dependencies": {},
-    "devDependencies": {
-        "aws-sdk": "2.1001.0",
-        "jest": "26.6.3"
-    },
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/aws-solutions/distributed-load-testing-on-aws"
-    },
-    "author": "aws-solution-builders",
-    "license": "Apache-2.0",
-    "readme": "./README.md"
+  "name": "task-canceler",
+  "version": "3.0.0",
+  "description": "Triggered by api-services lambda function, cancels ecs tasks",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aws-solutions/distributed-load-testing-on-aws"
+  },
+  "license": "Apache-2.0",
+  "author": "aws-solution-builders",
+  "main": "index.js",
+  "scripts": {
+    "clean": "rm -rf node_modules package-lock.json",
+    "test": "jest lib/*.spec.js --coverage --silent"
+  },
+  "dependencies": {
+    "solution-utils": "file:../solution-utils"
+  },
+  "devDependencies": {
+    "aws-sdk": "2.1001.0",
+    "jest": "26.6.3"
+  },
+  "engines": {
+    "node": "^14.x"
+  },
+  "readme": "./README.md"
 }

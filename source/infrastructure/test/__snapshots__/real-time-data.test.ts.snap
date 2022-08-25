@@ -1,0 +1,166 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DLT real time data resources Test 1`] = `
+Object {
+  "Resources": Object {
+    "TestECSRealTimeDataPublisherF2114D5B": Object {
+      "DependsOn": Array [
+        "TestECSrealTimeDataPublisherRoleEFE9F1CD",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            Object {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": "testbucket",
+          "S3Key": "testPrefix/real-time-data-publisher.zip",
+        },
+        "Description": "Real time data publisher",
+        "Environment": Object {
+          "Variables": Object {
+            "IOT_ENDPOINT": "iotEndpoint",
+            "MAIN_REGION": "test-region-1",
+            "SOLUTION_ID": "testID",
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "TestECSrealTimeDataPublisherRoleEFE9F1CD",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs14.x",
+        "Timeout": 180,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TestECSrealTimeDataPublisherRoleEFE9F1CD": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": "iot:Publish",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iot:test-region-1:",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":topic/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "IoTPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestLogsGroup54B681C7": Object {
+      "DeletionPolicy": "Retain",
+      "Properties": Object {
+        "RetentionInDays": 731,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TestLogsGroupECSLogSubscriptionFilterBFBFAB24": Object {
+      "Properties": Object {
+        "DestinationArn": Object {
+          "Fn::GetAtt": Array [
+            "TestECSRealTimeDataPublisherF2114D5B",
+            "Arn",
+          ],
+        },
+        "FilterPattern": "\\"INFO: Current:\\" \\"live=true\\"",
+        "LogGroupName": Object {
+          "Ref": "TestLogsGroup54B681C7",
+        },
+      },
+      "Type": "AWS::Logs::SubscriptionFilter",
+    },
+    "TestLogsGroupECSLogSubscriptionFilterCanInvokeLambdaD7381D91": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "TestECSRealTimeDataPublisherF2114D5B",
+            "Arn",
+          ],
+        },
+        "Principal": "logs.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "TestLogsGroup54B681C7",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "TestPolicyCC05E598": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "cloudwatch:Get*",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestPolicyCC05E598",
+        "Roles": Array [
+          Object {
+            "Ref": "TestECSrealTimeDataPublisherRoleEFE9F1CD",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+  },
+}
+`;

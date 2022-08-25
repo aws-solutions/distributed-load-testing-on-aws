@@ -9,7 +9,8 @@ const mockEcs = {
   stopTask: jest.fn()
 };
 const mockDynamoDb = {
-  update: jest.fn()
+  update: jest.fn(),
+  get: jest.fn()
 };
 const mockLambda = {
   invoke: jest.fn()
@@ -20,14 +21,14 @@ mockAWS.ECS = jest.fn(() => ({
   stopTask: mockEcs.stopTask
 }));
 mockAWS.DynamoDB.DocumentClient = jest.fn(() => ({
-  update: mockDynamoDb.update
+  update: mockDynamoDb.update,
+  get: mockDynamoDb.get
 }));
 mockAWS.Lambda = jest.fn(() => ({
   invoke: mockLambda.invoke
 }));
 
 process.env = {
-  TASK_CLUSTER: 'mock-task-cluster',
   SCENARIOS_TABLE: 'mock-scenario-table',
   TASK_CANCELER_ARN: 'mock-task-canceler-arn',
   VERSION: '2.0.1',
@@ -35,15 +36,33 @@ process.env = {
 };
 
 const lambda = require('../index.js');
-const event = {
-  scenario: { testId: 'xyz' }
+let event = {
+  testTaskConfig: {
+    region: "us-west-2",
+    concurrency: 3,
+    taskCount: 5,
+    ecsCloudWatchLogGroup: "testEcsCloudWatchLogGroup",
+    taskCluster: "testTaskCluster",
+    taskDefinition: "arn:aws:ecs:us-west-2:123456789012:task-definition/testTaskDefinition:1",
+    subnetB: "subnet-1111aaaa",
+    taskImage: "test-load-tester",
+    subnetA: "subnet-2222bbbb",
+    taskSecurityGroup: "sg-abcd1234",
+  },
+  testId: "testId",
+  testType: "simple",
+  fileType: "none",
+  isRunning: false
 };
+const origEvent = event;
 
-describe('task-status-cheker', () => {
+describe('task-status-checker', () => {
   beforeEach(() => {
     mockEcs.listTasks.mockReset();
     mockEcs.describeTasks.mockReset();
     mockDynamoDb.update.mockReset();
+    mockDynamoDb.get.mockReset();
+    event = { ...origEvent };
   });
 
   it('should return false for isRunning when there is no running task', async () => {
@@ -54,15 +73,36 @@ describe('task-status-cheker', () => {
         }
       };
     });
+    mockDynamoDb.get.mockImplementationOnce(() => {
+      return {
+        promise() {
+          return Promise.resolve({ Item: { status: 'running' } });
+        }
+      };
+    });
 
     const response = await lambda.handler(event);
-    expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
-    expect(response).toEqual({
-      scenario: event.scenario,
+    expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster });
+    expect(response).toEqual(expect.objectContaining({
+      testTaskConfig: {
+        concurrency: 3,
+        ecsCloudWatchLogGroup: "testEcsCloudWatchLogGroup",
+        region: "us-west-2",
+        subnetA: "subnet-2222bbbb",
+        subnetB: "subnet-1111aaaa",
+        taskCluster: "testTaskCluster",
+        taskCount: 5,
+        taskDefinition: "arn:aws:ecs:us-west-2:123456789012:task-definition/testTaskDefinition:1",
+        taskImage: "test-load-tester",
+        taskSecurityGroup: "sg-abcd1234"
+      },
+      fileType: "none",
       numTasksRunning: 1,
       isRunning: false,
-      taskRunner: undefined
-    });
+      taskRunner: undefined,
+      testId: "testId",
+      testType: "simple",
+    }));
   });
 
   it('should return false for isRunning when there is a running task but not a test task', async () => {
@@ -80,16 +120,24 @@ describe('task-status-cheker', () => {
         }
       };
     });
+    mockDynamoDb.get.mockImplementationOnce(() => {
+      return {
+        promise() {
+          return Promise.resolve({ Item: { status: 'running' } });
+        }
+      };
+    });
+
+
 
     const response = await lambda.handler(event);
-    expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
-    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task'] });
-    expect(response).toEqual({
-      scenario: event.scenario,
+    expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster });
+    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster, tasks: ['arn:of:ecs:task'] });
+    expect(response).toEqual(expect.objectContaining({
       isRunning: false,
       numTasksRunning: 1,
       taskRunner: undefined
-    });
+    }));
   });
 
   it('should return false for isRunning when there are running tasks but not test tasks', async () => {
@@ -119,18 +167,24 @@ describe('task-status-cheker', () => {
         }
       };
     });
+    mockDynamoDb.get.mockImplementationOnce(() => {
+      return {
+        promise() {
+          return Promise.resolve({ Item: { status: 'running' } });
+        }
+      };
+    });
 
     const response = await lambda.handler(event);
-    expect(mockEcs.listTasks).toHaveBeenNthCalledWith(1, { cluster: process.env.TASK_CLUSTER });
-    expect(mockEcs.listTasks).toHaveBeenNthCalledWith(2, { cluster: process.env.TASK_CLUSTER, nextToken: 'next' });
-    expect(mockEcs.describeTasks).toHaveBeenNthCalledWith(1, { cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task1'], });
-    expect(mockEcs.describeTasks).toHaveBeenNthCalledWith(2, { cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task2'], });
-    expect(response).toEqual({
-      scenario: event.scenario,
+    expect(mockEcs.listTasks).toHaveBeenNthCalledWith(1, { cluster: event.testTaskConfig.taskCluster });
+    expect(mockEcs.listTasks).toHaveBeenNthCalledWith(2, { cluster: event.testTaskConfig.taskCluster, nextToken: 'next' });
+    expect(mockEcs.describeTasks).toHaveBeenNthCalledWith(1, { cluster: event.testTaskConfig.taskCluster, tasks: ['arn:of:ecs:task1'], });
+    expect(mockEcs.describeTasks).toHaveBeenNthCalledWith(2, { cluster: event.testTaskConfig.taskCluster, tasks: ['arn:of:ecs:task2'], });
+    expect(response).toEqual(expect.objectContaining({
       isRunning: false,
       numTasksRunning: 1,
       taskRunner: undefined
-    });
+    }));
   });
 
   it('should return true for isRunning when there is a running test task', async () => {
@@ -144,20 +198,89 @@ describe('task-status-cheker', () => {
     mockEcs.describeTasks.mockImplementationOnce(() => {
       return {
         promise() {
-          return Promise.resolve({ tasks: [{ group: 'xyz' }] });
+          return Promise.resolve({ tasks: [{ group: event.testId }] });
+        }
+      };
+    });
+    mockDynamoDb.get.mockImplementationOnce(() => {
+      return {
+        promise() {
+          return Promise.resolve({ Item: { status: 'running' } });
         }
       };
     });
 
     const response = await lambda.handler(event);
-    expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
-    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task'] });
-    expect(response).toEqual({
-      scenario: event.scenario,
+    expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster });
+    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster, tasks: ['arn:of:ecs:task'] });
+    expect(response).toEqual(expect.objectContaining({
+      testTaskConfig: {
+        concurrency: 3,
+        ecsCloudWatchLogGroup: "testEcsCloudWatchLogGroup",
+        region: "us-west-2",
+        subnetA: "subnet-2222bbbb",
+        subnetB: "subnet-1111aaaa",
+        taskCluster: "testTaskCluster",
+        taskCount: 5,
+        taskDefinition: "arn:aws:ecs:us-west-2:123456789012:task-definition/testTaskDefinition:1",
+        taskImage: "test-load-tester",
+        taskSecurityGroup: "sg-abcd1234"
+      },
       isRunning: true,
       numTasksRunning: 1,
-      taskRunner: undefined
+      taskRunner: undefined,
+      fileType: "none",
+      testId: "testId",
+      testType: "simple",
+    }));
+  });
+
+  it('should return false for isRunning when there is a running task but test status is not "running"', async () => {
+    mockEcs.listTasks.mockImplementationOnce(() => {
+      return {
+        promise() {
+          return Promise.resolve({ taskArns: ['arn:of:ecs:task'] });
+        }
+      };
     });
+    mockEcs.describeTasks.mockImplementationOnce(() => {
+      return {
+        promise() {
+          return Promise.resolve({ tasks: [{ group: event.testId }] });
+        }
+      };
+    });
+    mockDynamoDb.get.mockImplementationOnce(() => {
+      return {
+        promise() {
+          return Promise.resolve({ Item: { status: 'cancelled' } });
+        }
+      };
+    });
+
+    const response = await lambda.handler(event);
+    expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster });
+    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster, tasks: ['arn:of:ecs:task'] });
+    expect(response).toEqual(expect.objectContaining({
+      testTaskConfig: {
+        concurrency: 3,
+        ecsCloudWatchLogGroup: "testEcsCloudWatchLogGroup",
+        region: "us-west-2",
+        subnetA: "subnet-2222bbbb",
+        subnetB: "subnet-1111aaaa",
+        taskCluster: "testTaskCluster",
+        taskCount: 5,
+        taskDefinition: "arn:aws:ecs:us-west-2:123456789012:task-definition/testTaskDefinition:1",
+        taskImage: "test-load-tester",
+        taskSecurityGroup: "sg-abcd1234"
+      },
+      isRunning: false,
+      numTasksRunning: 1,
+      taskRunner: undefined,
+      fileType: "none",
+      testId: "testId",
+      testType: "simple",
+    }));
   });
 
   it('should return false for isRunning and prefix when there is no test running and prefix is provided', async () => {
@@ -168,18 +291,24 @@ describe('task-status-cheker', () => {
         }
       };
     });
+    mockDynamoDb.get.mockImplementationOnce(() => {
+      return {
+        promise() {
+          return Promise.resolve({ Item: { status: 'running' } });
+        }
+      };
+    });
 
     event.prefix = 'prefix';
-    event.scenario.taskCount = 2;
+    event.taskCount = 2;
     const response = await lambda.handler(event);
-    expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
-    expect(response).toEqual({
-      scenario: event.scenario,
+    expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster });
+    expect(response).toEqual(expect.objectContaining({
       isRunning: false,
       prefix: 'prefix',
       numTasksRunning: 1,
       taskRunner: undefined
-    });
+    }));
   });
 
   it('should return true for isRunning and prefix when a test is still running and prefix is provided', async () => {
@@ -193,25 +322,31 @@ describe('task-status-cheker', () => {
     mockEcs.describeTasks.mockImplementationOnce(() => {
       return {
         promise() {
-          return Promise.resolve({ tasks: [{ group: 'xyz' }, { group: 'xyz' }] });
+          return Promise.resolve({ tasks: [{ group: event.testId }, { group: event.testId }] });
         }
       };
     });
-
+    mockDynamoDb.get.mockImplementationOnce(() => {
+      return {
+        promise() {
+          return Promise.resolve({ Item: { status: 'running' } });
+        }
+      };
+    });
+    event.prefix = 'prefix';
     const response = await lambda.handler(event);
-    expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
-    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task1', 'arn:of:ecs:task2'] });
-    expect(response).toEqual({
-      scenario: event.scenario,
+    expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster });
+    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster, tasks: ['arn:of:ecs:task1', 'arn:of:ecs:task2'] });
+    expect(response).toEqual(expect.objectContaining({
       isRunning: true,
       prefix: 'prefix',
       numTasksRunning: 1,
       taskRunner: undefined
-    });
+    }));
   });
 
   it('should return true for isRunning, timeoutCount and prefix when a test is still running, any tasks completed, and prefix is provided', async () => {
-    event.scenario.taskCount = 3;
+    event.taskCount = 3;
     mockEcs.listTasks.mockImplementation(() => {
       return {
         promise() {
@@ -222,22 +357,28 @@ describe('task-status-cheker', () => {
     mockEcs.describeTasks.mockImplementationOnce(() => {
       return {
         promise() {
-          return Promise.resolve({ tasks: [{ group: 'xyz', taskArn: 'arn:of:ecs:task1' }] });
+          return Promise.resolve({ tasks: [{ group: event.testId, taskArn: 'arn:of:ecs:task1' }] });
         }
       };
     });
-
+    mockDynamoDb.get.mockImplementationOnce(() => {
+      return {
+        promise() {
+          return Promise.resolve({ Item: { status: 'running' } });
+        }
+      };
+    });
+    event.prefix = 'prefix';
     const response = await lambda.handler(event);
-    expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
-    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task1'] });
-    expect(response).toEqual({
-      scenario: event.scenario,
+    expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster });
+    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster, tasks: ['arn:of:ecs:task1'] });
+    expect(response).toEqual(expect.objectContaining({
       isRunning: true,
       prefix: 'prefix',
       timeoutCount: 10,
       numTasksRunning: 1,
       taskRunner: undefined
-    });
+    }));
   });
 
   it('should return false for isRunning and prefix when timeout happens', async () => {
@@ -251,7 +392,7 @@ describe('task-status-cheker', () => {
     mockEcs.describeTasks.mockImplementationOnce(() => {
       return {
         promise() {
-          return Promise.resolve({ tasks: [{ group: 'xyz', taskArn: 'arn:of:ecs:task1' }] });
+          return Promise.resolve({ tasks: [{ group: event.testId, taskArn: 'arn:of:ecs:task1' }] });
         }
       };
     });
@@ -262,24 +403,31 @@ describe('task-status-cheker', () => {
         }
       };
     });
+    mockDynamoDb.get.mockImplementationOnce(() => {
+      return {
+        promise() {
+          return Promise.resolve({ Item: { status: 'running' } });
+        }
+      };
+    });
 
+    event.prefix = 'prefix';
     event.timeoutCount = 1;
     const response = await lambda.handler(event);
-    expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
-    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task1'] });
+    expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster });
+    expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster, tasks: ['arn:of:ecs:task1'] });
     expect(mockLambda.invoke).toHaveBeenCalledWith({
       FunctionName: process.env.TASK_CANCELER_ARN,
       InvocationType: 'Event',
-      Payload: JSON.stringify({ testId: 'xyz' })
+      Payload: JSON.stringify({ testId: event.testId, testTaskConfig: event.testTaskConfig })
     });
-    expect(response).toEqual({
-      scenario: event.scenario,
+    expect(response).toEqual(expect.objectContaining({
       isRunning: false,
       prefix: 'prefix',
       timeoutCount: 0,
       numTasksRunning: 1,
       taskRunner: undefined
-    });
+    }));
   });
 
   it('should throw an error when listTasks fails', async () => {
@@ -301,11 +449,11 @@ describe('task-status-cheker', () => {
     try {
       await lambda.handler(event);
     } catch (error) {
-      expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
+      expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster });
       expect(mockDynamoDb.update).toHaveBeenCalledWith({
         TableName: process.env.SCENARIOS_TABLE,
         Key: {
-          testId: event.scenario.testId
+          testId: event.testId
         },
         UpdateExpression: 'set #s = :s, #e = :e',
         ExpressionAttributeNames: {
@@ -347,12 +495,12 @@ describe('task-status-cheker', () => {
     try {
       await lambda.handler(event);
     } catch (error) {
-      expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
-      expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task'] });
+      expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster });
+      expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster, tasks: ['arn:of:ecs:task'] });
       expect(mockDynamoDb.update).toHaveBeenCalledWith({
         TableName: process.env.SCENARIOS_TABLE,
         Key: {
-          testId: event.scenario.testId
+          testId: event.testId
         },
         UpdateExpression: 'set #s = :s, #e = :e',
         ExpressionAttributeNames: {
@@ -397,21 +545,28 @@ describe('task-status-cheker', () => {
         }
       };
     });
+    mockDynamoDb.get.mockImplementationOnce(() => {
+      return {
+        promise() {
+          return Promise.resolve({ Item: { status: 'running' } });
+        }
+      };
+    });
 
     try {
       await lambda.handler(event);
     } catch (error) {
-      expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
-      expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER, tasks: ['arn:of:ecs:task'] });
+      expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster });
+      expect(mockEcs.describeTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster, tasks: ['arn:of:ecs:task'] });
       expect(mockLambda.invoke).toHaveBeenCalledWith({
         FunctionName: process.env.TASK_CANCELER_ARN,
-        InvocationType: "Event",
-        Payload: JSON.stringify({ testId: 'xyz' })
+        InvocationType: 'Event',
+        Payload: JSON.stringify({ testId: event.testId, testTaskConfig: event.testTaskConfig })
       });
       expect(mockDynamoDb.update).toHaveBeenCalledWith({
         TableName: process.env.SCENARIOS_TABLE,
         Key: {
-          testId: event.scenario.testId
+          testId: event.testId
         },
         UpdateExpression: 'set #s = :s, #e = :e',
         ExpressionAttributeNames: {
@@ -446,11 +601,11 @@ describe('task-status-cheker', () => {
     try {
       await lambda.handler(event);
     } catch (error) {
-      expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: process.env.TASK_CLUSTER });
+      expect(mockEcs.listTasks).toHaveBeenCalledWith({ cluster: event.testTaskConfig.taskCluster });
       expect(mockDynamoDb.update).toHaveBeenCalledWith({
         TableName: process.env.SCENARIOS_TABLE,
         Key: {
-          testId: event.scenario.testId
+          testId: event.testId
         },
         UpdateExpression: 'set #s = :s, #e = :e',
         ExpressionAttributeNames: {
@@ -465,4 +620,4 @@ describe('task-status-cheker', () => {
       expect(error).toEqual('DynamoDB.DocumentClient.update failed');
     }
   });
-})
+});

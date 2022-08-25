@@ -3,28 +3,12 @@
 
 const AWS = require('aws-sdk');
 const parser = require('xml-js');
-const moment = require('moment');
-const { customAlphabet } = require('nanoid');
-const { SOLUTION_ID, VERSION } = process.env;
-let options = {};
-if (SOLUTION_ID && VERSION && SOLUTION_ID.trim() && VERSION.trim()) {
-    options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${VERSION}`;
-}
-options.region = process.env.AWS_REGION;
-const dynamoDb = new AWS.DynamoDB.DocumentClient(options);
-const cloudwatch = new AWS.CloudWatch(options);
-const s3 = new AWS.S3(options);
+const utils = require('solution-utils');
+const { AWS_REGION, HISTORY_TABLE, SCENARIOS_TABLE } = process.env;
+const awsOptions = utils.getOptions({ region: AWS_REGION });
+const dynamoDb = new AWS.DynamoDB.DocumentClient(awsOptions);
+const s3 = new AWS.S3(awsOptions);
 
-const ALPHA_NUMERIC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-/**
- * Generates an unique ID based on the parameter length.
- * @param length The length of the unique ID
- * @returns The unique ID
- */
-function generateUniqueId(length) {
-    const nanoid = customAlphabet(ALPHA_NUMERIC, length);
-    return nanoid();
-}
 /**
  * Parses test result XML from S3 to JSON, and return the result summary.
  * @param {object} content S3 object body - XML
@@ -32,180 +16,220 @@ function generateUniqueId(length) {
  * @return {Promise<{ stats: object, labels: object[], duration: string }>} Test result from one task
  */
 function results(content, testId) {
-    console.log(`Processing results, testId: ${testId}`);
+  console.log(`Processing results, testId: ${testId}`);
 
-    try {
-        const options = {
-            nativeType: true,
-            compact: true,
-            ignoreAttributes: false
-        };
-        const json = parser.xml2js(content, options);
-        const jsonData = json.FinalStatus;
-        let labels = [];
-        let result = {};
+  try {
+    const options = {
+      nativeType: true,
+      compact: true,
+      ignoreAttributes: false
+    };
+    const json = parser.xml2js(content, options);
+    const jsonData = json.FinalStatus;
+    let labels = [];
+    let result = {};
 
-        console.log(`xml to json: ${JSON.stringify(jsonData, null, 2)}`);
+    console.log(`xml to json: ${JSON.stringify(jsonData, null, 2)}`);
 
-        // loop through results
-        for (let i = 0; i < jsonData.Group.length; i++) {
-            const group = jsonData.Group[i];
-            const label = group._attributes.label;
-            let stats = {
-                rc: []
-            };
+    // loop through results
+    for (let resultsItem of jsonData.Group) {
+      const group = resultsItem;
+      const label = group._attributes.label;
+      let stats = {
+        rc: []
+      };
 
-            // loop through group results
-            for (let r in group) {
-                if (r !== '_attributes' && r !== 'perc' && r !== 'rc') {
-                    stats[r] = group[r].value._text;
-                }
-            }
-
-            // loop through response codes, rc is a object for single responses array for multiple
-            if (Array.isArray(group.rc)) {
-                for (let j = 0; j < group.rc.length; j++) {
-                    if (group.rc[j]._attributes.param !== '200') {
-                        stats.rc.push({ code: group.rc[j]._attributes.param, count: parseInt(group.rc[j]._attributes.value) });
-                    }
-                }
-            } else {
-                if (group.rc._attributes.param !== '200') {
-                    stats.rc.push({ code: group.rc._attributes.param, count: parseInt(group.rc._attributes.value) });
-                }
-            }
-
-            // loop through percentiles and rename/convert keys to strings
-            for (let j = 0; j < group.perc.length; j++) {
-                const perc = 'p' + group.perc[j]._attributes.param.replace('.', '_');
-                stats[perc] = group.perc[j].value._text;
-            }
-            // check if the resuts are for the group (label '') or for a specific label
-            // label '' is the average results for all the labels.
-            if (label) {
-                stats.label = label;
-                labels.push(stats);
-            } else {
-                result = stats;
-            }
+      // loop through group results
+      for (let r in group) {
+        if (r !== '_attributes' && r !== 'perc' && r !== 'rc') {
+          stats[r] = group[r].value._text;
         }
-        result.testDuration = jsonData.TestDuration._text;
+      }
 
-        return {
-            stats: result,
-            labels,
-            duration: jsonData.TestDuration._text
-        };
-    } catch (error) {
-        console.error('results function error', error);
-        throw error;
+      // loop through response codes, rc is a object for single responses array for multiple
+      if (Array.isArray(group.rc)) {
+        for (let responseCode of group.rc) {
+          if (responseCode._attributes.param !== '200') {
+            stats.rc.push({ code: responseCode._attributes.param, count: parseInt(responseCode._attributes.value) });
+          }
+        }
+      } else {
+        if (group.rc._attributes.param !== '200') {
+          stats.rc.push({ code: group.rc._attributes.param, count: parseInt(group.rc._attributes.value) });
+        }
+      }
+
+      // loop through percentiles and rename/convert keys to strings
+      for (let percentiles of group.perc) {
+        const perc = 'p' + percentiles._attributes.param.replace('.', '_');
+        stats[perc] = percentiles.value._text;
+      }
+      // check if the results are for the group (label '') or for a specific label
+      // label '' is the average results for all the labels.
+      if (label) {
+        stats.label = label;
+        labels.push(stats);
+      } else {
+        result = stats;
+      }
     }
+    result.testDuration = jsonData.TestDuration._text;
+    return {
+      stats: result,
+      labels,
+      duration: jsonData.TestDuration._text
+    };
+  } catch (error) {
+    console.error('results function error', error);
+    throw error;
+  }
 }
 
 /**
- * Integrates the all test results and updates DynamoDB record
- * @param {string} testId Test ID
- * @param {object} data Test result data
- * @param {string} startTime Test start time
- * @param {string} taskCount number of tasks run for the test
- * @param {object} testScenario Test run details
- * @param {string} testDescription Test description
- * @param {string} testType Test type
+ * Returns the average value of an array.
+ * @param {number[]} array Number array to get the average value
+ * @return {number} Average number of the numbers in the array
  */
-async function finalResults(testId, data, startTime, taskCount, testScenario, testDescription, testType) {
-    console.log(`Parsing Final Results for ${testId}`);
+const getAvg = (array) => {
+  if (array.length === 0) return 0;
+  return array.reduce((a, b) => a + b, 0) / array.length;
+};
 
-    const thisTestScenario = JSON.parse(testScenario);
-    /**
-     * Retruns the average value of an array.
-     * @param {number[]} array Number array to get the average value
-     * @return {number} Average number of the numbers in the array
-     */
-    const getAvg = (array) => {
-        if (array.length === 0) return 0;
-        return array.reduce((a, b) => a + b, 0) / array.length;
-    };
+/**
+ * Returns the summarized response codes and sum count.
+ * @param {object[]} array Response code object array which includes { code: string, count: number|string } objects
+ * @return {object[]} Summarized response codes and sum count
+ */
+const getReducedResponseCodes = (array) => {
+  return array.reduce((accumulator, currentValue) => {
+    const count = parseInt(currentValue.count);
+    currentValue.count = isNaN(count) ? 0 : count;
 
-    /**
-     * Returns the summarized response codes and sum count.
-     * @param {object[]} array Response code object array which includes { code: string, count: number|string } objects
-     * @return {object[]} Summarized response codes and sum count
-     */
-    const getReducedResponceCodes = (array) => {
-        return array.reduce((accumulator, currentValue) => {
-            const { count } = currentValue;
-            currentValue.count = isNaN(parseInt(count)) ? 0 : parseInt(count);
+    const existing = accumulator.find(acc => acc.code === currentValue.code);
+    if (existing) {
+      existing.count += currentValue.count;
+    } else {
+      accumulator.push(currentValue);
+    }
+    return accumulator;
+  }, []);
+};
 
-            let existing = accumulator.find(acc => acc.code === currentValue.code);
-            if (existing) {
-                existing.count += currentValue.count;
-            } else {
-                accumulator.push(currentValue);
-            }
-            return accumulator;
-        }, []);
-    };
+/**
+ * Integrates the all test results and updates DynamoDB record
+ * @param {object} finalResultParams object containing test configuration and test result details
+ */
+async function finalResults(testId, data) {
+  console.log(`Parsing Final Results for ${testId}`);
 
-    /**
-     * Aggregates the all results from Taurus to one result object.
-     * @param {object} stats Stats object which includes all the results from Taurus
-     * @param {object} result Result object which aggregates the same key values into
-     */
-    const createAggregatedData = (stats, result) => {
-        for (let key in stats) {
-            if (key === 'label') {
-                result.label = stats[key];
-            } else if (key === 'rc') {
-                result.rc = result.rc.concat(stats.rc);
-            } else {
-                result[key].push(stats[key]);
-            }
-        }
-    };
+  /**
+   * Aggregates the all results from Taurus to one result object.
+   * @param {object} stats Stats object which includes all the results from Taurus
+   * @param {object} result Result object which aggregates the same key values into
+   */
+  const createAggregatedData = (stats, result) => {
+    for (let key in stats) {
+      if (key === 'label') {
+        result.label = stats[key];
+      } else if (key === 'rc') {
+        result.rc = result.rc.concat(stats.rc);
+      } else {
+        result[key].push(stats[key]);
+      }
+    }
+  };
 
-    /**
-     * Created the final results
-     * @param {object} source Aggregated Taurus results
-     * @param {object} result Summarized final results
-     */
-    const createFinalResults = (source, result) => {
-        for (let key in source) {
-            switch (key) {
-                case 'label':
-                case 'labels':
-                case 'rc':
-                    result[key] = source[key];
-                    break;
-                case 'fail':
-                case 'succ':
-                case 'throughput':
-                    result[key] = source[key].reduce((a, b) => a + b);
-                    break;
-                case 'bytes':
-                case 'concurrency':
-                case 'testDuration':
-                    result[key] = getAvg(source[key]).toFixed(0);
-                    break;
-                case 'avg_ct':
-                case 'avg_lt':
-                case 'avg_rt':
-                    result[key] = getAvg(source[key]).toFixed(5);
-                    break;
-                default:
-                    result[key] = getAvg(source[key]).toFixed(3);
-            }
-        }
-    };
+  /**
+   * Created the final results
+   * @param {object} source Aggregated Taurus results
+   * @param {object} result Summarized final results
+   */
+  const createFinalResults = (source, result) => {
+    for (let key in source) {
+      switch (key) {
+        case 'label':
+        case 'labels':
+        case 'rc':
+          result[key] = source[key];
+          break;
+        case 'fail':
+        case 'succ':
+        case 'throughput':
+          result[key] = source[key].reduce((a, b) => a + b);
+          break;
+        case 'bytes':
+        case 'concurrency':
+        case 'testDuration':
+          result[key] = getAvg(source[key]).toFixed(0);
+          break;
+        case 'avg_ct':
+        case 'avg_lt':
+        case 'avg_rt':
+          result[key] = getAvg(source[key]).toFixed(5);
+          break;
+        default:
+          result[key] = getAvg(source[key]).toFixed(3);
+      }
+    }
+  };
 
-    const endTime = moment().utc().format('YYYY-MM-DD HH:mm:ss');
-    let testFinalResults = {};
-    let all = {
+  let testFinalResults = {};
+  let all = {
+    avg_ct: [],
+    avg_lt: [],
+    avg_rt: [],
+    bytes: [],
+    concurrency: [],
+    fail: [],
+    p0_0: [],
+    p100_0: [],
+    p50_0: [],
+    p90_0: [],
+    p95_0: [],
+    p99_0: [],
+    p99_9: [],
+    stdev_rt: [],
+    succ: [],
+    testDuration: [],
+    throughput: [],
+    rc: [],
+    labels: []
+  };
+
+  for (let result of data) {
+    const { labels, stats } = result;
+    createAggregatedData(stats, all);
+
+    // Sub results if any
+    if (labels.length > 0) {
+      all.labels = all.labels.concat(labels);
+    }
+  }
+
+  // find duplicates in response codes and sum count
+  if (all.rc.length > 0) {
+    all.rc = getReducedResponseCodes(all.rc);
+  }
+
+  // summarize the test result per label
+  if (all.labels.length > 0) {
+    let set = new Set();
+    let labels = [];
+
+    for (let label of all.labels) {
+      set.add(label.label);
+    }
+
+    for (let label of set.keys()) {
+      let labelTestFinalResults = {};
+      let labelAll = {
         avg_ct: [],
         avg_lt: [],
         avg_rt: [],
         bytes: [],
         concurrency: [],
         fail: [],
+        label: '',
         p0_0: [],
         p100_0: [],
         p50_0: [],
@@ -217,208 +241,214 @@ async function finalResults(testId, data, startTime, taskCount, testScenario, te
         succ: [],
         testDuration: [],
         throughput: [],
-        rc: [],
-        labels: []
-    };
+        rc: []
+      };
 
-    try {
-        for (let result of data) {
-            const { labels, stats } = result;
-            createAggregatedData(stats, all);
+      const labelStats = all.labels.filter((stats) => stats.label === label);
+      for (let stat of labelStats) {
+        createAggregatedData(stat, labelAll);
+      }
 
-            // Sub results if any
-            if (labels.length > 0) {
-                all.labels = all.labels.concat(labels);
-            }
-        }
+      // find duplicates in response codes and sum count
+      if (labelAll.rc.length > 0) {
+        labelAll.rc = getReducedResponseCodes(labelAll.rc);
+      }
 
-        // find duplicates in response codes and sum count
-        if (all.rc.length > 0) {
-            all.rc = getReducedResponceCodes(all.rc);
-        }
-
-        // summarize the test result per label
-        if (all.labels.length > 0) {
-            let set = new Set();
-            let labels = [];
-
-            for (let label of all.labels) {
-                set.add(label.label);
-            }
-
-            for (let label of set.keys()) {
-                let labelTestFinalResults = {};
-                let labelAll = {
-                    avg_ct: [],
-                    avg_lt: [],
-                    avg_rt: [],
-                    bytes: [],
-                    concurrency: [],
-                    fail: [],
-                    label: '',
-                    p0_0: [],
-                    p100_0: [],
-                    p50_0: [],
-                    p90_0: [],
-                    p95_0: [],
-                    p99_0: [],
-                    p99_9: [],
-                    stdev_rt: [],
-                    succ: [],
-                    testDuration: [],
-                    throughput: [],
-                    rc: []
-                };
-
-                const labelStats = all.labels.filter((stats) => stats.label === label);
-                for (let stat of labelStats) {
-                    createAggregatedData(stat, labelAll);
-                }
-
-                // find duplicates in response codes and sum count
-                if (labelAll.rc.length > 0) {
-                    labelAll.rc = getReducedResponceCodes(labelAll.rc);
-                }
-
-                // parse all of the results to generate the final results.
-                createFinalResults(labelAll, labelTestFinalResults);
-                labels.push(labelTestFinalResults);
-            }
-
-            all.labels = labels;
-        }
-
-        // parse all of the results to generate the final results.
-        createFinalResults(all, testFinalResults);
-        console.log('Final Results: ', JSON.stringify(testFinalResults, null, 2));
-
-        const widget = {
-            title: 'CloudWatch Metrics',
-            width: 600,
-            height: 395,
-            metrics: [
-                [
-                    "distributed-load-testing", `${testId}-avgRt`,
-                    {
-                        color: '#FF9900',
-                        label: 'Avg Response Time'
-                    }
-                ],
-                [
-                    ".", `${testId}-numVu`,
-                    {
-                        "color": "#1f77b4",
-                        "yAxis": "right",
-                        "stat": "Sum",
-                        "label": "Virtual Users"
-                    }
-                ],
-                [
-                    ".", `${testId}-numSucc`,
-                    {
-                        "color": "#2CA02C",
-                        "yAxis": "right",
-                        "stat": "Sum",
-                        "label": "Succcess"
-                    }
-                ],
-                [
-                    ".", `${testId}-numFail`,
-                    {
-                        "color": "#D62728",
-                        "yAxis": "right",
-                        "stat": "Sum",
-                        "label": "Failures"
-                    }
-                ]
-            ],
-            period: 10,
-            yAxis: {
-                "left": {
-                    "showUnits": false,
-                    "label": "Seconds"
-                },
-                "right": {
-                    "showUnits": false,
-                    "label": "Total"
-                }
-            },
-            stat: 'Average',
-            view: 'timeSeries',
-            start: new Date(startTime).toISOString(),
-            end: new Date(endTime).toISOString()
-        };
-        const cwParams = {
-            MetricWidget: JSON.stringify(widget)
-        };
-        console.log(widget);
-
-        // Write the image to S3, store the object key in DDB
-        const image = await cloudwatch.getMetricWidgetImage(cwParams).promise();
-        const metricWidgetImage = Buffer.from(image.MetricWidgetImage).toString('base64');
-        const metricImageTitle = `${widget.title}-${widget.start}`;
-        const metricS3ObjectKey = `cloudwatch-images/${testId}/${metricImageTitle}`;
-        const s3PutObjectParams = {
-            Body: metricWidgetImage,
-            Bucket: process.env.SCENARIOS_BUCKET,
-            Key: `public/${metricS3ObjectKey}`,
-            ContentEncoding: 'base64',
-            ContentType: 'image/jpeg'
-        };
-        await s3.putObject(s3PutObjectParams).promise();
-
-        const succPercent = ((testFinalResults.succ / testFinalResults.throughput) * 100).toFixed(2);
-        const status = 'complete';
-
-        // Update Scenarios Table with final results and history.
-        const history = {
-            id: generateUniqueId(10),
-            startTime,
-            endTime,
-            results: testFinalResults,
-            status,
-            succPercent,
-            taskCount,
-            metricS3Location: metricS3ObjectKey,
-            testScenario: thisTestScenario,
-            testDescription,
-            testType
-        };
-        const ddbUpdateParams = {
-            TableName: process.env.SCENARIOS_TABLE,
-            Key: {
-                testId: testId
-            },
-            UpdateExpression: 'set #r = :r, #t = :t, #msl = :msl, #s = :s, #h = list_append(:h, if_not_exists(#h, :l)), #ct = :ct',
-            ExpressionAttributeNames: {
-                '#r': 'results',
-                '#t': 'endTime',
-                '#msl': 'metricS3Location',
-                '#s': 'status',
-                '#h': 'history',
-                '#ct': 'completeTasks'
-            },
-            ExpressionAttributeValues: {
-                ':r': testFinalResults,
-                ':t': endTime,
-                ':msl': metricS3ObjectKey,
-                ':s': status,
-                ':h': [history],
-                ':l': [],
-                ':ct': data.length
-            },
-            ReturnValues: 'ALL_NEW'
-        };
-        await dynamoDb.update(ddbUpdateParams).promise();
-
-        return testFinalResults;
-    } catch (error) {
-        console.error('finalResults function error', error);
-        throw error;
+      // parse all of the results to generate the final results.
+      createFinalResults(labelAll, labelTestFinalResults);
+      labels.push(labelTestFinalResults);
     }
+
+    all.labels = labels;
+  }
+
+  // parse all of the results to generate the final results.
+  createFinalResults(all, testFinalResults);
+  console.log('Final Results: ', JSON.stringify(testFinalResults, null, 2));
+  return testFinalResults;
+}
+
+async function putTestHistory(historyParams) {
+  try {
+    const { status, testId, finalResults: finalTestResults, startTime, endTime, testTaskConfigs, testScenario, testDescription, testType, completeTasks } = historyParams;
+    const thisTestScenario = JSON.parse(testScenario);
+    const succPercent = ((finalTestResults['total'].succ / finalTestResults['total'].throughput) * 100).toFixed(2);
+    const history = {
+      testRunId: utils.generateUniqueId(10),
+      startTime,
+      endTime,
+      results: finalTestResults,
+      status,
+      succPercent,
+      testId,
+      testTaskConfigs,
+      testScenario: thisTestScenario,
+      testDescription,
+      testType,
+      completeTasks
+    };
+    const ddbParams = {
+      TableName: HISTORY_TABLE,
+      Item: history
+    };
+    await dynamoDb.put(ddbParams).promise();
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
+}
+
+async function updateTable(params) {
+  const { status, testId, finalResults: finalTestResults, endTime, completeTasks } = params;
+
+  const ddbUpdateParams = {
+    TableName: SCENARIOS_TABLE,
+    Key: {
+      testId: testId
+    },
+    UpdateExpression: 'set #r = :r, #t = :t, #s = :s, #ct = :ct',
+    ExpressionAttributeNames: {
+      '#r': 'results',
+      '#t': 'endTime',
+      '#s': 'status',
+      '#ct': 'completeTasks'
+    },
+    ExpressionAttributeValues: {
+      ':r': finalTestResults,
+      ':t': endTime,
+      ':s': status,
+      ':ct': completeTasks
+    },
+    ReturnValues: 'ALL_NEW'
+  };
+  await dynamoDb.update(ddbUpdateParams).promise();
+  return 'Success';
+}
+
+function getWidgetMetrics(testId, options) {
+  const metrics = [];
+  const metricOptions = {
+    'avgRt': {
+      label: 'Avg Response Time',
+      color: '#FF9900'
+    },
+    'numVu': {
+      label: 'Virtual Users',
+      color: '#1f77b4',
+    },
+    'numSucc': {
+      label: 'Successes',
+      color: '#2CA02C'
+    },
+    'numFail': {
+      label: 'Failures',
+      color: '#D62728'
+    }
+  };
+
+  for (const key in metricOptions) {
+    let metric = [];
+    let addedOptions = {};
+    //add either stat or expression
+    if (options.expression) {
+      addedOptions.expression = key === 'avgRt' ? `AVG([${options.expression[key]}])` : `SUM([${options.expression[key]}])`;
+    } else {
+      addedOptions = options;
+      metric = ['distributed-load-testing', `${testId}-${key}`];
+      (key !== 'avgRt') && (metricOptions[key].stat = 'Sum');
+    }
+    //if key is not avgRt add sum and yAxis options
+    (key !== 'avgRt') && (metricOptions[key].yAxis = 'right');
+
+    //add in provided options
+    metricOptions[key] = { ...metricOptions[key], ...addedOptions };
+
+    metric.push(metricOptions[key]);
+    metrics.push(metric);
+  }
+
+  return metrics;
+}
+
+async function createWidget(startTime, endTime, region, testId, metrics) {
+  if (region !== 'total') {
+    metrics = getWidgetMetrics(testId, { region: region });
+  } else {
+    const metricIds = { avgRt: [], numVu: [], numSucc: [], numFail: [] };
+    metrics = metrics.map((metric) => {
+      const metricName = metric[1].split('-').pop();
+      const metricId = `${metricName}${metricIds[metricName].length}`;
+      metricIds[metricName].push(metricId);
+      metric[2] = { ...metric[2], visible: false, id: metricId };
+      return metric;
+    });
+    metrics = metrics.concat(getWidgetMetrics(testId, { expression: metricIds }));
+  }
+
+  const widget = {
+    title: `CloudWatchMetrics-${region}`,
+    width: 600,
+    height: 395,
+    metrics: metrics,
+    period: 10,
+    yAxis: {
+      "left": {
+        "showUnits": false,
+        "label": "Seconds"
+      },
+      "right": {
+        "showUnits": false,
+        "label": "Total"
+      }
+    },
+    stat: 'Average',
+    view: 'timeSeries',
+    start: new Date(startTime).toISOString(),
+    end: new Date(endTime).toISOString()
+  };
+  const cwParams = {
+    MetricWidget: JSON.stringify(widget)
+  };
+  console.log(JSON.stringify(widget));
+  // Write the image to S3, store the object key in DDB
+  awsOptions.region = region === 'total' ? AWS_REGION : region;
+  const cloudwatch = new AWS.CloudWatch(awsOptions);
+  const image = await cloudwatch.getMetricWidgetImage(cwParams).promise();
+  const metricWidgetImage = Buffer.from(image.MetricWidgetImage).toString('base64');
+  const metricImageTitle = `${widget.title}-${widget.start}`;
+  const metricS3ObjectKey = `cloudwatch-images/${testId}/${metricImageTitle}`;
+  const s3PutObjectParams = {
+    Body: metricWidgetImage,
+    Bucket: process.env.SCENARIOS_BUCKET,
+    Key: `public/${metricS3ObjectKey}`,
+    ContentEncoding: 'base64',
+    ContentType: 'image/jpeg'
+  };
+  await s3.putObject(s3PutObjectParams).promise();
+  console.log(`Wrote metric widget public/${metricS3ObjectKey} to S3 bucket`);
+
+  return { metricS3Location: metricS3ObjectKey, metrics: widget.metrics };
+}
+
+async function deleteRegionalMetricFilter(testId, region, taskCluster, ecsCloudWatchLogGroup) {
+  awsOptions.region = region;
+  const cloudwatchLogs = new AWS.CloudWatchLogs(awsOptions);
+  const metrics = ["numVu", "numSucc", "numFail", "avgRt"];
+  for (const metric of metrics) {
+    const deleteMetricFilterParams = {
+      filterName: `${taskCluster}-Ecs${metric}-${testId}`,
+      logGroupName: ecsCloudWatchLogGroup
+    };
+    await cloudwatchLogs.deleteMetricFilter(deleteMetricFilterParams).promise();
+  }
+  return 'Success';
 }
 
 module.exports = {
-    results,
-    finalResults
-}
+  results,
+  finalResults,
+  createWidget,
+  deleteRegionalMetricFilter,
+  putTestHistory,
+  updateTable
+};

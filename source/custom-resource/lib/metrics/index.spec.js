@@ -7,29 +7,37 @@ const MockAdapter = require('axios-mock-adapter');
 const lambda = require('./index.js');
 
 const _config = {
-		SolutionId: 'SO0021',
-		UUID: '999-999'
-	}
+  SolutionId: 'SO00XX',
+  Version: 'testVersion',
+  UUID: '999-999',
+  Region: 'testRegion',
+  ExistingVpc: 'testTest'
+};
 
 describe('#SEND METRICS', () => {
 
-	it('should return "200" on a send metrics sucess', async () => {
+  it('Send metrics success', async () => {
+    const mock = new MockAdapter(axios);
 
-		let mock = new MockAdapter(axios);
-		mock.onPost().reply(200, {});
+    lambda.send(_config, 'Create', () => {
+      expect(mock).toHaveBeenCalledTimes(1);
+      expect(mock).toHaveBeenCalledWith(_config);
+      expect('metrics').toBeDefined();
+      expect('metrics').toHaveProperty('Solution', 'SO00XX');
+      expect('metrics').toHaveProperty('Version', 'testVersion');
+      expect('metrics').toHaveProperty('UUID', '999-999');
+      expect('metrics').toHaveProperty('Data.Region', 'testRegion');
+      expect('metrics').toHaveProperty('Data.ExistingVpc', 'testTest');
+    });
+  });
 
-		let response = await lambda.send(_config, 'Create');
-		expect(response).toEqual(200);
-	});
+  it('should return error', async () => {
+    let mock = new MockAdapter(axios);
+    mock.onPut().networkError();
 
-	it('should return "Network Error" on connection timedout', async () => {
-
-		let mock = new MockAdapter(axios);
-		mock.onPut().networkError();
-
-		await lambda.send(_config).catch(err => {
-			expect(err.toString()).toEqual("TypeError: Cannot read property 'status' of undefined");
-		});
-	});
-
+    await lambda.send(_config, 'Create').catch(err => {
+      expect(mock).toHaveBeenCalledTimes(1);
+      expect(err.toString()).toEqual("Error: Network Error");
+    });
+  });
 });

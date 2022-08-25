@@ -3,9 +3,9 @@
 
 import '@aws-cdk/assert/jest';
 import { SynthUtils } from '@aws-cdk/assert';
-import { Stack } from '@aws-cdk/core';
+import { Stack } from 'aws-cdk-lib';
 
-import { CognitoAuthConstruct } from '../lib/auth';
+import { CognitoAuthConstruct } from '../lib/front-end/auth';
 
 
 test('DLT API Test', () => {
@@ -20,4 +20,7 @@ test('DLT API Test', () => {
   });
 
   expect(SynthUtils.toCloudFormation(stack)).toMatchSnapshot();
+  expect(auth.cognitoIdentityPoolId).toBeDefined();
+  expect(auth.cognitoUserPoolClientId).toBeDefined();
+  expect(auth.cognitoUserPoolId).toBeDefined();
 });

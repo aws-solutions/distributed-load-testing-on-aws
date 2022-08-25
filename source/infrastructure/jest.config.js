@@ -6,6 +6,8 @@ module.exports = {
   },
   coverageReporters: [
     "text",
-    ["lcov", { "projectRoot": "../" }]
+    "clover",
+    "json",
+    ["lcov", { "projectRoot": "../.." }]
   ]
 };

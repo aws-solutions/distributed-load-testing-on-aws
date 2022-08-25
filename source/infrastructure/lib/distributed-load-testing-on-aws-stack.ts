@@ -6,26 +6,29 @@ import {
   Aws,
   CfnCondition,
   CfnMapping,
+  CfnOutput,
   CfnParameter,
   CfnResource,
-  Construct,
+  CfnRule,
   Fn,
   IAspect,
-  IConstruct,
-  StackProps,
   Stack,
-  CfnOutput
-} from '@aws-cdk/core';
-import { CognitoAuthConstruct } from './auth';
-import { CommonResourcesContruct } from './common-resources';
-import { FargateECSTestRunnerContruct } from './ecs';
-import { FargateVpcContruct } from './vpc';
-import { ScenarioTestRunnerStorageContruct } from './scenarios-storage';
-import { DLTConsoleContruct } from './console';
-import { CustomResourcesConstruct } from './custom-resources';
-import { DLTAPI } from './api';
-import { TestRunnerLambdasConstruct } from './test-task-lambdas';
-import { TaskRunnerStepFunctionConstruct } from './step-functions';
+  StackProps,
+  Tags
+} from 'aws-cdk-lib';
+import { Construct, IConstruct } from 'constructs';
+import { DLTAPI } from './front-end/api';
+import { CognitoAuthConstruct } from './front-end/auth';
+import { CommonResourcesConstruct } from './common-resources/common-resources';
+import { DLTConsoleConstruct } from './front-end/console';
+import { CustomResourcesConstruct } from './custom-resources/custom-resources';
+import { CustomResourceInfraConstruct } from './custom-resources/custom-resources-infra';
+import { ECSResourcesConstruct } from './testing-resources/ecs';
+import { ScenarioTestRunnerStorageConstruct } from './back-end/scenarios-storage';
+import { TaskRunnerStepFunctionConstruct } from './back-end/step-functions';
+import { TestRunnerLambdasConstruct } from './back-end/test-task-lambdas';
+import { FargateVpcConstruct } from './testing-resources/vpc';
+import { RealTimeDataConstruct } from './testing-resources/real-time-data';
 
 /**
  * CDK Aspect implementation to set up conditions to the entire Construct resources
@@ -50,8 +53,23 @@ class ConditionAspect implements IAspect {
 }
 
 /**
+ * DLTStack props
+ * @interface DLTStackProps
+ */
+export interface DLTStackProps extends StackProps {
+  readonly codeBucket: string;
+  readonly codeVersion: string;
+  readonly description: string;
+  readonly publicECRRegistry: string;
+  readonly publicECRTag: string;
+  readonly stackType: string;
+  readonly solutionId: string;
+  readonly solutionName: string;
+  readonly url: string;
+}
+
+/**
  * Distributed Load Testing on AWS main CDK Stack
- * @class
  */
 export class DLTStack extends Stack {
   // VPC ID
@@ -60,7 +78,7 @@ export class DLTStack extends Stack {
   private fargateSubnetA: string;
   private fargateSubnetB: string;
 
-  constructor(scope: Construct, id: string, props?: StackProps) {
+  constructor(scope: Construct, id: string, props: DLTStackProps) {
     super(scope, id, props);
 
     // CFN template format version
@@ -178,16 +196,34 @@ export class DLTStack extends Stack {
       }
     };
 
+    // CFN Rules
+    // If the user enters a value for an existing VPC, 
+    // require the customers to fill out values for subnets A and B
+    new CfnRule(this, 'ExistingVPCRule', {
+      ruleCondition: Fn.conditionNot(Fn.conditionEquals(existingVpcId.value, '')),
+      assertions: [
+        {
+          assert: Fn.conditionNot(Fn.conditionEquals(existingSubnetA.value, '')),
+          assertDescription: 'If an existing VPC Id is provided, 2 subnet ids need to be provided as well. You neglected to enter the first subnet id'
+        },
+        {
+          assert: Fn.conditionNot(Fn.conditionEquals(existingSubnetB.value, '')),
+          assertDescription: 'If an existing VPC Id is provided, 2 subnet ids need to be provided as well. You neglected to enter the second subnet id'
+        }
+      ]
+    });
+
     // CFN Mappings
     const solutionMapping = new CfnMapping(this, 'Solution', {
       mapping: {
         Config: {
-          CodeVersion: 'CODE_VERSION',
-          KeyPrefix: 'SOLUTION_NAME/CODE_VERSION',
-          S3Bucket: 'CODE_BUCKET',
+          CodeVersion: props.codeVersion,
+          ContainerImage: `${props.publicECRRegistry}/distributed-load-testing-on-aws-load-tester:${props.publicECRTag}`,
+          KeyPrefix: `${props.solutionName}/${props.codeVersion}`,
+          S3Bucket: props.codeBucket,
           SendAnonymousUsage: 'Yes',
-          SolutionId: 'SO0062',
-          URL: 'https://metrics.awssolutionsbuilder.com/generic'
+          SolutionId: props.solutionId,
+          URL: props.url
         }
       }
     });
@@ -197,6 +233,14 @@ export class DLTStack extends Stack {
     const sourceCodeBucket = Fn.join('-', [solutionMapping.findInMap('Config', 'S3Bucket'), Aws.REGION]);
     const sourceCodePrefix = solutionMapping.findInMap('Config', 'KeyPrefix');
     const metricsUrl = solutionMapping.findInMap('Config', 'URL');
+    const containerImage = solutionMapping.findInMap('Config', 'ContainerImage');
+    const mainStackRegion = Aws.REGION;
+
+    // Stack level tags
+    Tags.of(this).add('SolutionId', solutionId);
+
+    // Stack level tags
+    Tags.of(this).add('SolutionId', solutionId);
 
     // CFN Conditions
     const sendAnonymousUsageCondition = new CfnCondition(this, 'SendAnonymousUsage', {
@@ -212,67 +256,99 @@ export class DLTStack extends Stack {
     });
 
     // Fargate VPC resources  
-    const fargate = new FargateVpcContruct(this, 'DLTVpc', {
+    const fargateVpc = new FargateVpcConstruct(this, 'DLTVpc', {
       solutionId: solutionId,
       subnetACidrBlock: subnetACidrBlock.valueAsString,
       subnetBCidrBlock: subnetBCidrBlock.valueAsString,
       vpcCidrBlock: vpcCidrBlock.valueAsString,
     });
-    Aspects.of(fargate).add(new ConditionAspect(createFargateVpcResourcesCondition));
+    Aspects.of(fargateVpc).add(new ConditionAspect(createFargateVpcResourcesCondition));
     this.fargateVpcId = Fn.conditionIf(createFargateVpcResourcesCondition.logicalId,
-      fargate.DLTfargateVpcId,
+      fargateVpc.vpcId,
       existingVpcId.valueAsString
     ).toString();
 
     this.fargateSubnetA = Fn.conditionIf(createFargateVpcResourcesCondition.logicalId,
-      fargate.subnetA,
+      fargateVpc.subnetA,
       existingSubnetA.valueAsString
     ).toString();
 
     this.fargateSubnetB = Fn.conditionIf(createFargateVpcResourcesCondition.logicalId,
-      fargate.subnetB,
+      fargateVpc.subnetB,
       existingSubnetB.valueAsString
     ).toString();
 
-    // Fargate ECS resources
-    const fargateECSResources = new FargateECSTestRunnerContruct(this, 'DLTEcs', {
-      DLTfargateVpcId: this.fargateVpcId,
-      securityGroupEgress: egressCidrBlock.valueAsString,
-      solutionId: solutionId,
-    });
     const existingVpc = Fn.conditionIf(usingExistingVpc.logicalId, true, false).toString();
-    const commonResources = new CommonResourcesContruct(this, 'DLTCommonResources', {
-      dltEcsTaskExecutionRole: fargateECSResources.dltTaskExecutionRole,
-      solutionId: solutionId,
-      sourceCodeBucket,
-      sourceCodePrefix,
-      solutionVersion,
-      sendAnonymousUsageCondition,
-      existingVpc,
-      metricsUrl
+
+    const commonResources = new CommonResourcesConstruct(this, 'DLTCommonResources', {
+      sourceCodeBucket
     });
 
-    const dltConsole = new DLTConsoleContruct(this, 'DLTConsoleResources', {
-      customResource: commonResources.customResourceLambda,
-      s3LogsBucket: commonResources.s3LogsBucket,
+    const s3LogsBucket = commonResources.s3LogsBucket();
+
+    const dltConsole = new DLTConsoleConstruct(this, 'DLTConsoleResources', {
+      s3LogsBucket: s3LogsBucket,
       solutionId: solutionId
     });
 
-    const dltStorage = new ScenarioTestRunnerStorageContruct(this, 'DLTTestRunnerStorage', {
-      ecsTaskExecutionRole: fargateECSResources.dltTaskExecutionRole,
-      s3LogsBucket: commonResources.s3LogsBucket,
+    const dltStorage = new ScenarioTestRunnerStorageConstruct(this, 'DLTTestRunnerStorage', {
+      s3LogsBucket: s3LogsBucket,
       cloudFrontDomainName: dltConsole.cloudFrontDomainName,
       solutionId,
     });
 
+    const customResourceInfra = new CustomResourceInfraConstruct(this, 'DLTCustomResourceInfra', {
+      cloudWatchPolicy: commonResources.cloudWatchLogsPolicy,
+      consoleBucketArn: dltConsole.consoleBucketArn,
+      mainStackRegion: mainStackRegion,
+      metricsUrl,
+      scenariosS3Bucket: dltStorage.scenariosBucket.bucketName,
+      scenariosTable: dltStorage.scenariosTable.tableName,
+      solutionId,
+      solutionVersion,
+      sourceCodeBucket: commonResources.sourceBucket,
+      sourceCodePrefix,
+      stackType: props.stackType
+    });
+
+    const customResources = new CustomResourcesConstruct(this, 'DLTCustomResources', {
+      customResourceLambdaArn: customResourceInfra.customResourceArn
+    });
+
+    const iotEndpoint = customResources.getIotEndpoint();
+
+    const { uuid, suffix } = customResources.uuidGenerator();
+
+    const fargateResources = new ECSResourcesConstruct(this, 'DLTEcs', {
+      cloudWatchLogsPolicy: commonResources.cloudWatchLogsPolicy,
+      containerImage,
+      fargateVpcId: this.fargateVpcId,
+      scenariosS3Bucket: dltStorage.scenariosBucket.bucketName,
+      securityGroupEgress: egressCidrBlock.valueAsString,
+      solutionId: solutionId
+    });
+
+    new RealTimeDataConstruct(this, 'RealTimeData', {
+      cloudWatchLogsPolicy: commonResources.cloudWatchLogsPolicy,
+      ecsCloudWatchLogGroup: fargateResources.ecsCloudWatchLogGroup,
+      iotEndpoint: iotEndpoint,
+      mainRegion: Aws.REGION,
+      solutionId,
+      solutionVersion,
+      sourceCodeBucket: commonResources.sourceBucket,
+      sourceCodePrefix
+    });
+
     const stepLambdaFunctions = new TestRunnerLambdasConstruct(this, 'DLTLambdaFunction', {
       cloudWatchLogsPolicy: commonResources.cloudWatchLogsPolicy,
-      dynamoDbPolicy: dltStorage.dynamoDbPolicy,
-      ecsTaskExecutionRoleArn: fargateECSResources.dltTaskExecutionRole.roleArn,
-      ecsCloudWatchLogGroup: fargateECSResources.dltCloudWatchLogGroup,
-      ecsCluster: fargateECSResources.dltEcsClusterName,
-      ecsTaskDefinition: fargateECSResources.dltTaskDefinitionArn,
-      ecsTaskSecurityGroup: fargateECSResources.dltSecurityGroupId,
+      scenariosDynamoDbPolicy: dltStorage.scenarioDynamoDbPolicy,
+      ecsTaskExecutionRoleArn: fargateResources.taskExecutionRoleArn,
+      ecsCloudWatchLogGroup: fargateResources.ecsCloudWatchLogGroup,
+      ecsCluster: fargateResources.taskClusterName,
+      ecsTaskDefinition: fargateResources.taskDefinitionArn,
+      ecsTaskSecurityGroup: fargateResources.ecsSecurityGroupId,
+      historyTable: dltStorage.historyTable,
+      historyDynamoDbPolicy: dltStorage.historyDynamoDbPolicy,
       scenariosS3Policy: dltStorage.scenariosS3Policy,
       subnetA: this.fargateSubnetA,
       subnetB: this.fargateSubnetB,
@@ -282,38 +358,40 @@ export class DLTStack extends Stack {
       solutionVersion,
       sourceCodeBucket: commonResources.sourceBucket,
       sourceCodePrefix,
-      testScenariosBucket: dltStorage.scenariosBucket.bucketName,
-      testScenariosTable: dltStorage.scenariosTable,
-      uuid: commonResources.uuid,
-    })
+      scenariosBucket: dltStorage.scenariosBucket.bucketName,
+      scenariosTable: dltStorage.scenariosTable,
+      uuid
+    });
 
     const taskRunnerStepFunctions = new TaskRunnerStepFunctionConstruct(this, 'DLTStepFunction', {
       taskStatusChecker: stepLambdaFunctions.taskStatusChecker,
       taskRunner: stepLambdaFunctions.taskRunner,
       resultsParser: stepLambdaFunctions.resultsParser,
       taskCanceler: stepLambdaFunctions.taskCanceler,
-      solutionId
+      solutionId,
+      suffix
     });
 
     const dltApi = new DLTAPI(this, 'DLTApi', {
-      ecsCloudWatchLogGroup: fargateECSResources.dltCloudWatchLogGroup,
       cloudWatchLogsPolicy: commonResources.cloudWatchLogsPolicy,
-      dynamoDbPolicy: dltStorage.dynamoDbPolicy,
-      taskCancelerInvokePolicy: stepLambdaFunctions.taskCancelerInvokePolicy,
+      ecsCloudWatchLogGroup: fargateResources.ecsCloudWatchLogGroup,
+      ecsTaskExecutionRoleArn: fargateResources.taskExecutionRoleArn,
+      historyDynamoDbPolicy: dltStorage.historyDynamoDbPolicy,
+      historyTable: dltStorage.historyTable.tableName,
       scenariosBucketName: dltStorage.scenariosBucket.bucketName,
+      scenariosDynamoDbPolicy: dltStorage.scenarioDynamoDbPolicy,
       scenariosS3Policy: dltStorage.scenariosS3Policy,
       scenariosTableName: dltStorage.scenariosTable.tableName,
-      ecsCuster: fargateECSResources.dltEcsClusterName,
-      ecsTaskExecutionRoleArn: fargateECSResources.dltTaskExecutionRole.roleArn,
+      taskCancelerArn: stepLambdaFunctions.taskCanceler.functionArn,
+      taskCancelerInvokePolicy: stepLambdaFunctions.taskCancelerInvokePolicy,
       taskRunnerStepFunctionsArn: taskRunnerStepFunctions.taskRunnerStepFunctions.stateMachineArn,
-      tastCancelerArn: stepLambdaFunctions.taskCanceler.functionArn,
       metricsUrl,
       sendAnonymousUsage,
       solutionId,
       solutionVersion,
       sourceCodeBucket: commonResources.sourceBucket,
       sourceCodePrefix,
-      uuid: commonResources.uuid
+      uuid
     });
 
     const cognitoResources = new CognitoAuthConstruct(this, 'DLTCognitoAuth', {
@@ -324,16 +402,61 @@ export class DLTStack extends Stack {
       scenariosBucketArn: dltStorage.scenariosBucket.bucketArn,
     });
 
-    new CustomResourcesConstruct(this, 'DLTCustomResources', {
+    customResources.copyConsoleFiles({
+      consoleBucketName: dltConsole.consoleBucket.bucketName,
+      scenariosBucket: dltStorage.scenariosBucket.bucketName,
+      sourceCodeBucketName: sourceCodeBucket,
+      sourceCodePrefix
+    });
+
+    customResources.putRegionalTemplate({
+      sourceCodeBucketName: sourceCodeBucket,
+      regionalTemplatePrefix: sourceCodePrefix,
+      scenariosBucket: dltStorage.scenariosBucket.bucketName,
+      mainStackRegion: mainStackRegion,
+      apiServicesLambdaRoleName: dltApi.apiServicesLambdaRoleName,
+      resultsParserRoleName: stepLambdaFunctions.resultsParser.role!.roleName,
+      scenariosTable: dltStorage.scenariosTable.tableName,
+      taskRunnerRoleName: stepLambdaFunctions.taskRunner.role!.roleName,
+      taskCancelerRoleName: stepLambdaFunctions.taskCanceler.role!.roleName,
+      taskStatusCheckerRoleName: stepLambdaFunctions.taskStatusChecker.role!.roleName,
+      uuid
+    });
+
+    customResources.detachIotPrincipalPolicy({
+      iotPolicyName: cognitoResources.iotPolicy.ref
+    });
+
+    customResources.consoleConfig({
       apiEndpoint: dltApi.apiEndpointPath,
-      customResourceLambda: commonResources.customResourceLambda.functionArn,
       cognitoIdentityPool: cognitoResources.cognitoIdentityPoolId,
       cognitoUserPool: cognitoResources.cognitoUserPoolId,
       cognitoUserPoolClient: cognitoResources.cognitoUserPoolClientId,
       consoleBucketName: dltConsole.consoleBucket.bucketName,
       scenariosBucket: dltStorage.scenariosBucket.bucketName,
-      sourceCodeBucketName: commonResources.sourceBucket.bucketName,
-      sourceCodePrefix
+      sourceCodeBucketName: sourceCodeBucket,
+      sourceCodePrefix,
+      iotEndpoint: iotEndpoint,
+      iotPolicy: cognitoResources.iotPolicy.ref
+    });
+
+    customResources.testingResourcesConfigCR({
+      taskCluster: fargateResources.taskClusterName,
+      ecsCloudWatchLogGroup: fargateResources.ecsCloudWatchLogGroup.logGroupName,
+      taskSecurityGroup: fargateResources.ecsSecurityGroupId,
+      taskDefinition: fargateResources.taskDefinitionArn,
+      subnetA: this.fargateSubnetA,
+      subnetB: this.fargateSubnetB,
+      uuid
+    });
+
+    customResources.sendAnonymousMetricsCR({
+      existingVpc,
+      solutionId,
+      uuid,
+      solutionVersion,
+      sendAnonymousUsage,
+      sendAnonymousUsageCondition
     });
 
     //Outputs
@@ -343,7 +466,12 @@ export class DLTStack extends Stack {
     });
     new CfnOutput(this, 'SolutionUUID', {
       description: 'Solution UUID',
-      value: commonResources.uuid
-    })
+      value: uuid
+    });
+    new CfnOutput(this, 'RegionalCFTemplate', {
+      description: 'S3 URL for regional CloudFormation template',
+      value: dltStorage.scenariosBucket.urlForObject('regional-template/distributed-load-testing-on-aws-regional.template'),
+      exportName: 'RegionalCFTemplate'
+    });
   }
 }

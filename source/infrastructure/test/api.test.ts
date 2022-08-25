@@ -3,11 +3,11 @@
 
 import '@aws-cdk/assert/jest';
 import { SynthUtils } from '@aws-cdk/assert';
-import { Stack } from '@aws-cdk/core';
-import { LogGroup } from '@aws-cdk/aws-logs';
-import { DLTAPI } from '../lib/api';
-import { Bucket } from '@aws-cdk/aws-s3';
-import { Policy, PolicyStatement } from '@aws-cdk/aws-iam';
+import { Stack } from 'aws-cdk-lib';
+import { LogGroup } from 'aws-cdk-lib/aws-logs';
+import { DLTAPI } from '../lib/front-end/api';
+import { Bucket } from 'aws-cdk-lib/aws-s3';
+import { Policy, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 
 test('DLT API Test', () => {
   const stack = new Stack();
@@ -22,17 +22,18 @@ test('DLT API Test', () => {
   });
   const testSourceBucket = Bucket.fromBucketName(stack, 'SourceCodeBucket', 'test-bucket-region');
   const api = new DLTAPI(stack, 'TestAPI', {
-    ecsCloudWatchLogGroup: testLog,
     cloudWatchLogsPolicy: testPolicy,
-    dynamoDbPolicy: testPolicy,
+    ecsCloudWatchLogGroup: testLog,
+    historyDynamoDbPolicy: testPolicy,
+    historyTable: 'testHistoryDDBTable',
+    scenariosDynamoDbPolicy: testPolicy,
     taskCancelerInvokePolicy: testPolicy,
     scenariosS3Policy: testPolicy,
     scenariosBucketName: 'testScenarioBucketName',
     scenariosTableName: 'testDDBTable',
-    ecsCuster: 'testECSCluster',
     ecsTaskExecutionRoleArn: 'arn:aws:iam::1234567890:role/MyRole-AJJHDSKSDF',
     taskRunnerStepFunctionsArn: 'arn:aws:states:us-east-1:111122223333:stateMachine:HelloWorld-StateMachine',
-    tastCancelerArn: 'arn:aws:lambda:us-east-1:111122223333:function:HelloFunction',
+    taskCancelerArn: 'arn:aws:lambda:us-east-1:111122223333:function:HelloFunction',
     metricsUrl: 'http://testurl.com',
     sendAnonymousUsage: 'Yes',
     solutionId: 'testId',
@@ -41,6 +42,33 @@ test('DLT API Test', () => {
     sourceCodePrefix: 'testPrefix/',
     uuid: 'abc123'
   });
-
   expect(SynthUtils.toCloudFormation(stack)).toMatchSnapshot();
+  expect(api.apiId).toBeDefined();
+  expect(api.apiEndpointPath).toBeDefined();
+  expect(stack).toHaveResource('AWS::Lambda::Function', {
+    Description: 'API microservices for creating, updating, listing and deleting test scenarios',
+    Handler: 'index.handler',
+    Runtime: 'nodejs14.x',
+    Environment: {
+      Variables: {
+        HISTORY_TABLE: "testHistoryDDBTable",
+        SCENARIOS_BUCKET: 'testScenarioBucketName',
+        SCENARIOS_TABLE: 'testDDBTable',
+        STATE_MACHINE_ARN: 'arn:aws:states:us-east-1:111122223333:stateMachine:HelloWorld-StateMachine',
+        SOLUTION_ID: 'testId',
+        UUID: 'abc123',
+        VERSION: 'testVersion',
+        SEND_METRIC: 'Yes',
+        METRIC_URL: 'http://testurl.com',
+        TASK_CANCELER_ARN: 'arn:aws:lambda:us-east-1:111122223333:function:HelloFunction',
+        STACK_ID: {
+          "Ref": "AWS::StackId"
+        }
+      }
+    }
+  });
+  expect(stack).toHaveResourceLike('AWS::ApiGateway::RequestValidator', {
+    ValidateRequestBody: true,
+    ValidateRequestParameters: true
+  });
 });

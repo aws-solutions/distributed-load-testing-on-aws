@@ -1,0 +1,21 @@
+{
+  "name": "solution-utils",
+  "version": "3.0.0",
+  "description": "Utilities package for Distributed Load Testing on AWS",
+  "license": "Apache-2.0",
+  "author": "aws-solution-builders",
+  "main": "utils",
+  "scripts": {
+    "clean": "rm -rf node_modules package-lock.json",
+    "test": "jest --coverage --silent"
+  },
+  "dependencies": {
+    "nanoid": "^3.1.25"
+  },
+  "devDependencies": {
+    "jest": "26.6.3"
+  },
+  "engines": {
+    "node": "^14.x"
+  }
+}

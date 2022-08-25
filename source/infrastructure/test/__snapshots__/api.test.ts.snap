@@ -162,17 +162,17 @@ Object {
         "Description": "API microservices for creating, updating, listing and deleting test scenarios",
         "Environment": Object {
           "Variables": Object {
-            "ECS_LOG_GROUP": Object {
-              "Ref": "TestLogGroup4EEF7AD4",
-            },
+            "HISTORY_TABLE": "testHistoryDDBTable",
             "METRIC_URL": "http://testurl.com",
             "SCENARIOS_BUCKET": "testScenarioBucketName",
             "SCENARIOS_TABLE": "testDDBTable",
             "SEND_METRIC": "Yes",
             "SOLUTION_ID": "testId",
+            "STACK_ID": Object {
+              "Ref": "AWS::StackId",
+            },
             "STATE_MACHINE_ARN": "arn:aws:states:us-east-1:111122223333:stateMachine:HelloWorld-StateMachine",
             "TASK_CANCELER_ARN": "arn:aws:lambda:us-east-1:111122223333:function:HelloFunction",
-            "TASK_CLUSTER": "testECSCluster",
             "UUID": "abc123",
             "VERSION": "testVersion",
           },
@@ -185,12 +185,6 @@ Object {
           ],
         },
         "Runtime": "nodejs14.x",
-        "Tags": Array [
-          Object {
-            "Key": "SolutionId",
-            "Value": "testId",
-          },
-        ],
         "Timeout": 120,
       },
       "Type": "AWS::Lambda::Function",
@@ -238,7 +232,7 @@ Object {
           "rules_to_suppress": Array [
             Object {
               "id": "W11",
-              "reason": "ecs:ListTasks does not support resource level permissions",
+              "reason": "ecs:ListTasks and cloudformation:ListExports do not support resource level permissions",
             },
           ],
         },
@@ -354,6 +348,11 @@ Object {
                     ],
                   },
                 },
+                Object {
+                  "Action": "cloudformation:ListExports",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
               ],
               "Version": "2012-10-17",
             },
@@ -420,10 +419,13 @@ Object {
       },
       "Type": "AWS::IAM::Role",
     },
-    "TestAPIDLTApiDeployment7935ADA287019c10d28ca4c24b1843e7ae095419": Object {
+    "TestAPIDLTApiDeployment7935ADA24573564c36777eba9168f50b28fad0fb": Object {
       "DependsOn": Array [
         "TestAPIAPIAllRequestValidator9A179146",
         "TestAPIDLTApiOPTIONS380FFB97",
+        "TestAPIDLTApiregionsANYC5A4C4FB",
+        "TestAPIDLTApiregionsOPTIONSB6A98797",
+        "TestAPIDLTApiregionsFB81DCC6",
         "TestAPIDLTApiscenariostestIdANY5DE40CF0",
         "TestAPIDLTApiscenariostestIdOPTIONSF10FECFD",
         "TestAPIDLTApiscenariostestId0D5FBA86",
@@ -453,6 +455,9 @@ Object {
       "Type": "AWS::ApiGateway::Deployment",
     },
     "TestAPIDLTApiDeploymentStageprodA10AE629": Object {
+      "DependsOn": Array [
+        "TestAPIDLTApiAccount780DB186",
+      ],
       "Metadata": Object {
         "cfn_nag": Object {
           "rules_to_suppress": Array [
@@ -474,10 +479,11 @@ Object {
           "Format": "{\\"requestId\\":\\"$context.requestId\\",\\"ip\\":\\"$context.identity.sourceIp\\",\\"user\\":\\"$context.identity.user\\",\\"caller\\":\\"$context.identity.caller\\",\\"requestTime\\":\\"$context.requestTime\\",\\"httpMethod\\":\\"$context.httpMethod\\",\\"resourcePath\\":\\"$context.resourcePath\\",\\"status\\":\\"$context.status\\",\\"protocol\\":\\"$context.protocol\\",\\"responseLength\\":\\"$context.responseLength\\"}",
         },
         "DeploymentId": Object {
-          "Ref": "TestAPIDLTApiDeployment7935ADA287019c10d28ca4c24b1843e7ae095419",
+          "Ref": "TestAPIDLTApiDeployment7935ADA24573564c36777eba9168f50b28fad0fb",
         },
         "MethodSettings": Array [
           Object {
+            "DataTraceEnabled": false,
             "HttpMethod": "*",
             "LoggingLevel": "INFO",
             "ResourcePath": "/*",
@@ -526,6 +532,118 @@ Object {
             "TestAPIDLTApi434DC190",
             "RootResourceId",
           ],
+        },
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiregionsANYC5A4C4FB": Object {
+      "Properties": Object {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "ANY",
+        "Integration": Object {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": Array [
+            Object {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "arn:",
+                Object {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                Object {
+                  "Fn::GetAtt": Array [
+                    "TestAPIDLTAPIServicesLambda1C09DECC",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": Array [
+          Object {
+            "ResponseModels": Object {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": Object {
+          "Ref": "TestAPIAPIAllRequestValidator9A179146",
+        },
+        "ResourceId": Object {
+          "Ref": "TestAPIDLTApiregionsFB81DCC6",
+        },
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiregionsFB81DCC6": Object {
+      "Properties": Object {
+        "ParentId": Object {
+          "Fn::GetAtt": Array [
+            "TestAPIDLTApi434DC190",
+            "RootResourceId",
+          ],
+        },
+        "PathPart": "regions",
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "TestAPIDLTApiregionsOPTIONSB6A98797": Object {
+      "Properties": Object {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": Object {
+          "IntegrationResponses": Array [
+            Object {
+              "ResponseParameters": Object {
+                "method.response.header.Access-Control-Allow-Headers": "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "200",
+            },
+          ],
+          "RequestTemplates": Object {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": Array [
+          Object {
+            "ResponseParameters": Object {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "ResourceId": Object {
+          "Ref": "TestAPIDLTApiregionsFB81DCC6",
         },
         "RestApiId": Object {
           "Ref": "TestAPIDLTApi434DC190",

@@ -21,16 +21,6 @@ Object {
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
     },
-    "TestECSDLTECR0AA15B8E": Object {
-      "DeletionPolicy": "Retain",
-      "Properties": Object {
-        "ImageScanningConfiguration": Object {
-          "ScanOnPush": true,
-        },
-      },
-      "Type": "AWS::ECR::Repository",
-      "UpdateReplacePolicy": "Retain",
-    },
     "TestECSDLTEcsCluster7C6F0F5D": Object {
       "Properties": Object {
         "ClusterName": Object {
@@ -105,7 +95,7 @@ Object {
         "ContainerDefinitions": Array [
           Object {
             "Essential": true,
-            "Image": "PUBLIC_ECR_REGISTRY/distributed-load-testing-on-aws-load-tester:PUBLIC_ECR_TAG",
+            "Image": "testRepository/testImage:testTag",
             "LogConfiguration": Object {
               "LogDriver": "awslogs",
               "Options": Object {
@@ -181,8 +171,74 @@ Object {
             ],
           },
         ],
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "s3:HeadObject",
+                    "s3:PutObject",
+                    "s3:GetObject",
+                    "s3:ListBucket",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Array [
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":s3:::testscenariobucket",
+                        ],
+                      ],
+                    },
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":s3:::testscenariobucket/*",
+                        ],
+                      ],
+                    },
+                  ],
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "ScenariosS3Policy",
+          },
+        ],
       },
       "Type": "AWS::IAM::Role",
+    },
+    "TestPolicyCC05E598": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "cloudwatch:Get*",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestPolicyCC05E598",
+        "Roles": Array [
+          Object {
+            "Ref": "TestECSDLTTaskExecutionRole104D057B",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
   },
 }

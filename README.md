@@ -1,6 +1,6 @@
 # Distributed Load Testing on AWS
 
-The Distributed Load Testing Solution leverages managed, highly available and highly scalable AWS services to effortlessly create and simulate thousands of connected users generating a selected amount of transactions per second. As a result, developers can understand the behavior of their applications at scale and at load to identify any bottleneck problems before they deploy to Production.
+The Distributed Load Testing Solution leverages managed, highly available and highly scalable AWS services to effortlessly create and simulate thousands of connected users generating a selected amount of transactions per second, originating from up to 5 simultaneous AWS regions. As a result, developers can understand the behavior of their applications at scale and at load to identify any bottleneck problems before they deploy to Production.
 
 ## On this Page
 
@@ -15,7 +15,7 @@ The Distributed Load Testing Solution leverages managed, highly available and hi
 
 ## Deployment
 
-The solution is deployed using a CloudFormation template with a lambda backed custom resource. For details on deploying the solution please see the details on the solution home page: [Distributed Load Testing](https://aws.amazon.com/solutions/implementations/distributed-load-testing-on-aws/)
+The solution is deployed using a CloudFormation template with a lambda backed custom resource. To simulate users from regions other than the region the solution is initially deployed in, a regional template must be deployed within the other desired regions. For details on deploying the solution please see the details on the solution implementation guide: [Distributed Load Testing](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/deployment.html)
 
 ## Source Code
 
@@ -26,10 +26,21 @@ A NodeJS Lambda function for the API microservices. Integrated with Amazon API G
 ReactJS Single page application to provide a GUI to the solutions. Authenticated through Amazon Cognito this dashboard allows users to Create tests and view the final results.
 
 **source/custom-resource**<br/>
-A NodeJS Lambda function used as a CloudFormation custom resource for configuring Amazon S3 bucket notifications and to send anonymous metrics.
+A NodeJS Lambda function used as a CloudFormation custom resource for sending anonymous metrics, configuration for regional testing infrastructure, and iot configuration.
+
+**source/infrastructure**<br/>
+A Typescript [AWS Cloud Development Kit (AWS CDK)](https://aws.amazon.com/cdk/) [v2](https://docs.aws.amazon.com/cdk/v2/guide/home.html) package that defines the infrastructure resources to run the Distributed Load Testing on AWS solution.
+
+It also uses the [AWS Solutions Constructs](https://aws.amazon.com/solutions/constructs/) [aws-cloudfront-s3](https://docs.aws.amazon.com/solutions/latest/constructs/aws-cloudfront-s3.html) package to define the CloudFront distribution and the S3 bucket that stores the content that makes up the UI.
+
+**source/real-time-data-publisher**<br/>
+A NodeJS Lambda function used to publish the real time load test data to an IoT topic.
 
 **source/results-parser**<br/>
 A NodeJS Lambda function used to write the xml output from the docker images to Amazon DynamoDB and generate the final results for each test.
+
+**source/solution-utils**<br/>
+A NodeJS package that contains commonly used functionality that is imported by other packages in this solution.
 
 **source/task-canceler**<br/>
 A NodeJS Lambda function used to stop tasks for a test that has been cancelled.
@@ -48,11 +59,12 @@ To make changes to the solution, download or clone this repository, update the s
 
 ### Prerequisites
 
-* Node.js 14.x or later
+- Node.js 14.x or later
+- S3 bucket that includes the AWS region as a suffix in the name. For example, `my-bucket-us-east-1`. The bucket and CloudFormation stack must be in the same region. The solution's CloudFormation template will expect the source code to be located in a bucket matching that name.
 
 ### Running unit tests for customization
 
-* Clone the repository and make the desired code changes.
+- Clone the repository and make the desired code changes.
 
 ```bash
 git clone https://github.com/aws-solutions/distributed-load-testing-on-aws.git
@@ -60,7 +72,7 @@ cd distributed-load-testing-on-aws
 export BASE_DIRECTORY=$PWD
 ```
 
-* Run unit tests to make sure the updates pass the tests.
+- Run unit tests to make sure the updates pass the tests.
 
 ```bash
 cd $BASE_DIRECTORY/deployment
@@ -70,35 +82,34 @@ chmod +x ./run-unit-tests.sh
 
 ### Building distributable for customization
 
-* Configure the environment variables.
+- Configure the environment variables.
 
 ```bash
-export DIST_BUCKET_PREFIX=my-bucket-name # bucket where customized code will reside
+export REGION=aws-region-code # the AWS region to launch the solution (e.g. us-east-1)
+export BUCKET_PREFIX=my-bucket-name # prefix of the bucket name without the region code
+export BUCKET_NAME=$BUCKET_PREFIX-$REGION # full bucket name where the code will reside
 export SOLUTION_NAME=my-solution-name
 export VERSION=my-version # version number for the customized code
-export REGION=aws-region-code # the AWS region to launch the solution (e.g. us-east-1)
 export PUBLIC_ECR_REGISTRY=public.ecr.aws/awssolutions/distributed-load-testing-on-aws-load-tester # replace with the container registry and image if you want to use a different container image
-export PUBLIC_ECR_TAG=v2.0 # replace with the container image tag if you want to use a different container image
+export PUBLIC_ECR_TAG=v3.0.0 # replace with the container image tag if you want to use a different container image
 ```
 
-> **Note:** When you define `DIST_BUCKET_PREFIX`, a randomized value is recommended. You will need to create an S3 bucket where the name is `<DIST_BUCKET_PREFIX>-<REGION>`. The solution's CloudFormation template will expect the source code to be located in a bucket matching that name.
-
-* Build the distributable.
+- Build the distributable.
 
 ```bash
 cd $BASE_DIRECTORY/deployment
 chmod +x ./build-s3-dist.sh
-./build-s3-dist.sh $DIST_BUCKET_PREFIX $SOLUTION_NAME $VERSION
+./build-s3-dist.sh $BUCKET_PREFIX $SOLUTION_NAME $VERSION
 ```
 
-> **Note**: The _build-s3-dist_ script expects the bucket name as one of its parameters, and this value should not include the region suffix. In addition to that, the version parameter will be used to tag the npm packages, and therefore should be in the [Semantic Versioning format](https://semver.org/spec/v2.0.0.html).
+> **Note**: The _build-s3-dist_ script expects the bucket name **without the region suffix** as one of its parameters.
 
-* Deploy the distributable to the Amazon S3 bucket in your account.
+- Deploy the distributable to the Amazon S3 bucket in your account.
+  - Make sure you are uploading the files in `deployment/global-s3-assets` and `deployment/regional-s3-assets` to `$BUCKET_NAME/$SOLUTION_NAME/$VERSION`.
 
-  * Make sure you are uploading the distributable to the `<DIST_BUCKET_PREFIX>-<REGION>` bucket.
-  * Get the link of the solution template uploaded to your Amazon S3 bucket.
+- Get the link of the solution template uploaded to your Amazon S3 bucket.
 
-* Deploy the solution to your account by launching a new AWS CloudFormation stack using the link of the solution template in Amazon S3.
+- Deploy the solution to your account by launching a new AWS CloudFormation stack using the link of the solution template in Amazon S3.
 
 ## Creating a custom container build
 

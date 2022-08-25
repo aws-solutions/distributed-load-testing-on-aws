@@ -1,0 +1,280 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DLT Regional Permission Test 1`] = `
+Object {
+  "Resources": Object {
+    "TestRegionalPermissionsECSCloudWatchDelMetrics281D272A": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "logs:DeleteMetricFilter",
+              "Effect": "Allow",
+              "Resource": "arn:aws:logs:us-east-2:123456789012:log-group:test_log_group_name",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "ECSCloudWatchDelMetrics-",
+              Object {
+                "Ref": "AWS::StackName",
+              },
+              "-",
+              Object {
+                "Ref": "AWS::Region",
+              },
+            ],
+          ],
+        },
+        "Roles": Array [
+          "testApiServicesLambdaRoleName",
+          "testResultsParserRoleName",
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestRegionalPermissionsECSCloudWatchPutMetricsdD0A5AD2E": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "logs:PutMetricFilter",
+              "Effect": "Allow",
+              "Resource": "arn:aws:logs:us-east-2:123456789012:log-group:test_log_group_name",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "ECSCloudWatchPutMetrics-",
+              Object {
+                "Ref": "AWS::StackName",
+              },
+              "-",
+              Object {
+                "Ref": "AWS::Region",
+              },
+            ],
+          ],
+        },
+        "Roles": Array [
+          "testTaskRunnerRoleName",
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestRegionalPermissionsECSDescribePolicyAA323A68": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "ecs:DescribeTasks",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Fn::Join": Array [
+                  "",
+                  Array [
+                    "arn:",
+                    Object {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":ecs:",
+                    Object {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    Object {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":task/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "ECSDescribePolicy",
+              Object {
+                "Ref": "AWS::Region",
+              },
+            ],
+          ],
+        },
+        "Roles": Array [
+          "testTaskStatusCheckerRoleName",
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestRegionalPermissionsECSStopPolicy4B5507E2": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "ecs:StopTask",
+              "Effect": "Allow",
+              "Resource": Array [
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      "arn:",
+                      Object {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":ecs:",
+                      Object {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      Object {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":task/*",
+                    ],
+                  ],
+                },
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      "arn:",
+                      Object {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":ecs:",
+                      Object {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      Object {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":task-definition/*:*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "ECSStopPolicy-",
+              Object {
+                "Ref": "AWS::StackName",
+              },
+              "-",
+              Object {
+                "Ref": "AWS::Region",
+              },
+            ],
+          ],
+        },
+        "Roles": Array [
+          "testTaskCancelerRoleName",
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestRegionalPermissionsRegionalECRPermsDD807682": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "ecs:RunTask",
+                "ecs:DescribeTasks",
+              ],
+              "Effect": "Allow",
+              "Resource": Array [
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      "arn:",
+                      Object {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":ecs:",
+                      Object {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      Object {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":task/*",
+                    ],
+                  ],
+                },
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      "arn:",
+                      Object {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":ecs:",
+                      Object {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      Object {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":task-definition/*:*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            Object {
+              "Action": "iam:PassRole",
+              "Effect": "Allow",
+              "Resource": "arn:aws:iam::123456789012:role/testRole",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "RegionalECRPerms-",
+              Object {
+                "Ref": "AWS::StackName",
+              },
+              "-",
+              Object {
+                "Ref": "AWS::Region",
+              },
+            ],
+          ],
+        },
+        "Roles": Array [
+          "testTaskRunnerRoleName",
+          "testApiServicesLambdaRoleName",
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+  },
+}
+`;

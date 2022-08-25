@@ -3,7 +3,7 @@
 
 #!/usr/bin/python
 from multiprocessing import Pool
-from socket import socket, AF_INET, SOCK_STREAM
+import socket
 from functools import partial
 import sys
    
@@ -14,7 +14,8 @@ def request_socket(ip_host, ip_net):
     server_name = ip_net + "." + ip_host
 
     #Create socket and connect
-    client_socket = socket(AF_INET, SOCK_STREAM)
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     client_socket.connect((server_name, int(server_port)))
 
     #message to send

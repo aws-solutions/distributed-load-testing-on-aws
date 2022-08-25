@@ -6,16 +6,26 @@ THIRD PARTY COMPONENTS
 **********************
 This software includes third party software subject to the following copyrights:
 
-@fortawesome/fontawesome-svg-core under the Massachusetts Institute of Technology (MIT) license
-@fortawesome/free-brands-svg-icons under the Creative Commons Attribution 4.0 International license and the Massachusetts Institute of Technology (MIT) license
-@fortawesome/free-solid-svg-icons under the Creative Commons Attribution 4.0 International license and the Massachusetts Institute of Technology (MIT) license
-@fortawesome/react-fontawesome under the Massachusetts Institute of Technology (MIT) license
-aws-sdk under the Apache License Version 2.0
+@aws-amplify/pubsub under the Apache License 2.0
+@aws-amplify/ui-components under the Apache License 2.0
+@aws-amplify/ui-react under the Apache License 2.0
+@aws-cdk/assert under the Apache License 2.0
+@aws-solutions-constructs/aws-cloudfront-s3 under the Apache License 2.0
+@types/jest under the Massachusetts Institute of Technology (MIT) License
+@types/node under the Massachusetts Institute of Technology (MIT) License
 aws-amplify under the Apache License Version 2.0
+aws-cdk under the Apache License Version 2.0
+aws-cdk-lib under the Apache License 2.0
+aws-sdk under the Apache License Version 2.0
 axios under the Massachusetts Institute of Technology (MIT) license
 axios-mock-adapter under the Massachusetts Institute of Technology (MIT) license
 bootstrap under the Massachusetts Institute of Technology (MIT) license
+bootstrap-icons under the Massachusetts Institute of Technology (MIT) license
 brace under the Massachusetts Institute of Technology (MIT) license
+chart.js under the Massachusetts Institute of Technology (MIT) license
+chartjs-adapter-moment under the Massachusetts Institute of Technology (MIT) license
+constructs under the Apache License 2.0
+false under the Apache License Version 2.0
 jest under the Massachusetts Institute of Technology (MIT) license
 jetty-alpn-client under the Apache License Version 2.0 and the Eclipse Public License 1.0
 jetty-alpn-openjdk8-client under the Apache License Version 2.0 and the Eclipse Public License 1.0
@@ -23,15 +33,18 @@ jetty-client under the Apache License Version 2.0 and the Eclipse Public License
 jetty-http under the Apache License Version 2.0 and the Eclipse Public License 1.0
 jetty-io under the Apache License Version 2.0 and the Eclipse Public License 1.0
 jetty-util under the Apache License Version 2.0 and the Eclipse Public License 1.0
+js-yaml under the Massachusetts Institute of Technology (MIT) license
 moment under the Massachusetts Institute of Technology (MIT) license
 react under the Massachusetts Institute of Technology (MIT) license
 react-ace under the Massachusetts Institute of Technology (MIT) license
 react-dom under the Massachusetts Institute of Technology (MIT) license
 react-router-dom under the Massachusetts Institute of Technology (MIT) license
-react-router-hash-link under the Massachusetts Institute of Technology (MIT) license
 react-scripts under the Massachusetts Institute of Technology (MIT) license
 reactstrap under the Massachusetts Institute of Technology (MIT) license
 nanoid under the Massachusetts Institute of Technology (MIT) license
 taurus under the Apache License Version 2.0
+ts-jest under the Massachusetts Institute of Technology (MIT) License
+ts-node under the Massachusetts Institute of Technology (MIT) License
+typescript under the Apache License 2.0
 uuid under the Massachusetts Institute of Technology (MIT) license
 xml-js under the Massachusetts Institute of Technology (MIT) license

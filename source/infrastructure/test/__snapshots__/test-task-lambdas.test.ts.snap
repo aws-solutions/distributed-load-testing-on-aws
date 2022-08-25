@@ -1,0 +1,712 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DLT Task Lambda Test 1`] = `
+Object {
+  "Resources": Object {
+    "TaskRunnerLambdaFunctionsDLTTestLambdaTaskRoleCB13DE78": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "ecs:ListTasks does not support resource level permissions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": "ecs:ListTasks",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": Array [
+                    "ecs:RunTask",
+                    "ecs:DescribeTasks",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Array [
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":ecs:",
+                          Object {
+                            "Ref": "AWS::Region",
+                          },
+                          ":",
+                          Object {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":task/*",
+                        ],
+                      ],
+                    },
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":ecs:",
+                          Object {
+                            "Ref": "AWS::Region",
+                          },
+                          ":",
+                          Object {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":task-definition/*:*",
+                        ],
+                      ],
+                    },
+                  ],
+                },
+                Object {
+                  "Action": "iam:PassRole",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:iam:us-east-1:111122223333:roleArn",
+                },
+                Object {
+                  "Action": "logs:PutMetricFilter",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::GetAtt": Array [
+                      "TestLogsGroup54B681C7",
+                      "Arn",
+                    ],
+                  },
+                },
+                Object {
+                  "Action": "cloudwatch:PutDashboard",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":cloudwatch::",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":dashboard/EcsLoadTesting*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "TaskLambdaPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TaskRunnerLambdaFunctionsLambdaResultsPolicy6D0AF2FB": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W12",
+              "reason": "The action does not support resource level permissions.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "cloudwatch:GetMetricWidgetImage",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            Object {
+              "Action": "logs:DeleteMetricFilter",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Fn::GetAtt": Array [
+                  "TestLogsGroup54B681C7",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TaskRunnerLambdaFunctionsLambdaResultsPolicy6D0AF2FB",
+        "Roles": Array [
+          Object {
+            "Ref": "TaskRunnerLambdaFunctionsLambdaResultsRole1AF5AB18",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TaskRunnerLambdaFunctionsLambdaResultsRole1AF5AB18": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W12",
+              "reason": "The action does not support resource level permissions.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TaskRunnerLambdaFunctionsLambdaTaskCancelerRoleEEC6795B": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "ecs:ListTasks does not support resource level permissions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": "ecs:ListTasks",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "ecs:StopTask",
+                  "Effect": "Allow",
+                  "Resource": Array [
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":ecs:",
+                          Object {
+                            "Ref": "AWS::Region",
+                          },
+                          ":",
+                          Object {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":task/*",
+                        ],
+                      ],
+                    },
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":ecs:",
+                          Object {
+                            "Ref": "AWS::Region",
+                          },
+                          ":",
+                          Object {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":task-definition/*:*",
+                        ],
+                      ],
+                    },
+                  ],
+                },
+                Object {
+                  "Action": "dynamodb:UpdateItem",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::GetAtt": Array [
+                      "TestTable5769773A",
+                      "Arn",
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "TaskCancelerPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TaskRunnerLambdaFunctionsResultsParserD7D42F22": Object {
+      "DependsOn": Array [
+        "TaskRunnerLambdaFunctionsLambdaResultsRole1AF5AB18",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            Object {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": "testbucket",
+          "S3Key": "testPrefix/results-parser.zip",
+        },
+        "Description": "Result parser for indexing xml test results to DynamoDB",
+        "Environment": Object {
+          "Variables": Object {
+            "HISTORY_TABLE": Object {
+              "Ref": "TestTable5769773A",
+            },
+            "METRIC_URL": "test.example.net",
+            "SCENARIOS_BUCKET": "testBucket",
+            "SCENARIOS_TABLE": Object {
+              "Ref": "TestTable5769773A",
+            },
+            "SEND_METRIC": "No",
+            "SOLUTION_ID": "testId",
+            "UUID": "testId",
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "TaskRunnerLambdaFunctionsLambdaResultsRole1AF5AB18",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs14.x",
+        "Timeout": 120,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TaskRunnerLambdaFunctionsTaskCancelerDAA76ED9": Object {
+      "DependsOn": Array [
+        "TaskRunnerLambdaFunctionsLambdaTaskCancelerRoleEEC6795B",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            Object {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": "testbucket",
+          "S3Key": "testPrefix/task-canceler.zip",
+        },
+        "Description": "Stops ECS task",
+        "Environment": Object {
+          "Variables": Object {
+            "METRIC_URL": "test.example.net",
+            "SCENARIOS_TABLE": Object {
+              "Ref": "TestTable5769773A",
+            },
+            "SOLUTION_ID": "testId",
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "TaskRunnerLambdaFunctionsLambdaTaskCancelerRoleEEC6795B",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs14.x",
+        "Timeout": 300,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TaskRunnerLambdaFunctionsTaskCancelerInvokePolicyD51068E2": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Fn::GetAtt": Array [
+                  "TaskRunnerLambdaFunctionsTaskCancelerDAA76ED9",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TaskRunnerLambdaFunctionsTaskCancelerInvokePolicyD51068E2",
+        "Roles": Array [
+          Object {
+            "Ref": "TaskRunnerLambdaFunctionsTaskStatusRole4B498DE5",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TaskRunnerLambdaFunctionsTaskRunner626792CE": Object {
+      "DependsOn": Array [
+        "TaskRunnerLambdaFunctionsDLTTestLambdaTaskRoleCB13DE78",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            Object {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": "testbucket",
+          "S3Key": "testPrefix/task-runner.zip",
+        },
+        "Description": "Task runner for ECS task definitions",
+        "Environment": Object {
+          "Variables": Object {
+            "SCENARIOS_BUCKET": "testBucket",
+            "SCENARIOS_TABLE": Object {
+              "Ref": "TestTable5769773A",
+            },
+            "SOLUTION_ID": "testId",
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "TaskRunnerLambdaFunctionsDLTTestLambdaTaskRoleCB13DE78",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs14.x",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TaskRunnerLambdaFunctionsTaskStatusCheckerBA69E13B": Object {
+      "DependsOn": Array [
+        "TaskRunnerLambdaFunctionsTaskStatusRole4B498DE5",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            Object {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": "testbucket",
+          "S3Key": "testPrefix/task-status-checker.zip",
+        },
+        "Description": "Task status checker",
+        "Environment": Object {
+          "Variables": Object {
+            "SCENARIOS_TABLE": Object {
+              "Ref": "TestTable5769773A",
+            },
+            "SOLUTION_ID": "testId",
+            "TASK_CANCELER_ARN": Object {
+              "Fn::GetAtt": Array [
+                "TaskRunnerLambdaFunctionsTaskCancelerDAA76ED9",
+                "Arn",
+              ],
+            },
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "TaskRunnerLambdaFunctionsTaskStatusRole4B498DE5",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs14.x",
+        "Timeout": 180,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TaskRunnerLambdaFunctionsTaskStatusRole4B498DE5": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "ecs:ListTasks does not support resource level permissions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": "ecs:ListTasks",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "ecs:DescribeTasks",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":ecs:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":task/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "TaskStatusPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestDynamoDBPolicy7AA7B6CD": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "dynamodb:*",
+              "Effect": "Deny",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestDynamoDBPolicy7AA7B6CD",
+        "Roles": Array [
+          Object {
+            "Ref": "TaskRunnerLambdaFunctionsLambdaResultsRole1AF5AB18",
+          },
+          Object {
+            "Ref": "TaskRunnerLambdaFunctionsDLTTestLambdaTaskRoleCB13DE78",
+          },
+          Object {
+            "Ref": "TaskRunnerLambdaFunctionsTaskStatusRole4B498DE5",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestLogsGroup54B681C7": Object {
+      "DeletionPolicy": "Retain",
+      "Properties": Object {
+        "RetentionInDays": 731,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TestPolicyCC05E598": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "cloudwatch:Get*",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestPolicyCC05E598",
+        "Roles": Array [
+          Object {
+            "Ref": "TaskRunnerLambdaFunctionsLambdaResultsRole1AF5AB18",
+          },
+          Object {
+            "Ref": "TaskRunnerLambdaFunctionsDLTTestLambdaTaskRoleCB13DE78",
+          },
+          Object {
+            "Ref": "TaskRunnerLambdaFunctionsLambdaTaskCancelerRoleEEC6795B",
+          },
+          Object {
+            "Ref": "TaskRunnerLambdaFunctionsTaskStatusRole4B498DE5",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestS3Policy438528DE": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "s3:*",
+              "Effect": "Deny",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestS3Policy438528DE",
+        "Roles": Array [
+          Object {
+            "Ref": "TaskRunnerLambdaFunctionsLambdaResultsRole1AF5AB18",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestTable5769773A": Object {
+      "DeletionPolicy": "Retain",
+      "Properties": Object {
+        "AttributeDefinitions": Array [
+          Object {
+            "AttributeName": "id",
+            "AttributeType": "S",
+          },
+        ],
+        "KeySchema": Array [
+          Object {
+            "AttributeName": "id",
+            "KeyType": "HASH",
+          },
+        ],
+        "ProvisionedThroughput": Object {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5,
+        },
+      },
+      "Type": "AWS::DynamoDB::Table",
+      "UpdateReplacePolicy": "Retain",
+    },
+  },
+}
+`;

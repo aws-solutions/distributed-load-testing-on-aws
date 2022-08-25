@@ -37,15 +37,109 @@ Object {
       ],
     },
   },
+  "Description": "Distributed Load Testing on AWS is a reference architecture to perform application load testing at scale.",
   "Mappings": Object {
+    "ServiceprincipalMap": Object {
+      "af-south-1": Object {
+        "states": "states.af-south-1.amazonaws.com",
+      },
+      "ap-east-1": Object {
+        "states": "states.ap-east-1.amazonaws.com",
+      },
+      "ap-northeast-1": Object {
+        "states": "states.ap-northeast-1.amazonaws.com",
+      },
+      "ap-northeast-2": Object {
+        "states": "states.ap-northeast-2.amazonaws.com",
+      },
+      "ap-northeast-3": Object {
+        "states": "states.ap-northeast-3.amazonaws.com",
+      },
+      "ap-south-1": Object {
+        "states": "states.ap-south-1.amazonaws.com",
+      },
+      "ap-southeast-1": Object {
+        "states": "states.ap-southeast-1.amazonaws.com",
+      },
+      "ap-southeast-2": Object {
+        "states": "states.ap-southeast-2.amazonaws.com",
+      },
+      "ap-southeast-3": Object {
+        "states": "states.ap-southeast-3.amazonaws.com",
+      },
+      "ca-central-1": Object {
+        "states": "states.ca-central-1.amazonaws.com",
+      },
+      "cn-north-1": Object {
+        "states": "states.cn-north-1.amazonaws.com",
+      },
+      "cn-northwest-1": Object {
+        "states": "states.cn-northwest-1.amazonaws.com",
+      },
+      "eu-central-1": Object {
+        "states": "states.eu-central-1.amazonaws.com",
+      },
+      "eu-north-1": Object {
+        "states": "states.eu-north-1.amazonaws.com",
+      },
+      "eu-south-1": Object {
+        "states": "states.eu-south-1.amazonaws.com",
+      },
+      "eu-south-2": Object {
+        "states": "states.eu-south-2.amazonaws.com",
+      },
+      "eu-west-1": Object {
+        "states": "states.eu-west-1.amazonaws.com",
+      },
+      "eu-west-2": Object {
+        "states": "states.eu-west-2.amazonaws.com",
+      },
+      "eu-west-3": Object {
+        "states": "states.eu-west-3.amazonaws.com",
+      },
+      "me-south-1": Object {
+        "states": "states.me-south-1.amazonaws.com",
+      },
+      "sa-east-1": Object {
+        "states": "states.sa-east-1.amazonaws.com",
+      },
+      "us-east-1": Object {
+        "states": "states.us-east-1.amazonaws.com",
+      },
+      "us-east-2": Object {
+        "states": "states.us-east-2.amazonaws.com",
+      },
+      "us-gov-east-1": Object {
+        "states": "states.us-gov-east-1.amazonaws.com",
+      },
+      "us-gov-west-1": Object {
+        "states": "states.us-gov-west-1.amazonaws.com",
+      },
+      "us-iso-east-1": Object {
+        "states": "states.amazonaws.com",
+      },
+      "us-iso-west-1": Object {
+        "states": "states.amazonaws.com",
+      },
+      "us-isob-east-1": Object {
+        "states": "states.amazonaws.com",
+      },
+      "us-west-1": Object {
+        "states": "states.us-west-1.amazonaws.com",
+      },
+      "us-west-2": Object {
+        "states": "states.us-west-2.amazonaws.com",
+      },
+    },
     "Solution": Object {
       "Config": Object {
-        "CodeVersion": "CODE_VERSION",
-        "KeyPrefix": "SOLUTION_NAME/CODE_VERSION",
-        "S3Bucket": "CODE_BUCKET",
+        "CodeVersion": "testversion",
+        "ContainerImage": "testRegistry/distributed-load-testing-on-aws-load-tester:testTag",
+        "KeyPrefix": "distributed-load-testing-on-aws/testversion",
+        "S3Bucket": "testbucket",
         "SendAnonymousUsage": "Yes",
-        "SolutionId": "SO0062",
-        "URL": "https://metrics.awssolutionsbuilder.com/generic",
+        "SolutionId": "testId",
+        "URL": "http://testurl.com",
       },
     },
   },
@@ -150,11 +244,37 @@ Object {
         ],
       },
     },
+    "RegionalCFTemplate": Object {
+      "Description": "S3 URL for regional CloudFormation template",
+      "Export": Object {
+        "Name": "RegionalCFTemplate",
+      },
+      "Value": Object {
+        "Fn::Join": Array [
+          "",
+          Array [
+            "https://s3.",
+            Object {
+              "Ref": "AWS::Region",
+            },
+            ".",
+            Object {
+              "Ref": "AWS::URLSuffix",
+            },
+            "/",
+            Object {
+              "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+            },
+            "/regional-template/distributed-load-testing-on-aws-regional.template",
+          ],
+        ],
+      },
+    },
     "SolutionUUID": Object {
       "Description": "Solution UUID",
       "Value": Object {
         "Fn::GetAtt": Array [
-          "DLTCommonResourcesUUID2FD025A2",
+          "DLTCustomResourcesCustomResourceUuidD1C03F15",
           "UUID",
         ],
       },
@@ -250,6 +370,18 @@ Object {
           ],
         },
         "Name": "DLTApi",
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
       },
       "Type": "AWS::ApiGateway::RestApi",
     },
@@ -319,6 +451,18 @@ Object {
             "PolicyName": "apiLoggingPolicy",
           },
         ],
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
       },
       "Type": "AWS::IAM::Role",
     },
@@ -336,6 +480,18 @@ Object {
       },
       "Properties": Object {
         "RetentionInDays": 365,
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
@@ -394,6 +550,18 @@ Object {
                 ":iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs",
               ],
             ],
+          },
+        ],
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
           },
         ],
       },
@@ -459,8 +627,8 @@ Object {
         "Description": "API microservices for creating, updating, listing and deleting test scenarios",
         "Environment": Object {
           "Variables": Object {
-            "ECS_LOG_GROUP": Object {
-              "Ref": "DLTEcsDLTCloudWatchLogsGroupFE9EC144",
+            "HISTORY_TABLE": Object {
+              "Ref": "DLTTestRunnerStorageDLTHistoryTable46D850CC",
             },
             "METRIC_URL": Object {
               "Fn::FindInMap": Array [
@@ -489,6 +657,9 @@ Object {
                 "SolutionId",
               ],
             },
+            "STACK_ID": Object {
+              "Ref": "AWS::StackId",
+            },
             "STATE_MACHINE_ARN": Object {
               "Ref": "DLTStepFunctionTaskRunnerStepFunctionsC295A535",
             },
@@ -498,12 +669,9 @@ Object {
                 "Arn",
               ],
             },
-            "TASK_CLUSTER": Object {
-              "Ref": "DLTEcsDLTEcsClusterBC5CE23B",
-            },
             "UUID": Object {
               "Fn::GetAtt": Array [
-                "DLTCommonResourcesUUID2FD025A2",
+                "DLTCustomResourcesCustomResourceUuidD1C03F15",
                 "UUID",
               ],
             },
@@ -583,7 +751,7 @@ Object {
           "rules_to_suppress": Array [
             Object {
               "id": "W11",
-              "reason": "ecs:ListTasks does not support resource level permissions",
+              "reason": "ecs:ListTasks and cloudformation:ListExports do not support resource level permissions",
             },
           ],
         },
@@ -706,19 +874,39 @@ Object {
                     ],
                   },
                 },
+                Object {
+                  "Action": "cloudformation:ListExports",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
               ],
               "Version": "2012-10-17",
             },
             "PolicyName": "DLTAPIServicesLambdaPolicy",
           },
         ],
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
       },
       "Type": "AWS::IAM::Role",
     },
-    "DLTApiDeployment098FF8886f7513fc05d0ec41147a211bea1fef76": Object {
+    "DLTApiDeployment098FF888fcb0a704d2b4426ea5c0c0559611635b": Object {
       "DependsOn": Array [
         "DLTApiAPIAllRequestValidator02C9D47F",
         "DLTApiOPTIONS823B5F09",
+        "DLTApiregionsANY2B8B3A61",
+        "DLTApiregionsOPTIONSCB04B2B1",
+        "DLTApiregionsC4EF9783",
         "DLTApiscenariostestIdANY993028D3",
         "DLTApiscenariostestIdOPTIONS0B339CE6",
         "DLTApiscenariostestId4C170989",
@@ -748,6 +936,9 @@ Object {
       "Type": "AWS::ApiGateway::Deployment",
     },
     "DLTApiDeploymentStageprodC81F8DCB": Object {
+      "DependsOn": Array [
+        "DLTApiAccount80CB63FF",
+      ],
       "Metadata": Object {
         "cfn_nag": Object {
           "rules_to_suppress": Array [
@@ -769,10 +960,11 @@ Object {
           "Format": "{\\"requestId\\":\\"$context.requestId\\",\\"ip\\":\\"$context.identity.sourceIp\\",\\"user\\":\\"$context.identity.user\\",\\"caller\\":\\"$context.identity.caller\\",\\"requestTime\\":\\"$context.requestTime\\",\\"httpMethod\\":\\"$context.httpMethod\\",\\"resourcePath\\":\\"$context.resourcePath\\",\\"status\\":\\"$context.status\\",\\"protocol\\":\\"$context.protocol\\",\\"responseLength\\":\\"$context.responseLength\\"}",
         },
         "DeploymentId": Object {
-          "Ref": "DLTApiDeployment098FF8886f7513fc05d0ec41147a211bea1fef76",
+          "Ref": "DLTApiDeployment098FF888fcb0a704d2b4426ea5c0c0559611635b",
         },
         "MethodSettings": Array [
           Object {
+            "DataTraceEnabled": false,
             "HttpMethod": "*",
             "LoggingLevel": "INFO",
             "ResourcePath": "/*",
@@ -782,6 +974,18 @@ Object {
           "Ref": "DLTApi0C903EB5",
         },
         "StageName": "prod",
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
         "TracingEnabled": true,
       },
       "Type": "AWS::ApiGateway::Stage",
@@ -941,6 +1145,118 @@ Object {
             "DLTApi0C903EB5",
             "RootResourceId",
           ],
+        },
+        "RestApiId": Object {
+          "Ref": "DLTApi0C903EB5",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "DLTApiregionsANY2B8B3A61": Object {
+      "Properties": Object {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "ANY",
+        "Integration": Object {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": Array [
+            Object {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "arn:",
+                Object {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                Object {
+                  "Fn::GetAtt": Array [
+                    "DLTApiDLTAPIServicesLambda9D76BA5C",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": Array [
+          Object {
+            "ResponseModels": Object {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": Object {
+          "Ref": "DLTApiAPIAllRequestValidator02C9D47F",
+        },
+        "ResourceId": Object {
+          "Ref": "DLTApiregionsC4EF9783",
+        },
+        "RestApiId": Object {
+          "Ref": "DLTApi0C903EB5",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "DLTApiregionsC4EF9783": Object {
+      "Properties": Object {
+        "ParentId": Object {
+          "Fn::GetAtt": Array [
+            "DLTApi0C903EB5",
+            "RootResourceId",
+          ],
+        },
+        "PathPart": "regions",
+        "RestApiId": Object {
+          "Ref": "DLTApi0C903EB5",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "DLTApiregionsOPTIONSCB04B2B1": Object {
+      "Properties": Object {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": Object {
+          "IntegrationResponses": Array [
+            Object {
+              "ResponseParameters": Object {
+                "method.response.header.Access-Control-Allow-Headers": "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "200",
+            },
+          ],
+          "RequestTemplates": Object {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": Array [
+          Object {
+            "ResponseParameters": Object {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "ResourceId": Object {
+          "Ref": "DLTApiregionsC4EF9783",
         },
         "RestApiId": Object {
           "Ref": "DLTApi0C903EB5",
@@ -1337,6 +1653,16 @@ Object {
       "Type": "AWS::Cognito::UserPoolUser",
     },
     "DLTCognitoAuthDLTCognitoAuthorizedRole9977D4DC": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "iot:AttachPrincipalPolicy does not allow for resource specification",
+            },
+          ],
+        },
+      },
       "Properties": Object {
         "AssumeRolePolicyDocument": Object {
           "Statement": Array [
@@ -1445,6 +1771,103 @@ Object {
             },
             "PolicyName": "InvokeApiPolicy",
           },
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": "iot:AttachPrincipalPolicy",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "iot:Connect",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iot:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":client/*",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": "iot:Subscribe",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iot:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":topicfilter/*",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": "iot:Receive",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iot:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":topic/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "IoTPolicy",
+          },
+        ],
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
         ],
       },
       "Type": "AWS::IAM::Role",
@@ -1473,6 +1896,18 @@ Object {
           ],
           "Version": "2012-10-17",
         },
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
       },
       "Type": "AWS::IAM::Role",
     },
@@ -1631,6 +2066,15 @@ Object {
             ],
           ],
         },
+        "UserPoolTags": Object {
+          "SolutionId": Object {
+            "Fn::FindInMap": Array [
+              "Solution",
+              "Config",
+              "SolutionId",
+            ],
+          },
+        },
         "VerificationMessageTemplate": Object {
           "DefaultEmailOption": "CONFIRM_WITH_CODE",
           "EmailMessage": "The verification code to your new account is {####}",
@@ -1641,50 +2085,97 @@ Object {
       "Type": "AWS::Cognito::UserPool",
       "UpdateReplacePolicy": "Delete",
     },
-    "DLTCommonResourcesAnonymousMetric33685222": Object {
-      "Condition": "SendAnonymousUsage",
-      "DeletionPolicy": "Delete",
-      "Properties": Object {
-        "Region": Object {
-          "Ref": "AWS::Region",
-        },
-        "Resource": "AnonymousMetric",
-        "ServiceToken": Object {
-          "Fn::GetAtt": Array [
-            "DLTCommonResourcesCustomResourceLambda0D529C66",
-            "Arn",
-          ],
-        },
-        "SolutionId": Object {
-          "Fn::FindInMap": Array [
-            "Solution",
-            "Config",
-            "SolutionId",
-          ],
-        },
-        "UUID": Object {
-          "Fn::GetAtt": Array [
-            "DLTCommonResourcesUUID2FD025A2",
-            "UUID",
-          ],
-        },
-        "VERSION": Object {
-          "Fn::FindInMap": Array [
-            "Solution",
-            "Config",
-            "CodeVersion",
-          ],
-        },
-        "existingVPC": Object {
-          "Fn::If": Array [
-            "BoolExistingVPC",
-            true,
-            false,
+    "DLTCognitoAuthIoTPolicyB8FDFE53": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "Cannot specify the resource to attach policy to identity",
+            },
           ],
         },
       },
-      "Type": "Custom::AnonymousMetric",
-      "UpdateReplacePolicy": "Delete",
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "iot:Connect",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Fn::Join": Array [
+                  "",
+                  Array [
+                    "arn:",
+                    Object {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":iot:",
+                    Object {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    Object {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":client/*",
+                  ],
+                ],
+              },
+            },
+            Object {
+              "Action": "iot:Subscribe",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Fn::Join": Array [
+                  "",
+                  Array [
+                    "arn:",
+                    Object {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":iot:",
+                    Object {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    Object {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":topicfilter/*",
+                  ],
+                ],
+              },
+            },
+            Object {
+              "Action": "iot:Receive",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Fn::Join": Array [
+                  "",
+                  Array [
+                    "arn:",
+                    Object {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":iot:",
+                    Object {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    Object {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":topic/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IoT::Policy",
     },
     "DLTCommonResourcesCloudWatchLogsPolicyB29337B0": Object {
       "Properties": Object {
@@ -1724,10 +2215,13 @@ Object {
         "PolicyName": "DLTCommonResourcesCloudWatchLogsPolicyB29337B0",
         "Roles": Array [
           Object {
+            "Ref": "DLTCustomResourceInfraCustomResourceLambdaRoleCC09066C",
+          },
+          Object {
             "Ref": "DLTEcsDLTTaskExecutionRoleDE668717",
           },
           Object {
-            "Ref": "DLTCommonResourcesCustomResourceLambdaRole0608CAD2",
+            "Ref": "RealTimeDatarealTimeDataPublisherRoleA8976D01",
           },
           Object {
             "Ref": "DLTLambdaFunctionLambdaResultsRole2CF2D707",
@@ -1743,217 +2237,6 @@ Object {
           },
           Object {
             "Ref": "DLTApiDLTAPIServicesLambdaRole4465EAA4",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "DLTCommonResourcesCustomResourceLambda0D529C66": Object {
-      "DependsOn": Array [
-        "DLTCommonResourcesCustomResourceLambdaRoleDefaultPolicy7828F0D2",
-        "DLTCommonResourcesCustomResourceLambdaRole0608CAD2",
-      ],
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W58",
-              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
-            },
-            Object {
-              "id": "W89",
-              "reason": "VPC not needed for lambda",
-            },
-            Object {
-              "id": "W92",
-              "reason": "Does not run concurrent executions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "Code": Object {
-          "S3Bucket": Object {
-            "Fn::Join": Array [
-              "-",
-              Array [
-                Object {
-                  "Fn::FindInMap": Array [
-                    "Solution",
-                    "Config",
-                    "S3Bucket",
-                  ],
-                },
-                Object {
-                  "Ref": "AWS::Region",
-                },
-              ],
-            ],
-          },
-          "S3Key": Object {
-            "Fn::Join": Array [
-              "",
-              Array [
-                Object {
-                  "Fn::FindInMap": Array [
-                    "Solution",
-                    "Config",
-                    "KeyPrefix",
-                  ],
-                },
-                "/custom-resource.zip",
-              ],
-            ],
-          },
-        },
-        "Description": "CFN Lambda backed custom resource to deploy assets to s3",
-        "Environment": Object {
-          "Variables": Object {
-            "METRIC_URL": Object {
-              "Fn::FindInMap": Array [
-                "Solution",
-                "Config",
-                "URL",
-              ],
-            },
-            "SOLUTION_ID": Object {
-              "Fn::FindInMap": Array [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-            "VERSION": Object {
-              "Fn::FindInMap": Array [
-                "Solution",
-                "Config",
-                "CodeVersion",
-              ],
-            },
-          },
-        },
-        "Handler": "index.handler",
-        "Role": Object {
-          "Fn::GetAtt": Array [
-            "DLTCommonResourcesCustomResourceLambdaRole0608CAD2",
-            "Arn",
-          ],
-        },
-        "Runtime": "nodejs14.x",
-        "Tags": Array [
-          Object {
-            "Key": "SolutionId",
-            "Value": Object {
-              "Fn::FindInMap": Array [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
-        "Timeout": 120,
-      },
-      "Type": "AWS::Lambda::Function",
-    },
-    "DLTCommonResourcesCustomResourceLambdaRole0608CAD2": Object {
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "Policies": Array [
-          Object {
-            "PolicyDocument": Object {
-              "Statement": Array [
-                Object {
-                  "Action": "s3:GetObject",
-                  "Effect": "Allow",
-                  "Resource": Object {
-                    "Fn::Join": Array [
-                      "",
-                      Array [
-                        "arn:",
-                        Object {
-                          "Ref": "AWS::Partition",
-                        },
-                        ":s3:::",
-                        Object {
-                          "Fn::Join": Array [
-                            "-",
-                            Array [
-                              Object {
-                                "Fn::FindInMap": Array [
-                                  "Solution",
-                                  "Config",
-                                  "S3Bucket",
-                                ],
-                              },
-                              Object {
-                                "Ref": "AWS::Region",
-                              },
-                            ],
-                          ],
-                        },
-                        "/*",
-                      ],
-                    ],
-                  },
-                },
-              ],
-              "Version": "2012-10-17",
-            },
-            "PolicyName": "CustomResourcePolicy",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "DLTCommonResourcesCustomResourceLambdaRoleDefaultPolicy7828F0D2": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "s3:PutObject",
-              "Effect": "Allow",
-              "Resource": Array [
-                Object {
-                  "Fn::GetAtt": Array [
-                    "DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63",
-                    "Arn",
-                  ],
-                },
-                Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      Object {
-                        "Fn::GetAtt": Array [
-                          "DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63",
-                          "Arn",
-                        ],
-                      },
-                      "/*",
-                    ],
-                  ],
-                },
-              ],
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "DLTCommonResourcesCustomResourceLambdaRoleDefaultPolicy7828F0D2",
-        "Roles": Array [
-          Object {
-            "Ref": "DLTCommonResourcesCustomResourceLambdaRole0608CAD2",
           },
         ],
       },
@@ -2050,20 +2333,6 @@ Object {
         },
       },
       "Type": "AWS::S3::BucketPolicy",
-    },
-    "DLTCommonResourcesUUID2FD025A2": Object {
-      "DeletionPolicy": "Delete",
-      "Properties": Object {
-        "Resource": "UUID",
-        "ServiceToken": Object {
-          "Fn::GetAtt": Array [
-            "DLTCommonResourcesCustomResourceLambda0D529C66",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "Custom::UUID",
-      "UpdateReplacePolicy": "Delete",
     },
     "DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistribution3EF384B4": Object {
       "Metadata": Object {
@@ -2232,7 +2501,7 @@ Object {
         "PolicyDocument": Object {
           "Statement": Array [
             Object {
-              "Action": "*",
+              "Action": "s3:*",
               "Condition": Object {
                 "Bool": Object {
                   "aws:SecureTransport": "false",
@@ -2243,6 +2512,12 @@ Object {
                 "AWS": "*",
               },
               "Resource": Array [
+                Object {
+                  "Fn::GetAtt": Array [
+                    "DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63",
+                    "Arn",
+                  ],
+                },
                 Object {
                   "Fn::Join": Array [
                     "",
@@ -2257,14 +2532,7 @@ Object {
                     ],
                   ],
                 },
-                Object {
-                  "Fn::GetAtt": Array [
-                    "DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63",
-                    "Arn",
-                  ],
-                },
               ],
-              "Sid": "HttpsOnly",
             },
             Object {
               "Action": "s3:GetObject",
@@ -2298,6 +2566,378 @@ Object {
       },
       "Type": "AWS::S3::BucketPolicy",
     },
+    "DLTCustomResourceInfraCustomResourceLambdaA4053269": Object {
+      "DependsOn": Array [
+        "DLTCustomResourceInfraCustomResourceLambdaRoleDefaultPolicyE011C696",
+        "DLTCustomResourceInfraCustomResourceLambdaRoleCC09066C",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            Object {
+              "id": "W89",
+              "reason": "VPC not needed for lambda",
+            },
+            Object {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": Object {
+            "Fn::Join": Array [
+              "-",
+              Array [
+                Object {
+                  "Fn::FindInMap": Array [
+                    "Solution",
+                    "Config",
+                    "S3Bucket",
+                  ],
+                },
+                Object {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                Object {
+                  "Fn::FindInMap": Array [
+                    "Solution",
+                    "Config",
+                    "KeyPrefix",
+                  ],
+                },
+                "/main-custom-resource.zip",
+              ],
+            ],
+          },
+        },
+        "Description": "CFN Lambda backed custom resource to deploy assets to s3",
+        "Environment": Object {
+          "Variables": Object {
+            "DDB_TABLE": Object {
+              "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+            },
+            "MAIN_REGION": Object {
+              "Ref": "AWS::Region",
+            },
+            "METRIC_URL": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "URL",
+              ],
+            },
+            "S3_BUCKET": Object {
+              "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+            },
+            "SOLUTION_ID": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+            "VERSION": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "CodeVersion",
+              ],
+            },
+          },
+        },
+        "Handler": "index.handler",
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "DLTCustomResourceInfraCustomResourceLambdaRoleCC09066C",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs14.x",
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
+        "Timeout": 120,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "DLTCustomResourceInfraCustomResourceLambdaRoleCC09066C": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "iot:DescribeEndpoint and iot:DetachPrincipalPolicy cannot specify the resource.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": "s3:GetObject",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":s3:::",
+                        Object {
+                          "Fn::Join": Array [
+                            "-",
+                            Array [
+                              Object {
+                                "Fn::FindInMap": Array [
+                                  "Solution",
+                                  "Config",
+                                  "S3Bucket",
+                                ],
+                              },
+                              Object {
+                                "Ref": "AWS::Region",
+                              },
+                            ],
+                          ],
+                        },
+                        "/*",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "s3:PutObject",
+                    "s3:DeleteObject",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":s3:::",
+                        Object {
+                          "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+                        },
+                        "/*",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "dynamodb:PutItem",
+                    "dynamodb:DeleteItem",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":dynamodb:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":table/",
+                        Object {
+                          "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+                        },
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "iot:DescribeEndpoint",
+                    "iot:DetachPrincipalPolicy",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "iot:ListTargetsForPolicy",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iot:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":policy/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "CustomResourcePolicy",
+          },
+        ],
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "DLTCustomResourceInfraCustomResourceLambdaRoleDefaultPolicyE011C696": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "s3:PutObject",
+              "Effect": "Allow",
+              "Resource": Array [
+                Object {
+                  "Fn::GetAtt": Array [
+                    "DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63",
+                    "Arn",
+                  ],
+                },
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      Object {
+                        "Fn::GetAtt": Array [
+                          "DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "DLTCustomResourceInfraCustomResourceLambdaRoleDefaultPolicyE011C696",
+        "Roles": Array [
+          Object {
+            "Ref": "DLTCustomResourceInfraCustomResourceLambdaRoleCC09066C",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "DLTCustomResourcesAnonymousMetricE30E46B4": Object {
+      "Condition": "SendAnonymousUsage",
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Region": Object {
+          "Ref": "AWS::Region",
+        },
+        "Resource": "AnonymousMetric",
+        "ServiceToken": Object {
+          "Fn::GetAtt": Array [
+            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
+            "Arn",
+          ],
+        },
+        "SolutionId": Object {
+          "Fn::FindInMap": Array [
+            "Solution",
+            "Config",
+            "SolutionId",
+          ],
+        },
+        "UUID": Object {
+          "Fn::GetAtt": Array [
+            "DLTCustomResourcesCustomResourceUuidD1C03F15",
+            "UUID",
+          ],
+        },
+        "VERSION": Object {
+          "Fn::FindInMap": Array [
+            "Solution",
+            "Config",
+            "CodeVersion",
+          ],
+        },
+        "existingVPC": Object {
+          "Fn::If": Array [
+            "BoolExistingVPC",
+            true,
+            false,
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
     "DLTCustomResourcesConsoleConfig9F494EAB": Object {
       "DeletionPolicy": "Delete",
       "Properties": Object {
@@ -2306,12 +2946,25 @@ Object {
             "",
             Array [
               "const awsConfig = {
-            cw_dashboard: 'https://console.aws.amazon.com/cloudwatch/home?region=",
+      aws_iot_endpoint: '",
+              Object {
+                "Fn::GetAtt": Array [
+                  "DLTCustomResourcesGetIotEndpoint700ABCC8",
+                  "IOT_ENDPOINT",
+                ],
+              },
+              "',
+      aws_iot_policy_name: '",
+              Object {
+                "Ref": "DLTCognitoAuthIoTPolicyB8FDFE53",
+              },
+              "',
+      cw_dashboard: 'https://console.aws.amazon.com/cloudwatch/home?region=",
               Object {
                 "Ref": "AWS::Region",
               },
               "#dashboards:name=',
-            ecs_dashboard: 'https://",
+      ecs_dashboard: 'https://",
               Object {
                 "Ref": "AWS::Region",
               },
@@ -2324,36 +2977,36 @@ Object {
                 "Ref": "AWS::StackName",
               },
               "/tasks',
-            aws_project_region: '",
+      aws_project_region: '",
               Object {
                 "Ref": "AWS::Region",
               },
               "',
-            aws_cognito_region: '",
+      aws_cognito_region: '",
               Object {
                 "Ref": "AWS::Region",
               },
               "',
-            aws_cognito_identity_pool_id: '",
+      aws_cognito_identity_pool_id: '",
               Object {
                 "Ref": "DLTCognitoAuthDLTIdentityPoolE110578F",
               },
               "',
-            aws_user_pools_id: '",
+      aws_user_pools_id: '",
               Object {
                 "Ref": "DLTCognitoAuthDLTUserPoolFA41A712",
               },
               "',
-            aws_user_pools_web_client_id: '",
+      aws_user_pools_web_client_id: '",
               Object {
                 "Ref": "DLTCognitoAuthDLTUserPoolClientA2F8B2DB",
               },
               "',
-            oauth: {},
-            aws_cloud_logic_custom: [
-                {
-                    name: 'dlts',
-                    endpoint: 'https://",
+      oauth: {},
+      aws_cloud_logic_custom: [
+          {
+              name: 'dlts',
+              endpoint: 'https://",
               Object {
                 "Ref": "DLTApi0C903EB5",
               },
@@ -2370,24 +3023,24 @@ Object {
                 "Ref": "DLTApiDeploymentStageprodC81F8DCB",
               },
               "',
-                    region: '",
+              region: '",
               Object {
                 "Ref": "AWS::Region",
               },
               "'
-                }
-            ],
-            aws_user_files_s3_bucket: '",
+          }
+      ],
+      aws_user_files_s3_bucket: '",
               Object {
                 "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
               },
               "',
-            aws_user_files_s3_bucket_region: '",
+      aws_user_files_s3_bucket_region: '",
               Object {
                 "Ref": "AWS::Region",
               },
-              "'
-        }",
+              "',
+  }",
             ],
           ],
         },
@@ -2397,12 +3050,12 @@ Object {
         "Resource": "ConfigFile",
         "ServiceToken": Object {
           "Fn::GetAtt": Array [
-            "DLTCommonResourcesCustomResourceLambda0D529C66",
+            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
             "Arn",
           ],
         },
       },
-      "Type": "Custom::CopyConfigFiles",
+      "Type": "AWS::CloudFormation::CustomResource",
       "UpdateReplacePolicy": "Delete",
     },
     "DLTCustomResourcesCopyConsoleFiles2EBD447E": Object {
@@ -2415,7 +3068,7 @@ Object {
         "Resource": "CopyAssets",
         "ServiceToken": Object {
           "Fn::GetAtt": Array [
-            "DLTCommonResourcesCustomResourceLambda0D529C66",
+            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
             "Arn",
           ],
         },
@@ -2452,8 +3105,225 @@ Object {
           ],
         },
       },
-      "Type": "Custom::CopyConsoleFiles",
+      "Type": "AWS::CloudFormation::CustomResource",
       "UpdateReplacePolicy": "Delete",
+    },
+    "DLTCustomResourcesCustomResourceUuidD1C03F15": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Resource": "UUID",
+        "ServiceToken": Object {
+          "Fn::GetAtt": Array [
+            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DLTCustomResourcesDetachIotPrincipalPolicyE4A7C1B8": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "IotPolicyName": Object {
+          "Ref": "DLTCognitoAuthIoTPolicyB8FDFE53",
+        },
+        "Resource": "DetachIotPolicy",
+        "ServiceToken": Object {
+          "Fn::GetAtt": Array [
+            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DLTCustomResourcesGetIotEndpoint700ABCC8": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Resource": "GetIotEndpoint",
+        "ServiceToken": Object {
+          "Fn::GetAtt": Array [
+            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DLTCustomResourcesPutRegionalTemplate5479575B": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "APIServicesLambdaRoleName": Object {
+          "Ref": "DLTApiDLTAPIServicesLambdaRole4465EAA4",
+        },
+        "DestBucket": Object {
+          "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+        },
+        "MainStackRegion": Object {
+          "Ref": "AWS::Region",
+        },
+        "Resource": "PutRegionalTemplate",
+        "ResultsParserRoleName": Object {
+          "Ref": "DLTLambdaFunctionLambdaResultsRole2CF2D707",
+        },
+        "ScenariosTable": Object {
+          "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+        },
+        "ServiceToken": Object {
+          "Fn::GetAtt": Array [
+            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
+            "Arn",
+          ],
+        },
+        "SrcBucket": Object {
+          "Fn::Join": Array [
+            "-",
+            Array [
+              Object {
+                "Fn::FindInMap": Array [
+                  "Solution",
+                  "Config",
+                  "S3Bucket",
+                ],
+              },
+              Object {
+                "Ref": "AWS::Region",
+              },
+            ],
+          ],
+        },
+        "SrcPath": Object {
+          "Fn::FindInMap": Array [
+            "Solution",
+            "Config",
+            "KeyPrefix",
+          ],
+        },
+        "TaskCancelerRoleName": Object {
+          "Ref": "DLTLambdaFunctionLambdaTaskCancelerRoleAE2C84CF",
+        },
+        "TaskRunnerRoleName": Object {
+          "Ref": "DLTLambdaFunctionDLTTestLambdaTaskRole1FDBCEDD",
+        },
+        "TaskStatusCheckerRoleName": Object {
+          "Ref": "DLTLambdaFunctionTaskStatusRole9288E645",
+        },
+        "Uuid": Object {
+          "Fn::GetAtt": Array [
+            "DLTCustomResourcesCustomResourceUuidD1C03F15",
+            "UUID",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DLTCustomResourcesTestingResourcesConfig0BCA657F": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Resource": "TestingResourcesConfigFile",
+        "ServiceToken": Object {
+          "Fn::GetAtt": Array [
+            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
+            "Arn",
+          ],
+        },
+        "TestingResourcesConfig": Object {
+          "ecsCloudWatchLogGroup": Object {
+            "Ref": "DLTEcsDLTCloudWatchLogsGroupFE9EC144",
+          },
+          "region": Object {
+            "Ref": "AWS::Region",
+          },
+          "subnetA": Object {
+            "Fn::If": Array [
+              "CreateFargateVPCResources",
+              Object {
+                "Ref": "DLTVpcDLTSubnetAAE7DDEE8",
+              },
+              Object {
+                "Ref": "ExistingSubnetA",
+              },
+            ],
+          },
+          "subnetB": Object {
+            "Fn::If": Array [
+              "CreateFargateVPCResources",
+              Object {
+                "Ref": "DLTVpcDLTSubnetB294F4ED2",
+              },
+              Object {
+                "Ref": "ExistingSubnetB",
+              },
+            ],
+          },
+          "taskCluster": Object {
+            "Ref": "DLTEcsDLTEcsClusterBC5CE23B",
+          },
+          "taskDefinition": Object {
+            "Ref": "DLTEcsDLTTaskDefinition6BFC2400",
+          },
+          "taskImage": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                Object {
+                  "Ref": "AWS::StackName",
+                },
+                "-load-tester",
+              ],
+            ],
+          },
+          "taskSecurityGroup": Object {
+            "Ref": "DLTEcsDLTEcsSecurityGroup69E6743C",
+          },
+        },
+        "Uuid": Object {
+          "Fn::GetAtt": Array [
+            "DLTCustomResourcesCustomResourceUuidD1C03F15",
+            "UUID",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DLTEcsDLTCloudWatchLogsGroupECSLogSubscriptionFilterC5BB4DB5": Object {
+      "Properties": Object {
+        "DestinationArn": Object {
+          "Fn::GetAtt": Array [
+            "RealTimeDataRealTimeDataPublisher7E8F8F6C",
+            "Arn",
+          ],
+        },
+        "FilterPattern": "\\"INFO: Current:\\" \\"live=true\\"",
+        "LogGroupName": Object {
+          "Ref": "DLTEcsDLTCloudWatchLogsGroupFE9EC144",
+        },
+      },
+      "Type": "AWS::Logs::SubscriptionFilter",
+    },
+    "DLTEcsDLTCloudWatchLogsGroupECSLogSubscriptionFilterCanInvokeLambdaF6EFF73B": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "RealTimeDataRealTimeDataPublisher7E8F8F6C",
+            "Arn",
+          ],
+        },
+        "Principal": "logs.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "DLTEcsDLTCloudWatchLogsGroupFE9EC144",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
     },
     "DLTEcsDLTCloudWatchLogsGroupFE9EC144": Object {
       "DeletionPolicy": "Retain",
@@ -2469,18 +3339,20 @@ Object {
       },
       "Properties": Object {
         "RetentionInDays": 365,
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
       },
       "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Retain",
-    },
-    "DLTEcsDLTECR2419F66F": Object {
-      "DeletionPolicy": "Retain",
-      "Properties": Object {
-        "ImageScanningConfiguration": Object {
-          "ScanOnPush": true,
-        },
-      },
-      "Type": "AWS::ECR::Repository",
       "UpdateReplacePolicy": "Retain",
     },
     "DLTEcsDLTEcsClusterBC5CE23B": Object {
@@ -2528,6 +3400,18 @@ Object {
       },
       "Properties": Object {
         "GroupDescription": "DLTS Tasks Security Group",
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
         "VpcId": Object {
           "Fn::If": Array [
             "CreateFargateVPCResources",
@@ -2575,7 +3459,13 @@ Object {
         "ContainerDefinitions": Array [
           Object {
             "Essential": true,
-            "Image": "PUBLIC_ECR_REGISTRY/distributed-load-testing-on-aws-load-tester:PUBLIC_ECR_TAG",
+            "Image": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "ContainerImage",
+              ],
+            },
             "LogConfiguration": Object {
               "LogDriver": "awslogs",
               "Options": Object {
@@ -2614,6 +3504,18 @@ Object {
         "RequiresCompatibilities": Array [
           "FARGATE",
         ],
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
         "TaskRoleArn": Object {
           "Fn::GetAtt": Array [
             "DLTEcsDLTTaskExecutionRoleDE668717",
@@ -2649,6 +3551,70 @@ Object {
                 ":iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
               ],
             ],
+          },
+        ],
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "s3:HeadObject",
+                    "s3:PutObject",
+                    "s3:GetObject",
+                    "s3:ListBucket",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Array [
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":s3:::",
+                          Object {
+                            "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+                          },
+                        ],
+                      ],
+                    },
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":s3:::",
+                          Object {
+                            "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+                          },
+                          "/*",
+                        ],
+                      ],
+                    },
+                  ],
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "ScenariosS3Policy",
+          },
+        ],
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
           },
         ],
       },
@@ -2782,6 +3748,18 @@ Object {
             "PolicyName": "TaskLambdaPolicy",
           },
         ],
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
       },
       "Type": "AWS::IAM::Role",
     },
@@ -2803,6 +3781,16 @@ Object {
               "Action": "cloudwatch:GetMetricWidgetImage",
               "Effect": "Allow",
               "Resource": "*",
+            },
+            Object {
+              "Action": "logs:DeleteMetricFilter",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Fn::GetAtt": Array [
+                  "DLTEcsDLTCloudWatchLogsGroupFE9EC144",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -2840,6 +3828,18 @@ Object {
           ],
           "Version": "2012-10-17",
         },
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
       },
       "Type": "AWS::IAM::Role",
     },
@@ -2938,6 +3938,18 @@ Object {
             "PolicyName": "TaskCancelerPolicy",
           },
         ],
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
       },
       "Type": "AWS::IAM::Role",
     },
@@ -3001,6 +4013,9 @@ Object {
         "Description": "Result parser for indexing xml test results to DynamoDB",
         "Environment": Object {
           "Variables": Object {
+            "HISTORY_TABLE": Object {
+              "Ref": "DLTTestRunnerStorageDLTHistoryTable46D850CC",
+            },
             "METRIC_URL": Object {
               "Fn::FindInMap": Array [
                 "Solution",
@@ -3030,7 +4045,7 @@ Object {
             },
             "UUID": Object {
               "Fn::GetAtt": Array [
-                "DLTCommonResourcesUUID2FD025A2",
+                "DLTCustomResourcesCustomResourceUuidD1C03F15",
                 "UUID",
               ],
             },
@@ -3143,9 +4158,6 @@ Object {
                 "Config",
                 "SolutionId",
               ],
-            },
-            "TASK_CLUSTER": Object {
-              "Ref": "DLTEcsDLTEcsClusterBC5CE23B",
             },
             "VERSION": Object {
               "Fn::FindInMap": Array [
@@ -3269,10 +4281,6 @@ Object {
         "Description": "Task runner for ECS task definitions",
         "Environment": Object {
           "Variables": Object {
-            "API_INTERVAL": "10",
-            "ECS_LOG_GROUP": Object {
-              "Ref": "DLTEcsDLTCloudWatchLogsGroupFE9EC144",
-            },
             "SCENARIOS_BUCKET": Object {
               "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
             },
@@ -3285,48 +4293,6 @@ Object {
                 "Config",
                 "SolutionId",
               ],
-            },
-            "SUBNET_A": Object {
-              "Fn::If": Array [
-                "CreateFargateVPCResources",
-                Object {
-                  "Ref": "DLTVpcDLTSubnetAAE7DDEE8",
-                },
-                Object {
-                  "Ref": "ExistingSubnetA",
-                },
-              ],
-            },
-            "SUBNET_B": Object {
-              "Fn::If": Array [
-                "CreateFargateVPCResources",
-                Object {
-                  "Ref": "DLTVpcDLTSubnetB294F4ED2",
-                },
-                Object {
-                  "Ref": "ExistingSubnetB",
-                },
-              ],
-            },
-            "TASK_CLUSTER": Object {
-              "Ref": "DLTEcsDLTEcsClusterBC5CE23B",
-            },
-            "TASK_DEFINITION": Object {
-              "Ref": "DLTEcsDLTTaskDefinition6BFC2400",
-            },
-            "TASK_IMAGE": Object {
-              "Fn::Join": Array [
-                "",
-                Array [
-                  Object {
-                    "Ref": "AWS::StackName",
-                  },
-                  "-load-tester",
-                ],
-              ],
-            },
-            "TASK_SECURITY_GROUP": Object {
-              "Ref": "DLTEcsDLTEcsSecurityGroup69E6743C",
             },
             "VERSION": Object {
               "Fn::FindInMap": Array [
@@ -3437,9 +4403,6 @@ Object {
                 "Arn",
               ],
             },
-            "TASK_CLUSTER": Object {
-              "Ref": "DLTEcsDLTEcsClusterBC5CE23B",
-            },
             "VERSION": Object {
               "Fn::FindInMap": Array [
                 "Solution",
@@ -3480,10 +4443,6 @@ Object {
             Object {
               "id": "W11",
               "reason": "ecs:ListTasks does not support resource level permissions",
-            },
-            Object {
-              "id": "W58",
-              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
             },
           ],
         },
@@ -3540,6 +4499,18 @@ Object {
             "PolicyName": "TaskStatusPolicy",
           },
         ],
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
       },
       "Type": "AWS::IAM::Role",
     },
@@ -3556,7 +4527,36 @@ Object {
         },
       },
       "Properties": Object {
+        "LogGroupName": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "/aws/vendedlogs/states/StepFunctionsLogGroup",
+              Object {
+                "Ref": "AWS::StackName",
+              },
+              Object {
+                "Fn::GetAtt": Array [
+                  "DLTCustomResourcesCustomResourceUuidD1C03F15",
+                  "SUFFIX",
+                ],
+              },
+            ],
+          ],
+        },
         "RetentionInDays": 365,
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
@@ -3571,7 +4571,7 @@ Object {
           "Fn::Join": Array [
             "",
             Array [
-              "{\\"StartAt\\":\\"Check running tests\\",\\"States\\":{\\"Check running tests\\":{\\"Next\\":\\"No running tests\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              "{\\"StartAt\\":\\"Regions for testing\\",\\"States\\":{\\"Regions for testing\\":{\\"Type\\":\\"Map\\",\\"ResultPath\\":null,\\"Next\\":\\"Parse result\\",\\"InputPath\\":\\"$\\",\\"Parameters\\":{\\"testTaskConfig.$\\":\\"$$.Map.Item.Value\\",\\"testId.$\\":\\"$.testId\\",\\"testType.$\\":\\"$.testType\\",\\"fileType.$\\":\\"$.fileType\\",\\"showLive.$\\":\\"$.showLive\\",\\"prefix.$\\":\\"$.prefix\\"},\\"Iterator\\":{\\"StartAt\\":\\"Check running tests\\",\\"States\\":{\\"Check running tests\\":{\\"Next\\":\\"No running tests\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
               Object {
                 "Ref": "AWS::Partition",
               },
@@ -3582,7 +4582,7 @@ Object {
                   "Arn",
                 ],
               },
-              "\\",\\"Payload.$\\":\\"$\\"}},\\"No running tests\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Run workers\\"}],\\"Default\\":\\"Test is still running\\"},\\"Test is still running\\":{\\"Type\\":\\"Fail\\",\\"Error\\":\\"TestAlreadyRunning\\",\\"Cause\\":\\"The same test is already running.\\"},\\"Run workers\\":{\\"Next\\":\\"Are all workers launched?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"No running tests\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Run workers\\"}],\\"Default\\":\\"Test is still running\\"},\\"Test is still running\\":{\\"Type\\":\\"Fail\\",\\"Error\\":\\"TestAlreadyRunning\\",\\"Cause\\":\\"The same test is already running.\\"},\\"Run workers\\":{\\"Next\\":\\"Requires leader?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
               Object {
                 "Ref": "AWS::Partition",
               },
@@ -3593,7 +4593,18 @@ Object {
                   "Arn",
                 ],
               },
-              "\\",\\"Payload.$\\":\\"$\\"}},\\"Are all workers launched?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Cancel Test\\"},{\\"Variable\\":\\"$.taskRunner.runTaskCount\\",\\"NumericEquals\\":1,\\"Next\\":\\"Wait 1 minute - worker status\\"},{\\"Variable\\":\\"$.taskRunner.runTaskCount\\",\\"NumericEquals\\":0,\\"Next\\":\\"Wait 1 minute - task status\\"}],\\"Default\\":\\"Run workers\\"},\\"Cancel Test\\":{\\"Next\\":\\"Parse result\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"ResultPath\\":null,\\"Resource\\":\\"arn:",
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Requires leader?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Cancel Test\\"},{\\"Variable\\":\\"$.taskIds\\",\\"IsPresent\\":false,\\"Next\\":\\"Wait 1 minute - task status\\"}],\\"Default\\":\\"Wait 1 minute - worker status\\"},\\"Wait 1 minute - worker status\\":{\\"Type\\":\\"Wait\\",\\"Comment\\":\\"Wait 1 minute to check task status again\\",\\"Seconds\\":60,\\"Next\\":\\"Check worker status\\"},\\"Check worker status\\":{\\"Next\\":\\"Are all workers running?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke\\",\\"Parameters\\":{\\"FunctionName\\":\\"",
+              Object {
+                "Fn::GetAtt": Array [
+                  "DLTLambdaFunctionTaskStatusChecker1AA63EC9",
+                  "Arn",
+                ],
+              },
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Are all workers running?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Cancel Test\\"},{\\"Variable\\":\\"$.numTasksRunning\\",\\"NumericEqualsPath\\":\\"$.numTasksTotal\\",\\"Next\\":\\"Run leader task\\"}],\\"Default\\":\\"Wait 1 minute - worker status\\"},\\"Cancel Test\\":{\\"Next\\":\\"Map End\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"ResultPath\\":null,\\"Resource\\":\\"arn:",
               Object {
                 "Ref": "AWS::Partition",
               },
@@ -3604,29 +4615,7 @@ Object {
                   "Arn",
                 ],
               },
-              "\\",\\"Payload.$\\":\\"$\\"}},\\"Parse result\\":{\\"Next\\":\\"Done\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"Resource\\":\\"arn:",
-              Object {
-                "Ref": "AWS::Partition",
-              },
-              ":states:::lambda:invoke\\",\\"Parameters\\":{\\"FunctionName\\":\\"",
-              Object {
-                "Fn::GetAtt": Array [
-                  "DLTLambdaFunctionResultsParserFF5CC920",
-                  "Arn",
-                ],
-              },
-              "\\",\\"Payload.$\\":\\"$\\"}},\\"Are all tasks done?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Parse result\\"}],\\"Default\\":\\"Wait 1 minute - task status\\"},\\"Check task status\\":{\\"Next\\":\\"Are all tasks done?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
-              Object {
-                "Ref": "AWS::Partition",
-              },
-              ":states:::lambda:invoke\\",\\"Parameters\\":{\\"FunctionName\\":\\"",
-              Object {
-                "Fn::GetAtt": Array [
-                  "DLTLambdaFunctionTaskStatusChecker1AA63EC9",
-                  "Arn",
-                ],
-              },
-              "\\",\\"Payload.$\\":\\"$\\"}},\\"Wait 1 minute - task status\\":{\\"Type\\":\\"Wait\\",\\"Comment\\":\\"Wait 1 minute to check task status again\\",\\"Seconds\\":60,\\"Next\\":\\"Check task status\\"},\\"Run leader task\\":{\\"Next\\":\\"Wait 1 minute - task status\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Run leader task\\":{\\"Next\\":\\"Wait 1 minute - task status\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Catch\\":[{\\"ErrorEquals\\":[\\"States.ALL\\"],\\"ResultPath\\":\\"$.error\\",\\"Next\\":\\"Cancel Test\\"}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
               Object {
                 "Ref": "AWS::Partition",
               },
@@ -3637,7 +4626,7 @@ Object {
                   "Arn",
                 ],
               },
-              "\\",\\"Payload.$\\":\\"$\\"}},\\"Are all workers running?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.numTasksRunning\\",\\"NumericEqualsPath\\":\\"$.scenario.taskCount\\",\\"Next\\":\\"Run leader task\\"},{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Parse result\\"}],\\"Default\\":\\"Wait 1 minute - worker status\\"},\\"Check worker status\\":{\\"Next\\":\\"Are all workers running?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Wait 1 minute - task status\\":{\\"Type\\":\\"Wait\\",\\"Comment\\":\\"Wait 1 minute to check task status again\\",\\"Seconds\\":60,\\"Next\\":\\"Check task status\\"},\\"Check task status\\":{\\"Next\\":\\"Are all tasks done?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
               Object {
                 "Ref": "AWS::Partition",
               },
@@ -3648,7 +4637,18 @@ Object {
                   "Arn",
                 ],
               },
-              "\\",\\"Payload.$\\":\\"$\\"}},\\"Wait 1 minute - worker status\\":{\\"Type\\":\\"Wait\\",\\"Comment\\":\\"Wait 1 minute to check task status again\\",\\"Seconds\\":60,\\"Next\\":\\"Check worker status\\"},\\"Done\\":{\\"Type\\":\\"Succeed\\"}}}",
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Are all tasks done?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Map End\\"}],\\"Default\\":\\"Wait 1 minute - task status\\"},\\"Map End\\":{\\"Type\\":\\"Pass\\",\\"End\\":true}}},\\"ItemsPath\\":\\"$.testTaskConfig\\"},\\"Parse result\\":{\\"Next\\":\\"Done\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"Resource\\":\\"arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke\\",\\"Parameters\\":{\\"FunctionName\\":\\"",
+              Object {
+                "Fn::GetAtt": Array [
+                  "DLTLambdaFunctionResultsParserFF5CC920",
+                  "Arn",
+                ],
+              },
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Done\\":{\\"Type\\":\\"Succeed\\"}}}",
             ],
           ],
         },
@@ -3712,15 +4712,12 @@ Object {
               "Effect": "Allow",
               "Principal": Object {
                 "Service": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "states.",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                      ".amazonaws.com",
-                    ],
+                  "Fn::FindInMap": Array [
+                    "ServiceprincipalMap",
+                    Object {
+                      "Ref": "AWS::Region",
+                    },
+                    "states",
                   ],
                 },
               },
@@ -3751,6 +4748,10 @@ Object {
               "id": "W12",
               "reason": "CloudWatch logs actions do not support resource level permissions",
             },
+            Object {
+              "id": "W76",
+              "reason": "The IAM policy is written for least-privilege access.",
+            },
           ],
         },
       },
@@ -3774,42 +4775,106 @@ Object {
             Object {
               "Action": "lambda:InvokeFunction",
               "Effect": "Allow",
-              "Resource": Object {
-                "Fn::GetAtt": Array [
-                  "DLTLambdaFunctionTaskStatusChecker1AA63EC9",
-                  "Arn",
-                ],
-              },
+              "Resource": Array [
+                Object {
+                  "Fn::GetAtt": Array [
+                    "DLTLambdaFunctionResultsParserFF5CC920",
+                    "Arn",
+                  ],
+                },
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      Object {
+                        "Fn::GetAtt": Array [
+                          "DLTLambdaFunctionResultsParserFF5CC920",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
             },
             Object {
               "Action": "lambda:InvokeFunction",
               "Effect": "Allow",
-              "Resource": Object {
-                "Fn::GetAtt": Array [
-                  "DLTLambdaFunctionTaskRunnerAAAD9171",
-                  "Arn",
-                ],
-              },
+              "Resource": Array [
+                Object {
+                  "Fn::GetAtt": Array [
+                    "DLTLambdaFunctionTaskStatusChecker1AA63EC9",
+                    "Arn",
+                  ],
+                },
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      Object {
+                        "Fn::GetAtt": Array [
+                          "DLTLambdaFunctionTaskStatusChecker1AA63EC9",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
             },
             Object {
               "Action": "lambda:InvokeFunction",
               "Effect": "Allow",
-              "Resource": Object {
-                "Fn::GetAtt": Array [
-                  "DLTLambdaFunctionTaskCanceler4E12BDA6",
-                  "Arn",
-                ],
-              },
+              "Resource": Array [
+                Object {
+                  "Fn::GetAtt": Array [
+                    "DLTLambdaFunctionTaskRunnerAAAD9171",
+                    "Arn",
+                  ],
+                },
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      Object {
+                        "Fn::GetAtt": Array [
+                          "DLTLambdaFunctionTaskRunnerAAAD9171",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
             },
             Object {
               "Action": "lambda:InvokeFunction",
               "Effect": "Allow",
-              "Resource": Object {
-                "Fn::GetAtt": Array [
-                  "DLTLambdaFunctionResultsParserFF5CC920",
-                  "Arn",
-                ],
-              },
+              "Resource": Array [
+                Object {
+                  "Fn::GetAtt": Array [
+                    "DLTLambdaFunctionTaskCanceler4E12BDA6",
+                    "Arn",
+                  ],
+                },
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      Object {
+                        "Fn::GetAtt": Array [
+                          "DLTLambdaFunctionTaskCanceler4E12BDA6",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
             },
           ],
           "Version": "2012-10-17",
@@ -3822,6 +4887,52 @@ Object {
         ],
       },
       "Type": "AWS::IAM::Policy",
+    },
+    "DLTTestRunnerStorageDLTHistoryTable46D850CC": Object {
+      "DeletionPolicy": "Retain",
+      "Properties": Object {
+        "AttributeDefinitions": Array [
+          Object {
+            "AttributeName": "testId",
+            "AttributeType": "S",
+          },
+          Object {
+            "AttributeName": "testRunId",
+            "AttributeType": "S",
+          },
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "KeySchema": Array [
+          Object {
+            "AttributeName": "testId",
+            "KeyType": "HASH",
+          },
+          Object {
+            "AttributeName": "testRunId",
+            "KeyType": "RANGE",
+          },
+        ],
+        "PointInTimeRecoverySpecification": Object {
+          "PointInTimeRecoveryEnabled": true,
+        },
+        "SSESpecification": Object {
+          "SSEEnabled": true,
+        },
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::DynamoDB::Table",
+      "UpdateReplacePolicy": "Retain",
     },
     "DLTTestRunnerStorageDLTScenariosBucketA9290D21": Object {
       "DeletionPolicy": "Retain",
@@ -3981,7 +5092,40 @@ Object {
       "Type": "AWS::DynamoDB::Table",
       "UpdateReplacePolicy": "Retain",
     },
-    "DLTTestRunnerStorageDynamoDbPolicyC83287AF": Object {
+    "DLTTestRunnerStorageHistoryDynamoDbPolicyA439CB46": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:Query",
+              ],
+              "Effect": "Allow",
+              "Resource": Object {
+                "Fn::GetAtt": Array [
+                  "DLTTestRunnerStorageDLTHistoryTable46D850CC",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "DLTTestRunnerStorageHistoryDynamoDbPolicyA439CB46",
+        "Roles": Array [
+          Object {
+            "Ref": "DLTLambdaFunctionLambdaResultsRole2CF2D707",
+          },
+          Object {
+            "Ref": "DLTApiDLTAPIServicesLambdaRole4465EAA4",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "DLTTestRunnerStorageScenarioDynamoDbPolicy8B391249": Object {
       "Properties": Object {
         "PolicyDocument": Object {
           "Statement": Array [
@@ -4004,7 +5148,7 @@ Object {
           ],
           "Version": "2012-10-17",
         },
-        "PolicyName": "DLTTestRunnerStorageDynamoDbPolicyC83287AF",
+        "PolicyName": "DLTTestRunnerStorageScenarioDynamoDbPolicy8B391249",
         "Roles": Array [
           Object {
             "Ref": "DLTLambdaFunctionLambdaResultsRole2CF2D707",
@@ -4062,9 +5206,6 @@ Object {
         },
         "PolicyName": "DLTTestRunnerStorageScenariosS3PolicyD20D3673",
         "Roles": Array [
-          Object {
-            "Ref": "DLTEcsDLTTaskExecutionRoleDE668717",
-          },
           Object {
             "Ref": "DLTLambdaFunctionLambdaResultsRole2CF2D707",
           },
@@ -4268,6 +5409,226 @@ Object {
         },
       },
       "Type": "AWS::EC2::Subnet",
+    },
+    "RealTimeDataRealTimeDataPublisher7E8F8F6C": Object {
+      "DependsOn": Array [
+        "RealTimeDatarealTimeDataPublisherRoleA8976D01",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            Object {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": Object {
+            "Fn::Join": Array [
+              "-",
+              Array [
+                Object {
+                  "Fn::FindInMap": Array [
+                    "Solution",
+                    "Config",
+                    "S3Bucket",
+                  ],
+                },
+                Object {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                Object {
+                  "Fn::FindInMap": Array [
+                    "Solution",
+                    "Config",
+                    "KeyPrefix",
+                  ],
+                },
+                "/real-time-data-publisher.zip",
+              ],
+            ],
+          },
+        },
+        "Description": "Real time data publisher",
+        "Environment": Object {
+          "Variables": Object {
+            "IOT_ENDPOINT": Object {
+              "Fn::GetAtt": Array [
+                "DLTCustomResourcesGetIotEndpoint700ABCC8",
+                "IOT_ENDPOINT",
+              ],
+            },
+            "MAIN_REGION": Object {
+              "Ref": "AWS::Region",
+            },
+            "SOLUTION_ID": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+            "VERSION": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "CodeVersion",
+              ],
+            },
+          },
+        },
+        "Handler": "index.handler",
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "RealTimeDatarealTimeDataPublisherRoleA8976D01",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs14.x",
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
+        "Timeout": 180,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "RealTimeDatarealTimeDataPublisherRoleA8976D01": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": "iot:Publish",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iot:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":topic/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "IoTPolicy",
+          },
+        ],
+        "Tags": Array [
+          Object {
+            "Key": "SolutionId",
+            "Value": Object {
+              "Fn::FindInMap": Array [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+  },
+  "Rules": Object {
+    "ExistingVPCRule": Object {
+      "Assertions": Array [
+        Object {
+          "Assert": Object {
+            "Fn::Not": Array [
+              Object {
+                "Fn::Equals": Array [
+                  Object {
+                    "Ref": "ExistingSubnetA",
+                  },
+                  "",
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "If an existing VPC Id is provided, 2 subnet ids need to be provided as well. You neglected to enter the first subnet id",
+        },
+        Object {
+          "Assert": Object {
+            "Fn::Not": Array [
+              Object {
+                "Fn::Equals": Array [
+                  Object {
+                    "Ref": "ExistingSubnetB",
+                  },
+                  "",
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "If an existing VPC Id is provided, 2 subnet ids need to be provided as well. You neglected to enter the second subnet id",
+        },
+      ],
+      "RuleCondition": Object {
+        "Fn::Not": Array [
+          Object {
+            "Fn::Equals": Array [
+              Object {
+                "Ref": "ExistingVPCId",
+              },
+              "",
+            ],
+          },
+        ],
+      },
     },
   },
 }

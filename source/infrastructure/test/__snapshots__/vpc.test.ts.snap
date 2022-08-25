@@ -4,24 +4,10 @@ exports[`DLT VPC Test 1`] = `
 Object {
   "Resources": Object {
     "TestVPCDLTFargateIG4FFBAA11": Object {
-      "Properties": Object {
-        "Tags": Array [
-          Object {
-            "Key": "SolutionId",
-            "Value": "SO0062",
-          },
-        ],
-      },
       "Type": "AWS::EC2::InternetGateway",
     },
     "TestVPCDLTFargateRT6952750D": Object {
       "Properties": Object {
-        "Tags": Array [
-          Object {
-            "Key": "SolutionId",
-            "Value": "SO0062",
-          },
-        ],
         "VpcId": Object {
           "Ref": "TestVPCDLTFargateVpc0EC32C36",
         },
@@ -49,10 +35,6 @@ Object {
             "Value": Object {
               "Ref": "AWS::StackName",
             },
-          },
-          Object {
-            "Key": "SolutionId",
-            "Value": "SO0062",
           },
         ],
       },
@@ -117,12 +99,6 @@ Object {
           ],
         },
         "CidrBlock": "10.0.0.0/24",
-        "Tags": Array [
-          Object {
-            "Key": "SolutionId",
-            "Value": "SO0062",
-          },
-        ],
         "VpcId": Object {
           "Ref": "TestVPCDLTFargateVpc0EC32C36",
         },
@@ -140,12 +116,6 @@ Object {
           ],
         },
         "CidrBlock": "10.0.1.0/24",
-        "Tags": Array [
-          Object {
-            "Key": "SolutionId",
-            "Value": "SO0062",
-          },
-        ],
         "VpcId": Object {
           "Ref": "TestVPCDLTFargateVpc0EC32C36",
         },

@@ -5,10 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.2] - 2022-03-31
+## [3.0.0] - 2022-08-24
+
+⚠ BREAKING CHANGES
+Version 3.0.0 does not support upgrading from previous versions.
 
 ### Added
 
+- Merge [#71](https://github.com/aws-solutions/distributed-load-testing-on-aws/pull/71) by [@pyranja](https://github.com/pyranja)
+- Multi-region load test support
+  - Template for secondary regions
+  - Menu option for region management
+  - Region selection in test creation
+  - Results viewable by region
+- Real time data on UI for running tests
+- Upload bzt log, as well as jmeter log, out, and err logs to S3
+- Link to S3 test results in the test details
+- Logging for failed tasks
+
+### Changed
+
+- History moved to separate table
+- History view moved to modal rather than separate link
+- Updated to CDK V2
+
+### Fixed
+
+- Bug fix for long running containers by adding timeout to sockets
+- Bug fix port issues by handing SIGTERM properly
+- Bug fix for graceful failure when leader task fails
+- Bug fix for tasks which launched but failed to provision
+
+### Removed
+
+- Sleep between runTask API calls
+
+## [2.0.2] - 2022-03-31
+  
+### Added
+  
 - Enabled encryption in transit for the logging S3 bucket.
 
 ## [2.0.1] - 2021-12-13
@@ -109,9 +144,9 @@ Version 2.0.0 does not support upgrading from previous versions.
 - JMeter input file support and plugins support
   - JMeter input files should be zipped with the JMeter script file.
   - Add `jetty-*.jar` files to the Amazon ECR to support JMeter HTTP/2 plugin:
-    - https://github.com/Blazemeter/jmeter-http2-plugin
-    - https://stackoverflow.com/questions/62714281/http-2-request-with-jmeter-fails-with-nullsession-jetty-alpn
-    - https://webtide.com/jetty-alpn-java-8u252/
+    - <https://github.com/Blazemeter/jmeter-http2-plugin>
+    - <https://stackoverflow.com/questions/62714281/http-2-request-with-jmeter-fails-with-nullsession-jetty-alpn>
+    - <https://webtide.com/jetty-alpn-java-8u252/>
     - See the latest `jetty-*.jar` files in the [Maven repository](https://mvnrepository.com/):
       - [jetty-alpn-client](https://mvnrepository.com/artifact/org.eclipse.jetty/jetty-alpn-client)
       - [jetty-alpn-openjdk8-client](https://mvnrepository.com/artifact/org.eclipse.jetty/jetty-alpn-openjdk8-client)
