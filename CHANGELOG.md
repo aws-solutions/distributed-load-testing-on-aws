@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2022-11-10
+
+### Added
+
+- Added AppRegistryAWS Service Catalog AppRegistry support for all deployments of the solution.
+  - Due to current limitations of AppRegistry, a separate instance of AppRegistry is launched for each region that this solution is deployed to.
+
 ## [3.0.0] - 2022-08-24
 
 ⚠ BREAKING CHANGES

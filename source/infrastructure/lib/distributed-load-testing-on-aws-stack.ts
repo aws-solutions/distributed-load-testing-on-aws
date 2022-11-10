@@ -459,6 +459,14 @@ export class DLTStack extends Stack {
       sendAnonymousUsageCondition
     });
 
+    commonResources.appRegistryApplication({
+      description: props.description,
+      solutionVersion: solutionVersion,
+      stackType: props.stackType,
+      solutionId: solutionId,
+      applicationName: props.solutionName
+    });
+
     //Outputs
     new CfnOutput(this, 'Console', {
       description: 'Console URL',
