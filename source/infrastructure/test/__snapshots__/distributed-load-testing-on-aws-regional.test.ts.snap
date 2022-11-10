@@ -166,6 +166,83 @@ Object {
     },
   },
   "Resources": Object {
+    "AppRegistry968496A3": Object {
+      "Properties": Object {
+        "Description": "Service Catalog application to track and manage all your resources for the solution Distributed Load Testing",
+        "Name": Object {
+          "Fn::Join": Array [
+            "-",
+            Array [
+              "distributed-load-testing-on-aws",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+            ],
+          ],
+        },
+        "Tags": Object {
+          "SolutionId": Object {
+            "Fn::FindInMap": Array [
+              "Solution",
+              "Config",
+              "SolutionId",
+            ],
+          },
+          "Solutions:ApplicationType": "AWS-Solutions",
+          "Solutions:SolutionID": Object {
+            "Fn::FindInMap": Array [
+              "Solution",
+              "Config",
+              "SolutionId",
+            ],
+          },
+          "Solutions:SolutionName": "Distributed Load Testing",
+          "Solutions:SolutionVersion": Object {
+            "Fn::FindInMap": Array [
+              "Solution",
+              "Config",
+              "CodeVersion",
+            ],
+          },
+        },
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::Application",
+    },
+    "AppRegistryAttributeGroupAssociationa7177d48be75C139509C": Object {
+      "Properties": Object {
+        "Application": Object {
+          "Fn::GetAtt": Array [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "AttributeGroup": Object {
+          "Fn::GetAtt": Array [
+            "DefaultApplicationAttributesFC1CC26B",
+            "Id",
+          ],
+        },
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation",
+    },
+    "AppRegistryResourceAssociation017832cce413582276C2": Object {
+      "Properties": Object {
+        "Application": Object {
+          "Fn::GetAtt": Array [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": Object {
+          "Ref": "AWS::StackId",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
     "CommonResourcesCloudWatchLogsPolicyB8257A4C": Object {
       "Properties": Object {
         "PolicyDocument": Object {
@@ -877,6 +954,42 @@ Object {
         },
       },
       "Type": "AWS::EC2::Subnet",
+    },
+    "DefaultApplicationAttributesFC1CC26B": Object {
+      "Properties": Object {
+        "Attributes": Object {
+          "applicationType": "AWS-Solutions",
+          "solutionID": Object {
+            "Fn::FindInMap": Array [
+              "Solution",
+              "Config",
+              "SolutionId",
+            ],
+          },
+          "solutionName": "Distributed Load Testing",
+          "version": Object {
+            "Fn::FindInMap": Array [
+              "Solution",
+              "Config",
+              "CodeVersion",
+            ],
+          },
+        },
+        "Description": "Attribute group for solution information",
+        "Name": Object {
+          "Ref": "AWS::StackName",
+        },
+        "Tags": Object {
+          "SolutionId": Object {
+            "Fn::FindInMap": Array [
+              "Solution",
+              "Config",
+              "SolutionId",
+            ],
+          },
+        },
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroup",
     },
     "RealTimeDataRealTimeDataPublisher7E8F8F6C": Object {
       "DependsOn": Array [

@@ -16,4 +16,5 @@ test('DLT API Test', () => {
   expect(SynthUtils.toCloudFormation(stack)).toMatchSnapshot();
   expect(common.s3LogsBucket).toBeDefined();
   expect(common.sourceBucket).toBeDefined();
+  expect(common.appRegistryApplication).toBeDefined();
 });
