@@ -107,6 +107,9 @@ Object {
       "UpdateReplacePolicy": "Retain",
     },
     "TestLogsGroupECSLogSubscriptionFilterBFBFAB24": Object {
+      "DependsOn": Array [
+        "TestLogsGroupECSLogSubscriptionFilterCanInvokeLambdaD7381D91",
+      ],
       "Properties": Object {
         "DestinationArn": Object {
           "Fn::GetAtt": Array [
