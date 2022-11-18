@@ -3373,6 +3373,9 @@ Object {
       "UpdateReplacePolicy": "Delete",
     },
     "DLTEcsDLTCloudWatchLogsGroupECSLogSubscriptionFilterC5BB4DB5": Object {
+      "DependsOn": Array [
+        "DLTEcsDLTCloudWatchLogsGroupECSLogSubscriptionFilterCanInvokeLambdaF6EFF73B",
+      ],
       "Properties": Object {
         "DestinationArn": Object {
           "Fn::GetAtt": Array [

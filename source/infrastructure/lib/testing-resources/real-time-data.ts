@@ -73,9 +73,12 @@ export class RealTimeDataConstruct extends Construct {
       }]
     });
 
-    props.ecsCloudWatchLogGroup.addSubscriptionFilter('ECSLogSubscriptionFilter', {
+    const ecsCloudWatchSubscriptionFilter = props.ecsCloudWatchLogGroup.addSubscriptionFilter('ECSLogSubscriptionFilter', {
       destination: new LambdaDestination(realTimeDataPublisher),
       filterPattern: FilterPattern.allTerms("INFO: Current:", "live=true")
     });
+    const subscriptionFilterPermission = ecsCloudWatchSubscriptionFilter.node.findChild("CanInvokeLambda");
+    if(subscriptionFilterPermission != null)
+      ecsCloudWatchSubscriptionFilter.node.addDependency(subscriptionFilterPermission);
   }
 }

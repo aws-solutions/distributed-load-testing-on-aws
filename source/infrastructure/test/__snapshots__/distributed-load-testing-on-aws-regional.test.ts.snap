@@ -455,6 +455,9 @@ Object {
       "UpdateReplacePolicy": "Retain",
     },
     "DLTRegionalFargateDLTCloudWatchLogsGroupECSLogSubscriptionFilter018E070A": Object {
+      "DependsOn": Array [
+        "DLTRegionalFargateDLTCloudWatchLogsGroupECSLogSubscriptionFilterCanInvokeLambda20B8ED69",
+      ],
       "Properties": Object {
         "DestinationArn": Object {
           "Fn::GetAtt": Array [

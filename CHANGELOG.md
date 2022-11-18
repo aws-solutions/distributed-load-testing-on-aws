@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1] - 2022-11-18
+
+### Fixed
+
+- Bug fix for [#111](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/111) where a CloudFormation bug would occasionally cause deployments to fail.
+
 ## [3.1.0] - 2022-11-10
 
 ### Added
