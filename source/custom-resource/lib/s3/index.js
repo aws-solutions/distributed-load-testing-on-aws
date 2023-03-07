@@ -1,13 +1,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const AWS = require('aws-sdk');
-const utils = require('solution-utils');
+const AWS = require("aws-sdk");
+const utils = require("solution-utils");
 AWS.config.logger = console;
 let options = {};
 options = utils.getOptions(options);
 const s3 = new AWS.S3(options);
-const yaml = require('js-yaml');
+const yaml = require("js-yaml");
 
 /**
  * Copy regional template from source to destination bucket and modify mappings
@@ -17,7 +17,7 @@ const putRegionalTemplate = async (config) => {
     //get file from S3 and convert from yaml
     const getParams = {
       Bucket: config.SrcBucket,
-      Key: `${config.SrcPath}/distributed-load-testing-on-aws-regional.template`
+      Key: `${config.SrcPath}/distributed-load-testing-on-aws-regional.template`,
     };
     const data = await s3.getObject(getParams).promise();
     const template = yaml.load(data.Body.toString());
@@ -37,15 +37,15 @@ const putRegionalTemplate = async (config) => {
     const modifiedTemplate = yaml.dump(template, { lineWidth: -1 });
     const putParams = {
       Bucket: config.DestBucket,
-      Key: 'regional-template/distributed-load-testing-on-aws-regional.template',
-      Body: modifiedTemplate
+      Key: "regional-template/distributed-load-testing-on-aws-regional.template",
+      Body: modifiedTemplate,
     };
     await s3.putObject(putParams).promise();
   } catch (err) {
     console.error(err);
     throw err;
   }
-  return 'success';
+  return "success";
 };
 
 /**
@@ -56,28 +56,30 @@ const copyAssets = async (srcBucket, srcPath, manifestFile, destBucket) => {
     // get file manifest from s3
     const getParams = {
       Bucket: srcBucket,
-      Key: `${srcPath}/${manifestFile}`
+      Key: `${srcPath}/${manifestFile}`,
     };
 
     const data = await s3.getObject(getParams).promise();
     const manifest = JSON.parse(data.Body);
-    console.log('Manifest:', JSON.stringify(manifest, null, 2));
+    console.log("Manifest:", JSON.stringify(manifest, null, 2));
 
     // Loop through manifest and copy files to the destination bucket
-    const response = await Promise.all(manifest.map(async (file) => {
-      let copyParams = {
-        Bucket: destBucket,
-        CopySource: `${srcBucket}/${srcPath}/${file}`,
-        Key: file
-      };
-      return s3.copyObject(copyParams).promise();
-    }));
-    console.log('file copied to s3: ', response);
+    const response = await Promise.all(
+      manifest.map(async (file) => {
+        let copyParams = {
+          Bucket: destBucket,
+          CopySource: `${srcBucket}/${srcPath}/${file}`,
+          Key: file,
+        };
+        return s3.copyObject(copyParams).promise();
+      })
+    );
+    console.log("file copied to s3: ", response);
   } catch (err) {
     console.error(err);
     throw err;
   }
-  return 'success';
+  return "success";
 };
 
 /**
@@ -88,8 +90,8 @@ const configFile = async (file, destBucket) => {
     //write exports file to the console
     const params = {
       Bucket: destBucket,
-      Key: 'assets/aws_config.js',
-      Body: file
+      Key: "assets/aws_config.js",
+      Body: file,
     };
     console.log(`creating config file: ${JSON.stringify(params)}`);
     await s3.putObject(params).promise();
@@ -97,11 +99,11 @@ const configFile = async (file, destBucket) => {
     console.error(err);
     throw err;
   }
-  return 'success';
+  return "success";
 };
 
 module.exports = {
   copyAssets: copyAssets,
   configFile: configFile,
-  putRegionalTemplate: putRegionalTemplate
+  putRegionalTemplate: putRegionalTemplate,
 };

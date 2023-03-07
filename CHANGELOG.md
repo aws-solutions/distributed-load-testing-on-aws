@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2022-03-09
+
+### Added
+
+- Task limits based on on-demand vCPU quotas for the account along with currently running Fargate tasks.
+  - Table to the console when creating a test to visualize available Fargate quotas.
+- Auto-refresh functionality
+- eslint and prettier formatting
+
+### Fixed
+
+- Bug fix for [#115](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/115) where Step Functions hits a task execution limit.
+- Bug fix for [#115](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/115) where test does not cancel properly.
+- CloudWatch Dashboards link in console
+- Deletion of CloudWatch Dashboards on test deletion
+
+### Security
+
+- Updated to bootstrap 5
+- Updated to blazemeter/taurus version 1.16.9
+
 ## [3.1.1] - 2022-11-18
 
 ### Fixed

@@ -37,24 +37,58 @@ run_tests() {
   echo "cd $component_path"
   cd $component_path
 
-  # install dependencies
-  npm run clean
-  npm install
-
   # run unit tests
   npm test
 
   # prepare coverage reports
   prepare_jest_coverage_report $component_name
-  rm -rf coverage node_modules package-lock.json
-}
 
-# Run unit tests
-echo "Running unit tests"
+  if [ $component_name = "solution-utils" ]
+  then
+    rm -rf coverage package-lock.json
+  else
+    rm -rf coverage node_modules package-lock.json
+  fi
+}
 
 # Get reference for source folder
 source_dir="$(cd $PWD/../source; pwd -P)"
 coverage_reports_top_path=$source_dir/test/coverage-reports
+
+#install dependencies
+cd $source_dir
+npm run clean:all
+npm run install:all
+
+#run prettier
+echo "Running prettier formatting check"
+npm run prettier-check
+if [ $? -eq 0 ]
+then
+  echo "Formatting check passed"
+else
+  echo "******************************************************************************"
+  echo "Test FAILED formatting check, run prettier-formatting on code"
+  echo "******************************************************************************"
+  exit 1
+fi
+
+#run linting check
+echo "Running linting check"
+npm run lint
+if [ $? -eq 0 ]
+then
+  echo "Formatting check passed"
+else
+  echo "******************************************************************************"
+  echo "Test FAILED linting check, run eslint on code and fix corresponding issues"
+  echo "******************************************************************************"
+  exit 1
+fi
+npm run clean
+
+# Run unit tests
+echo "Running unit tests"
 
 # Test packages
 declare -a packages=(

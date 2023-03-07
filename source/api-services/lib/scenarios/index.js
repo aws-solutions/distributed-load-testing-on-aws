@@ -1,10 +1,11 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const AWS = require('aws-sdk');
-const moment = require('moment');
-const utils = require('solution-utils');
-const { HISTORY_TABLE, SCENARIOS_TABLE, SCENARIOS_BUCKET, STATE_MACHINE_ARN, TASK_CANCELER_ARN, STACK_ID } = process.env;
+const AWS = require("aws-sdk");
+const moment = require("moment");
+const utils = require("solution-utils");
+const { HISTORY_TABLE, SCENARIOS_TABLE, SCENARIOS_BUCKET, STATE_MACHINE_ARN, TASK_CANCELER_ARN, STACK_ID } =
+  process.env;
 AWS.config.logger = console;
 let options = {};
 options = utils.getOptions(options);
@@ -18,8 +19,8 @@ const cloudformation = new AWS.CloudFormation(options);
 
 /**
  * Class to throw errors
- * @param {string} code 
- * @param {string} errMsg 
+ * @param {string} code
+ * @param {string} errMsg
  */
 class ErrorException {
   constructor(code, errMsg) {
@@ -42,7 +43,7 @@ const getCFUrl = async () => {
       exports.push(...listExports.Exports);
       params.NextToken = listExports.NextToken;
     } while (params.NextToken);
-    const result = exports.find(entry => entry.ExportingStackId === STACK_ID && entry.Name === 'RegionalCFTemplate');
+    const result = exports.find((entry) => entry.ExportingStackId === STACK_ID && entry.Name === "RegionalCFTemplate");
     return result.Value;
   } catch (err) {
     console.error(err);
@@ -50,7 +51,7 @@ const getCFUrl = async () => {
   }
 };
 
-/**  
+/**
  * Returns test resource information for all configured regions
  * @returns {object} Test infrastructure configuration for every configured region
  */
@@ -60,15 +61,15 @@ const getAllRegionConfigs = async () => {
     TableName: SCENARIOS_TABLE,
     Select: "ALL_ATTRIBUTES",
     ScanFilter: {
-      'testId': {
-        ComparisonOperator: 'BEGINS_WITH',
-        AttributeValueList: ["region"]
+      testId: {
+        ComparisonOperator: "BEGINS_WITH",
+        AttributeValueList: ["region"],
       },
-      'taskCluster': {
-        ComparisonOperator: 'NE',
-        AttributeValueList: [""]
-      }
-    }
+      taskCluster: {
+        ComparisonOperator: "NE",
+        AttributeValueList: [""],
+      },
+    },
   };
   try {
     do {
@@ -83,9 +84,9 @@ const getAllRegionConfigs = async () => {
   }
 };
 
-/**  
+/**
  * Returns the dynamoDB entry for a given testId
- * @param {string} testId 
+ * @param {string} testId
  * @returns {object} Test configuration stored in DynamoDB
  */
 const getTestEntry = async (testId) => {
@@ -94,8 +95,8 @@ const getTestEntry = async (testId) => {
     let params = {
       TableName: SCENARIOS_TABLE,
       Key: {
-        testId: testId
-      }
+        testId: testId,
+      },
     };
     const response = await dynamoDB.get(params).promise();
     data = response.Item;
@@ -106,7 +107,7 @@ const getTestEntry = async (testId) => {
   }
 };
 
-/** 
+/**
  * Return test resource information for a given region
  * @param {string} testRegion
  * @returns {object} Test infrastructure configuration for specified region
@@ -116,14 +117,14 @@ const getRegionInfraConfigs = async (testRegion) => {
     let regionalParameters = {
       TableName: SCENARIOS_TABLE,
       Key: {
-        testId: `region-${testRegion}`
-      }
+        testId: `region-${testRegion}`,
+      },
     };
     const ddbEntry = await dynamoDB.get(regionalParameters).promise();
-    if (!('Item' in ddbEntry)) {
-      const errorMessage = 'The region requested does not have a stored infrastructure configuration.';
+    if (!("Item" in ddbEntry)) {
+      const errorMessage = "The region requested does not have a stored infrastructure configuration.";
       console.error(errorMessage);
-      throw new ErrorException('InvalidRegionRequest', errorMessage);
+      throw new ErrorException("InvalidRegionRequest", errorMessage);
     }
     return ddbEntry.Item;
   } catch (err) {
@@ -133,10 +134,10 @@ const getRegionInfraConfigs = async (testRegion) => {
 };
 
 /**
- * Retrieves all information needed to run a test, including 
+ * Retrieves all information needed to run a test, including
  * regional testing infrastructure configuration,
  * based on testId
- * @param {string} testId 
+ * @param {string} testId
  * @returns {object} Combined test configuration and test infrastructure configuration for regions to be tested
  */
 const getTestAndRegionConfigs = async (testId) => {
@@ -157,7 +158,7 @@ const getTestAndRegionConfigs = async (testId) => {
 
 /**
  * getTestHistoryEntries
- * @param {string} testId 
+ * @param {string} testId
  * @returns {object} List of all history objects for testId
  */
 const getTestHistoryEntries = async (testId) => {
@@ -166,13 +167,13 @@ const getTestHistoryEntries = async (testId) => {
     const params = {
       TableName: HISTORY_TABLE,
       Select: "ALL_ATTRIBUTES",
-      KeyConditionExpression: '#t = :t',
+      KeyConditionExpression: "#t = :t",
       ExpressionAttributeNames: {
-        '#t': 'testId'
+        "#t": "testId",
       },
       ExpressionAttributeValues: {
-        ':t': testId
-      }
+        ":t": testId,
+      },
     };
     do {
       const historyEntries = await dynamoDB.query(params).promise();
@@ -191,27 +192,27 @@ const getTestHistoryEntries = async (testId) => {
  * @returns {object} All created tests
  */
 const listTests = async () => {
-  console.log('List tests');
+  console.log("List tests");
 
   try {
-    const response = { 'Items': [] };
+    const response = { Items: [] };
     const params = {
       TableName: SCENARIOS_TABLE,
       AttributesToGet: [
-        'testId',
-        'testName',
-        'testDescription',
-        'status',
-        'startTime',
-        'nextRun',
-        'scheduleRecurrence'
+        "testId",
+        "testName",
+        "testDescription",
+        "status",
+        "startTime",
+        "nextRun",
+        "scheduleRecurrence",
       ],
       ScanFilter: {
-        'testId': {
-          ComparisonOperator: 'NOT_CONTAINS',
-          AttributeValueList: ["region"]
-        }
-      }
+        testId: {
+          ComparisonOperator: "NOT_CONTAINS",
+          AttributeValueList: ["region"],
+        },
+      },
     };
     do {
       const testScenarios = await dynamoDB.scan(params).promise();
@@ -219,7 +220,6 @@ const listTests = async () => {
       params.ExclusiveStartKey = testScenarios.LastEvaluatedKey;
     } while (params.ExclusiveStartKey);
     return response;
-
   } catch (err) {
     console.error(err);
     throw err;
@@ -236,8 +236,8 @@ const scheduleTest = async (event, context) => {
   try {
     let config = JSON.parse(event.body);
     const { testId, scheduleDate, scheduleTime, showLive } = config;
-    const [hour, minute] = scheduleTime.split(':');
-    let [year, month, day] = scheduleDate.split('-');
+    const [hour, minute] = scheduleTime.split(":");
+    let [year, month, day] = scheduleDate.split("-");
     let nextRun = `${year}-${month}-${day} ${hour}:${minute}:00`;
     const functionName = context.functionName;
     const functionArn = context.functionArn;
@@ -253,21 +253,23 @@ const scheduleTest = async (event, context) => {
       await cloudwatchevents.deleteRule({ Name: ruleName }).promise();
     }
 
-    if (config.scheduleStep === 'create') {
+    if (config.scheduleStep === "create") {
       //Schedule for 1 min prior to account for time it takes to create rule
-      const createRun = moment([year, parseInt(month, 10) - 1, day, hour, minute]).subtract(1, 'minute').format('YYYY-MM-DD HH:mm:ss');
+      const createRun = moment([year, parseInt(month, 10) - 1, day, hour, minute])
+        .subtract(1, "minute")
+        .format("YYYY-MM-DD HH:mm:ss");
       let [createDate, createTime] = createRun.split(" ");
-      const [createHour, createMin] = createTime.split(':');
-      const [createYear, createMonth, createDay] = createDate.split('-');
+      const [createHour, createMin] = createTime.split(":");
+      const [createYear, createMonth, createDay] = createDate.split("-");
       const cronStart = `cron(${createMin} ${createHour} ${createDay} ${createMonth} ? ${createYear})`;
       scheduleRecurrence = config.recurrence;
 
-      //Create rule to create schedule 
+      //Create rule to create schedule
       const createRuleParams = {
         Name: `${testId}Create`,
         Description: `Create test schedule for: ${testId}`,
         ScheduleExpression: cronStart,
-        State: 'ENABLED'
+        State: "ENABLED",
       };
       let ruleArn = await cloudwatchevents.putRule(createRuleParams).promise();
 
@@ -277,7 +279,7 @@ const scheduleTest = async (event, context) => {
         FunctionName: functionName,
         Principal: "events.amazonaws.com",
         SourceArn: ruleArn.RuleArn,
-        StatementId: `${testId}Create`
+        StatementId: `${testId}Create`,
       };
       await lambda.addPermission(permissionParams).promise();
 
@@ -288,11 +290,13 @@ const scheduleTest = async (event, context) => {
       //add target
       let createTargetParams = {
         Rule: `${testId}Create`,
-        Targets: [{
-          Arn: functionArn,
-          Id: `${testId}Create`,
-          Input: JSON.stringify(event),
-        }]
+        Targets: [
+          {
+            Arn: functionArn,
+            Id: `${testId}Create`,
+            Input: JSON.stringify(event),
+          },
+        ],
       };
       await cloudwatchevents.putTargets(createTargetParams).promise();
     } else {
@@ -313,7 +317,8 @@ const scheduleTest = async (event, context) => {
           case "monthly":
             scheduleString = `cron(${minute} ${hour} ${day} * ? *)`;
             break;
-          default: throw new ErrorException("InvalidParameter", "Invalid recurrence value.");
+          default:
+            throw new ErrorException("InvalidParameter", "Invalid recurrence value.");
         }
       } else {
         scheduleString = `cron(${minute} ${hour} ${day} ${month} ? ${year})`;
@@ -324,7 +329,7 @@ const scheduleTest = async (event, context) => {
         Name: `${testId}Scheduled`,
         Description: `Scheduled tests for ${testId}`,
         ScheduleExpression: scheduleString,
-        State: 'ENABLED'
+        State: "ENABLED",
       };
       let ruleArn = await cloudwatchevents.putRule(ruleParams).promise();
 
@@ -334,7 +339,7 @@ const scheduleTest = async (event, context) => {
         FunctionName: functionName,
         Principal: "events.amazonaws.com",
         SourceArn: ruleArn.RuleArn,
-        StatementId: `${testId}Scheduled`
+        StatementId: `${testId}Scheduled`,
       };
       await lambda.addPermission(permissionParams).promise();
 
@@ -345,15 +350,17 @@ const scheduleTest = async (event, context) => {
       //add target to rule
       let targetParams = {
         Rule: `${testId}Scheduled`,
-        Targets: [{
-          Arn: functionArn,
-          Id: `${testId}Scheduled`,
-          Input: JSON.stringify(event),
-        }]
+        Targets: [
+          {
+            Arn: functionArn,
+            Id: `${testId}Scheduled`,
+            Input: JSON.stringify(event),
+          },
+        ],
       };
       await cloudwatchevents.putTargets(targetParams).promise();
 
-      //Remove rule created during create schedule step 
+      //Remove rule created during create schedule step
       if (config.recurrence) {
         let ruleName = `${testId}Create`;
         await cloudwatchevents.removeTargets({ Rule: ruleName, Ids: [ruleName] }).promise();
@@ -367,48 +374,48 @@ const scheduleTest = async (event, context) => {
       let params = {
         TableName: SCENARIOS_TABLE,
         Key: {
-          testId: testId
+          testId: testId,
         },
-        UpdateExpression: 'set #n = :n, #d = :d, #tc = :tc, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #nr = :nr, #sr = :sr, #sl = :sl, #tt = :tt, #ft = :ft',
+        UpdateExpression:
+          "set #n = :n, #d = :d, #tc = :tc, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #nr = :nr, #sr = :sr, #sl = :sl, #tt = :tt, #ft = :ft",
         ExpressionAttributeNames: {
-          '#n': 'testName',
-          '#d': 'testDescription',
-          '#tc': 'testTaskConfigs',
-          '#t': 'testScenario',
-          '#s': 'status',
-          '#r': 'results',
-          '#st': 'startTime',
-          '#et': 'endTime',
-          '#nr': 'nextRun',
-          '#sr': 'scheduleRecurrence',
-          '#sl': 'showLive',
-          '#tt': 'testType',
-          '#ft': 'fileType'
+          "#n": "testName",
+          "#d": "testDescription",
+          "#tc": "testTaskConfigs",
+          "#t": "testScenario",
+          "#s": "status",
+          "#r": "results",
+          "#st": "startTime",
+          "#et": "endTime",
+          "#nr": "nextRun",
+          "#sr": "scheduleRecurrence",
+          "#sl": "showLive",
+          "#tt": "testType",
+          "#ft": "fileType",
         },
         ExpressionAttributeValues: {
-          ':n': config.testName,
-          ':d': config.testDescription,
-          ':tc': config.testTaskConfigs,
-          ':t': JSON.stringify(config.testScenario),
-          ':s': 'scheduled',
-          ':r': {},
-          ':st': "",
-          ':et': '',
-          ':nr': nextRun,
-          ':sr': scheduleRecurrence,
-          ':sl': showLive,
-          ':tt': config.testType,
-          ':ft': config.fileType
+          ":n": config.testName,
+          ":d": config.testDescription,
+          ":tc": config.testTaskConfigs,
+          ":t": JSON.stringify(config.testScenario),
+          ":s": "scheduled",
+          ":r": {},
+          ":st": "",
+          ":et": "",
+          ":nr": nextRun,
+          ":sr": scheduleRecurrence,
+          ":sl": showLive,
+          ":tt": config.testType,
+          ":ft": config.fileType,
         },
-        ReturnValues: 'ALL_NEW'
+        ReturnValues: "ALL_NEW",
       };
       let data = await dynamoDB.update(params).promise();
 
       console.log(`Schedule test complete: ${JSON.stringify(data, null, 2)}`);
 
       return data.Attributes;
-    }
-    else {
+    } else {
       console.log(`Succesfully created schedule rule for test: ${testId}`);
     }
   } catch (err) {
@@ -418,35 +425,33 @@ const scheduleTest = async (event, context) => {
 };
 
 /**
- * Sets the file type of the test, if the test is simple HTTP endpoint test, fileType is `none`, 
+ * Sets the file type of the test, if the test is simple HTTP endpoint test, fileType is `none`,
  * if there is no fileType, then fileType is `script`
  * @param {string} testType
- * @param {string} fileType 
- * @returns {string} fileType 
+ * @param {string} fileType
+ * @returns {string} fileType
  */
 const setFileType = (testType, fileType) => {
   // When no fileType, fileType is script.
-  if (testType === 'simple') {
-    fileType = 'none';
+  if (testType === "simple") {
+    fileType = "none";
   } else if (!fileType) {
-    fileType = 'script';
+    fileType = "script";
   }
   return fileType;
 };
 
 /**
  * Generates the testId if one does not exist
- * @param {string} testId 
+ * @param {string} testId
  * @returns generated unique ID
  */
-const setTestId = (testId) => {
+const setTestId = (testId) =>
   // When accessing API directly and no testId
-  return testId || utils.generateUniqueId(10);
-};
-
+  testId || utils.generateUniqueId(10);
 /**
  * Sets the next schedule test run
- * @param {string} scheduleRecurrence 
+ * @param {string} scheduleRecurrence
  * @returns next run, scheduleRecurrence
  */
 const setNextRun = (scheduleRecurrence = "") => {
@@ -454,18 +459,19 @@ const setNextRun = (scheduleRecurrence = "") => {
   if (scheduleRecurrence) {
     switch (scheduleRecurrence) {
       case "daily":
-        nextRun = moment().utc().add(1, 'd').format('YYYY-MM-DD HH:mm:ss');
+        nextRun = moment().utc().add(1, "d").format("YYYY-MM-DD HH:mm:ss");
         break;
       case "weekly":
-        nextRun = moment().utc().add(7, 'd').format('YYYY-MM-DD HH:mm:ss');
+        nextRun = moment().utc().add(7, "d").format("YYYY-MM-DD HH:mm:ss");
         break;
       case "biweekly":
-        nextRun = moment().utc().add(14, 'd').format('YYYY-MM-DD HH:mm:ss');
+        nextRun = moment().utc().add(14, "d").format("YYYY-MM-DD HH:mm:ss");
         break;
       case "monthly":
-        nextRun = moment().utc().add(1, 'M').format('YYYY-MM-DD HH:mm:ss');
+        nextRun = moment().utc().add(1, "M").format("YYYY-MM-DD HH:mm:ss");
         break;
-      default: throw new ErrorException('InvalidParameter', "Invalid recurrence value.");
+      default:
+        throw new ErrorException("InvalidParameter", "Invalid recurrence value.");
     }
   }
   return { nextRun, scheduleRecurrence };
@@ -473,30 +479,32 @@ const setNextRun = (scheduleRecurrence = "") => {
 
 /**
  * Validates the setting for task count and task concurrency
- * @param {object} testTaskConfigs 
+ * @param {object} testTaskConfigs
  * @returns testTaskConfigs
  */
-const validateTaskCountConcurrency = (testTaskConfigs) => {
+const validateTaskCountConcurrency = (testTaskConfigs, regionalTaskDetails) => {
   // For each regional config, parse the task count and concurrency
   for (const regionalTestConfig of testTaskConfigs) {
-    if (typeof regionalTestConfig.taskCount === 'string') {
+    const region = regionalTestConfig.region;
+    const availableTasks = parseInt(regionalTaskDetails[region].dltAvailableTasks);
+    if (typeof regionalTestConfig.taskCount === "string") {
       regionalTestConfig.taskCount = regionalTestConfig.taskCount.trim();
     }
     const taskCount = parseInt(regionalTestConfig.taskCount);
-    if (isNaN(taskCount)
-      || parseInt(taskCount) < 1
-      || parseInt(taskCount) > 1000) {
-      throw new ErrorException('InvalidParameter', 'Task count should be positive number between 1 to 1000.');
+    if (isNaN(taskCount) || parseInt(taskCount) < 1 || parseInt(taskCount) > availableTasks) {
+      throw new ErrorException(
+        "InvalidParameter",
+        `Task count should be positive number between 1 to ${availableTasks}.`
+      );
     }
     regionalTestConfig.taskCount = taskCount;
 
-    if (typeof regionalTestConfig.concurrency === 'string') {
+    if (typeof regionalTestConfig.concurrency === "string") {
       regionalTestConfig.concurrency = regionalTestConfig.concurrency.trim();
     }
     const concurrency = parseInt(regionalTestConfig.concurrency);
-    if (isNaN(concurrency)
-      || parseInt(regionalTestConfig.concurrency) < 1) {
-      throw new ErrorException('InvalidParameter', 'Concurrency should be positive number');
+    if (isNaN(concurrency) || parseInt(regionalTestConfig.concurrency) < 1) {
+      throw new ErrorException("InvalidParameter", "Concurrency should be positive number");
     }
     regionalTestConfig.concurrency = parseInt(concurrency);
   }
@@ -505,29 +513,29 @@ const validateTaskCountConcurrency = (testTaskConfigs) => {
 
 /**
  * Validation that there is a value for a given key
- * @param {object} patterns 
- * @param {string} key 
+ * @param {object} patterns
+ * @param {string} key
  * @throws InvalidParameter if the value of the key is invalid
  */
 const validateParameter = (patterns, key) => {
   if (patterns.length === 0 || patterns.length % 2 !== 0) {
-    throw new ErrorException('InvalidParameter', `Invalid ${key} value.`);
+    throw new ErrorException("InvalidParameter", `Invalid ${key} value.`);
   }
 };
 
 /**
  * Validation for the execution value
- * @param {string} result 
- * @param {string} key 
- * @param {number} value 
- * @param {number} min 
+ * @param {string} result
+ * @param {string} key
+ * @param {number} value
+ * @param {number} min
  * @throws InvalidParameter if the value is not a positive number less than the minimum
  * @returns value
  */
 const validateNumber = (result, key, value, min) => {
   // Number
   if (isNaN(value) || parseInt(value) < min) {
-    throw new ErrorException('InvalidParameter', `${key} should be positive number equal to or greater than ${min}.`);
+    throw new ErrorException("InvalidParameter", `${key} should be positive number equal to or greater than ${min}.`);
   }
   return `${result}${parseInt(value)}`;
 };
@@ -538,29 +546,44 @@ const validateNumber = (result, key, value, min) => {
  * @param {string} result test result
  * @param {string} key test result key
  * @param {string} value test result value with time units
- *  
+ *
  */
 const validateUnit = (result, key, value) => {
-  const timeUnits = ['ms', 's', 'm', 'h', 'd'];
+  const timeUnits = ["ms", "s", "m", "h", "d"];
   // Unit
   if (!timeUnits.includes(value)) {
-    throw new ErrorException('InvalidParameter', `${key} unit should be one of these: ms, s, m, h, d.`);
+    throw new ErrorException("InvalidParameter", `${key} unit should be one of these: ms, s, m, h, d.`);
   }
   return `${result}${value}`;
 };
 
 /**
- * 
- * @param {object} testScenario 
- * @param {string} key 
- * @returns 
+ *
+ * @param {object} testScenario
+ * @param {string} key
+ * @returns
  */
-
 const formatStringKey = (testScenario, key) => {
-  if (typeof testScenario.execution[0][key] === 'string') {
-    testScenario.execution[0][key] = testScenario.execution[0][key].replace(/\s/g, '');
+  if (typeof testScenario.execution[0][key] === "string") {
+    testScenario.execution[0][key] = testScenario.execution[0][key].replace(/\s/g, "");
   }
   return testScenario;
+};
+
+/**
+ *
+ * @param {string} testDuration
+ */
+const getTestDurationSeconds = (testDuration) => {
+  const splitDurationRegex = /[a-z]+|[0-9]+/gi;
+  const [durationValue, durationUnit] = testDuration.match(splitDurationRegex);
+  if (durationUnit === "s") {
+    return parseInt(durationValue);
+  } else if (durationUnit === "m") {
+    return parseInt(durationValue) * 60;
+  } else {
+    throw new ErrorException("InvalidParameter", "Invalid hold-for unit, it should be either m or s.");
+  }
 };
 
 /**
@@ -577,7 +600,7 @@ const validateTimeUnit = (testScenario, key, min) => {
     let patterns = testScenario.execution[0][key].match(timeRegex);
     validateParameter(patterns, key);
 
-    let result = '';
+    let result = "";
     for (let i = 0, length = patterns.length; i < length; i++) {
       let value = patterns[i];
       if (i % 2 === 0) {
@@ -590,29 +613,29 @@ const validateTimeUnit = (testScenario, key, min) => {
   } else {
     testScenario.execution[0][key] = parseInt(testScenario.execution[0][key]);
     if (testScenario.execution[0][key] < min) {
-      throw new ErrorException('InvalidParameter', `${key} should be positive number equal to or greater than ${min}.`);
+      throw new ErrorException("InvalidParameter", `${key} should be positive number equal to or greater than ${min}.`);
     }
   }
   return testScenario;
 };
 
 /**
- * 
- * @param {object} testTaskConfigs 
- * @param {object} testScenario 
- * @param {string} testId 
+ *
+ * @param {object} testTaskConfigs
+ * @param {object} testScenario
+ * @param {string} testId
  */
 const writeTestScenarioToS3 = async (testTaskConfigs, testScenario, testId) => {
   // 1. Write test scenario to S3 for each region
   try {
-    const s3Promises = testTaskConfigs.map(testTaskConfig => {
+    const s3Promises = testTaskConfigs.map((testTaskConfig) => {
       const testScenarioS3 = testScenario;
       testScenarioS3.execution[0].taskCount = testTaskConfig.taskCount;
       testScenarioS3.execution[0].concurrency = testTaskConfig.concurrency;
       const params = {
         Body: JSON.stringify(testScenarioS3),
         Bucket: SCENARIOS_BUCKET,
-        Key: `test-scenarios/${testId}-${testTaskConfig.region}.json`
+        Key: `test-scenarios/${testId}-${testTaskConfig.region}.json`,
       };
       return s3.putObject(params).promise();
     });
@@ -624,8 +647,8 @@ const writeTestScenarioToS3 = async (testTaskConfigs, testScenario, testId) => {
 };
 
 /**
- * 
- * @param {object} testTaskConfigs 
+ *
+ * @param {object} testTaskConfigs
  * @returns the scheduled test config for tasks and regional
  *          ecs infrastructure configuration in one object
  */
@@ -635,7 +658,7 @@ const mergeTestAndInfraConfiguration = async (testTaskConfigs) => {
     const regionalInfraConfiguration = await getRegionInfraConfigs(regionalTestConfig.region);
     regionalTestAndInfraConfiguration.push({
       ...regionalTestConfig,
-      ...regionalInfraConfiguration
+      ...regionalInfraConfiguration,
     });
   }
   return regionalTestAndInfraConfiguration;
@@ -644,23 +667,20 @@ const mergeTestAndInfraConfiguration = async (testTaskConfigs) => {
 /**
  * startStepFunctionExecution
  * Kicks off the step function state machine for the test run
- * @param {object} stepFunctionParams 
+ * @param {object} stepFunctionParams
  */
 const startStepFunctionExecution = async (stepFunctionParams) => {
   try {
-    const { regionalTestAndInfraConfiguration, testId, testType, fileType, showLive } = stepFunctionParams;
-    const prefix = new Date().toISOString().replace('Z', '').split('').reverse().join('');
-    await stepFunctions.startExecution({
-      stateMachineArn: STATE_MACHINE_ARN,
-      input: JSON.stringify({
-        testTaskConfig: regionalTestAndInfraConfiguration,
-        testId,
-        testType,
-        fileType,
-        showLive,
-        prefix
+    const prefix = new Date().toISOString().replace("Z", "").split("").reverse().join("");
+    await stepFunctions
+      .startExecution({
+        stateMachineArn: STATE_MACHINE_ARN,
+        input: JSON.stringify({
+          ...stepFunctionParams,
+          prefix,
+        }),
       })
-    }).promise();
+      .promise();
   } catch (err) {
     console.error(err);
     throw err;
@@ -668,50 +688,63 @@ const startStepFunctionExecution = async (stepFunctionParams) => {
 };
 
 /**
- * 
- * @param {object} updateTestConfigs 
- * @returns 
+ *
+ * @param {object} updateTestConfigs
+ * @returns
  */
 const updateTestDBEntry = async (updateTestConfigs) => {
   try {
-    const { testId, testName, testDescription, testTaskConfigs, testScenario, startTime, nextRun, scheduleRecurrence, showLive, testType, fileType } = updateTestConfigs;
+    const {
+      testId,
+      testName,
+      testDescription,
+      testTaskConfigs,
+      testScenario,
+      startTime,
+      nextRun,
+      scheduleRecurrence,
+      showLive,
+      testType,
+      fileType,
+    } = updateTestConfigs;
     const params = {
       TableName: SCENARIOS_TABLE,
       Key: {
-        testId: testId
+        testId: testId,
       },
-      UpdateExpression: 'set #n = :n, #d = :d, #tc = :tc, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #nr = :nr, #sr = :sr, #sl = :sl, #tt = :tt, #ft = :ft',
+      UpdateExpression:
+        "set #n = :n, #d = :d, #tc = :tc, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #nr = :nr, #sr = :sr, #sl = :sl, #tt = :tt, #ft = :ft",
       ExpressionAttributeNames: {
-        '#n': 'testName',
-        '#d': 'testDescription',
-        '#tc': 'testTaskConfigs',
-        '#t': 'testScenario',
-        '#s': 'status',
-        '#r': 'results',
-        '#st': 'startTime',
-        '#et': 'endTime',
-        '#nr': 'nextRun',
-        '#sr': 'scheduleRecurrence',
-        '#sl': 'showLive',
-        '#tt': 'testType',
-        '#ft': 'fileType'
+        "#n": "testName",
+        "#d": "testDescription",
+        "#tc": "testTaskConfigs",
+        "#t": "testScenario",
+        "#s": "status",
+        "#r": "results",
+        "#st": "startTime",
+        "#et": "endTime",
+        "#nr": "nextRun",
+        "#sr": "scheduleRecurrence",
+        "#sl": "showLive",
+        "#tt": "testType",
+        "#ft": "fileType",
       },
       ExpressionAttributeValues: {
-        ':n': testName,
-        ':d': testDescription,
-        ':tc': testTaskConfigs,
-        ':t': JSON.stringify(testScenario),
-        ':s': 'running',
-        ':r': {},
-        ':st': startTime,
-        ':et': 'running',
-        ':nr': nextRun,
-        ':sr': scheduleRecurrence,
-        ':sl': showLive,
-        ':tt': testType,
-        ':ft': fileType
+        ":n": testName,
+        ":d": testDescription,
+        ":tc": testTaskConfigs,
+        ":t": JSON.stringify(testScenario),
+        ":s": "running",
+        ":r": {},
+        ":st": startTime,
+        ":et": "running",
+        ":nr": nextRun,
+        ":sr": scheduleRecurrence,
+        ":sl": showLive,
+        ":tt": testType,
+        ":ft": fileType,
       },
-      ReturnValues: 'ALL_NEW'
+      ReturnValues: "ALL_NEW",
     };
     return dynamoDB.update(params).promise();
   } catch (err) {
@@ -729,36 +762,37 @@ const createTest = async (config) => {
   console.log(`Create test: ${JSON.stringify(config, null, 2)}`);
 
   try {
-
-    const { testName, testDescription, testType, showLive } = config;
+    const { testName, testDescription, testType, showLive, regionalTaskDetails } = config;
     let { testId, testScenario, testTaskConfigs, fileType } = config;
 
     fileType = setFileType(testType, fileType);
     testId = setTestId(testId);
 
-    const startTime = moment().utc().format('YYYY-MM-DD HH:mm:ss');
+    const startTime = moment().utc().format("YYYY-MM-DD HH:mm:ss");
     let { nextRun, scheduleRecurrence } = setNextRun(config.recurrence);
 
-    testTaskConfigs = validateTaskCountConcurrency(testTaskConfigs);
+    testTaskConfigs = validateTaskCountConcurrency(testTaskConfigs, regionalTaskDetails);
 
     // Ramp up
-    testScenario = validateTimeUnit(testScenario, 'ramp-up', 0);
+    testScenario = validateTimeUnit(testScenario, "ramp-up", 0);
 
     // Hold for
-    testScenario = validateTimeUnit(testScenario, 'hold-for', 1);
+    testScenario = validateTimeUnit(testScenario, "hold-for", 1);
 
     // Add reporting to Test Scenario so that the end results are export to
     // Amazon s3 by each task.
-    testScenario.reporting = [{
-      "module": "final-stats",
-      "summary": true,
-      "percentiles": true,
-      "summary-labels": true,
-      "test-duration": true,
-      "dump-xml": "/tmp/artifacts/results.xml"
-    }];
+    testScenario.reporting = [
+      {
+        module: "final-stats",
+        summary: true,
+        percentiles: true,
+        "summary-labels": true,
+        "test-duration": true,
+        "dump-xml": "/tmp/artifacts/results.xml",
+      },
+    ];
 
-    console.log('TEST:: ', JSON.stringify(testScenario, null, 2));
+    console.log("TEST:: ", JSON.stringify(testScenario, null, 2));
 
     // 1. Write test scenario to S3
     await writeTestScenarioToS3(testTaskConfigs, testScenario, testId);
@@ -766,17 +800,37 @@ const createTest = async (config) => {
     console.log(`test scenario uploaded to s3: test-scenarios/${testId}.json`);
 
     // Based on the selected regions for the test, retrieve the test infrastructure configuration
-    // for each region and create an object for the specific region and add it to the list sent to the step functions 
+    // for each region and create an object for the specific region and add it to the list sent to the step functions
     const regionalTestAndInfraConfiguration = await mergeTestAndInfraConfiguration(testTaskConfigs);
 
-    /** 
-     * Start Step Functions execution 
+    /**
+     * Start Step Functions execution
      */
-    const stepFunctionParams = { regionalTestAndInfraConfiguration, testId, testType, fileType, showLive };
+    const testDuration = getTestDurationSeconds(testScenario.execution[0]["hold-for"]);
+    const stepFunctionParams = {
+      testTaskConfig: regionalTestAndInfraConfiguration,
+      testId,
+      testType,
+      fileType,
+      showLive,
+      testDuration,
+    };
     await startStepFunctionExecution(stepFunctionParams);
 
     // Update DynamoDB values.
-    const updateDBData = { testId, testName, testDescription, testTaskConfigs, testScenario, startTime, nextRun, scheduleRecurrence, showLive, testType, fileType };
+    const updateDBData = {
+      testId,
+      testName,
+      testDescription,
+      testTaskConfigs,
+      testScenario,
+      startTime,
+      nextRun,
+      scheduleRecurrence,
+      showLive,
+      testType,
+      fileType,
+    };
     const data = await updateTestDBEntry(updateDBData);
 
     console.log(`Create test complete: ${JSON.stringify(data)}`);
@@ -789,12 +843,12 @@ const createTest = async (config) => {
 };
 
 /**
- * 
+ *
  * @param {object} ecs The client is created in the region in which the tasks are running
- * @param {Array} tasks List of tasks 
+ * @param {Array} tasks List of tasks
  * @param {string} taskCluster Name of ECS cluster
  * @param {object} tasksInRegion Object storing the region the tasks are running in
- * @returns object with region and tasks in region 
+ * @returns object with region and tasks in region
  */
 
 const getRunningTasks = async (ecs, tasks, taskCluster, tasksInRegion) => {
@@ -813,17 +867,17 @@ const getRunningTasks = async (ecs, tasks, taskCluster, tasksInRegion) => {
 };
 
 /**
- * 
+ *
  * @param {object} ecs The client is created in the region in which the tasks are running
  * @param {string} taskCluster Name of ECS cluster
- * @param {string} testId 
+ * @param {string} testId
  * @returns array of task ARNs
  */
 
 const getListOfTasksInRegion = async (ecs, taskCluster, testId) => {
   let params = {
     cluster: taskCluster,
-    startedBy: testId
+    startedBy: testId,
   };
   let tasks = [];
   let tasksResponse;
@@ -831,15 +885,14 @@ const getListOfTasksInRegion = async (ecs, taskCluster, testId) => {
     tasksResponse = await ecs.listTasks(params).promise();
     tasks = tasks.concat(tasksResponse.taskArns);
     params.nextToken = tasksResponse.nextToken;
-
   } while (tasksResponse.nextToken);
   return tasks;
 };
 
 /**
- * 
- * @param {object} data 
- * @param {string} testId 
+ *
+ * @param {object} data
+ * @param {string} testId
  * @returns test run data augmented with tasks running per region, if any
  */
 const listTasksPerRegion = async (data, testId) => {
@@ -856,7 +909,10 @@ const listTasksPerRegion = async (data, testId) => {
       }
       data.tasksPerRegion = data.tasksPerRegion.concat(tasksInRegion);
     } else {
-      const errorMessage = new ErrorException('InvalidInfrastructureConfiguration', `There is no ECS test infrastructure configured for region ${testRegion.region}`);
+      const errorMessage = new ErrorException(
+        "InvalidInfrastructureConfiguration",
+        `There is no ECS test infrastructure configured for region ${testRegion.region}`
+      );
       console.log(errorMessage);
       throw errorMessage;
     }
@@ -878,7 +934,7 @@ const getTest = async (testId) => {
 
     data.testScenario = JSON.parse(data.testScenario);
 
-    if (data.status === 'running') {
+    if (data.status === "running") {
       console.log(`testId: ${testId} is still running`);
 
       // Get the list of tasks for testId for each test region
@@ -886,7 +942,10 @@ const getTest = async (testId) => {
       if (data.testTaskConfigs) {
         data = await listTasksPerRegion(data, testId);
       } else {
-        const errorMessage = new ErrorException('InvalidConfiguration', 'There are no test task configurations for the test.');
+        const errorMessage = new ErrorException(
+          "InvalidConfiguration",
+          "There are no test task configurations for the test."
+        );
         console.log(errorMessage);
         throw errorMessage;
       }
@@ -902,15 +961,15 @@ const getTest = async (testId) => {
 /**
  * deleteDDBTestEntry
  * Deleting the DDB test entry
- * @param {string} testId 
+ * @param {string} testId
  */
 const deleteDDBTestEntry = async (testId) => {
   try {
     const params = {
       TableName: SCENARIOS_TABLE,
       Key: {
-        testId: testId
-      }
+        testId: testId,
+      },
     };
     await dynamoDB.delete(params).promise();
   } catch (err) {
@@ -921,7 +980,7 @@ const deleteDDBTestEntry = async (testId) => {
 
 /**
  * getTestHistoryTestRunIds
- * @param {string} testId 
+ * @param {string} testId
  * @returns list of all history objects for testId
  */
 const getTestHistoryTestRunIds = async (testId) => {
@@ -929,17 +988,19 @@ const getTestHistoryTestRunIds = async (testId) => {
     let response = [];
     const params = {
       TableName: HISTORY_TABLE,
-      KeyConditionExpression: '#t = :t',
+      KeyConditionExpression: "#t = :t",
       ExpressionAttributeNames: {
-        '#t': 'testId'
+        "#t": "testId",
       },
       ExpressionAttributeValues: {
-        ':t': testId
-      }
+        ":t": testId,
+      },
     };
     do {
       const testRunIds = await dynamoDB.query(params).promise();
-      testRunIds.Items.map(testRunItem => { response.push(testRunItem.testRunId); });
+      testRunIds.Items.map((testRunItem) => {
+        response.push(testRunItem.testRunId);
+      });
       params.ExclusiveStartKey = testRunIds.LastEvaluatedKey;
     } while (params.ExclusiveStartKey);
     return response;
@@ -952,18 +1013,17 @@ const getTestHistoryTestRunIds = async (testId) => {
 /**
  * The DynamoDB batch write API expected the delete request to have a specific format
  * This function creates a list of entries formatted as required for all test run entries
- * @param {string} testId 
- * @param {object} testRunItems 
+ * @param {string} testId
+ * @param {object} testRunItems
  * @returns List of batch DeleteRequest items
  */
-const createBatchRequestItems = (testId, testRunItems) => {
-  return testRunItems.map(testRunItem => ({ DeleteRequest: { Key: { 'testId': testId, 'testRunId': testRunItem } } }));
-};
+const createBatchRequestItems = (testId, testRunItems) =>
+  testRunItems.map((testRunItem) => ({ DeleteRequest: { Key: { testId: testId, testRunId: testRunItem } } }));
 
 /**
  * Batch delete of history test runs
  * If there are some unprocessed items, calls itself to run again
- * @param {object} deleteItems 
+ * @param {object} deleteItems
  */
 const deleteTestHistory = async (deleteItems) => {
   try {
@@ -973,7 +1033,7 @@ const deleteTestHistory = async (deleteItems) => {
     }
     batchRequestItem[HISTORY_TABLE] = deleteItems;
     const params = {
-      RequestItems: batchRequestItem
+      RequestItems: batchRequestItem,
     };
     const response = await dynamoDB.batchWrite(params).promise();
     if (Object.keys(response.UnprocessedItems).length > 0) {
@@ -988,7 +1048,7 @@ const deleteTestHistory = async (deleteItems) => {
 /**
  * The DynamoDB batch write API limits batch write items to 25
  * This function parses the formatted delete requests into a max of 25 item chunks
- * @param {object} testRuns 
+ * @param {object} testRuns
  */
 const parseBatchRequests = async (testRuns) => {
   while (testRuns.length > 0) {
@@ -998,27 +1058,29 @@ const parseBatchRequests = async (testRuns) => {
 
 /**
  * Deletes the metric filter created for the test run in all configured regions
- * @param {string} testId 
- * @param {object} testAndRegionalInfraConfigs 
+ * @param {string} testId
+ * @param {object} testAndRegionalInfraConfigs
  */
 const deleteMetricFilter = async (testId, testAndRegionalInfraConfigs) => {
   //delete metric filter, if no metric filters log error and continue delete
   try {
     const metrics = ["numVu", "numSucc", "numFail", "avgRt"];
+    const dashboardNames = [];
     if (testAndRegionalInfraConfigs.testTaskConfigs) {
       for (const regionConfig of testAndRegionalInfraConfigs.testTaskConfigs) {
+        dashboardNames.push(`EcsLoadTesting-${testId}-${regionConfig.region}`);
         options.region = regionConfig.region;
         const cloudwatch = new AWS.CloudWatch(options);
         const cloudwatchLogs = new AWS.CloudWatchLogs(options);
         for (let metric of metrics) {
           let deleteMetricFilterParams = {
             filterName: `${regionConfig.taskCluster}-Ecs${metric}-${testId}`,
-            logGroupName: regionConfig.ecsCloudWatchLogGroup
+            logGroupName: regionConfig.ecsCloudWatchLogGroup,
           };
           await cloudwatchLogs.deleteMetricFilter(deleteMetricFilterParams).promise();
         }
         //Delete Dashboard
-        const deleteDashboardParams = { DashboardNames: [`EcsLoadTesting-${testId}`] };
+        const deleteDashboardParams = { DashboardNames: dashboardNames };
         await cloudwatch.deleteDashboards(deleteDashboardParams).promise();
       }
     }
@@ -1042,10 +1104,9 @@ const deleteTest = async (testId, functionName) => {
     const testAndRegionalInfraConfigs = await getTestAndRegionConfigs(testId);
     await deleteMetricFilter(testId, testAndRegionalInfraConfigs);
   } catch (err) {
-    if (err.code === 'ResourceNotFoundException') {
+    if (err.code === "ResourceNotFoundException") {
       console.error(err);
-    }
-    else {
+    } else {
       throw err;
     }
   }
@@ -1064,7 +1125,7 @@ const deleteTest = async (testId, functionName) => {
     const testRunIds = await getTestHistoryTestRunIds(testId);
     const testRuns = createBatchRequestItems(testId, testRunIds);
     await parseBatchRequests(testRuns);
-    return 'success';
+    return "success";
   } catch (err) {
     console.error(err);
     throw err;
@@ -1090,9 +1151,8 @@ const cancelTest = async (testId) => {
           InvocationType: "Event",
           Payload: JSON.stringify({
             testId: testId,
-            region: regionalConfig.region,
-            taskCluster: regionalConfig.taskCluster
-          })
+            testTaskConfig: regionalConfig,
+          }),
         };
         await lambda.invoke(taskCancelerParams).promise();
       }
@@ -1102,19 +1162,19 @@ const cancelTest = async (testId) => {
     const params = {
       TableName: SCENARIOS_TABLE,
       Key: {
-        testId: testId
+        testId: testId,
       },
-      UpdateExpression: 'set #s = :s',
+      UpdateExpression: "set #s = :s",
       ExpressionAttributeNames: {
-        '#s': 'status'
+        "#s": "status",
       },
       ExpressionAttributeValues: {
-        ':s': 'cancelling'
-      }
+        ":s": "cancelling",
+      },
     };
     await dynamoDB.update(params).promise();
 
-    return 'test cancelling';
+    return "test cancelling";
   } catch (err) {
     console.error(err);
     throw err;
@@ -1126,7 +1186,7 @@ const cancelTest = async (testId) => {
  * @returns A list of task ARNs by test region
  */
 const listTasks = async () => {
-  console.log('Collect all running tasks in all regions');
+  console.log("Collect all running tasks in all regions");
   try {
     let regionalTaskArns = [];
     const regionalConfigs = await getAllRegionConfigs();
@@ -1135,7 +1195,7 @@ const listTasks = async () => {
       const regionalTasks = { region: regionalConfig.region };
       options.region = regionalConfig.region;
       let params = {
-        cluster: regionalConfig.taskCluster
+        cluster: regionalConfig.taskCluster,
       };
       const ecs = new AWS.ECS(options);
       const taskArns = [];
@@ -1154,6 +1214,234 @@ const listTasks = async () => {
   }
 };
 
+/**
+ * Splits an array into subarrays with a maximum length of maxLength. Useful for
+ * when an API has a limit to how much can be requested with a single call.
+ * @param {array} array the array that needs to be split up
+ * @param {int} maxLength the maximum a
+ * @returns {array<array>} an array of arrays where the length of each sub array is maxLength
+ *          except the last one
+ */
+const splitArrayBySize = (array, maxLength) => {
+  const subArrays = [];
+  for (let i = 0; i < array.length; i += maxLength) {
+    const subArray = array.slice(i, i + maxLength);
+    subArrays.push(subArray);
+  }
+  return subArrays;
+};
+
+/**
+ * Will call an API and aggregate the wanted data until nextToken is no longer
+ * defined. The AWS API limits how much is returned by a single API call
+ * (usually 100 values) meaning subsequent calls are often needed.
+ * @param {function} apiCall the AWS API call to get all data from. Wrapping the
+ *        AWS API call in a function might be needed.
+ * @param {Object} params the parameters that should be passed to the AWS API call
+ * @param {string} dataKeyOfInterest the key of the value that is going to be
+ *        aggregated and returned
+ * @returns {Promise<array>} array of all the values provided by dataKeyOfInterest from
+ *        the API responses
+ */
+const getAllAPIData = async (apiCall, params, dataKeyOfInterest) => {
+  const apiParams = JSON.parse(JSON.stringify(params)); // to avoid fn side effects
+  let aggregatedData = [];
+  let apiResponse;
+
+  try {
+    do {
+      apiResponse = await apiCall(apiParams);
+
+      aggregatedData = aggregatedData.concat(apiResponse[dataKeyOfInterest]);
+      apiParams.nextToken = apiResponse.nextToken;
+    } while (apiResponse.nextToken);
+
+    return aggregatedData;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
+
+/**
+ * Waits for all promises an array to finish then aggregates the results into a
+ * single array. If any of the promises fails then an empty array is returned.
+ * @param {array<Promise>} jsPromises an array of promises
+ * @returns {Promise<array>} array of all the outputs from the promises
+ */
+const getAllPromiseResults = async (jsPromises) => {
+  const promiseResults = await Promise.all(jsPromises);
+
+  let allResults = [];
+  promiseResults.forEach((result) => (allResults = allResults.concat(result)));
+  return allResults;
+};
+
+/**
+ * Grabs users Fargate vCPU limit for the region specified by the AWS.ServiceQuota parameter
+ * @param {AWS.ServiceQuota} servicequotas an instance of ServiceQuotas with the proper region to make the API calls from
+ * @returns {Promise<int>} the number of vCPUs allowed for a given region
+ */
+const getRegionFargatevCPULimit = async (servicequotas) => {
+  console.log("Getting the users Fargate vCPU limit from ServiceQuotas");
+  try {
+    const sqParams = { ServiceCode: "fargate", QuotaCode: "L-3032A538" };
+    const sqData = await servicequotas.getServiceQuota(sqParams).promise();
+
+    return sqData.Quota.Value;
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
+};
+
+/**
+ * Returns the descriptions of all Fargate tasks within a cluster
+ * @param {AWS.ECS} ecs an instance of ECS to make the API calls from
+ * @param {string} clusterArn the cluster in question
+ * @returns {Promise<array>} array of descriptions for the Fargate tasks
+ */
+const describeTasksInCluster = async (ecs, clusterArn) => {
+  console.log("Describing all the Fargate tasks within a cluster");
+  const ecsListTasks = async (params) => ecs.listTasks(params).promise(); // wrap API call to be passed to a function
+  const API_REQUEST_LIMIT = 100; // AWS API calls can only request 100
+
+  try {
+    const tasks = await getAllAPIData(ecsListTasks, { cluster: clusterArn, launchType: "FARGATE" }, "taskArns");
+
+    const taskDetailPromises = [];
+    splitArrayBySize(tasks, API_REQUEST_LIMIT).forEach((taskArray) => {
+      const describeTaskPromise = ecs
+        .describeTasks({ cluster: clusterArn, tasks: taskArray })
+        .promise()
+        .then((apiResponse) => apiResponse.tasks);
+      taskDetailPromises.push(describeTaskPromise);
+    });
+    const allTaskDetails = await getAllPromiseResults(taskDetailPromises);
+    return allTaskDetails;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
+
+/**
+ * Returns the number of active Fargate tasks for an account in a given region
+ * @param {AWS.ECS} ecs an instance of ECS to make the API calls from
+ * @returns {Promise<float>} number of active Fargate tasks
+ */
+const getRegionFargatevCPUsInUse = async (ecs) => {
+  console.log("Getting Fargate vCPU usage");
+  const ecsListClusters = async (params) => ecs.listClusters(params).promise(); // wrap API call to be passed to a function
+  try {
+    const clusters = await getAllAPIData(ecsListClusters, {}, "clusterArns");
+
+    // Spawn all api calls to describe all tasks in each cluster then wait for them to finish.
+    const describeTasksPromises = [];
+    clusters.forEach((cluster) => {
+      describeTasksPromises.push(describeTasksInCluster(ecs, cluster));
+    });
+
+    const allTaskDetails = await getAllPromiseResults(describeTasksPromises);
+
+    let vCPUsInUse = 0;
+    allTaskDetails.forEach((item) => {
+      if (["RUNNING", "PENDING", "PROVISIONING"].includes(item.lastStatus)) {
+        vCPUsInUse += item.cpu / 1024;
+      }
+    });
+
+    return vCPUsInUse;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
+
+/**
+ * Returns the number of vCPUs that each DLT task will use for the region
+ * @param {AWS.ECS} ecs an instance of ECS to make the API calls from with the region specified
+ * @returns {Promise<int>} the number of vCPUs used in each DLT task for the region
+ */
+const getRegionDLTvCPUsPerTask = async (ecs, taskDefinition) => {
+  console.log("Getting DLT vCPUs per task for a region");
+  try {
+    const apiResponse = await ecs.describeTaskDefinition({ taskDefinition: taskDefinition }).promise();
+    const vCPUs = parseInt(apiResponse.taskDefinition.cpu) / 1024;
+    return vCPUs;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
+
+/**
+ * Returns the Fargate resource limit, vCPUs per task, and vCPU usage for the region. This function will have undefined
+ * values for each of the API calls that fail.
+ * @param {Object} regionConfig a DLT regional config. Should include region and taskDefinition
+ * @returns {Promise<Object>} the Fargate resource limit, limit type, and usage for the given region
+ */
+const getRegionFargatevCPUDetails = async (regionConfig) => {
+  console.log("Getting Fargate resource usage for a region");
+  try {
+    let ecsOptions;
+    utils.getOptions(ecsOptions); // duplicate options to avoid async interleaving issues
+    options.region = regionConfig.region;
+
+    const ecs = new AWS.ECS(options);
+    const servicequotas = new AWS.ServiceQuotas(options);
+
+    // Return a null value if any of the functions fail
+    const vCPUFargateLimitPromise = getRegionFargatevCPULimit(servicequotas).catch(() => undefined);
+    const vCPUsPerTaskPromise = getRegionDLTvCPUsPerTask(ecs, regionConfig.taskDefinition).catch(() => undefined);
+    const vCPUsInUsePromise = getRegionFargatevCPUsInUse(ecs).catch(() => undefined);
+
+    return {
+      vCPULimit: await vCPUFargateLimitPromise,
+      vCPUsPerTask: await vCPUsPerTaskPromise,
+      vCPUsInUse: await vCPUsInUsePromise,
+    };
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
+
+/**
+ * Returns the Fargate vCPU limit, number of vCPUs per DLT task, and current
+ * Fargate vCPU usage by region. Regions with errors will contain undefined values
+ * @returns {Promise<Object>} the resource usage for a region
+ */
+const getAccountFargatevCPUDetails = async () => {
+  console.log("Getting Fargate resource details for all regions");
+  try {
+    const regionalConfigs = await getAllRegionConfigs();
+
+    const regionalPromises = [];
+    const accountFargatevCPUDetails = {};
+    for (const regionalConfig of regionalConfigs) {
+      // Setup values for if a region completely fails
+      accountFargatevCPUDetails[regionalConfig.region] = {
+        vCPULimit: undefined,
+        vCPUsPerTask: undefined,
+        vCPUsInUse: undefined,
+      };
+
+      regionalPromises.push(
+        getRegionFargatevCPUDetails(regionalConfig).then(
+          (details) => (accountFargatevCPUDetails[regionalConfig.region] = details)
+        )
+      );
+    }
+    await Promise.allSettled(regionalPromises);
+
+    return accountFargatevCPUDetails;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
+
 module.exports = {
   listTests: listTests,
   createTest: createTest,
@@ -1163,5 +1451,7 @@ module.exports = {
   listTasks: listTasks,
   scheduleTest: scheduleTest,
   getAllRegionConfigs: getAllRegionConfigs,
-  getCFUrl: getCFUrl
+  getCFUrl: getCFUrl,
+  getAccountFargatevCPUDetails: getAccountFargatevCPUDetails,
+  getTestDurationSeconds: getTestDurationSeconds,
 };

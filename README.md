@@ -59,7 +59,7 @@ To make changes to the solution, download or clone this repository, update the s
 
 ### Prerequisites
 
-- Node.js 14.x or later
+- Node.js 16.x or later
 - S3 bucket that includes the AWS region as a suffix in the name. For example, `my-bucket-us-east-1`. The bucket and CloudFormation stack must be in the same region. The solution's CloudFormation template will expect the source code to be located in a bucket matching that name.
 
 ### Running unit tests for customization
@@ -91,7 +91,7 @@ export BUCKET_NAME=$BUCKET_PREFIX-$REGION # full bucket name where the code will
 export SOLUTION_NAME=my-solution-name
 export VERSION=my-version # version number for the customized code
 export PUBLIC_ECR_REGISTRY=public.ecr.aws/awssolutions/distributed-load-testing-on-aws-load-tester # replace with the container registry and image if you want to use a different container image
-export PUBLIC_ECR_TAG=v3.0.0 # replace with the container image tag if you want to use a different container image
+export PUBLIC_ECR_TAG=v3.2.0 # replace with the container image tag if you want to use a different container image
 ```
 
 - Build the distributable.

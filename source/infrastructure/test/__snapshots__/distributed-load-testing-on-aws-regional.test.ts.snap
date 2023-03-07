@@ -61,6 +61,35 @@ Object {
     },
   },
   "Outputs": Object {
+    "AppRegistryApplicationManagerUrl775D5C3D": Object {
+      "Description": "Application manager url for the application created.",
+      "Value": Object {
+        "Fn::Join": Array [
+          "",
+          Array [
+            "https://",
+            Object {
+              "Ref": "AWS::Region",
+            },
+            ".console.aws.amazon.com/systems-manager/appmanager/application/AWS_AppRegistry_Application-",
+            Object {
+              "Fn::Join": Array [
+                "-",
+                Array [
+                  "distributed-load-testing-on-aws",
+                  Object {
+                    "Ref": "AWS::Region",
+                  },
+                  Object {
+                    "Ref": "AWS::AccountId",
+                  },
+                ],
+              ],
+            },
+          ],
+        ],
+      },
+    },
     "ECSCloudWatchLogGroup": Object {
       "Description": "The CloudWatch log group for ECS",
       "Value": Object {
@@ -211,6 +240,21 @@ Object {
       },
       "Type": "AWS::ServiceCatalogAppRegistry::Application",
     },
+    "AppRegistryAssociation": Object {
+      "Properties": Object {
+        "Application": Object {
+          "Fn::GetAtt": Array [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": Object {
+          "Ref": "AWS::StackId",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
     "AppRegistryAttributeGroupAssociationa7177d48be75C139509C": Object {
       "Properties": Object {
         "Application": Object {
@@ -227,21 +271,6 @@ Object {
         },
       },
       "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation",
-    },
-    "AppRegistryResourceAssociation017832cce413582276C2": Object {
-      "Properties": Object {
-        "Application": Object {
-          "Fn::GetAtt": Array [
-            "AppRegistry968496A3",
-            "Id",
-          ],
-        },
-        "Resource": Object {
-          "Ref": "AWS::StackId",
-        },
-        "ResourceType": "CFN_STACK",
-      },
-      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
     },
     "CommonResourcesCloudWatchLogsPolicyB8257A4C": Object {
       "Properties": Object {
@@ -1090,7 +1119,7 @@ Object {
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Tags": Array [
           Object {
             "Key": "SolutionId",
@@ -1285,7 +1314,7 @@ Object {
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Tags": Array [
           Object {
             "Key": "SolutionId",

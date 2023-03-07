@@ -1,38 +1,40 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import React from 'react';
-import { Table, Spinner, Button } from 'reactstrap';
+import React from "react";
+import { Table, Spinner } from "reactstrap";
 import { Link } from "react-router-dom";
-import { API } from 'aws-amplify';
+import { API } from "aws-amplify";
+
+import PageHeader from "../Shared/PageHeader/PageHeader";
+import RefreshButtons from "../Shared/Buttons/RefreshButtons";
 
 class Dashboard extends React.Component {
-
   constructor(props) {
     super(props);
     this.state = {
       Items: [],
-      isLoading: true
+      isLoading: true,
     };
   }
 
   getItems = async () => {
     this.setState({
       Items: [],
-      isLoading: true
+      isLoading: true,
     });
 
     try {
-      const data = await API.get('dlts', '/scenarios');
+      const data = await API.get("dlts", "/scenarios");
       data.Items.sort((a, b) => {
-        if (!a.startTime) a.startTime = '';
-        if (!b.startTime) b.startTime = '';
+        if (!a.startTime) a.startTime = "";
+        if (!b.startTime) b.startTime = "";
         return b.startTime.localeCompare(a.startTime);
       });
 
       this.setState({
         Items: data.Items,
-        isLoading: false
+        isLoading: false,
       });
     } catch (err) {
       alert(err);
@@ -54,35 +56,36 @@ class Dashboard extends React.Component {
 
     const tableBody = (
       <tbody>
-        {
-          Items.map(item => (
-            <tr key={item.testId}>
-              <td>{item.testName}</td>
-              <td>{item.testId}</td>
-              <td className="desc">{item.testDescription}</td>
-              <td>{item.startTime}</td>
-              <td className={item.status}>{item.status}</td>
-              <td>{item.nextRun}</td>
-              <td className="recurrence">{item.scheduleRecurrence}</td>
-              <td className="td-center">
-                <Link id={`detailLink-${item.testId}`} to={{ pathname: `/details/${item.testId}`, state: { testId: item.testId } }}>
-                  <i className="icon-large bi bi-arrow-right-circle-fill" />
-                </Link>
-              </td>
-            </tr>
-          ))
-        }
+        {Items.map((item) => (
+          <tr key={item.testId}>
+            <td>{item.testName}</td>
+            <td>{item.testId}</td>
+            <td className="desc">{item.testDescription}</td>
+            <td>{item.startTime}</td>
+            <td className={item.status}>{item.status}</td>
+            <td>{item.nextRun}</td>
+            <td className="recurrence">{item.scheduleRecurrence}</td>
+            <td className="td-center">
+              <Link
+                id={`detailLink-${item.testId}`}
+                to={{ pathname: `/details/${item.testId}`, state: { testId: item.testId } }}
+              >
+                <i className="icon-large bi bi-arrow-right-circle-fill" />
+              </Link>
+            </td>
+          </tr>
+        ))}
       </tbody>
     );
 
     return (
       <div>
+        <PageHeader
+          title="Test Scenarios"
+          refreshButton={<RefreshButtons key="refresh-buttons" refreshFunction={this.getItems} />}
+        />
         <div className="box">
-          <h1>Test Scenarios</h1>
-          <Button id="refreshButton" onClick={this.getItems} size="sm">Refresh</Button>
-        </div>
-        <div className="box">
-          <Table className="dashboard" borderless responsive >
+          <Table className="dashboard" borderless responsive>
             <thead>
               <tr>
                 <th>Name</th>
@@ -97,12 +100,11 @@ class Dashboard extends React.Component {
             </thead>
             {tableBody}
           </Table>
-          {
-            this.state.isLoading &&
+          {this.state.isLoading && (
             <div className="loading">
               <Spinner color="secondary" />
             </div>
-          }
+          )}
         </div>
         {!this.state.isLoading && Items.length === 0 && welcome}
       </div>

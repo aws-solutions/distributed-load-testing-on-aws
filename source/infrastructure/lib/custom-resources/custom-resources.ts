@@ -1,8 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Aws, CfnCondition, CfnCustomResource, CustomResource } from 'aws-cdk-lib';
-import { Construct } from 'constructs';
+import { Aws, CfnCondition, CfnCustomResource, CustomResource } from "aws-cdk-lib";
+import { Construct } from "constructs";
 
 export interface ConsoleConfigProps {
   readonly apiEndpoint: string;
@@ -72,76 +72,68 @@ export interface CustomResourcesConstructProps {
 export class CustomResourcesConstruct extends Construct {
   private customResourceLambdaArn: string;
 
-  constructor (scope: Construct, id: string, props: CustomResourcesConstructProps) {
+  constructor(scope: Construct, id: string, props: CustomResourcesConstructProps) {
     super(scope, id);
     this.customResourceLambdaArn = props.customResourceLambdaArn;
   }
 
-  private createCustomResource(id: string, customResourceFunctionArn: string, props?: Record<string, unknown>): CustomResource {
+  private createCustomResource(
+    id: string,
+    customResourceFunctionArn: string,
+    props?: Record<string, unknown>
+  ): CustomResource {
     return new CustomResource(this, id, {
       serviceToken: customResourceFunctionArn,
-      properties: props
+      properties: props,
     });
   }
 
   public getIotEndpoint() {
-    const iotEndpoint = this.createCustomResource(
-      'GetIotEndpoint',
-      this.customResourceLambdaArn,
-      {
-        Resource: 'GetIotEndpoint'
-      });
-    return iotEndpoint.getAtt('IOT_ENDPOINT').toString();
+    const iotEndpoint = this.createCustomResource("GetIotEndpoint", this.customResourceLambdaArn, {
+      Resource: "GetIotEndpoint",
+    });
+    return iotEndpoint.getAtt("IOT_ENDPOINT").toString();
   }
 
   public detachIotPrincipalPolicy(props: DetachIotPrincipalPolicyProps) {
-    this.createCustomResource(
-      'DetachIotPrincipalPolicy',
-      this.customResourceLambdaArn,
-      {
-        Resource: 'DetachIotPolicy',
-        IotPolicyName: props.iotPolicyName
-      });
+    this.createCustomResource("DetachIotPrincipalPolicy", this.customResourceLambdaArn, {
+      Resource: "DetachIotPolicy",
+      IotPolicyName: props.iotPolicyName,
+    });
   }
 
   public putRegionalTemplate(props: PutRegionalTemplateProps) {
-    this.createCustomResource(
-      'PutRegionalTemplate',
-      this.customResourceLambdaArn,
-      {
-        Resource: 'PutRegionalTemplate',
-        SrcBucket: props.sourceCodeBucketName,
-        SrcPath: props.regionalTemplatePrefix,
-        DestBucket: props.scenariosBucket,
-        APIServicesLambdaRoleName: props.apiServicesLambdaRoleName,
-        MainStackRegion: props.mainStackRegion,
-        ResultsParserRoleName: props.resultsParserRoleName,
-        ScenariosTable: props.scenariosTable,
-        TaskRunnerRoleName: props.taskRunnerRoleName,
-        TaskCancelerRoleName: props.taskCancelerRoleName,
-        TaskStatusCheckerRoleName: props.taskStatusCheckerRoleName,
-        Uuid: props.uuid
-      });
+    this.createCustomResource("PutRegionalTemplate", this.customResourceLambdaArn, {
+      Resource: "PutRegionalTemplate",
+      SrcBucket: props.sourceCodeBucketName,
+      SrcPath: props.regionalTemplatePrefix,
+      DestBucket: props.scenariosBucket,
+      APIServicesLambdaRoleName: props.apiServicesLambdaRoleName,
+      MainStackRegion: props.mainStackRegion,
+      ResultsParserRoleName: props.resultsParserRoleName,
+      ScenariosTable: props.scenariosTable,
+      TaskRunnerRoleName: props.taskRunnerRoleName,
+      TaskCancelerRoleName: props.taskCancelerRoleName,
+      TaskStatusCheckerRoleName: props.taskStatusCheckerRoleName,
+      Uuid: props.uuid,
+    });
   }
 
   public copyConsoleFiles(props: CopyConsoleFilesProps) {
-    this.createCustomResource(
-      'CopyConsoleFiles',
-      this.customResourceLambdaArn,
-      {
-        DestBucket: props.consoleBucketName,
-        ManifestFile: 'console-manifest.json',
-        Resource: 'CopyAssets',
-        SrcBucket: props.sourceCodeBucketName,
-        SrcPath: `${props.sourceCodePrefix}/console`
-      });
+    this.createCustomResource("CopyConsoleFiles", this.customResourceLambdaArn, {
+      DestBucket: props.consoleBucketName,
+      ManifestFile: "console-manifest.json",
+      Resource: "CopyAssets",
+      SrcBucket: props.sourceCodeBucketName,
+      SrcPath: `${props.sourceCodePrefix}/console`,
+    });
   }
 
   public consoleConfig(props: ConsoleConfigProps) {
     const awsExports = `const awsConfig = {
       aws_iot_endpoint: '${props.iotEndpoint}',
       aws_iot_policy_name: '${props.iotPolicy}',
-      cw_dashboard: 'https://console.aws.amazon.com/cloudwatch/home?region=${Aws.REGION}#dashboards:name=',
+      cw_dashboard: 'https://console.aws.amazon.com/cloudwatch/home?region=${Aws.REGION}#dashboards:',
       ecs_dashboard: 'https://${Aws.REGION}.console.aws.amazon.com/ecs/home?region=${Aws.REGION}#/clusters/${Aws.STACK_NAME}/tasks',
       aws_project_region: '${Aws.REGION}',
       aws_cognito_region: '${Aws.REGION}',
@@ -159,64 +151,51 @@ export class CustomResourcesConstruct extends Construct {
       aws_user_files_s3_bucket: '${props.scenariosBucket}',
       aws_user_files_s3_bucket_region: '${Aws.REGION}',
   }`;
-    this.createCustomResource(
-      'ConsoleConfig',
-      this.customResourceLambdaArn,
-      {
-        AwsExports: awsExports,
-        DestBucket: props.consoleBucketName,
-        Resource: 'ConfigFile'
-      });
+    this.createCustomResource("ConsoleConfig", this.customResourceLambdaArn, {
+      AwsExports: awsExports,
+      DestBucket: props.consoleBucketName,
+      Resource: "ConfigFile",
+    });
   }
 
   public uuidGenerator() {
-    const uuid = this.createCustomResource(
-      'CustomResourceUuid',
-      this.customResourceLambdaArn,
-      {
-        Resource: 'UUID'
-      }
-    );
+    const uuid = this.createCustomResource("CustomResourceUuid", this.customResourceLambdaArn, {
+      Resource: "UUID",
+    });
     return {
-      uuid: uuid.getAttString('UUID').toString(),
-      suffix: uuid.getAttString('SUFFIX').toString()
+      uuid: uuid.getAttString("UUID").toString(),
+      suffix: uuid.getAttString("SUFFIX").toString(),
     };
   }
 
   public sendAnonymousMetricsCR(props: SendAnonymousMetricsCRProps) {
-    const sendAnonymousMetrics = this.createCustomResource(
-      'AnonymousMetric',
-      this.customResourceLambdaArn,
-      {
-        existingVPC: props.existingVpc,
-        Region: Aws.REGION,
-        Resource: 'AnonymousMetric',
-        SolutionId: props.solutionId,
-        UUID: props.uuid,
-        VERSION: props.solutionVersion,
-      });
+    const sendAnonymousMetrics = this.createCustomResource("AnonymousMetric", this.customResourceLambdaArn, {
+      existingVPC: props.existingVpc,
+      Region: Aws.REGION,
+      Resource: "AnonymousMetric",
+      SolutionId: props.solutionId,
+      UUID: props.uuid,
+      VERSION: props.solutionVersion,
+    });
     const cfnSendAnonymousMetrics = sendAnonymousMetrics.node.defaultChild as CfnCustomResource;
     cfnSendAnonymousMetrics.cfnOptions.condition = props.sendAnonymousUsageCondition;
   }
 
   public testingResourcesConfigCR(props: TestingResourcesConfigCRProps) {
     const testingResourcesConfig = {
-      "region": Aws.REGION,
-      "subnetA": props.subnetA,
-      "subnetB": props.subnetB,
-      "ecsCloudWatchLogGroup": props.ecsCloudWatchLogGroup,
-      "taskSecurityGroup": props.taskSecurityGroup,
-      "taskDefinition": props.taskDefinition,
-      "taskImage": `${Aws.STACK_NAME}-load-tester`,
-      "taskCluster": props.taskCluster
+      region: Aws.REGION,
+      subnetA: props.subnetA,
+      subnetB: props.subnetB,
+      ecsCloudWatchLogGroup: props.ecsCloudWatchLogGroup,
+      taskSecurityGroup: props.taskSecurityGroup,
+      taskDefinition: props.taskDefinition,
+      taskImage: `${Aws.STACK_NAME}-load-tester`,
+      taskCluster: props.taskCluster,
     };
-    this.createCustomResource(
-      'TestingResourcesConfig',
-      this.customResourceLambdaArn,
-      {
-        TestingResourcesConfig: testingResourcesConfig,
-        Resource: 'TestingResourcesConfigFile',
-        Uuid: props.uuid
-      });
+    this.createCustomResource("TestingResourcesConfig", this.customResourceLambdaArn, {
+      TestingResourcesConfig: testingResourcesConfig,
+      Resource: "TestingResourcesConfigFile",
+      Uuid: props.uuid,
+    });
   }
 }

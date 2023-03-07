@@ -1,32 +1,33 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import '@aws-cdk/assert/jest';
-import { SynthUtils } from '@aws-cdk/assert';
-import { Stack } from 'aws-cdk-lib';
-import { RegionalPermissionsConstruct } from '../lib/testing-resources/regional-permissions';
+import { Template } from "aws-cdk-lib/assertions";
+import { App, DefaultStackSynthesizer, Stack } from "aws-cdk-lib";
+import { RegionalPermissionsConstruct } from "../lib/testing-resources/regional-permissions";
 
-test('DLT Regional Permission Test', () => {
-  const stack = new Stack();
-
-  new RegionalPermissionsConstruct(stack, 'TestRegionalPermissions', {
-    apiServicesLambdaRoleName: 'testApiServicesLambdaRoleName',
-    resultsParserRoleName: 'testResultsParserRoleName',
-    taskExecutionRoleArn: 'arn:aws:iam::123456789012:role/testRole',
-    ecsCloudWatchLogGroupArn: 'arn:aws:logs:us-east-2:123456789012:log-group:test_log_group_name',
-    taskRunnerRoleName: 'testTaskRunnerRoleName',
-    taskCancelerRoleName: 'testTaskCancelerRoleName',
-    taskStatusCheckerRoleName: 'testTaskStatusCheckerRoleName'
+test("DLT Regional Permission Test", () => {
+  const app = new App();
+  const stack = new Stack(app, "DLTStack", {
+    synthesizer: new DefaultStackSynthesizer({
+      generateBootstrapVersionRule: false,
+    }),
   });
-  expect(SynthUtils.toCloudFormation(stack)).toMatchSnapshot();
-  expect(stack).toHaveResourceLike("AWS::IAM::Policy", {
+
+  new RegionalPermissionsConstruct(stack, "TestRegionalPermissions", {
+    apiServicesLambdaRoleName: "testApiServicesLambdaRoleName",
+    resultsParserRoleName: "testResultsParserRoleName",
+    taskExecutionRoleArn: "arn:aws:iam::123456789012:role/testRole",
+    ecsCloudWatchLogGroupArn: "arn:aws:logs:us-east-2:123456789012:log-group:test_log_group_name",
+    taskRunnerRoleName: "testTaskRunnerRoleName",
+    taskCancelerRoleName: "testTaskCancelerRoleName",
+    taskStatusCheckerRoleName: "testTaskStatusCheckerRoleName",
+  });
+  expect(Template.fromStack(stack)).toMatchSnapshot();
+  Template.fromStack(stack).hasResourceProperties("AWS::IAM::Policy", {
     PolicyDocument: {
       Statement: [
         {
-          Action: [
-            "ecs:RunTask",
-            "ecs:DescribeTasks",
-          ],
+          Action: ["ecs:RunTask", "ecs:DescribeTasks"],
           Effect: "Allow",
           Resource: [
             {
@@ -90,12 +91,12 @@ test('DLT Regional Permission Test', () => {
           "-",
           {
             Ref: "AWS::Region",
-          }
-        ]
-      ]
-    }
+          },
+        ],
+      ],
+    },
   });
-  expect(stack).toHaveResourceLike("AWS::IAM::Policy", {
+  Template.fromStack(stack).hasResourceProperties("AWS::IAM::Policy", {
     PolicyDocument: {
       Statement: [
         {
@@ -105,9 +106,9 @@ test('DLT Regional Permission Test', () => {
         },
       ],
       Version: "2012-10-17",
-    }
+    },
   });
-  expect(stack).toHaveResourceLike("AWS::IAM::Policy", {
+  Template.fromStack(stack).hasResourceProperties("AWS::IAM::Policy", {
     PolicyDocument: {
       Statement: [
         {
@@ -117,9 +118,9 @@ test('DLT Regional Permission Test', () => {
         },
       ],
       Version: "2012-10-17",
-    }
+    },
   });
-  expect(stack).toHaveResourceLike("AWS::IAM::Policy", {
+  Template.fromStack(stack).hasResourceProperties("AWS::IAM::Policy", {
     PolicyDocument: {
       Statement: [
         {
@@ -170,9 +171,9 @@ test('DLT Regional Permission Test', () => {
         },
       ],
       Version: "2012-10-17",
-    }
+    },
   });
-  expect(stack).toHaveResourceLike("AWS::IAM::Policy", {
+  Template.fromStack(stack).hasResourceProperties("AWS::IAM::Policy", {
     PolicyDocument: {
       Statement: [
         {
@@ -201,6 +202,6 @@ test('DLT Regional Permission Test', () => {
         },
       ],
       Version: "2012-10-17",
-    }
+    },
   });
 });

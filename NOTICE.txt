@@ -13,6 +13,8 @@ This software includes third party software subject to the following copyrights:
 @aws-solutions-constructs/aws-cloudfront-s3 under the Apache License 2.0
 @types/jest under the Massachusetts Institute of Technology (MIT) License
 @types/node under the Massachusetts Institute of Technology (MIT) License
+@typescript-eslint/eslint-plugin under the Massachusetts Institute of Technology (MIT) license
+@typescript-eslint/parser under the BSD 2-Clause license
 aws-amplify under the Apache License Version 2.0
 aws-cdk under the Apache License Version 2.0
 aws-cdk-lib under the Apache License 2.0
@@ -25,6 +27,15 @@ brace under the Massachusetts Institute of Technology (MIT) license
 chart.js under the Massachusetts Institute of Technology (MIT) license
 chartjs-adapter-moment under the Massachusetts Institute of Technology (MIT) license
 constructs under the Apache License 2.0
+eslint under the Massachusetts Institute of Technology (MIT) license
+eslint-config-prettier under the Massachusetts Institute of Technology (MIT) license
+eslint-config-standard under the Massachusetts Institute of Technology (MIT) license
+eslint-plugin-header under the Massachusetts Institute of Technology (MIT) license
+eslint-plugin-import under the Massachusetts Institute of Technology (MIT) license
+eslint-plugin-jsdoc under the BSD 2-Clause license
+eslint-plugin-node under the Massachusetts Institute of Technology (MIT) license
+eslint-plugin-prettier under the Massachusetts Institute of Technology (MIT) license
+eslint-plugin-react under the Massachusetts Institute of Technology (MIT) license
 false under the Apache License Version 2.0
 jest under the Massachusetts Institute of Technology (MIT) license
 jetty-alpn-client under the Apache License Version 2.0 and the Eclipse Public License 1.0
@@ -35,6 +46,7 @@ jetty-io under the Apache License Version 2.0 and the Eclipse Public License 1.0
 jetty-util under the Apache License Version 2.0 and the Eclipse Public License 1.0
 js-yaml under the Massachusetts Institute of Technology (MIT) license
 moment under the Massachusetts Institute of Technology (MIT) license
+prettier under the Massachusetts Institute of Technology (MIT) license
 react under the Massachusetts Institute of Technology (MIT) license
 react-ace under the Massachusetts Institute of Technology (MIT) license
 react-dom under the Massachusetts Institute of Technology (MIT) license

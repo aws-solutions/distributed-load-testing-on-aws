@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const axios = require('axios');
+const axios = require("axios");
 
 const send = async (event, context, responseStatus, responseData, physicalResourceId) => {
   try {
@@ -12,7 +12,7 @@ const send = async (event, context, responseStatus, responseData, physicalResour
       StackId: event.StackId,
       RequestId: event.RequestId,
       LogicalResourceId: event.LogicalResourceId,
-      Data: responseData
+      Data: responseData,
     });
     const params = {
       url: event.ResponseURL,
@@ -20,18 +20,17 @@ const send = async (event, context, responseStatus, responseData, physicalResour
       method: "put",
       headers: {
         "content-type": "",
-        "content-length": responseBody.length
+        "content-length": responseBody.length,
       },
-      data: responseBody
+      data: responseBody,
     };
     await axios(params);
-  }
-  catch (err) {
+  } catch (err) {
     console.error(`There was an error sending the response to CloudFormation: ${err}`);
     throw err;
   }
 };
 
 module.exports = {
-  send: send
+  send: send,
 };

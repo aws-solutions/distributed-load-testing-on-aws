@@ -237,6 +237,45 @@ td {
   border: 0 !important;
 }
 
+.auto-refresh {
+  float: right;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  margin-bottom: 0;
+  font-size: 0.8rem;
+}
+
+.auto-refresh-label {
+  text-align: center
+}
+
+.form-switch .form-check-input {
+  border-color: #FF9900;
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba(255,153,0,1)'/></svg>");
+}
+
+.form-switch .form-check-input:focus {
+  border-color: #FF9900;
+  outline: 0;
+  box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba(255,153,0,1'/></svg>");
+}
+
+.form-switch .form-check-input:checked {
+  background-color: #FF9900;
+  border-color: #FF9900;
+  border: none;
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba(255,255,255,1.0)'/></svg>");
+}
+
+.interval-button {
+  float: right;
+}
+
+.header-banner {
+  overflow: visible;
+}
+
 .submit {
   margin-bottom: 1rem;
   margin-top: 1rem;
@@ -287,6 +326,30 @@ td {
 .form-short {
   display: block;
   width: 20%;
+}
+
+.exceeding-resources-warning {
+  padding: 0.25rem;
+  border: 2px dashed #FF9900;
+}
+
+.available-tasks-card {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.available-tasks-card-header {
+  padding: 0.25rem;
+}
+
+.available-tasks-table {
+  margin: 0;
+}
+
+.available-tasks-table-icon {
+  display: inline-block;
+  padding-left: 0.25rem;
+  padding-right: 0.5rem;
 }
 
 .input-group-short {
@@ -405,6 +468,24 @@ img {
   font-size: 1.25rem;
 }
 
+.inline-label-right {
+  margin-bottom: 0;
+  margin-left: 0.5rem;
+}
+
+.inline-label-left {
+  margin-bottom: 0;
+  margin-right: 0.5rem;
+}
+
+.schedule-date-time {
+  align-items: center;
+}
+
+#scheduleDate {
+  margin-right: 0.5rem;
+}
+
 .schedule-tab-content {
   margin-bottom: 1rem;
 }
@@ -433,7 +514,6 @@ img {
 .chart-container-div {
   width: 50%;
 }
-
 
 /********** @media *********/
 

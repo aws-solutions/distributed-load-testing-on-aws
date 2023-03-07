@@ -1,46 +1,48 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import '@aws-cdk/assert/jest';
-import { SynthUtils } from '@aws-cdk/assert';
-import { Stack } from 'aws-cdk-lib';
-import { Bucket } from 'aws-cdk-lib/aws-s3';
-import { Policy, PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { CustomResourceInfraConstruct } from '../lib/custom-resources/custom-resources-infra';
+import { Template } from "aws-cdk-lib/assertions";
+import { App, DefaultStackSynthesizer, Stack } from "aws-cdk-lib";
+import { Bucket } from "aws-cdk-lib/aws-s3";
+import { Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { CustomResourceInfraConstruct } from "../lib/custom-resources/custom-resources-infra";
 
-
-test('DLT API Test', () => {
-
-  const stack = new Stack();
-  const testSourceBucket = new Bucket(stack, 'testSourceCodeBucket');
-  const testPolicy = new Policy(stack, 'TestPolicy', {
+test("DLT API Test", () => {
+  const app = new App();
+  const stack = new Stack(app, "DLTStack", {
+    synthesizer: new DefaultStackSynthesizer({
+      generateBootstrapVersionRule: false,
+    }),
+  });
+  const testSourceBucket = new Bucket(stack, "testSourceCodeBucket");
+  const testPolicy = new Policy(stack, "TestPolicy", {
     statements: [
       new PolicyStatement({
-        resources: ['*'],
-        actions: ['cloudwatch:Get*']
-      })
-    ]
+        resources: ["*"],
+        actions: ["cloudwatch:Get*"],
+      }),
+    ],
   });
 
-  new CustomResourceInfraConstruct(stack, 'TestCustomResourceInfra', {
+  new CustomResourceInfraConstruct(stack, "TestCustomResourceInfra", {
     cloudWatchPolicy: testPolicy,
-    consoleBucketArn: 'test:console:bucket:arn',
-    mainStackRegion: 'test-region-1',
-    metricsUrl: 'http://testurl.com',
-    scenariosS3Bucket: 'scenariotestbucket',
-    scenariosTable: 'scenarioTestTable',
-    solutionId: 'S0XXX',
-    solutionVersion: 'testVersion',
+    consoleBucketArn: "test:console:bucket:arn",
+    mainStackRegion: "test-region-1",
+    metricsUrl: "http://testurl.com",
+    scenariosS3Bucket: "scenariotestbucket",
+    scenariosTable: "scenarioTestTable",
+    solutionId: "S0XXX",
+    solutionVersion: "testVersion",
     sourceCodeBucket: testSourceBucket,
-    sourceCodePrefix: 'test/source/prefix',
-    stackType: 'main'
+    sourceCodePrefix: "test/source/prefix",
+    stackType: "main",
   });
 
-  expect(SynthUtils.toCloudFormation(stack)).toMatchSnapshot();
-  expect(stack).toHaveResourceLike('AWS::Lambda::Function', {
+  expect(Template.fromStack(stack)).toMatchSnapshot();
+  Template.fromStack(stack).hasResourceProperties("AWS::Lambda::Function", {
     Code: {
       S3Bucket: {
-        "Ref": "testSourceCodeBucketC577B176",
+        Ref: "testSourceCodeBucketC577B176",
       },
       S3Key: "test/source/prefix/main-custom-resource.zip",
     },
@@ -53,16 +55,13 @@ test('DLT API Test', () => {
         S3_BUCKET: "scenariotestbucket",
         SOLUTION_ID: "S0XXX",
         VERSION: "testVersion",
-      }
+      },
     },
     Handler: "index.handler",
     Role: {
-      "Fn::GetAtt": [
-        "TestCustomResourceInfraCustomResourceLambdaRole03671AE8",
-        "Arn",
-      ],
+      "Fn::GetAtt": ["TestCustomResourceInfraCustomResourceLambdaRole03671AE8", "Arn"],
     },
-    Runtime: "nodejs14.x",
-    Timeout: 120
+    Runtime: "nodejs16.x",
+    Timeout: 120,
   });
 });

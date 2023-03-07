@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws-ui",
-  "version": "3.0.0",
+  "version": "3.2.0",
   "private": true,
   "license": "Apache-2.0",
   "author": "aws-solution-builders",
@@ -32,7 +32,7 @@
     "@aws-amplify/ui-react": "^1.0.2",
     "aws-amplify": "4.3.31",
     "aws-sdk": "^2.1082.0",
-    "bootstrap": "^4.6.0",
+    "bootstrap": "^5.1.0",
     "bootstrap-icons": "^1.8.1",
     "brace": "^0.11.1",
     "chart.js": "^3.7.1",
@@ -43,7 +43,7 @@
     "react-dom": "^17.0.1",
     "react-router-dom": "^5.2.0",
     "react-scripts": "^4.0.3",
-    "reactstrap": "^8.9.0",
+    "reactstrap": "^9.0.0",
     "solution-utils": "file:../solution-utils"
   },
   "readme": "./README.md"
