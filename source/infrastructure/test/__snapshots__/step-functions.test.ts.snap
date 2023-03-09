@@ -22,6 +22,9 @@ Object {
       "ap-south-1": Object {
         "states": "states.ap-south-1.amazonaws.com",
       },
+      "ap-south-2": Object {
+        "states": "states.ap-south-2.amazonaws.com",
+      },
       "ap-southeast-1": Object {
         "states": "states.ap-southeast-1.amazonaws.com",
       },
@@ -43,6 +46,9 @@ Object {
       "eu-central-1": Object {
         "states": "states.eu-central-1.amazonaws.com",
       },
+      "eu-central-2": Object {
+        "states": "states.eu-central-2.amazonaws.com",
+      },
       "eu-north-1": Object {
         "states": "states.eu-north-1.amazonaws.com",
       },
@@ -60,6 +66,9 @@ Object {
       },
       "eu-west-3": Object {
         "states": "states.eu-west-3.amazonaws.com",
+      },
+      "me-central-1": Object {
+        "states": "states.me-central-1.amazonaws.com",
       },
       "me-south-1": Object {
         "states": "states.me-south-1.amazonaws.com",
@@ -128,6 +137,7 @@ Object {
       "UpdateReplacePolicy": "Retain",
     },
     "TaskRunnerStepFunctionTaskRunnerStepFunctionsC50015AC": Object {
+      "DeletionPolicy": "Delete",
       "DependsOn": Array [
         "TaskRunnerStepFunctionTaskRunnerStepFunctionsRoleDefaultPolicyACCEC854",
         "TaskRunnerStepFunctionTaskRunnerStepFunctionsRole706897AC",
@@ -137,7 +147,7 @@ Object {
           "Fn::Join": Array [
             "",
             Array [
-              "{\\"StartAt\\":\\"Regions for testing\\",\\"States\\":{\\"Regions for testing\\":{\\"Type\\":\\"Map\\",\\"ResultPath\\":null,\\"Next\\":\\"Parse result\\",\\"InputPath\\":\\"$\\",\\"Parameters\\":{\\"testTaskConfig.$\\":\\"$$.Map.Item.Value\\",\\"testId.$\\":\\"$.testId\\",\\"testType.$\\":\\"$.testType\\",\\"fileType.$\\":\\"$.fileType\\",\\"showLive.$\\":\\"$.showLive\\",\\"prefix.$\\":\\"$.prefix\\"},\\"Iterator\\":{\\"StartAt\\":\\"Check running tests\\",\\"States\\":{\\"Check running tests\\":{\\"Next\\":\\"No running tests\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              "{\\"StartAt\\":\\"Regions for testing\\",\\"States\\":{\\"Regions for testing\\":{\\"Type\\":\\"Map\\",\\"ResultPath\\":null,\\"Next\\":\\"Parse result\\",\\"InputPath\\":\\"$\\",\\"Parameters\\":{\\"testTaskConfig.$\\":\\"$$.Map.Item.Value\\",\\"testId.$\\":\\"$.testId\\",\\"testType.$\\":\\"$.testType\\",\\"fileType.$\\":\\"$.fileType\\",\\"showLive.$\\":\\"$.showLive\\",\\"testDuration.$\\":\\"$.testDuration\\",\\"prefix.$\\":\\"$.prefix\\"},\\"Iterator\\":{\\"StartAt\\":\\"Check running tests\\",\\"States\\":{\\"Check running tests\\":{\\"Next\\":\\"No running tests\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
               Object {
                 "Ref": "AWS::Partition",
               },
@@ -159,7 +169,7 @@ Object {
                   "Arn",
                 ],
               },
-              "\\",\\"Payload.$\\":\\"$\\"}},\\"Requires leader?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Cancel Test\\"},{\\"Variable\\":\\"$.taskIds\\",\\"IsPresent\\":false,\\"Next\\":\\"Wait 1 minute - task status\\"}],\\"Default\\":\\"Wait 1 minute - worker status\\"},\\"Wait 1 minute - worker status\\":{\\"Type\\":\\"Wait\\",\\"Comment\\":\\"Wait 1 minute to check task status again\\",\\"Seconds\\":60,\\"Next\\":\\"Check worker status\\"},\\"Check worker status\\":{\\"Next\\":\\"Are all workers running?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Requires leader?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Cancel Test\\"},{\\"Variable\\":\\"$.taskIds\\",\\"IsPresent\\":false,\\"Next\\":\\"Wait specified test duration\\"}],\\"Default\\":\\"Wait 1 minute - worker status\\"},\\"Wait 1 minute - worker status\\":{\\"Type\\":\\"Wait\\",\\"Comment\\":\\"Wait 1 minute to check task status again\\",\\"Seconds\\":60,\\"Next\\":\\"Check worker status\\"},\\"Check worker status\\":{\\"Next\\":\\"Are all workers running?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
               Object {
                 "Ref": "AWS::Partition",
               },
@@ -181,7 +191,7 @@ Object {
                   "Arn",
                 ],
               },
-              "\\",\\"Payload.$\\":\\"$\\"}},\\"Run leader task\\":{\\"Next\\":\\"Wait 1 minute - task status\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Catch\\":[{\\"ErrorEquals\\":[\\"States.ALL\\"],\\"ResultPath\\":\\"$.error\\",\\"Next\\":\\"Cancel Test\\"}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Run leader task\\":{\\"Next\\":\\"Wait specified test duration\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Catch\\":[{\\"ErrorEquals\\":[\\"States.ALL\\"],\\"ResultPath\\":\\"$.error\\",\\"Next\\":\\"Cancel Test\\"}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
               Object {
                 "Ref": "AWS::Partition",
               },
@@ -192,7 +202,7 @@ Object {
                   "Arn",
                 ],
               },
-              "\\",\\"Payload.$\\":\\"$\\"}},\\"Wait 1 minute - task status\\":{\\"Type\\":\\"Wait\\",\\"Comment\\":\\"Wait 1 minute to check task status again\\",\\"Seconds\\":60,\\"Next\\":\\"Check task status\\"},\\"Check task status\\":{\\"Next\\":\\"Are all tasks done?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Wait specified test duration\\":{\\"Type\\":\\"Wait\\",\\"SecondsPath\\":\\"$.testDuration\\",\\"Next\\":\\"Check task status\\"},\\"Check task status\\":{\\"Next\\":\\"Are all tasks done?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
               Object {
                 "Ref": "AWS::Partition",
               },
@@ -203,7 +213,7 @@ Object {
                   "Arn",
                 ],
               },
-              "\\",\\"Payload.$\\":\\"$\\"}},\\"Are all tasks done?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Map End\\"}],\\"Default\\":\\"Wait 1 minute - task status\\"},\\"Map End\\":{\\"Type\\":\\"Pass\\",\\"End\\":true}}},\\"ItemsPath\\":\\"$.testTaskConfig\\"},\\"Parse result\\":{\\"Next\\":\\"Done\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"Resource\\":\\"arn:",
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Wait 1 minute - task status\\":{\\"Type\\":\\"Wait\\",\\"Comment\\":\\"Wait 1 minute to check task status again\\",\\"Seconds\\":60,\\"Next\\":\\"Check task status\\"},\\"Are all tasks done?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Map End\\"}],\\"Default\\":\\"Wait 1 minute - task status\\"},\\"Map End\\":{\\"Type\\":\\"Pass\\",\\"End\\":true}}},\\"ItemsPath\\":\\"$.testTaskConfig\\"},\\"Parse result\\":{\\"Next\\":\\"Done\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"Resource\\":\\"arn:",
               Object {
                 "Ref": "AWS::Partition",
               },
@@ -242,6 +252,7 @@ Object {
         },
       },
       "Type": "AWS::StepFunctions::StateMachine",
+      "UpdateReplacePolicy": "Delete",
     },
     "TaskRunnerStepFunctionTaskRunnerStepFunctionsRole706897AC": Object {
       "Metadata": Object {
@@ -368,7 +379,7 @@ Object {
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
       },
       "Type": "AWS::Lambda::Function",
     },

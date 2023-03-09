@@ -1,8 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const axios = require('axios');
-const moment = require('moment');
+const axios = require("axios");
+const moment = require("moment");
 
 const send = async (config, type) => {
   try {
@@ -10,21 +10,21 @@ const send = async (config, type) => {
       Solution: config.SolutionId,
       Version: config.Version,
       UUID: config.UUID,
-      TimeStamp: moment().utc().format('YYYY-MM-DD HH:mm:ss.S'),
+      TimeStamp: moment().utc().format("YYYY-MM-DD HH:mm:ss.S"),
       Data: {
         Type: type,
         Region: config.Region,
-        ExistingVpc: config.existingVPC
-      }
+        ExistingVpc: config.existingVPC,
+      },
     };
     const params = {
-      method: 'post',
+      method: "post",
       port: 443,
       url: process.env.METRIC_URL,
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      data: metrics
+      data: metrics,
     };
     //Send Metrics & return status code.
     await axios(params);
@@ -35,5 +35,5 @@ const send = async (config, type) => {
 };
 
 module.exports = {
-  send: send
+  send: send,
 };

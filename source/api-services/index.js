@@ -1,8 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const scenarios = require('./lib/scenarios/');
-const metrics = require('./lib/metrics/');
+const scenarios = require("./lib/scenarios/");
+const metrics = require("./lib/metrics/");
 
 exports.handler = async (event, context) => {
   console.log(JSON.stringify(event, null, 2));
@@ -17,51 +17,57 @@ exports.handler = async (event, context) => {
   let response = {
     headers: {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept"
+      "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept",
     },
-    statusCode: 200
+    statusCode: 200,
   };
 
   try {
     switch (resource) {
-      case '/regions': {
-        if (method === 'GET') {
-          data = { regions: await scenarios.getAllRegionConfigs() };
-          data.url = await scenarios.getCFUrl();
-        } else {
-          throw new Error(errMsg);
+      case "/regions":
+        {
+          if (method === "GET") {
+            data = { regions: await scenarios.getAllRegionConfigs() };
+            data.url = await scenarios.getCFUrl();
+          } else {
+            throw new Error(errMsg);
+          }
         }
-      }
         break;
-      case '/scenarios':
+      case "/scenarios":
         switch (method) {
-          case 'GET':
-            if (event.queryStringParameters && event.queryStringParameters.op === 'listRegions') {
+          case "GET":
+            if (event.queryStringParameters && event.queryStringParameters.op === "listRegions") {
               data = { regions: await scenarios.getAllRegionConfigs() };
               data.url = await scenarios.getCFUrl();
             } else {
               data = await scenarios.listTests();
             }
             break;
-          case 'POST':
+          case "POST":
             if (config.scheduleStep) {
               const contextValues = {
                 functionName: context.functionName,
-                functionArn: context.invokedFunctionArn
+                functionArn: context.invokedFunctionArn,
               };
-              data = await scenarios.scheduleTest({
-                resource: resource,
-                httpMethod: method,
-                body: event.body
-              },
-                contextValues);
-            }
-            else {
+              data = await scenarios.scheduleTest(
+                {
+                  resource: resource,
+                  httpMethod: method,
+                  body: event.body,
+                },
+                contextValues
+              );
+            } else {
               data = await scenarios.createTest(config);
             }
             //sending anonymous metrics (task Count) to aws
-            if (process.env.SEND_METRIC === 'Yes') {
-              await metrics.send({ testTaskConfigs: config.testTaskConfigs, testType: config.testType, fileType: config.fileType });
+            if (process.env.SEND_METRIC === "Yes") {
+              await metrics.send({
+                testTaskConfigs: config.testTaskConfigs,
+                testType: config.testType,
+                fileType: config.fileType,
+              });
             }
             break;
           default:
@@ -69,25 +75,32 @@ exports.handler = async (event, context) => {
         }
         break;
 
-      case '/scenarios/{testId}':
+      case "/scenarios/{testId}":
         testId = event.pathParameters.testId;
         switch (method) {
-          case 'GET':
+          case "GET":
             data = await scenarios.getTest(testId);
             break;
-          case 'POST':
+          case "POST":
             data = await scenarios.cancelTest(testId);
             break;
-          case 'DELETE':
+          case "DELETE":
             data = await scenarios.deleteTest(testId, context.functionName);
             break;
           default:
             throw new Error(errMsg);
         }
         break;
-      case '/tasks':
-        if (method === 'GET') {
+      case "/tasks":
+        if (method === "GET") {
           data = await scenarios.listTasks();
+        } else {
+          throw new Error(errMsg);
+        }
+        break;
+      case "/vCPUDetails":
+        if (method === "GET") {
+          data = await scenarios.getAccountFargatevCPUDetails();
         } else {
           throw new Error(errMsg);
         }

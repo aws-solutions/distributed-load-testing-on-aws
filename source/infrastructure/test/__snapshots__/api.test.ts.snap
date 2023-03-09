@@ -184,7 +184,7 @@ Object {
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 120,
       },
       "Type": "AWS::Lambda::Function",
@@ -353,6 +353,22 @@ Object {
                   "Effect": "Allow",
                   "Resource": "*",
                 },
+                Object {
+                  "Action": Array [
+                    "ecs:ListAccountSettings",
+                    "ecs:ListTasks",
+                    "ecs:ListClusters",
+                    "ecs:DescribeClusters",
+                    "ecs:DescribeTaskDefinition",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "servicequotas:GetServiceQuota",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
               ],
               "Version": "2012-10-17",
             },
@@ -375,6 +391,7 @@ Object {
       "Type": "AWS::ApiGateway::RestApi",
     },
     "TestAPIDLTApiAccount780DB186": Object {
+      "DeletionPolicy": "Retain",
       "DependsOn": Array [
         "TestAPIDLTApi434DC190",
       ],
@@ -387,8 +404,10 @@ Object {
         },
       },
       "Type": "AWS::ApiGateway::Account",
+      "UpdateReplacePolicy": "Retain",
     },
     "TestAPIDLTApiCloudWatchRole67C0F1C4": Object {
+      "DeletionPolicy": "Retain",
       "Properties": Object {
         "AssumeRolePolicyDocument": Object {
           "Statement": Array [
@@ -418,8 +437,9 @@ Object {
         ],
       },
       "Type": "AWS::IAM::Role",
+      "UpdateReplacePolicy": "Retain",
     },
-    "TestAPIDLTApiDeployment7935ADA24573564c36777eba9168f50b28fad0fb": Object {
+    "TestAPIDLTApiDeployment7935ADA243c86edbb16cae8d76c92af1774614fe": Object {
       "DependsOn": Array [
         "TestAPIAPIAllRequestValidator9A179146",
         "TestAPIDLTApiOPTIONS380FFB97",
@@ -435,6 +455,9 @@ Object {
         "TestAPIDLTApitasksANYA8531185",
         "TestAPIDLTApitasksOPTIONS151B5B68",
         "TestAPIDLTApitasksF74AF050",
+        "TestAPIDLTApivCPUDetailsANY6A8016A7",
+        "TestAPIDLTApivCPUDetailsOPTIONS03B0AAEA",
+        "TestAPIDLTApivCPUDetails165FD529",
       ],
       "Metadata": Object {
         "cfn_nag": Object {
@@ -447,7 +470,7 @@ Object {
         },
       },
       "Properties": Object {
-        "Description": "Automatically created by the RestApi construct",
+        "Description": "Distributed Load Testing API - version testVersion",
         "RestApiId": Object {
           "Ref": "TestAPIDLTApi434DC190",
         },
@@ -479,7 +502,7 @@ Object {
           "Format": "{\\"requestId\\":\\"$context.requestId\\",\\"ip\\":\\"$context.identity.sourceIp\\",\\"user\\":\\"$context.identity.user\\",\\"caller\\":\\"$context.identity.caller\\",\\"requestTime\\":\\"$context.requestTime\\",\\"httpMethod\\":\\"$context.httpMethod\\",\\"resourcePath\\":\\"$context.resourcePath\\",\\"status\\":\\"$context.status\\",\\"protocol\\":\\"$context.protocol\\",\\"responseLength\\":\\"$context.responseLength\\"}",
         },
         "DeploymentId": Object {
-          "Ref": "TestAPIDLTApiDeployment7935ADA24573564c36777eba9168f50b28fad0fb",
+          "Ref": "TestAPIDLTApiDeployment7935ADA243c86edbb16cae8d76c92af1774614fe",
         },
         "MethodSettings": Array [
           Object {
@@ -977,6 +1000,118 @@ Object {
         ],
         "ResourceId": Object {
           "Ref": "TestAPIDLTApitasksF74AF050",
+        },
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApivCPUDetails165FD529": Object {
+      "Properties": Object {
+        "ParentId": Object {
+          "Fn::GetAtt": Array [
+            "TestAPIDLTApi434DC190",
+            "RootResourceId",
+          ],
+        },
+        "PathPart": "vCPUDetails",
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "TestAPIDLTApivCPUDetailsANY6A8016A7": Object {
+      "Properties": Object {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "ANY",
+        "Integration": Object {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": Array [
+            Object {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "arn:",
+                Object {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                Object {
+                  "Fn::GetAtt": Array [
+                    "TestAPIDLTAPIServicesLambda1C09DECC",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": Array [
+          Object {
+            "ResponseModels": Object {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": Object {
+          "Ref": "TestAPIAPIAllRequestValidator9A179146",
+        },
+        "ResourceId": Object {
+          "Ref": "TestAPIDLTApivCPUDetails165FD529",
+        },
+        "RestApiId": Object {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApivCPUDetailsOPTIONS03B0AAEA": Object {
+      "Properties": Object {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": Object {
+          "IntegrationResponses": Array [
+            Object {
+              "ResponseParameters": Object {
+                "method.response.header.Access-Control-Allow-Headers": "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "200",
+            },
+          ],
+          "RequestTemplates": Object {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": Array [
+          Object {
+            "ResponseParameters": Object {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "ResourceId": Object {
+          "Ref": "TestAPIDLTApivCPUDetails165FD529",
         },
         "RestApiId": Object {
           "Ref": "TestAPIDLTApi434DC190",

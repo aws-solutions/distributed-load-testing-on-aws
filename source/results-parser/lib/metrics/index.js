@@ -1,39 +1,38 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const axios = require('axios');
-const moment = require('moment');
+const axios = require("axios");
+const moment = require("moment");
 
 /**
  * Sends anonymous metrics.
  * @param {{ totalDuration: number, testType: string, fileType: string, testResult: string }} - the total time the test ran for in seconds, the test type, the file type, and the test result
  */
 const send = async (obj) => {
-
   let data;
 
   try {
     const metrics = {
       Solution: process.env.SOLUTION_ID,
       UUID: process.env.UUID,
-      TimeStamp: moment().utc().format('YYYY-MM-DD HH:mm:ss.S'),
+      TimeStamp: moment().utc().format("YYYY-MM-DD HH:mm:ss.S"),
       Version: process.env.VERSION,
       Data: {
-        Type: 'TaskCompletion',
+        Type: "TaskCompletion",
         TestType: obj.testType,
-        FileType: obj.fileType || (obj.testType === 'simple' ? 'none' : 'script'),
+        FileType: obj.fileType || (obj.testType === "simple" ? "none" : "script"),
         TestResult: obj.testResult,
-        Duration: obj.totalDuration
-      }
+        Duration: obj.totalDuration,
+      },
     };
     const params = {
-      method: 'post',
+      method: "post",
       port: 443,
       url: process.env.METRIC_URL,
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      data: metrics
+      data: metrics,
     };
     //Send Metrics & return status code.
     data = await axios(params);
@@ -44,7 +43,6 @@ const send = async (obj) => {
   return data.status;
 };
 
-
 module.exports = {
-  send: send
+  send: send,
 };

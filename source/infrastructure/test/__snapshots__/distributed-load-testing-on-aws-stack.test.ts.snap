@@ -58,6 +58,9 @@ Object {
       "ap-south-1": Object {
         "states": "states.ap-south-1.amazonaws.com",
       },
+      "ap-south-2": Object {
+        "states": "states.ap-south-2.amazonaws.com",
+      },
       "ap-southeast-1": Object {
         "states": "states.ap-southeast-1.amazonaws.com",
       },
@@ -79,6 +82,9 @@ Object {
       "eu-central-1": Object {
         "states": "states.eu-central-1.amazonaws.com",
       },
+      "eu-central-2": Object {
+        "states": "states.eu-central-2.amazonaws.com",
+      },
       "eu-north-1": Object {
         "states": "states.eu-north-1.amazonaws.com",
       },
@@ -96,6 +102,9 @@ Object {
       },
       "eu-west-3": Object {
         "states": "states.eu-west-3.amazonaws.com",
+      },
+      "me-central-1": Object {
+        "states": "states.me-central-1.amazonaws.com",
       },
       "me-south-1": Object {
         "states": "states.me-south-1.amazonaws.com",
@@ -209,6 +218,35 @@ Object {
     },
   },
   "Outputs": Object {
+    "AppRegistryApplicationManagerUrl775D5C3D": Object {
+      "Description": "Application manager url for the application created.",
+      "Value": Object {
+        "Fn::Join": Array [
+          "",
+          Array [
+            "https://",
+            Object {
+              "Ref": "AWS::Region",
+            },
+            ".console.aws.amazon.com/systems-manager/appmanager/application/AWS_AppRegistry_Application-",
+            Object {
+              "Fn::Join": Array [
+                "-",
+                Array [
+                  "distributed-load-testing-on-aws",
+                  Object {
+                    "Ref": "AWS::Region",
+                  },
+                  Object {
+                    "Ref": "AWS::AccountId",
+                  },
+                ],
+              ],
+            },
+          ],
+        ],
+      },
+    },
     "Console": Object {
       "Description": "Console URL",
       "Value": Object {
@@ -392,7 +430,22 @@ Object {
       },
       "Type": "AWS::ServiceCatalogAppRegistry::Application",
     },
-    "AppRegistryAttributeGroupAssociation52da5400282951AFD8BB": Object {
+    "AppRegistryAssociation": Object {
+      "Properties": Object {
+        "Application": Object {
+          "Fn::GetAtt": Array [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": Object {
+          "Ref": "AWS::StackId",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "AppRegistryAttributeGroupAssociation17c9944e720456F5A644": Object {
       "Properties": Object {
         "Application": Object {
           "Fn::GetAtt": Array [
@@ -408,21 +461,6 @@ Object {
         },
       },
       "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation",
-    },
-    "AppRegistryResourceAssociation08d5313bf5c779236CB6": Object {
-      "Properties": Object {
-        "Application": Object {
-          "Fn::GetAtt": Array [
-            "AppRegistry968496A3",
-            "Id",
-          ],
-        },
-        "Resource": Object {
-          "Ref": "AWS::StackId",
-        },
-        "ResourceType": "CFN_STACK",
-      },
-      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
     },
     "DLTApi0C903EB5": Object {
       "Properties": Object {
@@ -574,6 +612,7 @@ Object {
       "UpdateReplacePolicy": "Retain",
     },
     "DLTApiAccount80CB63FF": Object {
+      "DeletionPolicy": "Retain",
       "DependsOn": Array [
         "DLTApi0C903EB5",
       ],
@@ -586,6 +625,7 @@ Object {
         },
       },
       "Type": "AWS::ApiGateway::Account",
+      "UpdateReplacePolicy": "Retain",
     },
     "DLTApiApiAccountConfigBF306CC3": Object {
       "DependsOn": Array [
@@ -602,6 +642,7 @@ Object {
       "Type": "AWS::ApiGateway::Account",
     },
     "DLTApiCloudWatchRoleD45E4DD6": Object {
+      "DeletionPolicy": "Retain",
       "Properties": Object {
         "AssumeRolePolicyDocument": Object {
           "Statement": Array [
@@ -643,6 +684,7 @@ Object {
         ],
       },
       "Type": "AWS::IAM::Role",
+      "UpdateReplacePolicy": "Retain",
     },
     "DLTApiDLTAPIServicesLambda9D76BA5C": Object {
       "DependsOn": Array [
@@ -768,7 +810,7 @@ Object {
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Tags": Array [
           Object {
             "Key": "SolutionId",
@@ -956,6 +998,22 @@ Object {
                   "Effect": "Allow",
                   "Resource": "*",
                 },
+                Object {
+                  "Action": Array [
+                    "ecs:ListAccountSettings",
+                    "ecs:ListTasks",
+                    "ecs:ListClusters",
+                    "ecs:DescribeClusters",
+                    "ecs:DescribeTaskDefinition",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "servicequotas:GetServiceQuota",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
               ],
               "Version": "2012-10-17",
             },
@@ -977,7 +1035,7 @@ Object {
       },
       "Type": "AWS::IAM::Role",
     },
-    "DLTApiDeployment098FF888fcb0a704d2b4426ea5c0c0559611635b": Object {
+    "DLTApiDeployment098FF8885717e67f3e4712c50b31f4e78c9acc35": Object {
       "DependsOn": Array [
         "DLTApiAPIAllRequestValidator02C9D47F",
         "DLTApiOPTIONS823B5F09",
@@ -993,6 +1051,9 @@ Object {
         "DLTApitasksANY60403A44",
         "DLTApitasksOPTIONSDABED809",
         "DLTApitasks0A512C83",
+        "DLTApivCPUDetailsANY4E680392",
+        "DLTApivCPUDetailsOPTIONS8854EB1F",
+        "DLTApivCPUDetailsABB0980D",
       ],
       "Metadata": Object {
         "cfn_nag": Object {
@@ -1005,7 +1066,21 @@ Object {
         },
       },
       "Properties": Object {
-        "Description": "Automatically created by the RestApi construct",
+        "Description": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "Distributed Load Testing API - version ",
+              Object {
+                "Fn::FindInMap": Array [
+                  "Solution",
+                  "Config",
+                  "CodeVersion",
+                ],
+              },
+            ],
+          ],
+        },
         "RestApiId": Object {
           "Ref": "DLTApi0C903EB5",
         },
@@ -1037,7 +1112,7 @@ Object {
           "Format": "{\\"requestId\\":\\"$context.requestId\\",\\"ip\\":\\"$context.identity.sourceIp\\",\\"user\\":\\"$context.identity.user\\",\\"caller\\":\\"$context.identity.caller\\",\\"requestTime\\":\\"$context.requestTime\\",\\"httpMethod\\":\\"$context.httpMethod\\",\\"resourcePath\\":\\"$context.resourcePath\\",\\"status\\":\\"$context.status\\",\\"protocol\\":\\"$context.protocol\\",\\"responseLength\\":\\"$context.responseLength\\"}",
         },
         "DeploymentId": Object {
-          "Ref": "DLTApiDeployment098FF888fcb0a704d2b4426ea5c0c0559611635b",
+          "Ref": "DLTApiDeployment098FF8885717e67f3e4712c50b31f4e78c9acc35",
         },
         "MethodSettings": Array [
           Object {
@@ -1667,6 +1742,118 @@ Object {
         ],
         "ResourceId": Object {
           "Ref": "DLTApitasks0A512C83",
+        },
+        "RestApiId": Object {
+          "Ref": "DLTApi0C903EB5",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "DLTApivCPUDetailsABB0980D": Object {
+      "Properties": Object {
+        "ParentId": Object {
+          "Fn::GetAtt": Array [
+            "DLTApi0C903EB5",
+            "RootResourceId",
+          ],
+        },
+        "PathPart": "vCPUDetails",
+        "RestApiId": Object {
+          "Ref": "DLTApi0C903EB5",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "DLTApivCPUDetailsANY4E680392": Object {
+      "Properties": Object {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "ANY",
+        "Integration": Object {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": Array [
+            Object {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "arn:",
+                Object {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                Object {
+                  "Fn::GetAtt": Array [
+                    "DLTApiDLTAPIServicesLambda9D76BA5C",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": Array [
+          Object {
+            "ResponseModels": Object {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": Object {
+          "Ref": "DLTApiAPIAllRequestValidator02C9D47F",
+        },
+        "ResourceId": Object {
+          "Ref": "DLTApivCPUDetailsABB0980D",
+        },
+        "RestApiId": Object {
+          "Ref": "DLTApi0C903EB5",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "DLTApivCPUDetailsOPTIONS8854EB1F": Object {
+      "Properties": Object {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": Object {
+          "IntegrationResponses": Array [
+            Object {
+              "ResponseParameters": Object {
+                "method.response.header.Access-Control-Allow-Headers": "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "200",
+            },
+          ],
+          "RequestTemplates": Object {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": Array [
+          Object {
+            "ResponseParameters": Object {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "ResourceId": Object {
+          "Ref": "DLTApivCPUDetailsABB0980D",
         },
         "RestApiId": Object {
           "Ref": "DLTApi0C903EB5",
@@ -2444,7 +2631,7 @@ Object {
           "DefaultCacheBehavior": Object {
             "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
             "Compress": true,
-            "TargetOriginId": "TestDLTStackDLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin144D84462",
+            "TargetOriginId": "DLTStackDLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1022BE4E8",
             "ViewerProtocolPolicy": "redirect-to-https",
           },
           "DefaultRootObject": "index.html",
@@ -2468,7 +2655,7 @@ Object {
                   "RegionalDomainName",
                 ],
               },
-              "Id": "TestDLTStackDLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin144D84462",
+              "Id": "DLTStackDLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1022BE4E8",
               "S3OriginConfig": Object {
                 "OriginAccessIdentity": Object {
                   "Fn::Join": Array [
@@ -2503,7 +2690,7 @@ Object {
     "DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1S3Origin5080EA34": Object {
       "Properties": Object {
         "CloudFrontOriginAccessIdentityConfig": Object {
-          "Comment": "Identity for TestDLTStackDLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin144D84462",
+          "Comment": "Identity for DLTStackDLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1022BE4E8",
         },
       },
       "Type": "AWS::CloudFront::CloudFrontOriginAccessIdentity",
@@ -2747,7 +2934,7 @@ Object {
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Tags": Array [
           Object {
             "Key": "SolutionId",
@@ -3044,7 +3231,7 @@ Object {
               Object {
                 "Ref": "AWS::Region",
               },
-              "#dashboards:name=',
+              "#dashboards:',
       ecs_dashboard: 'https://",
               Object {
                 "Ref": "AWS::Region",
@@ -4149,7 +4336,7 @@ Object {
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Tags": Array [
           Object {
             "Key": "SolutionId",
@@ -4259,7 +4446,7 @@ Object {
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Tags": Array [
           Object {
             "Key": "SolutionId",
@@ -4394,7 +4581,7 @@ Object {
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Tags": Array [
           Object {
             "Key": "SolutionId",
@@ -4503,7 +4690,7 @@ Object {
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Tags": Array [
           Object {
             "Key": "SolutionId",
@@ -4646,6 +4833,7 @@ Object {
       "UpdateReplacePolicy": "Retain",
     },
     "DLTStepFunctionTaskRunnerStepFunctionsC295A535": Object {
+      "DeletionPolicy": "Delete",
       "DependsOn": Array [
         "DLTStepFunctionTaskRunnerStepFunctionsRoleDefaultPolicy8F17B49F",
         "DLTStepFunctionTaskRunnerStepFunctionsRoleC2237F06",
@@ -4655,7 +4843,7 @@ Object {
           "Fn::Join": Array [
             "",
             Array [
-              "{\\"StartAt\\":\\"Regions for testing\\",\\"States\\":{\\"Regions for testing\\":{\\"Type\\":\\"Map\\",\\"ResultPath\\":null,\\"Next\\":\\"Parse result\\",\\"InputPath\\":\\"$\\",\\"Parameters\\":{\\"testTaskConfig.$\\":\\"$$.Map.Item.Value\\",\\"testId.$\\":\\"$.testId\\",\\"testType.$\\":\\"$.testType\\",\\"fileType.$\\":\\"$.fileType\\",\\"showLive.$\\":\\"$.showLive\\",\\"prefix.$\\":\\"$.prefix\\"},\\"Iterator\\":{\\"StartAt\\":\\"Check running tests\\",\\"States\\":{\\"Check running tests\\":{\\"Next\\":\\"No running tests\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              "{\\"StartAt\\":\\"Regions for testing\\",\\"States\\":{\\"Regions for testing\\":{\\"Type\\":\\"Map\\",\\"ResultPath\\":null,\\"Next\\":\\"Parse result\\",\\"InputPath\\":\\"$\\",\\"Parameters\\":{\\"testTaskConfig.$\\":\\"$$.Map.Item.Value\\",\\"testId.$\\":\\"$.testId\\",\\"testType.$\\":\\"$.testType\\",\\"fileType.$\\":\\"$.fileType\\",\\"showLive.$\\":\\"$.showLive\\",\\"testDuration.$\\":\\"$.testDuration\\",\\"prefix.$\\":\\"$.prefix\\"},\\"Iterator\\":{\\"StartAt\\":\\"Check running tests\\",\\"States\\":{\\"Check running tests\\":{\\"Next\\":\\"No running tests\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
               Object {
                 "Ref": "AWS::Partition",
               },
@@ -4677,7 +4865,7 @@ Object {
                   "Arn",
                 ],
               },
-              "\\",\\"Payload.$\\":\\"$\\"}},\\"Requires leader?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Cancel Test\\"},{\\"Variable\\":\\"$.taskIds\\",\\"IsPresent\\":false,\\"Next\\":\\"Wait 1 minute - task status\\"}],\\"Default\\":\\"Wait 1 minute - worker status\\"},\\"Wait 1 minute - worker status\\":{\\"Type\\":\\"Wait\\",\\"Comment\\":\\"Wait 1 minute to check task status again\\",\\"Seconds\\":60,\\"Next\\":\\"Check worker status\\"},\\"Check worker status\\":{\\"Next\\":\\"Are all workers running?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Requires leader?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Cancel Test\\"},{\\"Variable\\":\\"$.taskIds\\",\\"IsPresent\\":false,\\"Next\\":\\"Wait specified test duration\\"}],\\"Default\\":\\"Wait 1 minute - worker status\\"},\\"Wait 1 minute - worker status\\":{\\"Type\\":\\"Wait\\",\\"Comment\\":\\"Wait 1 minute to check task status again\\",\\"Seconds\\":60,\\"Next\\":\\"Check worker status\\"},\\"Check worker status\\":{\\"Next\\":\\"Are all workers running?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
               Object {
                 "Ref": "AWS::Partition",
               },
@@ -4699,7 +4887,7 @@ Object {
                   "Arn",
                 ],
               },
-              "\\",\\"Payload.$\\":\\"$\\"}},\\"Run leader task\\":{\\"Next\\":\\"Wait 1 minute - task status\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Catch\\":[{\\"ErrorEquals\\":[\\"States.ALL\\"],\\"ResultPath\\":\\"$.error\\",\\"Next\\":\\"Cancel Test\\"}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Run leader task\\":{\\"Next\\":\\"Wait specified test duration\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Catch\\":[{\\"ErrorEquals\\":[\\"States.ALL\\"],\\"ResultPath\\":\\"$.error\\",\\"Next\\":\\"Cancel Test\\"}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
               Object {
                 "Ref": "AWS::Partition",
               },
@@ -4710,7 +4898,7 @@ Object {
                   "Arn",
                 ],
               },
-              "\\",\\"Payload.$\\":\\"$\\"}},\\"Wait 1 minute - task status\\":{\\"Type\\":\\"Wait\\",\\"Comment\\":\\"Wait 1 minute to check task status again\\",\\"Seconds\\":60,\\"Next\\":\\"Check task status\\"},\\"Check task status\\":{\\"Next\\":\\"Are all tasks done?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Wait specified test duration\\":{\\"Type\\":\\"Wait\\",\\"SecondsPath\\":\\"$.testDuration\\",\\"Next\\":\\"Check task status\\"},\\"Check task status\\":{\\"Next\\":\\"Are all tasks done?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"InputPath\\":\\"$\\",\\"OutputPath\\":\\"$.Payload\\",\\"Resource\\":\\"arn:",
               Object {
                 "Ref": "AWS::Partition",
               },
@@ -4721,7 +4909,7 @@ Object {
                   "Arn",
                 ],
               },
-              "\\",\\"Payload.$\\":\\"$\\"}},\\"Are all tasks done?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Map End\\"}],\\"Default\\":\\"Wait 1 minute - task status\\"},\\"Map End\\":{\\"Type\\":\\"Pass\\",\\"End\\":true}}},\\"ItemsPath\\":\\"$.testTaskConfig\\"},\\"Parse result\\":{\\"Next\\":\\"Done\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"Resource\\":\\"arn:",
+              "\\",\\"Payload.$\\":\\"$\\"}},\\"Wait 1 minute - task status\\":{\\"Type\\":\\"Wait\\",\\"Comment\\":\\"Wait 1 minute to check task status again\\",\\"Seconds\\":60,\\"Next\\":\\"Check task status\\"},\\"Are all tasks done?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.isRunning\\",\\"BooleanEquals\\":false,\\"Next\\":\\"Map End\\"}],\\"Default\\":\\"Wait 1 minute - task status\\"},\\"Map End\\":{\\"Type\\":\\"Pass\\",\\"End\\":true}}},\\"ItemsPath\\":\\"$.testTaskConfig\\"},\\"Parse result\\":{\\"Next\\":\\"Done\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"Resource\\":\\"arn:",
               Object {
                 "Ref": "AWS::Partition",
               },
@@ -4772,6 +4960,7 @@ Object {
         ],
       },
       "Type": "AWS::StepFunctions::StateMachine",
+      "UpdateReplacePolicy": "Delete",
     },
     "DLTStepFunctionTaskRunnerStepFunctionsRoleC2237F06": Object {
       "Metadata": Object {
@@ -5622,7 +5811,7 @@ Object {
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Tags": Array [
           Object {
             "Key": "SolutionId",

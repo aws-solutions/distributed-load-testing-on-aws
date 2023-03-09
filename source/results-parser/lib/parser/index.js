@@ -1,9 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const AWS = require('aws-sdk');
-const parser = require('xml-js');
-const utils = require('solution-utils');
+const AWS = require("aws-sdk");
+const parser = require("xml-js");
+const utils = require("solution-utils");
 const { AWS_REGION, HISTORY_TABLE, SCENARIOS_TABLE } = process.env;
 const awsOptions = utils.getOptions({ region: AWS_REGION });
 const dynamoDb = new AWS.DynamoDB.DocumentClient(awsOptions);
@@ -22,7 +22,7 @@ function results(content, testId) {
     const options = {
       nativeType: true,
       compact: true,
-      ignoreAttributes: false
+      ignoreAttributes: false,
     };
     const json = parser.xml2js(content, options);
     const jsonData = json.FinalStatus;
@@ -36,12 +36,12 @@ function results(content, testId) {
       const group = resultsItem;
       const label = group._attributes.label;
       let stats = {
-        rc: []
+        rc: [],
       };
 
       // loop through group results
       for (let r in group) {
-        if (r !== '_attributes' && r !== 'perc' && r !== 'rc') {
+        if (r !== "_attributes" && r !== "perc" && r !== "rc") {
           stats[r] = group[r].value._text;
         }
       }
@@ -49,19 +49,19 @@ function results(content, testId) {
       // loop through response codes, rc is a object for single responses array for multiple
       if (Array.isArray(group.rc)) {
         for (let responseCode of group.rc) {
-          if (responseCode._attributes.param !== '200') {
+          if (responseCode._attributes.param !== "200") {
             stats.rc.push({ code: responseCode._attributes.param, count: parseInt(responseCode._attributes.value) });
           }
         }
       } else {
-        if (group.rc._attributes.param !== '200') {
+        if (group.rc._attributes.param !== "200") {
           stats.rc.push({ code: group.rc._attributes.param, count: parseInt(group.rc._attributes.value) });
         }
       }
 
       // loop through percentiles and rename/convert keys to strings
       for (let percentiles of group.perc) {
-        const perc = 'p' + percentiles._attributes.param.replace('.', '_');
+        const perc = "p" + percentiles._attributes.param.replace(".", "_");
         stats[perc] = percentiles.value._text;
       }
       // check if the results are for the group (label '') or for a specific label
@@ -77,10 +77,10 @@ function results(content, testId) {
     return {
       stats: result,
       labels,
-      duration: jsonData.TestDuration._text
+      duration: jsonData.TestDuration._text,
     };
   } catch (error) {
-    console.error('results function error', error);
+    console.error("results function error", error);
     throw error;
   }
 }
@@ -100,12 +100,12 @@ const getAvg = (array) => {
  * @param {object[]} array Response code object array which includes { code: string, count: number|string } objects
  * @return {object[]} Summarized response codes and sum count
  */
-const getReducedResponseCodes = (array) => {
-  return array.reduce((accumulator, currentValue) => {
+const getReducedResponseCodes = (array) =>
+  array.reduce((accumulator, currentValue) => {
     const count = parseInt(currentValue.count);
     currentValue.count = isNaN(count) ? 0 : count;
 
-    const existing = accumulator.find(acc => acc.code === currentValue.code);
+    const existing = accumulator.find((acc) => acc.code === currentValue.code);
     if (existing) {
       existing.count += currentValue.count;
     } else {
@@ -113,7 +113,6 @@ const getReducedResponseCodes = (array) => {
     }
     return accumulator;
   }, []);
-};
 
 /**
  * Integrates the all test results and updates DynamoDB record
@@ -129,9 +128,9 @@ async function finalResults(testId, data) {
    */
   const createAggregatedData = (stats, result) => {
     for (let key in stats) {
-      if (key === 'label') {
+      if (key === "label") {
         result.label = stats[key];
-      } else if (key === 'rc') {
+      } else if (key === "rc") {
         result.rc = result.rc.concat(stats.rc);
       } else {
         result[key].push(stats[key]);
@@ -147,24 +146,24 @@ async function finalResults(testId, data) {
   const createFinalResults = (source, result) => {
     for (let key in source) {
       switch (key) {
-        case 'label':
-        case 'labels':
-        case 'rc':
+        case "label":
+        case "labels":
+        case "rc":
           result[key] = source[key];
           break;
-        case 'fail':
-        case 'succ':
-        case 'throughput':
+        case "fail":
+        case "succ":
+        case "throughput":
           result[key] = source[key].reduce((a, b) => a + b);
           break;
-        case 'bytes':
-        case 'concurrency':
-        case 'testDuration':
+        case "bytes":
+        case "concurrency":
+        case "testDuration":
           result[key] = getAvg(source[key]).toFixed(0);
           break;
-        case 'avg_ct':
-        case 'avg_lt':
-        case 'avg_rt':
+        case "avg_ct":
+        case "avg_lt":
+        case "avg_rt":
           result[key] = getAvg(source[key]).toFixed(5);
           break;
         default:
@@ -193,7 +192,7 @@ async function finalResults(testId, data) {
     testDuration: [],
     throughput: [],
     rc: [],
-    labels: []
+    labels: [],
   };
 
   for (let result of data) {
@@ -229,7 +228,7 @@ async function finalResults(testId, data) {
         bytes: [],
         concurrency: [],
         fail: [],
-        label: '',
+        label: "",
         p0_0: [],
         p100_0: [],
         p50_0: [],
@@ -241,7 +240,7 @@ async function finalResults(testId, data) {
         succ: [],
         testDuration: [],
         throughput: [],
-        rc: []
+        rc: [],
       };
 
       const labelStats = all.labels.filter((stats) => stats.label === label);
@@ -264,15 +263,26 @@ async function finalResults(testId, data) {
 
   // parse all of the results to generate the final results.
   createFinalResults(all, testFinalResults);
-  console.log('Final Results: ', JSON.stringify(testFinalResults, null, 2));
+  console.log("Final Results: ", JSON.stringify(testFinalResults, null, 2));
   return testFinalResults;
 }
 
 async function putTestHistory(historyParams) {
   try {
-    const { status, testId, finalResults: finalTestResults, startTime, endTime, testTaskConfigs, testScenario, testDescription, testType, completeTasks } = historyParams;
+    const {
+      status,
+      testId,
+      finalResults: finalTestResults,
+      startTime,
+      endTime,
+      testTaskConfigs,
+      testScenario,
+      testDescription,
+      testType,
+      completeTasks,
+    } = historyParams;
     const thisTestScenario = JSON.parse(testScenario);
-    const succPercent = ((finalTestResults['total'].succ / finalTestResults['total'].throughput) * 100).toFixed(2);
+    const succPercent = ((finalTestResults["total"].succ / finalTestResults["total"].throughput) * 100).toFixed(2);
     const history = {
       testRunId: utils.generateUniqueId(10),
       startTime,
@@ -285,11 +295,11 @@ async function putTestHistory(historyParams) {
       testScenario: thisTestScenario,
       testDescription,
       testType,
-      completeTasks
+      completeTasks,
     };
     const ddbParams = {
       TableName: HISTORY_TABLE,
-      Item: history
+      Item: history,
     };
     await dynamoDb.put(ddbParams).promise();
   } catch (err) {
@@ -304,46 +314,46 @@ async function updateTable(params) {
   const ddbUpdateParams = {
     TableName: SCENARIOS_TABLE,
     Key: {
-      testId: testId
+      testId: testId,
     },
-    UpdateExpression: 'set #r = :r, #t = :t, #s = :s, #ct = :ct',
+    UpdateExpression: "set #r = :r, #t = :t, #s = :s, #ct = :ct",
     ExpressionAttributeNames: {
-      '#r': 'results',
-      '#t': 'endTime',
-      '#s': 'status',
-      '#ct': 'completeTasks'
+      "#r": "results",
+      "#t": "endTime",
+      "#s": "status",
+      "#ct": "completeTasks",
     },
     ExpressionAttributeValues: {
-      ':r': finalTestResults,
-      ':t': endTime,
-      ':s': status,
-      ':ct': completeTasks
+      ":r": finalTestResults,
+      ":t": endTime,
+      ":s": status,
+      ":ct": completeTasks,
     },
-    ReturnValues: 'ALL_NEW'
+    ReturnValues: "ALL_NEW",
   };
   await dynamoDb.update(ddbUpdateParams).promise();
-  return 'Success';
+  return "Success";
 }
 
 function getWidgetMetrics(testId, options) {
   const metrics = [];
   const metricOptions = {
-    'avgRt': {
-      label: 'Avg Response Time',
-      color: '#FF9900'
+    avgRt: {
+      label: "Avg Response Time",
+      color: "#FF9900",
     },
-    'numVu': {
-      label: 'Virtual Users',
-      color: '#1f77b4',
+    numVu: {
+      label: "Virtual Users",
+      color: "#1f77b4",
     },
-    'numSucc': {
-      label: 'Successes',
-      color: '#2CA02C'
+    numSucc: {
+      label: "Successes",
+      color: "#2CA02C",
     },
-    'numFail': {
-      label: 'Failures',
-      color: '#D62728'
-    }
+    numFail: {
+      label: "Failures",
+      color: "#D62728",
+    },
   };
 
   for (const key in metricOptions) {
@@ -351,14 +361,15 @@ function getWidgetMetrics(testId, options) {
     let addedOptions = {};
     //add either stat or expression
     if (options.expression) {
-      addedOptions.expression = key === 'avgRt' ? `AVG([${options.expression[key]}])` : `SUM([${options.expression[key]}])`;
+      addedOptions.expression =
+        key === "avgRt" ? `AVG([${options.expression[key]}])` : `SUM([${options.expression[key]}])`;
     } else {
       addedOptions = options;
-      metric = ['distributed-load-testing', `${testId}-${key}`];
-      (key !== 'avgRt') && (metricOptions[key].stat = 'Sum');
+      metric = ["distributed-load-testing", `${testId}-${key}`];
+      key !== "avgRt" && (metricOptions[key].stat = "Sum");
     }
     //if key is not avgRt add sum and yAxis options
-    (key !== 'avgRt') && (metricOptions[key].yAxis = 'right');
+    key !== "avgRt" && (metricOptions[key].yAxis = "right");
 
     //add in provided options
     metricOptions[key] = { ...metricOptions[key], ...addedOptions };
@@ -371,12 +382,12 @@ function getWidgetMetrics(testId, options) {
 }
 
 async function createWidget(startTime, endTime, region, testId, metrics) {
-  if (region !== 'total') {
+  if (region !== "total") {
     metrics = getWidgetMetrics(testId, { region: region });
   } else {
     const metricIds = { avgRt: [], numVu: [], numSucc: [], numFail: [] };
     metrics = metrics.map((metric) => {
-      const metricName = metric[1].split('-').pop();
+      const metricName = metric[1].split("-").pop();
       const metricId = `${metricName}${metricIds[metricName].length}`;
       metricIds[metricName].push(metricId);
       metric[2] = { ...metric[2], visible: false, id: metricId };
@@ -392,37 +403,37 @@ async function createWidget(startTime, endTime, region, testId, metrics) {
     metrics: metrics,
     period: 10,
     yAxis: {
-      "left": {
-        "showUnits": false,
-        "label": "Seconds"
+      left: {
+        showUnits: false,
+        label: "Seconds",
       },
-      "right": {
-        "showUnits": false,
-        "label": "Total"
-      }
+      right: {
+        showUnits: false,
+        label: "Total",
+      },
     },
-    stat: 'Average',
-    view: 'timeSeries',
+    stat: "Average",
+    view: "timeSeries",
     start: new Date(startTime).toISOString(),
-    end: new Date(endTime).toISOString()
+    end: new Date(endTime).toISOString(),
   };
   const cwParams = {
-    MetricWidget: JSON.stringify(widget)
+    MetricWidget: JSON.stringify(widget),
   };
   console.log(JSON.stringify(widget));
   // Write the image to S3, store the object key in DDB
-  awsOptions.region = region === 'total' ? AWS_REGION : region;
+  awsOptions.region = region === "total" ? AWS_REGION : region;
   const cloudwatch = new AWS.CloudWatch(awsOptions);
   const image = await cloudwatch.getMetricWidgetImage(cwParams).promise();
-  const metricWidgetImage = Buffer.from(image.MetricWidgetImage).toString('base64');
+  const metricWidgetImage = Buffer.from(image.MetricWidgetImage).toString("base64");
   const metricImageTitle = `${widget.title}-${widget.start}`;
   const metricS3ObjectKey = `cloudwatch-images/${testId}/${metricImageTitle}`;
   const s3PutObjectParams = {
     Body: metricWidgetImage,
     Bucket: process.env.SCENARIOS_BUCKET,
     Key: `public/${metricS3ObjectKey}`,
-    ContentEncoding: 'base64',
-    ContentType: 'image/jpeg'
+    ContentEncoding: "base64",
+    ContentType: "image/jpeg",
   };
   await s3.putObject(s3PutObjectParams).promise();
   console.log(`Wrote metric widget public/${metricS3ObjectKey} to S3 bucket`);
@@ -437,11 +448,11 @@ async function deleteRegionalMetricFilter(testId, region, taskCluster, ecsCloudW
   for (const metric of metrics) {
     const deleteMetricFilterParams = {
       filterName: `${taskCluster}-Ecs${metric}-${testId}`,
-      logGroupName: ecsCloudWatchLogGroup
+      logGroupName: ecsCloudWatchLogGroup,
     };
     await cloudwatchLogs.deleteMetricFilter(deleteMetricFilterParams).promise();
   }
-  return 'Success';
+  return "Success";
 }
 
 module.exports = {
@@ -450,5 +461,5 @@ module.exports = {
   createWidget,
   deleteRegionalMetricFilter,
   putTestHistory,
-  updateTable
+  updateTable,
 };

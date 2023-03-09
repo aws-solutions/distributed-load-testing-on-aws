@@ -1,8 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const AWS = require('aws-sdk');
-const utils = require('solution-utils');
+const AWS = require("aws-sdk");
+const utils = require("solution-utils");
 let options = {};
 options = utils.getOptions(options);
 options.region = process.env.AWS_REGION;
@@ -12,8 +12,8 @@ const checkRunningTasks = async (ecs, runTaskCount, taskCount, taskCluster, test
   let desiredWorkers = taskCount - 1;
   let listTaskParams = {
     cluster: taskCluster,
-    desiredStatus: 'RUNNING',
-    startedBy: testId
+    desiredStatus: "RUNNING",
+    startedBy: testId,
   };
   let runningTasks = [];
   let data;
@@ -35,15 +35,13 @@ const checkTestStatus = async (testId, isRunning) => {
   const ddbParams = {
     TableName: process.env.SCENARIOS_TABLE,
     Key: {
-      testId: testId
+      testId: testId,
     },
-    AttributesToGet: [
-      'status'
-    ]
+    AttributesToGet: ["status"],
   };
   data = await dynamo.get(ddbParams).promise();
   const { status } = data.Item;
-  if (status !== 'running') isRunning = false;
+  if (status !== "running") isRunning = false;
   return isRunning;
 };
 
@@ -51,7 +49,17 @@ exports.handler = async (event, context) => {
   console.log(JSON.stringify(event, null, 2));
 
   const { testId, testType, fileType, showLive, prefix } = event;
-  const { taskDefinition, taskCluster, region, taskCount, ecsCloudWatchLogGroup, subnetA, subnetB, taskImage, taskSecurityGroup } = event.testTaskConfig;
+  const {
+    taskDefinition,
+    taskCluster,
+    region,
+    taskCount,
+    ecsCloudWatchLogGroup,
+    subnetA,
+    subnetB,
+    taskImage,
+    taskSecurityGroup,
+  } = event.testTaskConfig;
   //1 call every 1.5 sec , 2 min to enter running, 1 min launch for leader, 2 min for leader to enter running + 5 min buffer
   const timeout = Math.floor(Math.ceil(taskCount / 10) * 1.5 + 600);
   //if there is a list of taskIds, workers have been launched and only the leader is left.
@@ -71,53 +79,56 @@ exports.handler = async (event, context) => {
     cluster: taskCluster,
     count: 0,
     group: testId,
-    launchType: 'FARGATE',
+    launchType: "FARGATE",
     networkConfiguration: {
       awsvpcConfiguration: {
-        assignPublicIp: 'ENABLED',
+        assignPublicIp: "ENABLED",
         securityGroups: [taskSecurityGroup],
-        subnets: [
-          subnetA,
-          subnetB
-        ]
-      }
+        subnets: [subnetA, subnetB],
+      },
     },
     overrides: {
-      containerOverrides: [{
-        name: taskImage,
-        environment: [
-          { name: 'S3_BUCKET', value: process.env.SCENARIOS_BUCKET },
-          { name: 'TEST_ID', value: testId },
-          { name: 'TEST_TYPE', value: testType },
-          { name: 'FILE_TYPE', value: fileType },
-          { name: 'LIVE_DATA_ENABLED', value: `live=${showLive}` },
-          { name: 'TIMEOUT', value: timeout.toString() },
-          { name: 'PREFIX', value: prefix },
-          { name: 'SCRIPT', value: 'ecslistener.py' }
-        ]
-      }]
+      containerOverrides: [
+        {
+          name: taskImage,
+          environment: [
+            { name: "S3_BUCKET", value: process.env.SCENARIOS_BUCKET },
+            { name: "TEST_ID", value: testId },
+            { name: "TEST_TYPE", value: testType },
+            { name: "FILE_TYPE", value: fileType },
+            { name: "LIVE_DATA_ENABLED", value: `live=${showLive}` },
+            { name: "TIMEOUT", value: timeout.toString() },
+            { name: "PREFIX", value: prefix },
+            { name: "SCRIPT", value: "ecslistener.py" },
+          ],
+        },
+      ],
     },
-    propagateTags: 'TASK_DEFINITION',
+    propagateTags: "TASK_DEFINITION",
     startedBy: testId,
     tags: [
       { key: "TestId", value: testId },
-      { key: "SolutionId", value: process.env.SOLUTION_ID }
-    ]
+      { key: "SolutionId", value: process.env.SOLUTION_ID },
+    ],
   };
 
   try {
-
     //if not yet created by previous call, create widgets and dashboard
     if (!event.taskIds) {
       //Create metric filters and dashboard
       const metrics = ["numVu", "numSucc", "numFail", "avgRt"];
       const metricNames = ["Virtual Users", "Success", "Failures", "Average Response Time"];
       let widgets = [];
-      const widgetPlacement = [[8, 0], [0, 8], [8, 8], [0, 0]];
+      const widgetPlacement = [
+        [8, 0],
+        [0, 8],
+        [8, 8],
+        [0, 0],
+      ];
       //Create metric filter and widget for each metric
       for (const [index, metric] of metrics.entries()) {
         let metricNameParam = `${testId}-${metric}`;
-        let stat = metric === 'avgRt' ? 'avg' : 'sum';
+        let stat = metric === "avgRt" ? "avg" : "sum";
         let [x, y] = widgetPlacement[index];
         //Create metric filter
         let metricFilterParams = {
@@ -128,12 +139,12 @@ exports.handler = async (event, context) => {
             {
               metricName: metricNameParam,
               metricNamespace: "distributed-load-testing",
-              metricValue: `$${metric}`
-            }
-          ]
+              metricValue: `$${metric}`,
+            },
+          ],
         };
         await cloudwatchLogs.putMetricFilter(metricFilterParams).promise();
-        //create widget 
+        //create widget
         let query = `SOURCE '${ecsCloudWatchLogGroup}'| limit 10000 | \
                     fields @logStream | \
                     filter @message like /${testId}.*INFO: Current:/ | \
@@ -141,24 +152,29 @@ exports.handler = async (event, context) => {
                     stat ${stat}(@${metric}) by bin(1s)`;
         let title = `${metricNames[index]}`;
         let widget = {
-          "type": "log",
-          "x": x,
-          "y": y,
-          "width": 8,
-          "height": 8,
-          "properties": {
-            "query": query,
-            "region": region,
-            "stacked": 'false',
-            "title": title,
-            "view": "timeSeries",
-          }
+          type: "log",
+          x: x,
+          y: y,
+          width: 8,
+          height: 8,
+          properties: {
+            query: query,
+            region: region,
+            stacked: "false",
+            title: title,
+            view: "timeSeries",
+          },
         };
         widgets.push(widget);
       }
       //create dashboard
-      const dashboardBody = { "widgets": widgets };
-      await cloudwatch.putDashboard({ DashboardName: `EcsLoadTesting-${testId}-${region}`, DashboardBody: JSON.stringify(dashboardBody) }).promise();
+      const dashboardBody = { widgets: widgets };
+      await cloudwatch
+        .putDashboard({
+          DashboardName: `EcsLoadTesting-${testId}-${region}`,
+          DashboardBody: JSON.stringify(dashboardBody),
+        })
+        .promise();
     }
     /**
      * The max number of containers (taskCount) per task execution is 10 so if the taskCount is
@@ -173,7 +189,7 @@ exports.handler = async (event, context) => {
 
     //loop through list of tasks and push to taskIds array
     let collectTaskIds = (tasks) => {
-      tasks.forEach(task => {
+      tasks.forEach((task) => {
         taskIds.push(task.taskArn.split(taskCluster + "/").pop());
       });
     };
@@ -187,12 +203,12 @@ exports.handler = async (event, context) => {
         while (taskIds.length > 0) {
           //get task info in chunks of 100 or less
           let taskIdSubset = taskIds.splice(0, 100);
-          let describeTasksParams = { "cluster": taskCluster, tasks: taskIdSubset };
+          let describeTasksParams = { cluster: taskCluster, tasks: taskIdSubset };
           let runningNodeInfo = await ecs.describeTasks(describeTasksParams).promise();
 
           //get IPV4 Address info
           let ipAddress;
-          runningNodeInfo.tasks.forEach(task => {
+          runningNodeInfo.tasks.forEach((task) => {
             //get second half of ip address
             ipAddress = task.containers[0].networkInterfaces[0].privateIpv4Address;
             ipAddresses.push(ipAddress.split(".").slice(2).join("."));
@@ -205,22 +221,29 @@ exports.handler = async (event, context) => {
         let leaderParams = Object.assign({}, params);
         leaderParams.count = runTaskCount;
         //override environment variables for leader node
-        leaderParams.overrides.containerOverrides[0].environment.push({ name: "IPNETWORK", value: ipNetworkPortion.toString() });
-        leaderParams.overrides.containerOverrides[0].environment.push({ name: "IPHOSTS", value: ipAddresses.toString() });
-        leaderParams.overrides.containerOverrides[0].environment.forEach(item => {
-          if (item.name === 'SCRIPT') item.value = "ecscontroller.py";
+        leaderParams.overrides.containerOverrides[0].environment.push({
+          name: "IPNETWORK",
+          value: ipNetworkPortion.toString(),
+        });
+        leaderParams.overrides.containerOverrides[0].environment.push({
+          name: "IPHOSTS",
+          value: ipAddresses.toString(),
+        });
+        leaderParams.overrides.containerOverrides[0].environment.forEach((item) => {
+          if (item.name === "SCRIPT") item.value = "ecscontroller.py";
         });
 
         //run leader node task
-        console.log('STARTING LEADER NODE AND RUNNING TESTS');
+        console.log("STARTING LEADER NODE AND RUNNING TESTS");
         const leadTaskResponse = await ecs.runTask(leaderParams).promise();
         //if leader node fails to launch, log error and end test
         if (leadTaskResponse.failures.length > 0) {
           throw ("The lead task failed to launch:\n", leadTaskResponse.failures);
         }
-      } else { //if single task test
+      } else {
+        //if single task test
         params.count = runTaskCount;
-        console.log('Starting Task');
+        console.log("Starting Task");
         params.overrides.containerOverrides[0].environment.pop();
         const singleTaskRunResponse = await ecs.runTask(params).promise();
         if (singleTaskRunResponse.failures.length > 0) {
@@ -249,7 +272,7 @@ exports.handler = async (event, context) => {
         //run tasks
         runTaskCount = await launchWorkers(runTaskCount, params);
 
-        //get time left 
+        //get time left
         timeRemaining = context.getRemainingTimeInMillis();
 
         //check if test has been cancelled
@@ -263,28 +286,30 @@ exports.handler = async (event, context) => {
         }
       } while (runTaskCount > 1 && parseInt(timeRemaining, 10) > 60000); //end if out of time or no tasks left
     }
-    console.log('success');
+    console.log("success");
     event.prefix = prefix;
     event.isRunning = isRunning;
-    (taskIds.length > 0) && (event.taskIds = taskIds);
+    taskIds.length > 0 && (event.taskIds = taskIds);
     return event;
   } catch (err) {
     console.error(err);
 
     // Update DynamoDB with Status FAILED and Error Message
-    await dynamo.update({
-      TableName: process.env.SCENARIOS_TABLE,
-      Key: { testId },
-      UpdateExpression: 'set #s = :s, #e = :e',
-      ExpressionAttributeNames: {
-        '#s': 'status',
-        '#e': 'errorReason'
-      },
-      ExpressionAttributeValues: {
-        ':s': 'failed',
-        ':e': 'Failed to run Fargate tasks.'
-      }
-    }).promise();
+    await dynamo
+      .update({
+        TableName: process.env.SCENARIOS_TABLE,
+        Key: { testId },
+        UpdateExpression: "set #s = :s, #e = :e",
+        ExpressionAttributeNames: {
+          "#s": "status",
+          "#e": "errorReason",
+        },
+        ExpressionAttributeValues: {
+          ":s": "failed",
+          ":e": "Failed to run Fargate tasks.",
+        },
+      })
+      .promise();
 
     throw err;
   }

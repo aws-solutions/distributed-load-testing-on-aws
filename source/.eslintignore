@@ -1,0 +1,7 @@
+**/infrastructure/*.js
+*.d.ts
+node_modules
+coverage
+**/test/*
+**/build/*
+**/assets/*

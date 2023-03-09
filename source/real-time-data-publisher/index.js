@@ -1,28 +1,28 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const zlib = require('zlib');
-const util = require('util');
+const zlib = require("zlib");
+const util = require("util");
 const unzip = util.promisify(zlib.gunzip);
 const AWS = require("aws-sdk");
-const solutionUtils = require('solution-utils');
+const solutionUtils = require("solution-utils");
 const { MAIN_REGION, IOT_ENDPOINT } = process.env;
 let options = {
   region: MAIN_REGION,
-  endpoint: IOT_ENDPOINT
+  endpoint: IOT_ENDPOINT,
 };
 options = solutionUtils.getOptions(options);
 const iot = new AWS.IotData(options);
 
 exports.handler = async function (event) {
-  const payload = Buffer.from(event.awslogs.data, 'base64');
+  const payload = Buffer.from(event.awslogs.data, "base64");
   const aggregatedTestResultData = { [process.env.AWS_REGION]: [] };
   let testId = "";
 
   try {
     //decompress gzip data, convert to ascii string, and parse JSON
     const decompressedPayload = await unzip(payload);
-    const jsonPayload = JSON.parse(decompressedPayload.toString('ascii'));
+    const jsonPayload = JSON.parse(decompressedPayload.toString("ascii"));
     console.log("Event Data:", JSON.stringify(jsonPayload, null, 2));
 
     //for each logItem, extract necessary information
@@ -34,7 +34,7 @@ exports.handler = async function (event) {
       const extractedData = {};
 
       //Extract data and parse into JSON object using keys
-      for (const [index, value] of (logString.match(regex)).entries()) {
+      for (const [index, value] of logString.match(regex).entries()) {
         if (index > 0) {
           extractedData[keys[index]] = parseFloat(value, 10);
         } else {

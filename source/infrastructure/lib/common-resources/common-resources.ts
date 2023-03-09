@@ -1,11 +1,11 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Aws, CfnResource, Fn, RemovalPolicy, Stack, Tags } from 'aws-cdk-lib';
-import { BlockPublicAccess, Bucket, BucketAccessControl, BucketEncryption, IBucket } from 'aws-cdk-lib/aws-s3';
-import { AnyPrincipal, Effect, Policy, PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import * as appreg from '@aws-cdk/aws-servicecatalogappregistry-alpha'
-import { Construct } from 'constructs';
+import { Aws, CfnResource, Fn, RemovalPolicy, Stack, Tags } from "aws-cdk-lib";
+import { BlockPublicAccess, Bucket, BucketAccessControl, BucketEncryption, IBucket } from "aws-cdk-lib/aws-s3";
+import { AnyPrincipal, Effect, Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import * as appreg from "@aws-cdk/aws-servicecatalogappregistry-alpha";
+import { Construct } from "constructs";
 
 export interface CommonResourcesConstructProps {
   readonly sourceCodeBucket: string;
@@ -32,54 +32,56 @@ export class CommonResourcesConstruct extends Construct {
   constructor(scope: Construct, id: string, props: CommonResourcesConstructProps) {
     super(scope, id);
 
-    const logGroupResourceArn = Stack.of(this).formatArn({ service: 'logs', resource: 'log-group:', resourceName: 'aws/lambda/*' });
-    this.cloudWatchLogsPolicy = new Policy(this, 'CloudWatchLogsPolicy', {
+    const logGroupResourceArn = Stack.of(this).formatArn({
+      service: "logs",
+      resource: "log-group:",
+      resourceName: "aws/lambda/*",
+    });
+    this.cloudWatchLogsPolicy = new Policy(this, "CloudWatchLogsPolicy", {
       statements: [
         new PolicyStatement({
           effect: Effect.ALLOW,
-          actions: [
-            'logs:CreateLogGroup',
-            'logs:CreateLogStream',
-            'logs:PutLogEvents'
-          ],
-          resources: [
-            logGroupResourceArn
-          ]
-        })
-      ]
+          actions: ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+          resources: [logGroupResourceArn],
+        }),
+      ],
     });
 
-    this.sourceBucket = Bucket.fromBucketName(this, 'SourceCodeBucket', props.sourceCodeBucket);
+    this.sourceBucket = Bucket.fromBucketName(this, "SourceCodeBucket", props.sourceCodeBucket);
   }
 
   public s3LogsBucket(): Bucket {
-    const logsBucket = new Bucket(this, 'LogsBucket', {
+    const logsBucket = new Bucket(this, "LogsBucket", {
       accessControl: BucketAccessControl.LOG_DELIVERY_WRITE,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       encryption: BucketEncryption.S3_MANAGED,
-      removalPolicy: RemovalPolicy.RETAIN
+      removalPolicy: RemovalPolicy.RETAIN,
     });
 
     logsBucket.addToResourcePolicy(
       new PolicyStatement({
-        actions: ['s3:*'],
+        actions: ["s3:*"],
         conditions: {
-          Bool: { 'aws:SecureTransport': 'false' }
+          Bool: { "aws:SecureTransport": "false" },
         },
         effect: Effect.DENY,
         principals: [new AnyPrincipal()],
-        resources: [logsBucket.bucketArn, logsBucket.arnForObjects('*')]
-      }));
+        resources: [logsBucket.bucketArn, logsBucket.arnForObjects("*")],
+      })
+    );
 
     const s3LogsBucketResource = logsBucket.node.defaultChild as CfnResource;
-    s3LogsBucketResource.addMetadata('cfn_nag', {
-      rules_to_suppress: [{
-        id: 'W35',
-        reason: 'This is the logging bucket, it does not require logging.'
-      }, {
-        id: 'W51',
-        reason: 'Since the bucket does not allow the public access, it does not require to have bucket policy.'
-      }]
+    s3LogsBucketResource.addMetadata("cfn_nag", {
+      rules_to_suppress: [
+        {
+          id: "W35",
+          reason: "This is the logging bucket, it does not require logging.",
+        },
+        {
+          id: "W51",
+          reason: "Since the bucket does not allow the public access, it does not require to have bucket policy.",
+        },
+      ],
     });
     return logsBucket;
   }
@@ -93,7 +95,7 @@ export class CommonResourcesConstruct extends Construct {
       applicationName: Fn.join("-", [props.applicationName, Aws.REGION, Aws.ACCOUNT_ID]),
       description: `Service Catalog application to track and manage all your resources for the solution ${solutionName}`,
     });
-    application.associateStack(stack);
+    application.associateApplicationWithStack(stack);
 
     Tags.of(application).add("Solutions:SolutionID", props.solutionId);
     Tags.of(application).add("Solutions:SolutionName", solutionName);
@@ -104,10 +106,10 @@ export class CommonResourcesConstruct extends Construct {
       attributeGroupName: Aws.STACK_NAME,
       description: "Attribute group for solution information",
       attributes: {
-        applicationType: applicationType,
+        applicationType,
         version: props.solutionVersion,
         solutionID: props.solutionId,
-        solutionName: solutionName,
+        solutionName,
       },
     });
     application.associateAttributeGroup(attributeGroup);
