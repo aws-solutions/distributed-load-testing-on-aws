@@ -1,6 +1,6 @@
 {
   "name": "results-parser",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "description": "result parser for indexing xml test results to DynamoDB",
   "repository": {
     "type": "git",
