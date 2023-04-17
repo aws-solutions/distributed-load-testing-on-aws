@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Aws, CfnResource, Fn, RemovalPolicy, Stack, Tags } from "aws-cdk-lib";
-import { BlockPublicAccess, Bucket, BucketAccessControl, BucketEncryption, IBucket } from "aws-cdk-lib/aws-s3";
+import {
+  BlockPublicAccess,
+  Bucket,
+  BucketAccessControl,
+  BucketEncryption,
+  IBucket,
+  ObjectOwnership,
+} from "aws-cdk-lib/aws-s3";
 import { AnyPrincipal, Effect, Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import * as appreg from "@aws-cdk/aws-servicecatalogappregistry-alpha";
 import { Construct } from "constructs";
@@ -56,6 +63,7 @@ export class CommonResourcesConstruct extends Construct {
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       encryption: BucketEncryption.S3_MANAGED,
       removalPolicy: RemovalPolicy.RETAIN,
+      objectOwnership: ObjectOwnership.OBJECT_WRITER,
     });
 
     logsBucket.addToResourcePolicy(

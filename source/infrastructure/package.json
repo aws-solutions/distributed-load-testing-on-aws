@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws-infrastructure",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "bin": {
     "distributed-load-testing-on-aws": "bin/distributed-load-testing-on-aws.ts"
   },
