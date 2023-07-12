@@ -5,7 +5,7 @@ body {
   font-size: 90%;
   font-family: "Amazon Ember", "Helvetica", sans-serif;
   font-weight: 300;
-  background-color: #F1F1F1;
+  background-color: #f1f1f1;
 }
 
 #logo {
@@ -15,7 +15,7 @@ body {
 
 /******* Reactstrap Overrides ********/
 .bg-dark {
-  background-color: #31465F !important;
+  background-color: #31465f !important;
 }
 
 .nav-link {
@@ -25,11 +25,11 @@ body {
 }
 
 .nav-link:hover {
-  color: #FF9900 !important;
+  color: #ff9900 !important;
 }
 
 .tab-content {
-  background-color: #FFF !important;
+  background-color: #fff !important;
   padding-top: 1rem !important;
   padding-left: 5px;
   padding-right: 5px;
@@ -38,7 +38,6 @@ body {
   border-collapse: collapse;
   box-shadow: 1px 1px 4px 0 rgba(0, 0, 0, 0.15);
 }
-
 
 /******* Div ********/
 .main {
@@ -61,7 +60,7 @@ body {
   border-collapse: collapse;
   box-shadow: 1px 1px 4px 0 rgba(0, 0, 0, 0.15);
   background-color: #fff;
-  overflow: hidden
+  overflow: hidden;
 }
 
 .footer {
@@ -75,11 +74,11 @@ body {
   height: 100%;
 }
 
-.info>.popover {
+.info > .popover {
   max-width: 80%;
 }
 
-.info>.PopoverBody {
+.info > .PopoverBody {
   margin: 1rem;
 }
 
@@ -87,7 +86,7 @@ body {
 h1 {
   font-weight: 400;
   font-size: 1.4rem;
-  color: #31465F;
+  color: #31465f;
   margin: 0;
   display: inline-block;
 }
@@ -95,7 +94,7 @@ h1 {
 h2 {
   font-weight: 400;
   font-size: 1.25rem;
-  color: #31465F;
+  color: #31465f;
   margin: 1rem 0 1rem 0;
   padding-bottom: 1rem;
   display: inline-block;
@@ -104,17 +103,17 @@ h2 {
 h3 {
   font-weight: 400;
   font-size: 1.1rem;
-  color: #31465F;
+  color: #31465f;
   margin: 1rem 0 1rem 0;
   display: inline-block;
 }
 
 a {
-  color: #31465F;
+  color: #31465f;
 }
 
 a:hover {
-  color: #FF9900;
+  color: #ff9900;
 }
 
 span {
@@ -147,13 +146,13 @@ span {
 }
 
 th {
-  color: #31465F !important;
+  color: #31465f !important;
   font-weight: 400 !important;
-  border-bottom: 1px solid #E1E4EA !important;
+  border-bottom: 1px solid #e1e4ea !important;
 }
 
 td {
-  border-bottom: 1px solid #E1E4EA !important;
+  border-bottom: 1px solid #e1e4ea !important;
 }
 
 .td-center {
@@ -161,7 +160,7 @@ td {
 }
 
 .rowActive {
-  background-color: #BBD4DD;
+  background-color: #bbd4dd;
 }
 
 .complete {
@@ -170,17 +169,17 @@ td {
 }
 
 .running {
-  color: #FF9900;
+  color: #ff9900;
   text-transform: uppercase;
 }
 
 .cancelled {
-  color: #DC3545;
+  color: #dc3545;
   text-transform: uppercase;
 }
 
 .cancelling {
-  color: #EE6723;
+  color: #ee6723;
   text-transform: uppercase;
 }
 
@@ -190,18 +189,18 @@ td {
 
 .warning {
   text-align: center;
-  color: #DC3545;
+  color: #dc3545;
   font-weight: 400;
   font-size: 1.1rem;
 }
 
 .failed {
-  color: #DC3545;
+  color: #dc3545;
   text-transform: uppercase;
 }
 
 .scheduled {
-  color: #53C9ED;
+  color: #53c9ed;
   text-transform: uppercase;
 }
 
@@ -211,17 +210,17 @@ td {
 }
 
 .PENDING {
-  color: #FFC46D;
+  color: #ffc46d;
   text-transform: uppercase;
 }
 
 .btn-secondary {
-  background-color: #FF9900 !important;
+  background-color: #ff9900 !important;
 }
 
 .btn-secondary:hover,
 .btn-danger:hover {
-  background-color: #31465F !important;
+  background-color: #31465f !important;
 }
 
 .btn-secondary,
@@ -246,24 +245,24 @@ td {
 }
 
 .auto-refresh-label {
-  text-align: center
+  text-align: center;
 }
 
 .form-switch .form-check-input {
-  border-color: #FF9900;
+  border-color: #ff9900;
   background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba(255,153,0,1)'/></svg>");
 }
 
 .form-switch .form-check-input:focus {
-  border-color: #FF9900;
+  border-color: #ff9900;
   outline: 0;
   box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
   background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba(255,153,0,1'/></svg>");
 }
 
 .form-switch .form-check-input:checked {
-  background-color: #FF9900;
-  border-color: #FF9900;
+  background-color: #ff9900;
+  border-color: #ff9900;
   border: none;
   background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba(255,255,255,1.0)'/></svg>");
 }
@@ -282,12 +281,12 @@ td {
 }
 
 .btn-link {
-  color: #FF9900 !important;
+  color: #ff9900 !important;
   margin-bottom: 0.5rem;
 }
 
 .btn-link:hover {
-  color: #31465F !important;
+  color: #31465f !important;
   text-decoration: none;
 }
 
@@ -300,12 +299,12 @@ td {
 
 .btn.disabled,
 .btn:disabled {
-  opacity: .35;
-  background-color: #31465F !important;
+  opacity: 0.35;
+  background-color: #31465f !important;
 }
 
 .text-secondary {
-  color: #FF9900 !important;
+  color: #ff9900 !important;
 }
 
 .desc {
@@ -330,7 +329,7 @@ td {
 
 .exceeding-resources-warning {
   padding: 0.25rem;
-  border: 2px dashed #FF9900;
+  border: 2px dashed #ff9900;
 }
 
 .available-tasks-card {
@@ -363,30 +362,30 @@ img {
 }
 
 .result {
-  border: 1px solid rgba(0, 0, 0, .125);
+  border: 1px solid rgba(0, 0, 0, 0.125);
   padding: 0.5rem;
   margin-bottom: 1rem;
-  border-left: 0.25rem solid #FF9900;
+  border-left: 0.25rem solid #ff9900;
 }
 
 .result p {
   font-size: 1.4rem;
   font-weight: 600;
-  color: #31465F;
+  color: #31465f;
 }
 
 .error {
-  border-left: 0.25rem solid #DC3545;
+  border-left: 0.25rem solid #dc3545;
 }
 
 .detail {
   margin: 0.5rem;
   padding: 0.5rem;
-  border-bottom: 1px solid rgba(0, 0, 0, .125);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.125);
 }
 
 .detail-col {
-  color: #FF9900 !important;
+  color: #ff9900 !important;
 }
 
 .loading {
@@ -401,12 +400,12 @@ img {
 }
 
 .custom-tab.active {
-  background-color: #FF9900 !important;
+  background-color: #ff9900 !important;
   border: none;
 }
 
 .custom-tab.active:hover {
-  color: #FFFFFF !important;
+  color: #ffffff !important;
 }
 
 .regional-stack-row {
@@ -435,7 +434,7 @@ img {
 }
 
 .available-regions-title {
-  border-bottom: 1px solid #E1E4EA;
+  border-bottom: 1px solid #e1e4ea;
   margin: 1.5rem 0.5rem 0.5rem 0.5rem;
 }
 
@@ -518,7 +517,6 @@ img {
 /********** @media *********/
 
 @media screen and (max-width: 768px) {
-
   .navbar-brand {
     font-size: 1rem !important;
   }

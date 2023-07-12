@@ -48,7 +48,6 @@ class Create extends React.Component {
           fileType = "script";
         }
       }
-
       this.state = {
         isLoading: false,
         runningTasks: false,
@@ -440,7 +439,12 @@ class Create extends React.Component {
     const heading = (
       <PageHeader
         title={`${this.state.testId === null ? "Create" : "Update"} Load Test`}
-        refreshButton={<RefreshButtons refreshFunction={this.getvCPUDetails} />}
+        refreshButton={
+          <RefreshButtons
+            refreshFunction={this.getvCPUDetails}
+            key={`${this.state.testId === null ? "Create" : "Update"} Load Test`}
+          />
+        }
       />
     );
     const currentDate = new Date().toISOString().split("T")[0];
@@ -699,7 +703,7 @@ class Create extends React.Component {
                 <FormText color="muted">Time to hold target concurrency.</FormText>
               </FormGroup>
               <FormGroup>
-                <Row inline>
+                <Row>
                   <Col xs="auto">
                     <Input
                       type="radio"
@@ -760,7 +764,6 @@ class Create extends React.Component {
                           Date:
                         </Label>
                         <Input
-                          inline="true"
                           type="date"
                           name="scheduleDate"
                           id="scheduleDate"
@@ -774,7 +777,6 @@ class Create extends React.Component {
                           Time:
                         </Label>
                         <Input
-                          inline="true"
                           type="time"
                           name="scheduleTime"
                           id="scheduleTime"
@@ -789,12 +791,11 @@ class Create extends React.Component {
                   </TabPane>
                   <TabPane tabId="2">
                     <FormGroup>
-                      <InputGroup className="schedule-date-time" inline="true">
+                      <InputGroup className="schedule-date-time">
                         <Label className="inline-label-left" for="scheduleDate">
                           Date:
                         </Label>
                         <Input
-                          inline="true"
                           type="date"
                           name="scheduleDate"
                           id="scheduleDate"
@@ -808,7 +809,6 @@ class Create extends React.Component {
                           Time:
                         </Label>
                         <Input
-                          inline="true"
                           type="time"
                           name="scheduleTime"
                           id="time"
@@ -826,7 +826,6 @@ class Create extends React.Component {
                           <Label className="mb-0">Recurrence:&nbsp;</Label>
                           &nbsp;
                           <Input
-                            inline
                             type="radio"
                             name="recurrence"
                             id="daily"
@@ -841,7 +840,6 @@ class Create extends React.Component {
                         </Col>
                         <Col xs="auto">
                           <Input
-                            inline
                             type="radio"
                             name="recurrence"
                             id="weekly"
@@ -856,7 +854,6 @@ class Create extends React.Component {
                         </Col>
                         <Col xs="auto">
                           <Input
-                            inline
                             type="radio"
                             name="recurrence"
                             id="biweekly"
@@ -871,7 +868,6 @@ class Create extends React.Component {
                         </Col>
                         <Col xs="auto">
                           <Input
-                            inline
                             type="radio"
                             name="recurrence"
                             id="monthly"
@@ -967,10 +963,9 @@ class Create extends React.Component {
                     <Label for="testDescription">HTTP Headers (Optional)</Label>
                     <AceEditor
                       id="headers"
-                      mode="json"
+                      mode="text"
                       theme="github"
                       value={this.state.formValues.headers}
-                      highlightActiveLine={true}
                       onChange={this.handleHeadersChange}
                       name="headers"
                       width="100%"
@@ -989,9 +984,8 @@ class Create extends React.Component {
                     <Label>Body Payload (Optional)</Label>
                     <AceEditor
                       id="bodyPayload"
-                      mode="json"
+                      mode="text"
                       theme="github"
-                      highlightActiveLine={true}
                       onChange={this.handleBodyPayloadChange}
                       name="bodyPayload"
                       value={this.state.formValues.body}

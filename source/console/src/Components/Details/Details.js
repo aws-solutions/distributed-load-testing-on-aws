@@ -51,6 +51,7 @@ class Details extends React.Component {
         scheduleDate: null,
         scheduleTime: null,
         recurrence: null,
+        regionalTaskDetails: {},
       },
     };
     this.handleDownload = this.handleDownload.bind(this);
@@ -103,6 +104,7 @@ class Details extends React.Component {
         data.recurrence = data.scheduleRecurrence;
         delete data.nextRun;
       }
+      data.regionalTaskDetails = await API.get("dlts", "/vCPUDetails");
       this.setTestData(data);
     } catch (err) {
       console.error(err);

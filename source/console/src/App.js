@@ -6,9 +6,8 @@ import { BrowserRouter as Router, Route, Switch, Link } from "react-router-dom";
 import { Collapse, Navbar, NavbarToggler, NavbarBrand, Nav, NavItem } from "reactstrap";
 
 //Amplify
-import Amplify, { Auth } from "aws-amplify";
+import { Amplify, Auth } from "aws-amplify";
 import { withAuthenticator } from "@aws-amplify/ui-react";
-import { AuthState, onAuthUIStateChange } from "@aws-amplify/ui-components";
 import { PubSub, AWSIoTProvider } from "@aws-amplify/pubsub";
 import AWS from "aws-sdk";
 
@@ -28,31 +27,6 @@ Amplify.addPluggable(
 PubSub.configure(awsConfig);
 Amplify.configure(awsConfig);
 
-/**
- * Need to attach IoT Policy to Identity in order to subscribe.
- */
-onAuthUIStateChange(async (nextAuthState) => {
-  if (nextAuthState === AuthState.SignedIn) {
-    const credentials = await Auth.currentCredentials();
-    const identityId = credentials.identityId;
-    AWS.config.update({
-      region: awsConfig.aws_project_region,
-      credentials: Auth.essentialCredentials(credentials),
-    });
-
-    const params = {
-      policyName: awsConfig.aws_iot_policy_name,
-      principal: identityId,
-    };
-
-    try {
-      await new AWS.Iot().attachPrincipalPolicy(params).promise();
-    } catch (error) {
-      console.error("Error occurred while attaching principal policy", error);
-    }
-  }
-});
-
 class App extends React.Component {
   constructor(props) {
     super(props);
@@ -64,6 +38,32 @@ class App extends React.Component {
       collapsed: true,
       regionalModal: false,
     };
+  }
+
+  /**
+   * Need to attach IoT Policy to Identity in order to subscribe.
+   */
+  async componentDidMount() {
+    try {
+      await Auth.currentAuthenticatedUser();
+    } catch (error) {
+      console.log("User is not signed in");
+    }
+    const credentials = await Auth.currentCredentials();
+    const identityId = credentials.identityId;
+    AWS.config.update({
+      region: awsConfig.aws_project_region,
+      credentials: Auth.essentialCredentials(credentials),
+    });
+    const params = {
+      policyName: awsConfig.aws_iot_policy_name,
+      principal: identityId,
+    };
+    try {
+      await new AWS.Iot().attachPrincipalPolicy(params).promise();
+    } catch (error) {
+      console.error("Error occurred while attaching principal policy", error);
+    }
   }
 
   noMatch({ location }) {
@@ -88,8 +88,8 @@ class App extends React.Component {
     });
   }
 
-  signOut() {
-    Auth.signOut();
+  async signOut() {
+    await Auth.signOut();
     window.location.reload();
   }
 

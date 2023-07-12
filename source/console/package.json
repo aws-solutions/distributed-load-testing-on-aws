@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws-ui",
-  "version": "3.2.1",
+  "version": "3.2.2",
   "private": true,
   "license": "Apache-2.0",
   "author": "aws-solution-builders",
@@ -28,10 +28,9 @@
   },
   "dependencies": {
     "@aws-amplify/pubsub": "4.4.10",
-    "@aws-amplify/ui-components": "^1.9.6",
     "@aws-amplify/ui-react": "^1.0.2",
     "aws-amplify": "4.3.31",
-    "aws-sdk": "^2.1082.0",
+    "aws-sdk": "^2.1392.0",
     "bootstrap": "^5.1.0",
     "bootstrap-icons": "^1.8.1",
     "brace": "^0.11.1",
@@ -39,12 +38,27 @@
     "chartjs-adapter-moment": "^1.0.0",
     "moment": "^2.29.1",
     "react": "^17.0.1",
-    "react-ace": "^9.3.0",
+    "react-ace": "^10.1.0",
     "react-dom": "^17.0.1",
     "react-router-dom": "^5.2.0",
-    "react-scripts": "^4.0.3",
+    "react-scripts": "^5.0.1",
     "reactstrap": "^9.0.0",
     "solution-utils": "file:../solution-utils"
   },
-  "readme": "./README.md"
+  "overrides": {
+    "fast-xml-parser": "4.2.5",
+    "nth-check": "2.0.1",
+    "semver": "7.5.2",
+    "optionator": "0.9.3"
+  },
+  "resolutions": {
+    "fast-xml-parser": "4.2.5",
+    "nth-check": "2.0.1",
+    "semver": "7.5.2",
+    "optionator": "0.9.3"
+  },
+  "readme": "./README.md",
+  "devDependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11"
+  }
 }

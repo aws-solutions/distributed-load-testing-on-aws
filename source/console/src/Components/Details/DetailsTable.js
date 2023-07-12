@@ -2,9 +2,8 @@ import React from "react";
 import { Button, Row, Col } from "reactstrap";
 
 import AceEditor from "react-ace";
-import "brace";
+import "brace/mode/text";
 import "brace/theme/github";
-
 class DetailsTable extends React.Component {
   constructor(props) {
     super(props);
@@ -81,7 +80,7 @@ class DetailsTable extends React.Component {
                       id="testHeaders"
                       name="headers"
                       value={JSON.stringify(data.headers, null, 2)}
-                      mode="json"
+                      mode="text"
                       theme="github"
                       width="100%"
                       maxLines={10}
@@ -101,11 +100,11 @@ class DetailsTable extends React.Component {
                       id="testBody"
                       name="body"
                       value={JSON.stringify(data.body, null, 2)}
-                      mode="json"
+                      mode="text"
                       theme="github"
                       width="100%"
                       maxLines={10}
-                      showPrintMargin={false}
+                      showPrintMargin={true}
                       showGutter={false}
                       readOnly={true}
                       editorProps={{ $blockScrolling: true }}

@@ -62,6 +62,7 @@ class TestControlButtons extends React.Component {
       scheduleData: data.scheduleDate,
       scheduleTime: data.scheduleTime,
       recurrence: data.recurrence,
+      regionalTaskDetails: data.regionalTaskDetails,
     };
 
     if (data.testType === "simple") {

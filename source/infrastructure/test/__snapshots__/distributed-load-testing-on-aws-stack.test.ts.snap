@@ -1035,7 +1035,7 @@ Object {
       },
       "Type": "AWS::IAM::Role",
     },
-    "DLTApiDeployment098FF8885717e67f3e4712c50b31f4e78c9acc35": Object {
+    "DLTApiDeployment098FF888cb409d5b175926be9719cf717cb2aab7": Object {
       "DependsOn": Array [
         "DLTApiAPIAllRequestValidator02C9D47F",
         "DLTApiOPTIONS823B5F09",
@@ -1112,7 +1112,7 @@ Object {
           "Format": "{\\"requestId\\":\\"$context.requestId\\",\\"ip\\":\\"$context.identity.sourceIp\\",\\"user\\":\\"$context.identity.user\\",\\"caller\\":\\"$context.identity.caller\\",\\"requestTime\\":\\"$context.requestTime\\",\\"httpMethod\\":\\"$context.httpMethod\\",\\"resourcePath\\":\\"$context.resourcePath\\",\\"status\\":\\"$context.status\\",\\"protocol\\":\\"$context.protocol\\",\\"responseLength\\":\\"$context.responseLength\\"}",
         },
         "DeploymentId": Object {
-          "Ref": "DLTApiDeployment098FF8885717e67f3e4712c50b31f4e78c9acc35",
+          "Ref": "DLTApiDeployment098FF888cb409d5b175926be9719cf717cb2aab7",
         },
         "MethodSettings": Array [
           Object {
@@ -1264,6 +1264,7 @@ Object {
     },
     "DLTApiOPTIONS823B5F09": Object {
       "Properties": Object {
+        "ApiKeyRequired": false,
         "AuthorizationType": "NONE",
         "HttpMethod": "OPTIONS",
         "Integration": Object {
@@ -1379,6 +1380,7 @@ Object {
     },
     "DLTApiregionsOPTIONSCB04B2B1": Object {
       "Properties": Object {
+        "ApiKeyRequired": false,
         "AuthorizationType": "NONE",
         "HttpMethod": "OPTIONS",
         "Integration": Object {
@@ -1491,6 +1493,7 @@ Object {
     },
     "DLTApiscenariosOPTIONS6F514DA3": Object {
       "Properties": Object {
+        "ApiKeyRequired": false,
         "AuthorizationType": "NONE",
         "HttpMethod": "OPTIONS",
         "Integration": Object {
@@ -1600,6 +1603,7 @@ Object {
     },
     "DLTApiscenariostestIdOPTIONS0B339CE6": Object {
       "Properties": Object {
+        "ApiKeyRequired": false,
         "AuthorizationType": "NONE",
         "HttpMethod": "OPTIONS",
         "Integration": Object {
@@ -1712,6 +1716,7 @@ Object {
     },
     "DLTApitasksOPTIONSDABED809": Object {
       "Properties": Object {
+        "ApiKeyRequired": false,
         "AuthorizationType": "NONE",
         "HttpMethod": "OPTIONS",
         "Integration": Object {
@@ -1824,6 +1829,7 @@ Object {
     },
     "DLTApivCPUDetailsOPTIONS8854EB1F": Object {
       "Properties": Object {
+        "ApiKeyRequired": false,
         "AuthorizationType": "NONE",
         "HttpMethod": "OPTIONS",
         "Integration": Object {
