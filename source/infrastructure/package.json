@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws-infrastructure",
-  "version": "3.2.1",
+  "version": "3.2.2",
   "bin": {
     "distributed-load-testing-on-aws": "bin/distributed-load-testing-on-aws.ts"
   },
@@ -14,8 +14,8 @@
   "devDependencies": {
     "@aws-solutions-constructs/aws-cloudfront-s3": "2.32.0",
     "@aws-cdk/aws-servicecatalogappregistry-alpha": "2.66.1-alpha.0",
-    "aws-cdk": "2.66.1",
-    "aws-cdk-lib": "2.66.1",
+    "aws-cdk": "2.84.0",
+    "aws-cdk-lib": "2.85.0",
     "constructs": "10.1.265",
     "@types/jest": "^26.0.10",
     "@types/node": "10.17.27",
@@ -26,5 +26,11 @@
   },
   "dependencies": {
     "source-map-support": "^0.5.16"
+  },
+  "overrides": {
+    "semver": "7.5.2"
+  },
+  "resolutions": {
+    "semver": "7.5.2"
   }
 }

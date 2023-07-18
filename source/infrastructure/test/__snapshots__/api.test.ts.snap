@@ -439,7 +439,7 @@ Object {
       "Type": "AWS::IAM::Role",
       "UpdateReplacePolicy": "Retain",
     },
-    "TestAPIDLTApiDeployment7935ADA243c86edbb16cae8d76c92af1774614fe": Object {
+    "TestAPIDLTApiDeployment7935ADA27d567a21f4c19426fb338f10f77fd745": Object {
       "DependsOn": Array [
         "TestAPIAPIAllRequestValidator9A179146",
         "TestAPIDLTApiOPTIONS380FFB97",
@@ -502,7 +502,7 @@ Object {
           "Format": "{\\"requestId\\":\\"$context.requestId\\",\\"ip\\":\\"$context.identity.sourceIp\\",\\"user\\":\\"$context.identity.user\\",\\"caller\\":\\"$context.identity.caller\\",\\"requestTime\\":\\"$context.requestTime\\",\\"httpMethod\\":\\"$context.httpMethod\\",\\"resourcePath\\":\\"$context.resourcePath\\",\\"status\\":\\"$context.status\\",\\"protocol\\":\\"$context.protocol\\",\\"responseLength\\":\\"$context.responseLength\\"}",
         },
         "DeploymentId": Object {
-          "Ref": "TestAPIDLTApiDeployment7935ADA243c86edbb16cae8d76c92af1774614fe",
+          "Ref": "TestAPIDLTApiDeployment7935ADA27d567a21f4c19426fb338f10f77fd745",
         },
         "MethodSettings": Array [
           Object {
@@ -522,6 +522,7 @@ Object {
     },
     "TestAPIDLTApiOPTIONS380FFB97": Object {
       "Properties": Object {
+        "ApiKeyRequired": false,
         "AuthorizationType": "NONE",
         "HttpMethod": "OPTIONS",
         "Integration": Object {
@@ -637,6 +638,7 @@ Object {
     },
     "TestAPIDLTApiregionsOPTIONSB6A98797": Object {
       "Properties": Object {
+        "ApiKeyRequired": false,
         "AuthorizationType": "NONE",
         "HttpMethod": "OPTIONS",
         "Integration": Object {
@@ -749,6 +751,7 @@ Object {
     },
     "TestAPIDLTApiscenariosOPTIONS6968DE71": Object {
       "Properties": Object {
+        "ApiKeyRequired": false,
         "AuthorizationType": "NONE",
         "HttpMethod": "OPTIONS",
         "Integration": Object {
@@ -858,6 +861,7 @@ Object {
     },
     "TestAPIDLTApiscenariostestIdOPTIONSF10FECFD": Object {
       "Properties": Object {
+        "ApiKeyRequired": false,
         "AuthorizationType": "NONE",
         "HttpMethod": "OPTIONS",
         "Integration": Object {
@@ -970,6 +974,7 @@ Object {
     },
     "TestAPIDLTApitasksOPTIONS151B5B68": Object {
       "Properties": Object {
+        "ApiKeyRequired": false,
         "AuthorizationType": "NONE",
         "HttpMethod": "OPTIONS",
         "Integration": Object {
@@ -1082,6 +1087,7 @@ Object {
     },
     "TestAPIDLTApivCPUDetailsOPTIONS03B0AAEA": Object {
       "Properties": Object {
+        "ApiKeyRequired": false,
         "AuthorizationType": "NONE",
         "HttpMethod": "OPTIONS",
         "Integration": Object {

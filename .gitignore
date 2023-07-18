@@ -8,6 +8,7 @@ open-source/
 console_new/
 **/aws_config.js
 deployment/ecr/*.jar
+test/
 
 .pnp
 .pnp.js

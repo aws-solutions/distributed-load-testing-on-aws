@@ -162,6 +162,13 @@ Object {
       "DeletionPolicy": "Retain",
       "Properties": Object {
         "AccessControl": "LogDeliveryWrite",
+        "OwnershipControls": Object {
+          "Rules": Array [
+            Object {
+              "ObjectOwnership": "ObjectWriter",
+            },
+          ],
+        },
       },
       "Type": "AWS::S3::Bucket",
       "UpdateReplacePolicy": "Retain",

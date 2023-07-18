@@ -5,7 +5,6 @@ import {
   Chain,
   Choice,
   Condition,
-  DISCARD,
   Fail,
   Pass,
   LogLevel,
@@ -14,6 +13,8 @@ import {
   Succeed,
   Wait,
   WaitTime,
+  JsonPath,
+  DefinitionBody,
 } from "aws-cdk-lib/aws-stepfunctions";
 import { LambdaInvoke } from "aws-cdk-lib/aws-stepfunctions-tasks";
 import { Aws, CfnResource, Duration } from "aws-cdk-lib";
@@ -95,7 +96,7 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
     const cancelTest = new LambdaInvoke(this, "Cancel Test", {
       lambdaFunction: props.taskCanceler,
       inputPath: "$",
-      resultPath: DISCARD,
+      resultPath: JsonPath.DISCARD,
     });
     cancelTest.next(mapEnd);
 
@@ -107,7 +108,7 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
 
     const regionConfigsForTest = new SFMap(this, "Regions for testing", {
       inputPath: "$",
-      resultPath: DISCARD,
+      resultPath: JsonPath.DISCARD,
       itemsPath: "$.testTaskConfig",
       parameters: {
         "testTaskConfig.$": "$$.Map.Item.Value",
@@ -168,7 +169,7 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
     const definition = Chain.start(regionConfigsForTest.iterator(checkRunningTests)).next(parseResult);
 
     this.taskRunnerStepFunctions = new StateMachine(this, "TaskRunnerStepFunctions", {
-      definition,
+      definitionBody: DefinitionBody.fromChainable(definition),
       logs: {
         destination: stepFunctionsLogGroup,
         level: LogLevel.ALL,
