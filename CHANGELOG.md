@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.3] - 2023-10-5
+
+### Fixed
+ 
+- Bug fix to resolve Multipart upload for files bigger than 5MB
+- Bug fix to show success codes other than 200
+- Bug fix to reoslve [#131] https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/131
+- Updating CDK libraries to latest version to allow deployment in some form in Israel Region
+- Fixing Security Hotspots and resolving codesmells
+- Updating the Docker Image to the latest version 
+
 ## [3.2.2] - 2023-06-29
 
 ### Fixed
@@ -90,9 +101,9 @@ Version 3.0.0 does not support upgrading from previous versions.
 - Sleep between runTask API calls
 
 ## [2.0.2] - 2022-03-31
-  
+
 ### Added
-  
+
 - Enabled encryption in transit for the logging S3 bucket.
 
 ## [2.0.1] - 2021-12-13

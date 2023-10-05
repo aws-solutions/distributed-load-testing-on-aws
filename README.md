@@ -26,7 +26,7 @@ A NodeJS Lambda function for the API microservices. Integrated with Amazon API G
 ReactJS Single page application to provide a GUI to the solutions. Authenticated through Amazon Cognito this dashboard allows users to Create tests and view the final results.
 
 **source/custom-resource**<br/>
-A NodeJS Lambda function used as a CloudFormation custom resource for sending anonymous metrics, configuration for regional testing infrastructure, and iot configuration.
+A NodeJS Lambda function used as a CloudFormation custom resource for sending anonymized metrics, configuration for regional testing infrastructure, and iot configuration.
 
 **source/infrastructure**<br/>
 A Typescript [AWS Cloud Development Kit (AWS CDK)](https://aws.amazon.com/cdk/) [v2](https://docs.aws.amazon.com/cdk/v2/guide/home.html) package that defines the infrastructure resources to run the Distributed Load Testing on AWS solution.
@@ -105,6 +105,7 @@ chmod +x ./build-s3-dist.sh
 > **Note**: The _build-s3-dist_ script expects the bucket name **without the region suffix** as one of its parameters.
 
 - Deploy the distributable to the Amazon S3 bucket in your account.
+
   - Make sure you are uploading the files in `deployment/global-s3-assets` and `deployment/regional-s3-assets` to `$BUCKET_NAME/$SOLUTION_NAME/$VERSION`.
 
 - Get the link of the solution template uploaded to your Amazon S3 bucket.
@@ -118,8 +119,9 @@ For details on how to customize the container image, please see the **Container 
 
 ## Collection of operational metrics
 
-This solution collects anonymous operational metrics to help AWS improve the quality and features of the solution. For more information, including how to disable this capability, please see the [implementation guide](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/operational-metrics.html).
-***
+This solution collects anonymized operational metrics to help AWS improve the quality and features of the solution. For more information, including how to disable this capability, please see the [implementation guide](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/operational-metrics.html).
+
+---
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.<br />
 SPDX-License-Identifier: Apache-2.0

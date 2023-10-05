@@ -31,7 +31,7 @@ exports.handler = async (event, context) => {
           };
         }
         break;
-      case "AnonymousMetric":
+      case "AnonymizedMetric":
         await metrics.send(config, requestType);
         break;
       default:

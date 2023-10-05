@@ -1,35 +1,35 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`DLT API Test 1`] = `
-Object {
-  "Resources": Object {
-    "TestConsoleResourcesDLTCloudFrontToS3CloudFrontDistribution4534927E": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
+{
+  "Resources": {
+    "TestConsoleResourcesDLTCloudFrontToS3CloudFrontDistribution4534927E": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
               "id": "W70",
               "reason": "Since the distribution uses the CloudFront domain name, CloudFront automatically sets the security policy to TLSv1 regardless of the value of MinimumProtocolVersion",
             },
           ],
         },
       },
-      "Properties": Object {
-        "DistributionConfig": Object {
+      "Properties": {
+        "DistributionConfig": {
           "Comment": "Website distribution for the Distributed Load Testing solution",
-          "CustomErrorResponses": Array [
-            Object {
+          "CustomErrorResponses": [
+            {
               "ErrorCode": 403,
               "ResponseCode": 200,
               "ResponsePagePath": "/index.html",
             },
-            Object {
+            {
               "ErrorCode": 404,
               "ResponseCode": 200,
               "ResponsePagePath": "/index.html",
             },
           ],
-          "DefaultCacheBehavior": Object {
+          "DefaultCacheBehavior": {
             "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
             "Compress": true,
             "TargetOriginId": "DLTStackTestConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1AA2FCD06",
@@ -39,31 +39,31 @@ Object {
           "Enabled": true,
           "HttpVersion": "http2",
           "IPV6Enabled": true,
-          "Logging": Object {
-            "Bucket": Object {
-              "Fn::GetAtt": Array [
+          "Logging": {
+            "Bucket": {
+              "Fn::GetAtt": [
                 "testSourceCodeBucketC577B176",
                 "RegionalDomainName",
               ],
             },
             "Prefix": "cloudfront-logs/",
           },
-          "Origins": Array [
-            Object {
-              "DomainName": Object {
-                "Fn::GetAtt": Array [
+          "Origins": [
+            {
+              "DomainName": {
+                "Fn::GetAtt": [
                   "TestConsoleResourcesDLTCloudFrontToS3S3BucketAC4D9E17",
                   "RegionalDomainName",
                 ],
               },
               "Id": "DLTStackTestConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1AA2FCD06",
-              "S3OriginConfig": Object {
-                "OriginAccessIdentity": Object {
-                  "Fn::Join": Array [
+              "S3OriginConfig": {
+                "OriginAccessIdentity": {
+                  "Fn::Join": [
                     "",
-                    Array [
+                    [
                       "origin-access-identity/cloudfront/",
-                      Object {
+                      {
                         "Ref": "TestConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1S3OriginDB11D6D3",
                       },
                     ],
@@ -76,31 +76,31 @@ Object {
       },
       "Type": "AWS::CloudFront::Distribution",
     },
-    "TestConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1S3OriginDB11D6D3": Object {
-      "Properties": Object {
-        "CloudFrontOriginAccessIdentityConfig": Object {
+    "TestConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1S3OriginDB11D6D3": {
+      "Properties": {
+        "CloudFrontOriginAccessIdentityConfig": {
           "Comment": "Identity for DLTStackTestConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1AA2FCD06",
         },
       },
       "Type": "AWS::CloudFront::CloudFrontOriginAccessIdentity",
     },
-    "TestConsoleResourcesDLTCloudFrontToS3S3BucketAC4D9E17": Object {
+    "TestConsoleResourcesDLTCloudFrontToS3S3BucketAC4D9E17": {
       "DeletionPolicy": "Retain",
-      "Properties": Object {
-        "BucketEncryption": Object {
-          "ServerSideEncryptionConfiguration": Array [
-            Object {
-              "ServerSideEncryptionByDefault": Object {
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
                 "SSEAlgorithm": "AES256",
               },
             },
           ],
         },
-        "LifecycleConfiguration": Object {
-          "Rules": Array [
-            Object {
-              "NoncurrentVersionTransitions": Array [
-                Object {
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "NoncurrentVersionTransitions": [
+                {
                   "StorageClass": "GLACIER",
                   "TransitionInDays": 90,
                 },
@@ -109,66 +109,66 @@ Object {
             },
           ],
         },
-        "LoggingConfiguration": Object {
-          "DestinationBucketName": Object {
+        "LoggingConfiguration": {
+          "DestinationBucketName": {
             "Ref": "testSourceCodeBucketC577B176",
           },
           "LogFilePrefix": "console-bucket-access/",
         },
-        "PublicAccessBlockConfiguration": Object {
+        "PublicAccessBlockConfiguration": {
           "BlockPublicAcls": true,
           "BlockPublicPolicy": true,
           "IgnorePublicAcls": true,
           "RestrictPublicBuckets": true,
         },
-        "VersioningConfiguration": Object {
+        "VersioningConfiguration": {
           "Status": "Enabled",
         },
       },
       "Type": "AWS::S3::Bucket",
       "UpdateReplacePolicy": "Retain",
     },
-    "TestConsoleResourcesDLTCloudFrontToS3S3BucketPolicy2004C0F3": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
+    "TestConsoleResourcesDLTCloudFrontToS3S3BucketPolicy2004C0F3": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
               "id": "F16",
               "reason": "Public website bucket policy requires a wildcard principal",
             },
           ],
         },
       },
-      "Properties": Object {
-        "Bucket": Object {
+      "Properties": {
+        "Bucket": {
           "Ref": "TestConsoleResourcesDLTCloudFrontToS3S3BucketAC4D9E17",
         },
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
+        "PolicyDocument": {
+          "Statement": [
+            {
               "Action": "s3:*",
-              "Condition": Object {
-                "Bool": Object {
+              "Condition": {
+                "Bool": {
                   "aws:SecureTransport": "false",
                 },
               },
               "Effect": "Deny",
-              "Principal": Object {
+              "Principal": {
                 "AWS": "*",
               },
-              "Resource": Array [
-                Object {
-                  "Fn::GetAtt": Array [
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
                     "TestConsoleResourcesDLTCloudFrontToS3S3BucketAC4D9E17",
                     "Arn",
                   ],
                 },
-                Object {
-                  "Fn::Join": Array [
+                {
+                  "Fn::Join": [
                     "",
-                    Array [
-                      Object {
-                        "Fn::GetAtt": Array [
+                    [
+                      {
+                        "Fn::GetAtt": [
                           "TestConsoleResourcesDLTCloudFrontToS3S3BucketAC4D9E17",
                           "Arn",
                         ],
@@ -179,23 +179,23 @@ Object {
                 },
               ],
             },
-            Object {
+            {
               "Action": "s3:GetObject",
               "Effect": "Allow",
-              "Principal": Object {
-                "CanonicalUser": Object {
-                  "Fn::GetAtt": Array [
+              "Principal": {
+                "CanonicalUser": {
+                  "Fn::GetAtt": [
                     "TestConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1S3OriginDB11D6D3",
                     "S3CanonicalUserId",
                   ],
                 },
               },
-              "Resource": Object {
-                "Fn::Join": Array [
+              "Resource": {
+                "Fn::Join": [
                   "",
-                  Array [
-                    Object {
-                      "Fn::GetAtt": Array [
+                  [
+                    {
+                      "Fn::GetAtt": [
                         "TestConsoleResourcesDLTCloudFrontToS3S3BucketAC4D9E17",
                         "Arn",
                       ],
@@ -211,13 +211,13 @@ Object {
       },
       "Type": "AWS::S3::BucketPolicy",
     },
-    "testSourceCodeBucketC577B176": Object {
+    "testSourceCodeBucketC577B176": {
       "DeletionPolicy": "Retain",
-      "Properties": Object {
+      "Properties": {
         "AccessControl": "LogDeliveryWrite",
-        "OwnershipControls": Object {
-          "Rules": Array [
-            Object {
+        "OwnershipControls": {
+          "Rules": [
+            {
               "ObjectOwnership": "ObjectWriter",
             },
           ],

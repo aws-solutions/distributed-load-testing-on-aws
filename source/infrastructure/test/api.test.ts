@@ -39,7 +39,7 @@ test("DLT API Test", () => {
     taskRunnerStepFunctionsArn: "arn:aws:states:us-east-1:111122223333:stateMachine:HelloWorld-StateMachine",
     taskCancelerArn: "arn:aws:lambda:us-east-1:111122223333:function:HelloFunction",
     metricsUrl: "http://testurl.com",
-    sendAnonymousUsage: "Yes",
+    sendAnonymizedUsage: "Yes",
     solutionId: "testId",
     solutionVersion: "testVersion",
     sourceCodeBucket: testSourceBucket,

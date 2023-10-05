@@ -91,7 +91,6 @@ const getAllRegionConfigs = async () => {
  */
 const getTestEntry = async (testId) => {
   try {
-    let data;
     let params = {
       TableName: SCENARIOS_TABLE,
       Key: {
@@ -99,8 +98,7 @@ const getTestEntry = async (testId) => {
       },
     };
     const response = await dynamoDB.get(params).promise();
-    data = response.Item;
-    return data;
+    return response.Item;
   } catch (err) {
     console.error(err);
     throw err;
@@ -575,7 +573,7 @@ const formatStringKey = (testScenario, key) => {
  * @param {string} testDuration
  */
 const getTestDurationSeconds = (testDuration) => {
-  const splitDurationRegex = /[a-z]+|[0-9]+/gi;
+  const splitDurationRegex = /[a-z]+|\d+/gi;
   const [durationValue, durationUnit] = testDuration.match(splitDurationRegex);
   if (durationUnit === "s") {
     return parseInt(durationValue);
@@ -1056,33 +1054,47 @@ const parseBatchRequests = async (testRuns) => {
   }
 };
 
+const deleteMetricFilter = async (testId, taskCluster, ecsCloudWatchLogGroup) => {
+  const metrics = ["numVu", "numSucc", "numFail", "avgRt"];
+  const cloudwatchLogs = new AWS.CloudWatchLogs(options);
+
+  for (let metric of metrics) {
+    console.log("deleting metric filter:", `${taskCluster}-Ecs${metric}-${testId}`);
+    let deleteMetricFilterParams = {
+      filterName: `${taskCluster}-Ecs${metric}-${testId}`,
+      logGroupName: ecsCloudWatchLogGroup,
+    };
+    try {
+      await cloudwatchLogs.deleteMetricFilter(deleteMetricFilterParams).promise();
+    } catch (e) {
+      if (e.code === "ResourceNotFoundException") {
+        console.error("metric filter", `${taskCluster}-Ecs${metric}-${testId}`, "does not exist");
+      } else {
+        throw e;
+      }
+    }
+  }
+};
+
 /**
  * Deletes the metric filter created for the test run in all configured regions
  * @param {string} testId
  * @param {object} testAndRegionalInfraConfigs
  */
-const deleteMetricFilter = async (testId, testAndRegionalInfraConfigs) => {
+const deleteDashboards = async (testId, testAndRegionalInfraConfigs) => {
   //delete metric filter, if no metric filters log error and continue delete
+  const dashboardNames = [];
+  if (!testAndRegionalInfraConfigs.testTaskConfigs) return;
   try {
-    const metrics = ["numVu", "numSucc", "numFail", "avgRt"];
-    const dashboardNames = [];
-    if (testAndRegionalInfraConfigs.testTaskConfigs) {
-      for (const regionConfig of testAndRegionalInfraConfigs.testTaskConfigs) {
-        dashboardNames.push(`EcsLoadTesting-${testId}-${regionConfig.region}`);
-        options.region = regionConfig.region;
-        const cloudwatch = new AWS.CloudWatch(options);
-        const cloudwatchLogs = new AWS.CloudWatchLogs(options);
-        for (let metric of metrics) {
-          let deleteMetricFilterParams = {
-            filterName: `${regionConfig.taskCluster}-Ecs${metric}-${testId}`,
-            logGroupName: regionConfig.ecsCloudWatchLogGroup,
-          };
-          await cloudwatchLogs.deleteMetricFilter(deleteMetricFilterParams).promise();
-        }
-        //Delete Dashboard
-        const deleteDashboardParams = { DashboardNames: dashboardNames };
-        await cloudwatch.deleteDashboards(deleteDashboardParams).promise();
-      }
+    for (const regionConfig of testAndRegionalInfraConfigs.testTaskConfigs) {
+      dashboardNames.push(`EcsLoadTesting-${testId}-${regionConfig.region}`);
+      options.region = regionConfig.region;
+      const cloudwatch = new AWS.CloudWatch(options);
+      await deleteMetricFilter(testId, regionConfig.taskCluster, regionConfig.ecsCloudWatchLogGroup);
+      //Delete Dashboard
+      console.log("deleting dash:", dashboardNames);
+      const deleteDashboardParams = { DashboardNames: dashboardNames };
+      await cloudwatch.deleteDashboards(deleteDashboardParams).promise();
     }
   } catch (err) {
     console.error(err);
@@ -1099,17 +1111,9 @@ const deleteMetricFilter = async (testId, testAndRegionalInfraConfigs) => {
 const deleteTest = async (testId, functionName) => {
   console.log(`Delete test, testId: ${testId}`);
   // Get test regions then get config info
-  try {
-    // Get test and regional test infrastructure configuration
-    const testAndRegionalInfraConfigs = await getTestAndRegionConfigs(testId);
-    await deleteMetricFilter(testId, testAndRegionalInfraConfigs);
-  } catch (err) {
-    if (err.code === "ResourceNotFoundException") {
-      console.error(err);
-    } else {
-      throw err;
-    }
-  }
+  // Get test and regional test infrastructure configuration
+  const testAndRegionalInfraConfigs = await getTestAndRegionConfigs(testId);
+  await deleteDashboards(testId, testAndRegionalInfraConfigs);
 
   try {
     //Get Rules

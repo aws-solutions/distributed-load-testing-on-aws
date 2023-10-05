@@ -1,45 +1,45 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`DLT ECS Test 1`] = `
-Object {
-  "Resources": Object {
-    "TestECSDLTCloudWatchLogsGroup505959A6": Object {
+{
+  "Resources": {
+    "TestECSDLTCloudWatchLogsGroup505959A6": {
       "DeletionPolicy": "Retain",
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
               "id": "W84",
               "reason": "KMS encryption unnecessary for log group",
             },
           ],
         },
       },
-      "Properties": Object {
+      "Properties": {
         "RetentionInDays": 365,
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
     },
-    "TestECSDLTEcsCluster7C6F0F5D": Object {
-      "Properties": Object {
-        "ClusterName": Object {
+    "TestECSDLTEcsCluster7C6F0F5D": {
+      "Properties": {
+        "ClusterName": {
           "Ref": "AWS::StackName",
         },
-        "ClusterSettings": Array [
-          Object {
+        "ClusterSettings": [
+          {
             "Name": "containerInsights",
             "Value": "enabled",
           },
         ],
-        "Tags": Array [
-          Object {
+        "Tags": [
+          {
             "Key": "CloudFormation Stack",
-            "Value": Object {
+            "Value": {
               "Ref": "AWS::StackName",
             },
           },
-          Object {
+          {
             "Key": "SolutionId",
             "Value": "SO0062",
           },
@@ -47,73 +47,73 @@ Object {
       },
       "Type": "AWS::ECS::Cluster",
     },
-    "TestECSDLTEcsSecurityGroupFE5016DC": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
+    "TestECSDLTEcsSecurityGroupFE5016DC": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
               "id": "W40",
               "reason": "IpProtocol set to -1 (any) as ports are not known prior to running tests",
             },
           ],
         },
       },
-      "Properties": Object {
+      "Properties": {
         "GroupDescription": "DLTS Tasks Security Group",
         "VpcId": "vpc-1a2b3c4d5e",
       },
       "Type": "AWS::EC2::SecurityGroup",
     },
-    "TestECSDLTSecGroupEgressFC1E4757": Object {
-      "Properties": Object {
+    "TestECSDLTSecGroupEgressFC1E4757": {
+      "Properties": {
         "CidrIp": "0.0.0.0/0",
         "Description": "Allow tasks to call out to external resources",
-        "GroupId": Object {
+        "GroupId": {
           "Ref": "TestECSDLTEcsSecurityGroupFE5016DC",
         },
         "IpProtocol": "-1",
       },
       "Type": "AWS::EC2::SecurityGroupEgress",
     },
-    "TestECSDLTSecGroupIngress78B83F3F": Object {
-      "Properties": Object {
+    "TestECSDLTSecGroupIngress78B83F3F": {
+      "Properties": {
         "Description": "Allow tasks to communicate",
         "FromPort": 50000,
-        "GroupId": Object {
+        "GroupId": {
           "Ref": "TestECSDLTEcsSecurityGroupFE5016DC",
         },
         "IpProtocol": "tcp",
-        "SourceSecurityGroupId": Object {
+        "SourceSecurityGroupId": {
           "Ref": "TestECSDLTEcsSecurityGroupFE5016DC",
         },
         "ToPort": 50000,
       },
       "Type": "AWS::EC2::SecurityGroupIngress",
     },
-    "TestECSDLTTaskDefinitionB261038E": Object {
-      "Properties": Object {
-        "ContainerDefinitions": Array [
-          Object {
+    "TestECSDLTTaskDefinitionB261038E": {
+      "Properties": {
+        "ContainerDefinitions": [
+          {
             "Essential": true,
             "Image": "testRepository/testImage:testTag",
-            "LogConfiguration": Object {
+            "LogConfiguration": {
               "LogDriver": "awslogs",
-              "Options": Object {
-                "awslogs-group": Object {
+              "Options": {
+                "awslogs-group": {
                   "Ref": "TestECSDLTCloudWatchLogsGroup505959A6",
                 },
-                "awslogs-region": Object {
+                "awslogs-region": {
                   "Ref": "AWS::Region",
                 },
                 "awslogs-stream-prefix": "load-testing",
               },
             },
             "Memory": 4096,
-            "Name": Object {
-              "Fn::Join": Array [
+            "Name": {
+              "Fn::Join": [
                 "",
-                Array [
-                  Object {
+                [
+                  {
                     "Ref": "AWS::StackName",
                   },
                   "-load-tester",
@@ -123,19 +123,19 @@ Object {
           },
         ],
         "Cpu": "2048",
-        "ExecutionRoleArn": Object {
-          "Fn::GetAtt": Array [
+        "ExecutionRoleArn": {
+          "Fn::GetAtt": [
             "TestECSDLTTaskExecutionRole104D057B",
             "Arn",
           ],
         },
         "Memory": "4096",
         "NetworkMode": "awsvpc",
-        "RequiresCompatibilities": Array [
+        "RequiresCompatibilities": [
           "FARGATE",
         ],
-        "TaskRoleArn": Object {
-          "Fn::GetAtt": Array [
+        "TaskRoleArn": {
+          "Fn::GetAtt": [
             "TestECSDLTTaskExecutionRole104D057B",
             "Arn",
           ],
@@ -143,27 +143,27 @@ Object {
       },
       "Type": "AWS::ECS::TaskDefinition",
     },
-    "TestECSDLTTaskExecutionRole104D057B": Object {
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
+    "TestECSDLTTaskExecutionRole104D057B": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
               "Action": "sts:AssumeRole",
               "Effect": "Allow",
-              "Principal": Object {
+              "Principal": {
                 "Service": "ecs-tasks.amazonaws.com",
               },
             },
           ],
           "Version": "2012-10-17",
         },
-        "ManagedPolicyArns": Array [
-          Object {
-            "Fn::Join": Array [
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
               "",
-              Array [
+              [
                 "arn:",
-                Object {
+                {
                   "Ref": "AWS::Partition",
                 },
                 ":iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
@@ -171,37 +171,37 @@ Object {
             ],
           },
         ],
-        "Policies": Array [
-          Object {
-            "PolicyDocument": Object {
-              "Statement": Array [
-                Object {
-                  "Action": Array [
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
                     "s3:HeadObject",
                     "s3:PutObject",
                     "s3:GetObject",
                     "s3:ListBucket",
                   ],
                   "Effect": "Allow",
-                  "Resource": Array [
-                    Object {
-                      "Fn::Join": Array [
+                  "Resource": [
+                    {
+                      "Fn::Join": [
                         "",
-                        Array [
+                        [
                           "arn:",
-                          Object {
+                          {
                             "Ref": "AWS::Partition",
                           },
                           ":s3:::testscenariobucket",
                         ],
                       ],
                     },
-                    Object {
-                      "Fn::Join": Array [
+                    {
+                      "Fn::Join": [
                         "",
-                        Array [
+                        [
                           "arn:",
-                          Object {
+                          {
                             "Ref": "AWS::Partition",
                           },
                           ":s3:::testscenariobucket/*",
@@ -219,11 +219,11 @@ Object {
       },
       "Type": "AWS::IAM::Role",
     },
-    "TestPolicyCC05E598": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
+    "TestPolicyCC05E598": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
               "Action": "cloudwatch:Get*",
               "Effect": "Allow",
               "Resource": "*",
@@ -232,8 +232,8 @@ Object {
           "Version": "2012-10-17",
         },
         "PolicyName": "TestPolicyCC05E598",
-        "Roles": Array [
-          Object {
+        "Roles": [
+          {
             "Ref": "TestECSDLTTaskExecutionRole104D057B",
           },
         ],

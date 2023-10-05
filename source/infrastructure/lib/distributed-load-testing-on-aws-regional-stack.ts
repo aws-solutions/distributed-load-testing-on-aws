@@ -168,7 +168,7 @@ export class RegionalInfrastructureDLTStack extends Stack {
           S3Bucket: props.codeBucket,
           ScenariosS3Bucket: "SCENARIOS_BUCKET",
           ScenariosTable: "SCENARIOS_DDB_TABLE",
-          SendAnonymousUsage: "Yes",
+          SendAnonymizedUsage: "Yes",
           SolutionId: props.solutionId,
           stackType: props.stackType,
           TaskRunnerRoleName: "TASK_RUNNER_ROLE",
@@ -186,7 +186,7 @@ export class RegionalInfrastructureDLTStack extends Stack {
     const resultsParserRoleName = solutionMapping.findInMap("Config", "ResultsParserRoleName");
     const scenariosS3Bucket = solutionMapping.findInMap("Config", "ScenariosS3Bucket");
     const scenariosTable = solutionMapping.findInMap("Config", "ScenariosTable");
-    const sendAnonymousUsage = solutionMapping.findInMap("Config", "SendAnonymousUsage");
+    const sendAnonymizedUsage = solutionMapping.findInMap("Config", "SendAnonymizedUsage");
     const solutionId = solutionMapping.findInMap("Config", "SolutionId");
     const solutionVersion = solutionMapping.findInMap("Config", "CodeVersion");
     const sourceCodeBucket = Fn.join("-", [solutionMapping.findInMap("Config", "S3Bucket"), Aws.REGION]);
@@ -200,8 +200,8 @@ export class RegionalInfrastructureDLTStack extends Stack {
     Tags.of(this).add("SolutionId", solutionId);
 
     // CFN Conditions
-    const sendAnonymousUsageCondition = new CfnCondition(this, "SendAnonymousUsage", {
-      expression: Fn.conditionEquals(sendAnonymousUsage, "Yes"),
+    const sendAnonymizedUsageCondition = new CfnCondition(this, "SendAnonymizedUsage", {
+      expression: Fn.conditionEquals(sendAnonymizedUsage, "Yes"),
     });
 
     const createFargateVpcResourcesCondition = new CfnCondition(this, "CreateFargateVPCResources", {
@@ -304,13 +304,13 @@ export class RegionalInfrastructureDLTStack extends Stack {
       uuid,
     });
 
-    customResources.sendAnonymousMetricsCR({
+    customResources.sendAnonymizedMetricsCR({
       existingVpc,
       solutionId,
       uuid,
       solutionVersion,
-      sendAnonymousUsage,
-      sendAnonymousUsageCondition,
+      sendAnonymizedUsage,
+      sendAnonymizedUsageCondition,
     });
 
     commonResources.appRegistryApplication({

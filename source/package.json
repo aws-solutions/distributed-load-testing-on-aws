@@ -1,10 +1,13 @@
 {
   "name": "source",
-  "version": "3.2.2",
+  "version": "3.2.3",
   "private": true,
   "description": "ESLint and prettier dependencies to be used within the solution",
   "license": "Apache-2.0",
-  "author": "AWS Solutions",
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions"
+  },
   "scripts": {
     "lint": "npx eslint . --ext .ts,.js",
     "prettier-format": "npx prettier --config .prettierrc.yml '**/*.{js,ts}' --write",

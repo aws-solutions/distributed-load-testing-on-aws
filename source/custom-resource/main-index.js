@@ -8,6 +8,34 @@ const s3 = require("./lib/s3");
 const iot = require("./lib/iot");
 const storeConfig = require("./lib/config-storage");
 
+const testingResourcesConfigFile = async (config, requestType) => {
+  if (requestType === "Delete") {
+    await storeConfig.delTestingResourcesConfigFile(config.TestingResourcesConfig);
+  } else {
+    await storeConfig.testingResourcesConfigFile(config.TestingResourcesConfig);
+  }
+};
+
+const s3Handler = async (config, requestType, resource) => {
+  switch (resource) {
+    case "CopyAssets":
+      if (requestType !== "Delete") {
+        await s3.copyAssets(config.SrcBucket, config.SrcPath, config.ManifestFile, config.DestBucket);
+      }
+      break;
+    case "ConfigFile":
+      if (requestType !== "Delete") {
+        await s3.configFile(config.AwsExports, config.DestBucket);
+      }
+      break;
+    case "PutRegionalTemplate":
+      if (requestType !== "Delete") {
+        await s3.putRegionalTemplate(config);
+      }
+      break;
+  }
+};
+
 exports.handler = async (event, context) => {
   console.log(`event: ${JSON.stringify(event, null, 2)}`);
 
@@ -19,11 +47,7 @@ exports.handler = async (event, context) => {
   try {
     switch (resource) {
       case "TestingResourcesConfigFile":
-        if (requestType === "Delete") {
-          await storeConfig.delTestingResourcesConfigFile(config.TestingResourcesConfig);
-        } else {
-          await storeConfig.testingResourcesConfigFile(config.TestingResourcesConfig);
-        }
+        await testingResourcesConfigFile(config, requestType);
         break;
       case "UUID":
         if (requestType === "Create") {
@@ -34,19 +58,9 @@ exports.handler = async (event, context) => {
         }
         break;
       case "CopyAssets":
-        if (requestType !== "Delete") {
-          await s3.copyAssets(config.SrcBucket, config.SrcPath, config.ManifestFile, config.DestBucket);
-        }
-        break;
       case "ConfigFile":
-        if (requestType !== "Delete") {
-          await s3.configFile(config.AwsExports, config.DestBucket);
-        }
-        break;
       case "PutRegionalTemplate":
-        if (requestType !== "Delete") {
-          await s3.putRegionalTemplate(config);
-        }
+        await s3Handler(config, requestType, resource);
         break;
       case "GetIotEndpoint":
         if (requestType === "Create") {
@@ -61,7 +75,7 @@ exports.handler = async (event, context) => {
           await iot.detachIotPolicy(config.IotPolicyName);
         }
         break;
-      case "AnonymousMetric":
+      case "AnonymizedMetric":
         await metrics.send(config, requestType);
         break;
       default:

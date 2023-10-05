@@ -1,22 +1,22 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`DLT API Test 1`] = `
-Object {
-  "Resources": Object {
-    "TestAuthCognitoAttachRole3C8C2843": Object {
-      "Properties": Object {
-        "IdentityPoolId": Object {
+{
+  "Resources": {
+    "TestAuthCognitoAttachRole3C8C2843": {
+      "Properties": {
+        "IdentityPoolId": {
           "Ref": "TestAuthDLTIdentityPoolCE53676D",
         },
-        "Roles": Object {
-          "authenticated": Object {
-            "Fn::GetAtt": Array [
+        "Roles": {
+          "authenticated": {
+            "Fn::GetAtt": [
               "TestAuthDLTCognitoAuthorizedRole00B36330",
               "Arn",
             ],
           },
-          "unauthenticated": Object {
-            "Fn::GetAtt": Array [
+          "unauthenticated": {
+            "Fn::GetAtt": [
               "TestAuthDLTCognitoUnauthorizedRole3D399466",
               "Arn",
             ],
@@ -25,99 +25,99 @@ Object {
       },
       "Type": "AWS::Cognito::IdentityPoolRoleAttachment",
     },
-    "TestAuthCognitoUser7FC8B6DF": Object {
-      "Properties": Object {
-        "DesiredDeliveryMediums": Array [
+    "TestAuthCognitoUser7FC8B6DF": {
+      "Properties": {
+        "DesiredDeliveryMediums": [
           "EMAIL",
         ],
         "ForceAliasCreation": true,
-        "UserAttributes": Array [
-          Object {
+        "UserAttributes": [
+          {
             "Name": "email",
             "Value": "test@test.com",
           },
-          Object {
+          {
             "Name": "nickname",
             "Value": "testname",
           },
-          Object {
+          {
             "Name": "email_verified",
             "Value": "true",
           },
         ],
-        "UserPoolId": Object {
+        "UserPoolId": {
           "Ref": "TestAuthDLTUserPool047D7286",
         },
         "Username": "testname",
       },
       "Type": "AWS::Cognito::UserPoolUser",
     },
-    "TestAuthDLTCognitoAuthorizedRole00B36330": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
+    "TestAuthDLTCognitoAuthorizedRole00B36330": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
               "id": "W11",
               "reason": "iot:AttachPrincipalPolicy does not allow for resource specification",
             },
           ],
         },
       },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
               "Action": "sts:AssumeRoleWithWebIdentity",
-              "Condition": Object {
-                "ForAnyValue:StringLike": Object {
+              "Condition": {
+                "ForAnyValue:StringLike": {
                   "cognito-identity.amazonaws.com:amr": "authenticated",
                 },
-                "StringEquals": Object {
-                  "cognito-identity.amazonaws.com:aud": Object {
+                "StringEquals": {
+                  "cognito-identity.amazonaws.com:aud": {
                     "Ref": "TestAuthDLTIdentityPoolCE53676D",
                   },
                 },
               },
               "Effect": "Allow",
-              "Principal": Object {
+              "Principal": {
                 "Federated": "cognito-identity.amazonaws.com",
               },
             },
           ],
           "Version": "2012-10-17",
         },
-        "Description": Object {
-          "Fn::Join": Array [
+        "Description": {
+          "Fn::Join": [
             "",
-            Array [
-              Object {
+            [
+              {
                 "Ref": "AWS::StackName",
               },
               " Identity Pool authenticated role",
             ],
           ],
         },
-        "Policies": Array [
-          Object {
-            "PolicyDocument": Object {
-              "Statement": Array [
-                Object {
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
                   "Action": "execute-api:Invoke",
                   "Effect": "Allow",
-                  "Resource": Object {
-                    "Fn::Join": Array [
+                  "Resource": {
+                    "Fn::Join": [
                       "",
-                      Array [
+                      [
                         "arn:",
-                        Object {
+                        {
                           "Ref": "AWS::Partition",
                         },
                         ":execute-api:",
-                        Object {
+                        {
                           "Ref": "AWS::Region",
                         },
                         ":",
-                        Object {
+                        {
                           "Ref": "AWS::AccountId",
                         },
                         ":apiId12345/prod/*",
@@ -125,13 +125,13 @@ Object {
                     ],
                   },
                 },
-                Object {
-                  "Action": Array [
+                {
+                  "Action": [
                     "s3:PutObject",
                     "s3:GetObject",
                   ],
                   "Effect": "Allow",
-                  "Resource": Array [
+                  "Resource": [
                     "arn:aws:s3:::DOC-EXAMPLE-BUCKET/public/*",
                     "arn:aws:s3:::DOC-EXAMPLE-BUCKET/cloudWatchImages/*",
                   ],
@@ -141,31 +141,31 @@ Object {
             },
             "PolicyName": "InvokeApiPolicy",
           },
-          Object {
-            "PolicyDocument": Object {
-              "Statement": Array [
-                Object {
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
                   "Action": "iot:AttachPrincipalPolicy",
                   "Effect": "Allow",
                   "Resource": "*",
                 },
-                Object {
+                {
                   "Action": "iot:Connect",
                   "Effect": "Allow",
-                  "Resource": Object {
-                    "Fn::Join": Array [
+                  "Resource": {
+                    "Fn::Join": [
                       "",
-                      Array [
+                      [
                         "arn:",
-                        Object {
+                        {
                           "Ref": "AWS::Partition",
                         },
                         ":iot:",
-                        Object {
+                        {
                           "Ref": "AWS::Region",
                         },
                         ":",
-                        Object {
+                        {
                           "Ref": "AWS::AccountId",
                         },
                         ":client/*",
@@ -173,23 +173,23 @@ Object {
                     ],
                   },
                 },
-                Object {
+                {
                   "Action": "iot:Subscribe",
                   "Effect": "Allow",
-                  "Resource": Object {
-                    "Fn::Join": Array [
+                  "Resource": {
+                    "Fn::Join": [
                       "",
-                      Array [
+                      [
                         "arn:",
-                        Object {
+                        {
                           "Ref": "AWS::Partition",
                         },
                         ":iot:",
-                        Object {
+                        {
                           "Ref": "AWS::Region",
                         },
                         ":",
-                        Object {
+                        {
                           "Ref": "AWS::AccountId",
                         },
                         ":topicfilter/*",
@@ -197,23 +197,23 @@ Object {
                     ],
                   },
                 },
-                Object {
+                {
                   "Action": "iot:Receive",
                   "Effect": "Allow",
-                  "Resource": Object {
-                    "Fn::Join": Array [
+                  "Resource": {
+                    "Fn::Join": [
                       "",
-                      Array [
+                      [
                         "arn:",
-                        Object {
+                        {
                           "Ref": "AWS::Partition",
                         },
                         ":iot:",
-                        Object {
+                        {
                           "Ref": "AWS::Region",
                         },
                         ":",
-                        Object {
+                        {
                           "Ref": "AWS::AccountId",
                         },
                         ":topic/*",
@@ -230,24 +230,24 @@ Object {
       },
       "Type": "AWS::IAM::Role",
     },
-    "TestAuthDLTCognitoUnauthorizedRole3D399466": Object {
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
+    "TestAuthDLTCognitoUnauthorizedRole3D399466": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
               "Action": "sts:AssumeRoleWithWebIdentity",
-              "Condition": Object {
-                "ForAnyValue:StringLike": Object {
+              "Condition": {
+                "ForAnyValue:StringLike": {
                   "cognito-identity.amazonaws.com:amr": "unauthenticated",
                 },
-                "StringEquals": Object {
-                  "cognito-identity.amazonaws.com:aud": Object {
+                "StringEquals": {
+                  "cognito-identity.amazonaws.com:aud": {
                     "Ref": "TestAuthDLTIdentityPoolCE53676D",
                   },
                 },
               },
               "Effect": "Allow",
-              "Principal": Object {
+              "Principal": {
                 "Federated": "cognito-identity.amazonaws.com",
               },
             },
@@ -257,16 +257,16 @@ Object {
       },
       "Type": "AWS::IAM::Role",
     },
-    "TestAuthDLTIdentityPoolCE53676D": Object {
-      "Properties": Object {
+    "TestAuthDLTIdentityPoolCE53676D": {
+      "Properties": {
         "AllowUnauthenticatedIdentities": false,
-        "CognitoIdentityProviders": Array [
-          Object {
-            "ClientId": Object {
+        "CognitoIdentityProviders": [
+          {
+            "ClientId": {
               "Ref": "TestAuthDLTUserPoolClient68D1C3B2",
             },
-            "ProviderName": Object {
-              "Fn::GetAtt": Array [
+            "ProviderName": {
+              "Fn::GetAtt": [
                 "TestAuthDLTUserPool047D7286",
                 "ProviderName",
               ],
@@ -276,24 +276,24 @@ Object {
       },
       "Type": "AWS::Cognito::IdentityPool",
     },
-    "TestAuthDLTUserPool047D7286": Object {
+    "TestAuthDLTUserPool047D7286": {
       "DeletionPolicy": "Delete",
-      "Properties": Object {
-        "AccountRecoverySetting": Object {
-          "RecoveryMechanisms": Array [
-            Object {
+      "Properties": {
+        "AccountRecoverySetting": {
+          "RecoveryMechanisms": [
+            {
               "Name": "verified_phone_number",
               "Priority": 1,
             },
-            Object {
+            {
               "Name": "verified_email",
               "Priority": 2,
             },
           ],
         },
-        "AdminCreateUserConfig": Object {
+        "AdminCreateUserConfig": {
           "AllowAdminCreateUserOnly": true,
-          "InviteMessageTemplate": Object {
+          "InviteMessageTemplate": {
             "EmailMessage": "
                 <p>
                    Please use the credentials below to login to the Distributed Load Testing console.
@@ -312,16 +312,16 @@ Object {
             "SMSMessage": "Your username is {username} and temporary password is {####}.",
           },
         },
-        "AliasAttributes": Array [
+        "AliasAttributes": [
           "email",
         ],
-        "AutoVerifiedAttributes": Array [
+        "AutoVerifiedAttributes": [
           "email",
         ],
         "EmailVerificationMessage": "The verification code to your new account is {####}",
         "EmailVerificationSubject": "Verify your new account",
-        "Policies": Object {
-          "PasswordPolicy": Object {
+        "Policies": {
+          "PasswordPolicy": {
             "MinimumLength": 12,
             "RequireLowercase": true,
             "RequireNumbers": true,
@@ -329,29 +329,29 @@ Object {
             "RequireUppercase": true,
           },
         },
-        "Schema": Array [
-          Object {
+        "Schema": [
+          {
             "Mutable": true,
             "Name": "email",
             "Required": true,
           },
         ],
         "SmsVerificationMessage": "The verification code to your new account is {####}",
-        "UserPoolAddOns": Object {
+        "UserPoolAddOns": {
           "AdvancedSecurityMode": "ENFORCED",
         },
-        "UserPoolName": Object {
-          "Fn::Join": Array [
+        "UserPoolName": {
+          "Fn::Join": [
             "",
-            Array [
-              Object {
+            [
+              {
                 "Ref": "AWS::StackName",
               },
               "-user-pool",
             ],
           ],
         },
-        "VerificationMessageTemplate": Object {
+        "VerificationMessageTemplate": {
           "DefaultEmailOption": "CONFIRM_WITH_CODE",
           "EmailMessage": "The verification code to your new account is {####}",
           "EmailSubject": "Verify your new account",
@@ -361,28 +361,28 @@ Object {
       "Type": "AWS::Cognito::UserPool",
       "UpdateReplacePolicy": "Delete",
     },
-    "TestAuthDLTUserPoolClient68D1C3B2": Object {
-      "Properties": Object {
-        "AllowedOAuthFlows": Array [
+    "TestAuthDLTUserPoolClient68D1C3B2": {
+      "Properties": {
+        "AllowedOAuthFlows": [
           "implicit",
           "code",
         ],
         "AllowedOAuthFlowsUserPoolClient": true,
-        "AllowedOAuthScopes": Array [
+        "AllowedOAuthScopes": [
           "profile",
           "phone",
           "email",
           "openid",
           "aws.cognito.signin.user.admin",
         ],
-        "CallbackURLs": Array [
+        "CallbackURLs": [
           "https://example.com",
         ],
-        "ClientName": Object {
-          "Fn::Join": Array [
+        "ClientName": {
+          "Fn::Join": [
             "",
-            Array [
-              Object {
+            [
+              {
                 "Ref": "AWS::StackName",
               },
               "-userpool-client",
@@ -391,16 +391,16 @@ Object {
         },
         "GenerateSecret": false,
         "RefreshTokenValidity": 1440,
-        "SupportedIdentityProviders": Array [
+        "SupportedIdentityProviders": [
           "COGNITO",
         ],
-        "TokenValidityUnits": Object {
+        "TokenValidityUnits": {
           "RefreshToken": "minutes",
         },
-        "UserPoolId": Object {
+        "UserPoolId": {
           "Ref": "TestAuthDLTUserPool047D7286",
         },
-        "WriteAttributes": Array [
+        "WriteAttributes": [
           "address",
           "email",
           "phone_number",
@@ -408,37 +408,37 @@ Object {
       },
       "Type": "AWS::Cognito::UserPoolClient",
     },
-    "TestAuthIoTPolicyF897DD43": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
+    "TestAuthIoTPolicyF897DD43": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
               "id": "W11",
               "reason": "Cannot specify the resource to attach policy to identity",
             },
           ],
         },
       },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
               "Action": "iot:Connect",
               "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
+              "Resource": {
+                "Fn::Join": [
                   "",
-                  Array [
+                  [
                     "arn:",
-                    Object {
+                    {
                       "Ref": "AWS::Partition",
                     },
                     ":iot:",
-                    Object {
+                    {
                       "Ref": "AWS::Region",
                     },
                     ":",
-                    Object {
+                    {
                       "Ref": "AWS::AccountId",
                     },
                     ":client/*",
@@ -446,23 +446,23 @@ Object {
                 ],
               },
             },
-            Object {
+            {
               "Action": "iot:Subscribe",
               "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
+              "Resource": {
+                "Fn::Join": [
                   "",
-                  Array [
+                  [
                     "arn:",
-                    Object {
+                    {
                       "Ref": "AWS::Partition",
                     },
                     ":iot:",
-                    Object {
+                    {
                       "Ref": "AWS::Region",
                     },
                     ":",
-                    Object {
+                    {
                       "Ref": "AWS::AccountId",
                     },
                     ":topicfilter/*",
@@ -470,23 +470,23 @@ Object {
                 ],
               },
             },
-            Object {
+            {
               "Action": "iot:Receive",
               "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
+              "Resource": {
+                "Fn::Join": [
                   "",
-                  Array [
+                  [
                     "arn:",
-                    Object {
+                    {
                       "Ref": "AWS::Partition",
                     },
                     ":iot:",
-                    Object {
+                    {
                       "Ref": "AWS::Region",
                     },
                     ":",
-                    Object {
+                    {
                       "Ref": "AWS::AccountId",
                     },
                     ":topic/*",

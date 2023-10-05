@@ -5,7 +5,7 @@ const axios = require("axios");
 const moment = require("moment");
 
 /**
- * Sends anonymous metrics.
+ * Sends anonymized metrics.
  * @param {{ totalDuration: number, testType: string, fileType: string, testResult: string }} - the total time the test ran for in seconds, the test type, the file type, and the test result
  */
 const send = async (obj) => {

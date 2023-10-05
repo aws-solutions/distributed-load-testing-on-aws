@@ -39,10 +39,10 @@ export interface TestRunnerLambdasConstructProps {
   readonly scenariosDynamoDbPolicy: Policy;
   /**
    * Solution config properties.
-   * the metric URL endpoint, send anonymous usage, solution ID, version, source code bucket, and source code prefix
+   * the metric URL endpoint, send anonymized usage, solution ID, version, source code bucket, and source code prefix
    */
   readonly metricsUrl: string;
-  readonly sendAnonymousUsage: string;
+  readonly sendAnonymizedUsage: string;
   readonly solutionId: string;
   readonly solutionVersion: string;
   readonly sourceCodeBucket: IBucket;
@@ -120,7 +120,7 @@ export class TestRunnerLambdasConstruct extends Construct {
         METRIC_URL: props.metricsUrl,
         SCENARIOS_BUCKET: props.scenariosBucket,
         SCENARIOS_TABLE: props.scenariosTable.tableName,
-        SEND_METRIC: props.sendAnonymousUsage,
+        SEND_METRIC: props.sendAnonymizedUsage,
         SOLUTION_ID: props.solutionId,
         UUID: props.uuid,
         VERSION: props.solutionVersion,

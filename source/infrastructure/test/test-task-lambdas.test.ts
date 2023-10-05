@@ -70,7 +70,7 @@ test("DLT Task Lambda Test", () => {
     subnetA: "testSubnetA",
     subnetB: "testSubnetB",
     metricsUrl: "test.example.net",
-    sendAnonymousUsage: "No",
+    sendAnonymizedUsage: "No",
     solutionId: "testId",
     solutionVersion: "testVersion",
     sourceCodeBucket: testBucket,

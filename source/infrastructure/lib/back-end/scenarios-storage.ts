@@ -37,6 +37,8 @@ export class ScenarioTestRunnerStorageConstruct extends Construct {
       serverAccessLogsBucket: props.s3LogsBucket,
       serverAccessLogsPrefix: "scenarios-bucket-access/",
       encryption: BucketEncryption.KMS_MANAGED,
+      enforceSSL: true,
+      versioned: true,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       cors: [
         {

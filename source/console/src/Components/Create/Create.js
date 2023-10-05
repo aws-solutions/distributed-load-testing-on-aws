@@ -50,6 +50,7 @@ class Create extends React.Component {
       }
       this.state = {
         isLoading: false,
+        isUploading: false,
         runningTasks: false,
         testId: this.props.location.state.data.testId,
         file: null,
@@ -87,6 +88,7 @@ class Create extends React.Component {
     } else {
       this.state = {
         isLoading: false,
+        isUploading: false,
         runningTasks: false,
         testId: null,
         file: null,
@@ -229,7 +231,7 @@ class Create extends React.Component {
           } else {
             payload.fileType = "script";
           }
-
+          this.setState({ isUploading: true });
           await Storage.put(`test-scenarios/jmeter/${filename}`, file);
           console.log("Script uploaded successfully");
         } catch (error) {
@@ -239,7 +241,7 @@ class Create extends React.Component {
     }
 
     this.setState({ isLoading: true });
-
+    this.setState({ isUploading: false });
     try {
       const response = await API.post("dlts", "/scenarios", { body: payload });
       console.log("Scenario created successfully", response.testId);
@@ -337,7 +339,7 @@ class Create extends React.Component {
 
   // Will check if the task count warning needs to be displayed
   checkForTaskCountWarning(value, id) {
-    const row = parseInt(id.replace(/.*-/, "")); // removes everything before the first dash
+    const row = parseInt(id.replace(/^[^\s-]+-/, "")); // removes everything before the first dash
     const taskConfig = this.state.formValues.testTaskConfigs[row];
 
     // taskConfig does not update to reflect the new changes right away. value is what the user just entered into the form
@@ -1029,6 +1031,11 @@ class Create extends React.Component {
                         <code>.zip</code> file if you have any files to upload other than a <code>.jmx</code> script
                         file.
                       </FormText>
+                      {this.state.isUploading && (
+                        <div className="alert alert-info" role="alert">
+                          This may take some time, please wait...
+                        </div>
+                      )}
                     </FormGroup>
                   )}
                 </div>

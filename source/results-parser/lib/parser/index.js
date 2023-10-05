@@ -10,6 +10,59 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient(awsOptions);
 const s3 = new AWS.S3(awsOptions);
 
 /**
+ * Breaking down results item and creating the basic breakdown object.
+ * @param {group} each result item in xml file
+ * @return {stats} stats is the object name created to represented the stats of each result item
+ */
+function breakdownGroupResults(group) {
+  let stats = {
+    rc: [],
+  };
+
+  // loop through group results
+  for (let r in group) {
+    if (r !== "_attributes" && r !== "perc" && r !== "rc") {
+      stats[r] = group[r].value._text;
+    }
+  }
+
+  return stats;
+}
+
+/**
+ * Updates the response code for each result item. If the response code is not in the accepted list, it will be added to the response code list.
+ * @param {stats} stats object
+ * @param {responseCodes} responseCodes associated with each result item
+ */
+function updateResultsResponseCode(stats, responseCodes) {
+  // loop through response codes, rc is a object for single responses array for multiple
+  const acceptedCodes = ["200", "201", "202", "204", "300", "301", "302", "303", "304", "307", "308", "101", "1000"];
+  if (Array.isArray(responseCodes)) {
+    for (let responseCode of responseCodes) {
+      if (!acceptedCodes.includes(responseCode._attributes.param)) {
+        stats.rc.push({ code: responseCode._attributes.param, count: parseInt(responseCode._attributes.value) });
+      }
+    }
+  } else {
+    if (!acceptedCodes.includes(responseCodes._attributes.param)) {
+      stats.rc.push({ code: responseCodes._attributes.param, count: parseInt(responseCodes._attributes.value) });
+    }
+  }
+}
+
+/**
+ * Updates the percentiles for each result item.
+ * @param {stats} stats object
+ * @param {groupPrecentiles} success, failure and other stats percentiles associated with each result item
+ */
+function updatePercentiles(stats, groupPrecentiles) {
+  for (let percentiles of groupPrecentiles) {
+    const perc = "p" + percentiles._attributes.param.replace(".", "_");
+    stats[perc] = percentiles.value._text;
+  }
+}
+
+/**
  * Parses test result XML from S3 to JSON, and return the result summary.
  * @param {object} content S3 object body - XML
  * @param {string} testId Test ID
@@ -35,35 +88,9 @@ function results(content, testId) {
     for (let resultsItem of jsonData.Group) {
       const group = resultsItem;
       const label = group._attributes.label;
-      let stats = {
-        rc: [],
-      };
-
-      // loop through group results
-      for (let r in group) {
-        if (r !== "_attributes" && r !== "perc" && r !== "rc") {
-          stats[r] = group[r].value._text;
-        }
-      }
-
-      // loop through response codes, rc is a object for single responses array for multiple
-      if (Array.isArray(group.rc)) {
-        for (let responseCode of group.rc) {
-          if (responseCode._attributes.param !== "200") {
-            stats.rc.push({ code: responseCode._attributes.param, count: parseInt(responseCode._attributes.value) });
-          }
-        }
-      } else {
-        if (group.rc._attributes.param !== "200") {
-          stats.rc.push({ code: group.rc._attributes.param, count: parseInt(group.rc._attributes.value) });
-        }
-      }
-
-      // loop through percentiles and rename/convert keys to strings
-      for (let percentiles of group.perc) {
-        const perc = "p" + percentiles._attributes.param.replace(".", "_");
-        stats[perc] = percentiles.value._text;
-      }
+      let stats = breakdownGroupResults(group);
+      updateResultsResponseCode(stats, group.rc);
+      updatePercentiles(stats, group.perc);
       // check if the results are for the group (label '') or for a specific label
       // label '' is the average results for all the labels.
       if (label) {
@@ -115,62 +142,104 @@ const getReducedResponseCodes = (array) =>
   }, []);
 
 /**
+ * Aggregates the all results from Taurus to one result object.
+ * @param {object} stats Stats object which includes all the results from Taurus
+ * @param {object} result Result object which aggregates the same key values into
+ */
+const createAggregatedData = (stats, result) => {
+  for (let key in stats) {
+    if (key === "label") {
+      result.label = stats[key];
+    } else if (key === "rc") {
+      result.rc = result.rc.concat(stats.rc);
+    } else {
+      result[key].push(stats[key]);
+    }
+  }
+};
+/**
+ * Created the final results
+ * @param {object} source Aggregated Taurus results
+ * @param {object} result Summarized final results
+ */
+const createFinalResults = (source, result) => {
+  for (let key in source) {
+    switch (key) {
+      case "label":
+      case "labels":
+      case "rc":
+        result[key] = source[key];
+        break;
+      case "fail":
+      case "succ":
+      case "throughput":
+        result[key] = source[key].reduce((a, b) => a + b);
+        break;
+      case "bytes":
+      case "concurrency":
+      case "testDuration":
+        result[key] = getAvg(source[key]).toFixed(0);
+        break;
+      case "avg_ct":
+      case "avg_lt":
+      case "avg_rt":
+        result[key] = getAvg(source[key]).toFixed(5);
+        break;
+      default:
+        result[key] = getAvg(source[key]).toFixed(3);
+    }
+  }
+};
+
+function createAllLables(keys, all, stats) {
+  let labels = [];
+  for (let label of keys) {
+    let labelTestFinalResults = {};
+    let labelAll = {
+      avg_ct: [],
+      avg_lt: [],
+      avg_rt: [],
+      bytes: [],
+      concurrency: [],
+      fail: [],
+      label: "",
+      p0_0: [],
+      p100_0: [],
+      p50_0: [],
+      p90_0: [],
+      p95_0: [],
+      p99_0: [],
+      p99_9: [],
+      stdev_rt: [],
+      succ: [],
+      testDuration: [],
+      throughput: [],
+      rc: [],
+    };
+
+    const labelStats = all.labels.filter((stats) => stats.label === label);
+    for (let stat of labelStats) {
+      createAggregatedData(stat, labelAll);
+    }
+
+    // find duplicates in response codes and sum count
+    if (labelAll.rc.length > 0) {
+      labelAll.rc = getReducedResponseCodes(labelAll.rc);
+    }
+
+    // parse all of the results to generate the final results.
+    createFinalResults(labelAll, labelTestFinalResults);
+    labels.push(labelTestFinalResults);
+  }
+  return labels;
+}
+
+/**
  * Integrates the all test results and updates DynamoDB record
  * @param {object} finalResultParams object containing test configuration and test result details
  */
 async function finalResults(testId, data) {
   console.log(`Parsing Final Results for ${testId}`);
-
-  /**
-   * Aggregates the all results from Taurus to one result object.
-   * @param {object} stats Stats object which includes all the results from Taurus
-   * @param {object} result Result object which aggregates the same key values into
-   */
-  const createAggregatedData = (stats, result) => {
-    for (let key in stats) {
-      if (key === "label") {
-        result.label = stats[key];
-      } else if (key === "rc") {
-        result.rc = result.rc.concat(stats.rc);
-      } else {
-        result[key].push(stats[key]);
-      }
-    }
-  };
-
-  /**
-   * Created the final results
-   * @param {object} source Aggregated Taurus results
-   * @param {object} result Summarized final results
-   */
-  const createFinalResults = (source, result) => {
-    for (let key in source) {
-      switch (key) {
-        case "label":
-        case "labels":
-        case "rc":
-          result[key] = source[key];
-          break;
-        case "fail":
-        case "succ":
-        case "throughput":
-          result[key] = source[key].reduce((a, b) => a + b);
-          break;
-        case "bytes":
-        case "concurrency":
-        case "testDuration":
-          result[key] = getAvg(source[key]).toFixed(0);
-          break;
-        case "avg_ct":
-        case "avg_lt":
-        case "avg_rt":
-          result[key] = getAvg(source[key]).toFixed(5);
-          break;
-        default:
-          result[key] = getAvg(source[key]).toFixed(3);
-      }
-    }
-  };
 
   let testFinalResults = {};
   let all = {
@@ -194,9 +263,9 @@ async function finalResults(testId, data) {
     rc: [],
     labels: [],
   };
-
+  let stats;
   for (let result of data) {
-    const { labels, stats } = result;
+    let { labels, stats } = result;
     createAggregatedData(stats, all);
 
     // Sub results if any
@@ -213,52 +282,12 @@ async function finalResults(testId, data) {
   // summarize the test result per label
   if (all.labels.length > 0) {
     let set = new Set();
-    let labels = [];
 
     for (let label of all.labels) {
       set.add(label.label);
     }
 
-    for (let label of set.keys()) {
-      let labelTestFinalResults = {};
-      let labelAll = {
-        avg_ct: [],
-        avg_lt: [],
-        avg_rt: [],
-        bytes: [],
-        concurrency: [],
-        fail: [],
-        label: "",
-        p0_0: [],
-        p100_0: [],
-        p50_0: [],
-        p90_0: [],
-        p95_0: [],
-        p99_0: [],
-        p99_9: [],
-        stdev_rt: [],
-        succ: [],
-        testDuration: [],
-        throughput: [],
-        rc: [],
-      };
-
-      const labelStats = all.labels.filter((stats) => stats.label === label);
-      for (let stat of labelStats) {
-        createAggregatedData(stat, labelAll);
-      }
-
-      // find duplicates in response codes and sum count
-      if (labelAll.rc.length > 0) {
-        labelAll.rc = getReducedResponseCodes(labelAll.rc);
-      }
-
-      // parse all of the results to generate the final results.
-      createFinalResults(labelAll, labelTestFinalResults);
-      labels.push(labelTestFinalResults);
-    }
-
-    all.labels = labels;
+    all.labels = createAllLables(set.keys(), all, stats);
   }
 
   // parse all of the results to generate the final results.
@@ -267,6 +296,7 @@ async function finalResults(testId, data) {
   return testFinalResults;
 }
 
+// Updating history Table with test results
 async function putTestHistory(historyParams) {
   try {
     const {
@@ -308,6 +338,7 @@ async function putTestHistory(historyParams) {
   }
 }
 
+// Updating scenarios table with test results
 async function updateTable(params) {
   const { status, testId, finalResults: finalTestResults, endTime, completeTasks } = params;
 

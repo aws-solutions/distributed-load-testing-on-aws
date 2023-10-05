@@ -230,13 +230,13 @@ export class DLTStack extends Stack {
           ContainerImage: `${props.publicECRRegistry}/distributed-load-testing-on-aws-load-tester:${props.publicECRTag}`,
           KeyPrefix: `${props.solutionName}/${props.codeVersion}`,
           S3Bucket: props.codeBucket,
-          SendAnonymousUsage: "Yes",
+          SendAnonymizedUsage: "Yes",
           SolutionId: props.solutionId,
           URL: props.url,
         },
       },
     });
-    const sendAnonymousUsage = solutionMapping.findInMap("Config", "SendAnonymousUsage");
+    const sendAnonymizedUsage = solutionMapping.findInMap("Config", "SendAnonymizedUsage");
     const solutionId = solutionMapping.findInMap("Config", "SolutionId");
     const solutionVersion = solutionMapping.findInMap("Config", "CodeVersion");
     const sourceCodeBucket = Fn.join("-", [solutionMapping.findInMap("Config", "S3Bucket"), Aws.REGION]);
@@ -252,8 +252,8 @@ export class DLTStack extends Stack {
     Tags.of(this).add("SolutionId", solutionId);
 
     // CFN Conditions
-    const sendAnonymousUsageCondition = new CfnCondition(this, "SendAnonymousUsage", {
-      expression: Fn.conditionEquals(sendAnonymousUsage, "Yes"),
+    const sendAnonymizedUsageCondition = new CfnCondition(this, "SendAnonymizedUsage", {
+      expression: Fn.conditionEquals(sendAnonymizedUsage, "Yes"),
     });
 
     const createFargateVpcResourcesCondition = new CfnCondition(this, "CreateFargateVPCResources", {
@@ -365,7 +365,7 @@ export class DLTStack extends Stack {
       subnetA: this.fargateSubnetA,
       subnetB: this.fargateSubnetB,
       metricsUrl,
-      sendAnonymousUsage,
+      sendAnonymizedUsage,
       solutionId,
       solutionVersion,
       sourceCodeBucket: commonResources.sourceBucket,
@@ -398,7 +398,7 @@ export class DLTStack extends Stack {
       taskCancelerInvokePolicy: stepLambdaFunctions.taskCancelerInvokePolicy,
       taskRunnerStepFunctionsArn: taskRunnerStepFunctions.taskRunnerStepFunctions.stateMachineArn,
       metricsUrl,
-      sendAnonymousUsage,
+      sendAnonymizedUsage,
       solutionId,
       solutionVersion,
       sourceCodeBucket: commonResources.sourceBucket,
@@ -462,13 +462,13 @@ export class DLTStack extends Stack {
       uuid,
     });
 
-    customResources.sendAnonymousMetricsCR({
+    customResources.sendAnonymizedMetricsCR({
       existingVpc,
       solutionId,
       uuid,
       solutionVersion,
-      sendAnonymousUsage,
-      sendAnonymousUsageCondition,
+      sendAnonymizedUsage,
+      sendAnonymizedUsageCondition,
     });
 
     commonResources.appRegistryApplication({

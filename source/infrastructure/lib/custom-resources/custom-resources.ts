@@ -24,10 +24,10 @@ export interface CopyConsoleFilesProps {
   readonly sourceCodePrefix: string;
 }
 
-export interface SendAnonymousMetricsCRProps {
+export interface SendAnonymizedMetricsCRProps {
   readonly existingVpc: string;
-  readonly sendAnonymousUsage: string;
-  readonly sendAnonymousUsageCondition: CfnCondition;
+  readonly sendAnonymizedUsage: string;
+  readonly sendAnonymizedUsageCondition: CfnCondition;
   readonly solutionId: string;
   readonly solutionVersion: string;
   readonly uuid: string;
@@ -67,7 +67,7 @@ export interface CustomResourcesConstructProps {
 
 /**
  * Distributed Load Testing on AWS Custom Resources Construct.
- * It creates a custom resource Lambda function, a solution UUID, and a custom resource to send anonymous usage.
+ * It creates a custom resource Lambda function, a solution UUID, and a custom resource to send anonymized usage.
  */
 export class CustomResourcesConstruct extends Construct {
   private customResourceLambdaArn: string;
@@ -168,17 +168,17 @@ export class CustomResourcesConstruct extends Construct {
     };
   }
 
-  public sendAnonymousMetricsCR(props: SendAnonymousMetricsCRProps) {
-    const sendAnonymousMetrics = this.createCustomResource("AnonymousMetric", this.customResourceLambdaArn, {
+  public sendAnonymizedMetricsCR(props: SendAnonymizedMetricsCRProps) {
+    const sendAnonymizedMetrics = this.createCustomResource("AnonymizedMetric", this.customResourceLambdaArn, {
       existingVPC: props.existingVpc,
       Region: Aws.REGION,
-      Resource: "AnonymousMetric",
+      Resource: "AnonymizedMetric",
       SolutionId: props.solutionId,
       UUID: props.uuid,
       VERSION: props.solutionVersion,
     });
-    const cfnSendAnonymousMetrics = sendAnonymousMetrics.node.defaultChild as CfnCustomResource;
-    cfnSendAnonymousMetrics.cfnOptions.condition = props.sendAnonymousUsageCondition;
+    const cfnSendAnonymizedMetrics = sendAnonymizedMetrics.node.defaultChild as CfnCustomResource;
+    cfnSendAnonymizedMetrics.cfnOptions.condition = props.sendAnonymizedUsageCondition;
   }
 
   public testingResourcesConfigCR(props: TestingResourcesConfigCRProps) {

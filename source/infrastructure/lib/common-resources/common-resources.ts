@@ -63,6 +63,8 @@ export class CommonResourcesConstruct extends Construct {
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       encryption: BucketEncryption.S3_MANAGED,
       removalPolicy: RemovalPolicy.RETAIN,
+      enforceSSL: true,
+      versioned: true,
       objectOwnership: ObjectOwnership.OBJECT_WRITER,
     });
 
