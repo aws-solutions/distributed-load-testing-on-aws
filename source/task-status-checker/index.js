@@ -23,6 +23,29 @@ const checkTestStatus = async (testId, isRunning) => {
   return status === "running" && isRunning;
 };
 
+const stopECSTasks = async (timeoutCount, testTaskConfig, result, runningTaskCount, testId) => {
+  result.isRunning = true;
+  const { taskCount } = testTaskConfig;
+  //check if running task count is less than worker count
+  if (runningTaskCount < taskCount - 1) {
+    result.timeoutCount = timeoutCount ? timeoutCount - 1 : 10;
+
+    if (result.timeoutCount === 0) {
+      // Stop the ECS tasks
+      const params = {
+        FunctionName: process.env.TASK_CANCELER_ARN,
+        InvocationType: "Event",
+        Payload: JSON.stringify({
+          testId: testId,
+          testTaskConfig: testTaskConfig,
+        }),
+      };
+      await lambda.invoke(params).promise();
+      result.isRunning = false;
+    }
+  }
+};
+
 exports.handler = async (event) => {
   console.log(JSON.stringify(event, null, 2));
 
@@ -79,28 +102,9 @@ exports.handler = async (event) => {
     if (event.prefix) {
       result.prefix = event.prefix;
       const runningTaskCount = runningTasks.length;
-      const { taskCount } = event.testTaskConfig;
 
       if (runningTaskCount > 0) {
-        result.isRunning = true;
-        //check if running task count is less than worker count
-        if (runningTaskCount < taskCount - 1) {
-          result.timeoutCount = event.timeoutCount ? event.timeoutCount - 1 : 10;
-
-          if (result.timeoutCount === 0) {
-            // Stop the ECS tasks
-            const params = {
-              FunctionName: process.env.TASK_CANCELER_ARN,
-              InvocationType: "Event",
-              Payload: JSON.stringify({
-                testId: testId,
-                testTaskConfig: event.testTaskConfig,
-              }),
-            };
-            await lambda.invoke(params).promise();
-            result.isRunning = false;
-          }
-        }
+        await stopECSTasks(event.timeoutCount, event.testTaskConfig, result, runningTaskCount, testId);
       }
     }
     result.isRunning = await checkTestStatus(testId, result.isRunning);

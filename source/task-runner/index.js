@@ -30,7 +30,7 @@ const checkRunningTasks = async (ecs, runTaskCount, taskCount, taskCluster, test
   return runTaskCount;
 };
 
-const checkTestStatus = async (testId, isRunning) => {
+const checkTestStatus = async (testId) => {
   let data;
   const ddbParams = {
     TableName: process.env.SCENARIOS_TABLE,
@@ -41,8 +41,179 @@ const checkTestStatus = async (testId, isRunning) => {
   };
   data = await dynamo.get(ddbParams).promise();
   const { status } = data.Item;
-  if (status !== "running") isRunning = false;
+  return status;
+};
+
+const multipleTasks = async (props) => {
+  let timeRemaining;
+  const { taskCount, taskCluster, testId, params, taskIds } = props;
+  let { runTaskCount, context, ecs, isRunning } = props;
+  do {
+    //run tasks
+    runTaskCount = await launchWorkers(runTaskCount, params, ecs, taskIds, taskCluster);
+
+    //get time left
+    timeRemaining = context.getRemainingTimeInMillis();
+
+    //check if test has been cancelled
+    if (runTaskCount <= 1 || timeRemaining <= 60000) {
+      const status = await checkTestStatus(testId);
+      if (status !== "running") isRunning = false;
+    }
+
+    //if still running, double check if all tasks running, if not, add what is needed
+    if (isRunning && runTaskCount <= 1) {
+      runTaskCount = await checkRunningTasks(ecs, runTaskCount, taskCount, taskCluster, testId);
+    }
+  } while (runTaskCount > 1 && parseInt(timeRemaining, 10) > 60000); //end if out of time or no tasks left
   return isRunning;
+};
+
+const singleTask = async (params, taskIds, taskCluster, ecs, runTaskCount) => {
+  if (taskIds) {
+    //Get IP Addresses of worker nodes
+    let ipAddresses = [];
+    let ipNetworkPortion;
+    while (taskIds.length > 0) {
+      //get task info in chunks of 100 or less
+      let taskIdSubset = taskIds.splice(0, 100);
+      let describeTasksParams = { cluster: taskCluster, tasks: taskIdSubset };
+      let runningNodeInfo = await ecs.describeTasks(describeTasksParams).promise();
+
+      //get IPV4 Address info
+      let ipAddress;
+      runningNodeInfo.tasks.forEach((task) => {
+        //get second half of ip address
+        ipAddress = task.containers[0].networkInterfaces[0].privateIpv4Address;
+        ipAddresses.push(ipAddress.split(".").slice(2).join("."));
+      });
+      //save first half of ip address if not already saved (same for all ipv4 addressess)
+      ipNetworkPortion = ipNetworkPortion || ipAddress.split(".", 2).join(".");
+    }
+
+    //copy needed for testing in jest, use shallow copy for less resource utilization
+    let leaderParams = Object.assign({}, params);
+    leaderParams.count = runTaskCount;
+    //override environment variables for leader node
+    leaderParams.overrides.containerOverrides[0].environment.push({
+      name: "IPNETWORK",
+      value: ipNetworkPortion.toString(),
+    });
+    leaderParams.overrides.containerOverrides[0].environment.push({
+      name: "IPHOSTS",
+      value: ipAddresses.toString(),
+    });
+    leaderParams.overrides.containerOverrides[0].environment.forEach((item) => {
+      if (item.name === "SCRIPT") item.value = "ecscontroller.py";
+    });
+
+    //run leader node task
+    console.log("STARTING LEADER NODE AND RUNNING TESTS");
+    const leadTaskResponse = await ecs.runTask(leaderParams).promise();
+    //if leader node fails to launch, log error and end test
+    if (leadTaskResponse.failures.length > 0) {
+      throw ("The lead task failed to launch:\n", leadTaskResponse.failures);
+    }
+  } else {
+    //if single task test
+    params.count = runTaskCount;
+    console.log("Starting Task");
+    params.overrides.containerOverrides[0].environment.pop();
+    const singleTaskRunResponse = await ecs.runTask(params).promise();
+    if (singleTaskRunResponse.failures.length > 0) {
+      throw ("The task failed to launch:\n", singleTaskRunResponse.failures);
+    }
+  }
+};
+
+//loop through list of tasks and push to taskIds array
+const collectTaskIds = (tasks, taskIds, taskCluster) => {
+  tasks.forEach((task) => {
+    taskIds.push(task.taskArn.split(taskCluster + "/").pop());
+  });
+};
+
+//function to run workers, and keep track of amount run
+const launchWorkers = async (runTaskWorkersCount, launchParams, ecs, taskIds, taskCluster) => {
+  //adjust parameters if less than 10
+  const count = runTaskWorkersCount > 10 ? 10 : runTaskWorkersCount - 1;
+  let taskParams = count >= 10 ? launchParams : Object.assign({}, launchParams);
+  taskParams.count = count;
+  //run tasks
+  console.log(`STARTING ${count} WORKER TASKS`);
+  let runTaskResponse = await ecs.runTask(taskParams).promise();
+  //get amount successfully launched
+  let actualLaunched = runTaskResponse.tasks.length;
+  runTaskWorkersCount = runTaskWorkersCount - actualLaunched;
+  runTaskResponse.failures.length > 0 && console.log("Failed tasks:\n", runTaskResponse.failures);
+  //record task Ids
+  collectTaskIds(runTaskResponse.tasks, taskIds, taskCluster);
+  return runTaskWorkersCount;
+};
+
+const createDashboard = async (testId, ecsCloudWatchLogGroup, taskCluster, region) => {
+  //Create metric filters and dashboard
+  const metrics = ["numVu", "numSucc", "numFail", "avgRt"];
+  const metricNames = ["Virtual Users", "Success", "Failures", "Average Response Time"];
+  const cloudwatch = new AWS.CloudWatch(options);
+  const cloudwatchLogs = new AWS.CloudWatchLogs(options);
+  let widgets = [];
+  const widgetPlacement = [
+    [8, 0],
+    [0, 8],
+    [8, 8],
+    [0, 0],
+  ];
+  //Create metric filter and widget for each metric
+  for (const [index, metric] of metrics.entries()) {
+    let metricNameParam = `${testId}-${metric}`;
+    let stat = metric === "avgRt" ? "avg" : "sum";
+    let [x, y] = widgetPlacement[index];
+    //Create metric filter
+    let metricFilterParams = {
+      filterName: `${taskCluster}-Ecs${metric}-${testId}`,
+      filterPattern: `[testId="${testId}", live, time, logType=INFO*, logTitle=Current*, numVu, vu, numSucc, succ, numFail, fail, avgRt, x]`,
+      logGroupName: `${ecsCloudWatchLogGroup}`,
+      metricTransformations: [
+        {
+          metricName: metricNameParam,
+          metricNamespace: "distributed-load-testing",
+          metricValue: `$${metric}`,
+        },
+      ],
+    };
+    await cloudwatchLogs.putMetricFilter(metricFilterParams).promise();
+    //create widget
+    let query = `SOURCE '${ecsCloudWatchLogGroup}'| limit 10000 | \
+                fields @logStream | \
+                filter @message like /${testId}.*INFO: Current:/ | \
+                parse @message /^.*\\s(?<@numVu>\\d+)\\svu\\s(?<@numSucc>\\d+)\\ssucc\\s(?<@numFail>\\d+)\\sfail\\s(?<@avgRt>\\d*.\\d*).*$/| \
+                stat ${stat}(@${metric}) by bin(1s)`;
+    let title = `${metricNames[index]}`;
+    let widget = {
+      type: "log",
+      x: x,
+      y: y,
+      width: 8,
+      height: 8,
+      properties: {
+        query: query,
+        region: region,
+        stacked: "false",
+        title: title,
+        view: "timeSeries",
+      },
+    };
+    widgets.push(widget);
+  }
+  //create dashboard
+  const dashboardBody = { widgets: widgets };
+  await cloudwatch
+    .putDashboard({
+      DashboardName: `EcsLoadTesting-${testId}-${region}`,
+      DashboardBody: JSON.stringify(dashboardBody),
+    })
+    .promise();
 };
 
 exports.handler = async (event, context) => {
@@ -62,16 +233,17 @@ exports.handler = async (event, context) => {
   } = event.testTaskConfig;
   //1 call every 1.5 sec , 2 min to enter running, 1 min launch for leader, 2 min for leader to enter running + 5 min buffer
   const timeout = Math.floor(Math.ceil(taskCount / 10) * 1.5 + 600);
-  //if there is a list of taskIds, workers have been launched and only the leader is left.
+  /**
+   * The max number of containers (taskCount) per task execution is 10 so if the taskCount is
+   * more than 10 the task definition will need to be run multiple times.
+   * @runTaskCount is the number of sets of 10 in the taskCount
+   */
   let runTaskCount = event.taskIds ? 1 : taskCount;
-  let timeRemaining;
   let isRunning = true;
 
   options = utils.getOptions(options);
   options.region = region;
   const ecs = new AWS.ECS(options);
-  const cloudwatch = new AWS.CloudWatch(options);
-  const cloudwatchLogs = new AWS.CloudWatchLogs(options);
 
   // Run tasks in batches of 10
   const params = {
@@ -115,176 +287,31 @@ exports.handler = async (event, context) => {
   try {
     //if not yet created by previous call, create widgets and dashboard
     if (!event.taskIds) {
-      //Create metric filters and dashboard
-      const metrics = ["numVu", "numSucc", "numFail", "avgRt"];
-      const metricNames = ["Virtual Users", "Success", "Failures", "Average Response Time"];
-      let widgets = [];
-      const widgetPlacement = [
-        [8, 0],
-        [0, 8],
-        [8, 8],
-        [0, 0],
-      ];
-      //Create metric filter and widget for each metric
-      for (const [index, metric] of metrics.entries()) {
-        let metricNameParam = `${testId}-${metric}`;
-        let stat = metric === "avgRt" ? "avg" : "sum";
-        let [x, y] = widgetPlacement[index];
-        //Create metric filter
-        let metricFilterParams = {
-          filterName: `${taskCluster}-Ecs${metric}-${testId}`,
-          filterPattern: `[testId="${testId}", live, time, logType=INFO*, logTitle=Current*, numVu, vu, numSucc, succ, numFail, fail, avgRt, x]`,
-          logGroupName: `${ecsCloudWatchLogGroup}`,
-          metricTransformations: [
-            {
-              metricName: metricNameParam,
-              metricNamespace: "distributed-load-testing",
-              metricValue: `$${metric}`,
-            },
-          ],
-        };
-        await cloudwatchLogs.putMetricFilter(metricFilterParams).promise();
-        //create widget
-        let query = `SOURCE '${ecsCloudWatchLogGroup}'| limit 10000 | \
-                    fields @logStream | \
-                    filter @message like /${testId}.*INFO: Current:/ | \
-                    parse @message /^.*\\s(?<@numVu>\\d+)\\svu\\s(?<@numSucc>\\d+)\\ssucc\\s(?<@numFail>\\d+)\\sfail\\s(?<@avgRt>\\d*.\\d*).*$/| \
-                    stat ${stat}(@${metric}) by bin(1s)`;
-        let title = `${metricNames[index]}`;
-        let widget = {
-          type: "log",
-          x: x,
-          y: y,
-          width: 8,
-          height: 8,
-          properties: {
-            query: query,
-            region: region,
-            stacked: "false",
-            title: title,
-            view: "timeSeries",
-          },
-        };
-        widgets.push(widget);
-      }
-      //create dashboard
-      const dashboardBody = { widgets: widgets };
-      await cloudwatch
-        .putDashboard({
-          DashboardName: `EcsLoadTesting-${testId}-${region}`,
-          DashboardBody: JSON.stringify(dashboardBody),
-        })
-        .promise();
+      createDashboard(testId, ecsCloudWatchLogGroup, taskCluster, region);
     }
-    /**
-     * The max number of containers (taskCount) per task execution is 10 so if the taskCount is
-     * more than 10 the task definition will need to be run multiple times.
-     * @runTaskCount is the number of sets of 10 in the taskCount
-     */
+
     params.count = 10;
 
-    //declare variables runTaskResponse for runTask response and taskIds to save task Ids
-    let runTaskResponse;
+    //if there is a list of taskIds, workers have been launched and only the leader is left.
     let taskIds = event.taskIds || [];
-
-    //loop through list of tasks and push to taskIds array
-    let collectTaskIds = (tasks) => {
-      tasks.forEach((task) => {
-        taskIds.push(task.taskArn.split(taskCluster + "/").pop());
-      });
-    };
     //if only running a single task
     if (runTaskCount === 1) {
       //if leader task
-      if (event.taskIds) {
-        //Get IP Addresses of worker nodes
-        let ipAddresses = [];
-        let ipNetworkPortion;
-        while (taskIds.length > 0) {
-          //get task info in chunks of 100 or less
-          let taskIdSubset = taskIds.splice(0, 100);
-          let describeTasksParams = { cluster: taskCluster, tasks: taskIdSubset };
-          let runningNodeInfo = await ecs.describeTasks(describeTasksParams).promise();
-
-          //get IPV4 Address info
-          let ipAddress;
-          runningNodeInfo.tasks.forEach((task) => {
-            //get second half of ip address
-            ipAddress = task.containers[0].networkInterfaces[0].privateIpv4Address;
-            ipAddresses.push(ipAddress.split(".").slice(2).join("."));
-          });
-          //save first half of ip address if not already saved (same for all ipv4 addressess)
-          ipNetworkPortion = ipNetworkPortion || ipAddress.split(".", 2).join(".");
-        }
-
-        //copy needed for testing in jest, use shallow copy for less resource utilization
-        let leaderParams = Object.assign({}, params);
-        leaderParams.count = runTaskCount;
-        //override environment variables for leader node
-        leaderParams.overrides.containerOverrides[0].environment.push({
-          name: "IPNETWORK",
-          value: ipNetworkPortion.toString(),
-        });
-        leaderParams.overrides.containerOverrides[0].environment.push({
-          name: "IPHOSTS",
-          value: ipAddresses.toString(),
-        });
-        leaderParams.overrides.containerOverrides[0].environment.forEach((item) => {
-          if (item.name === "SCRIPT") item.value = "ecscontroller.py";
-        });
-
-        //run leader node task
-        console.log("STARTING LEADER NODE AND RUNNING TESTS");
-        const leadTaskResponse = await ecs.runTask(leaderParams).promise();
-        //if leader node fails to launch, log error and end test
-        if (leadTaskResponse.failures.length > 0) {
-          throw ("The lead task failed to launch:\n", leadTaskResponse.failures);
-        }
-      } else {
-        //if single task test
-        params.count = runTaskCount;
-        console.log("Starting Task");
-        params.overrides.containerOverrides[0].environment.pop();
-        const singleTaskRunResponse = await ecs.runTask(params).promise();
-        if (singleTaskRunResponse.failures.length > 0) {
-          throw ("The task failed to launch:\n", singleTaskRunResponse.failures);
-        }
-      }
+      await singleTask(params, event.taskIds, taskCluster, ecs, runTaskCount);
     } else {
-      //function to run workers, and keep track of amount run
-      let launchWorkers = async (runTaskWorkersCount, launchParams) => {
-        //adjust parameters if less than 10
-        const count = runTaskWorkersCount > 10 ? 10 : runTaskWorkersCount - 1;
-        let taskParams = count >= 10 ? launchParams : Object.assign({}, launchParams);
-        taskParams.count = count;
-        //run tasks
-        console.log(`STARTING ${count} WORKER TASKS`);
-        runTaskResponse = await ecs.runTask(taskParams).promise();
-        //get amount successfully launched
-        let actualLaunched = runTaskResponse.tasks.length;
-        runTaskWorkersCount = runTaskWorkersCount - actualLaunched;
-        runTaskResponse.failures.length > 0 && console.log("Failed tasks:\n", runTaskResponse.failures);
-        //record task Ids
-        collectTaskIds(runTaskResponse.tasks);
-        return runTaskWorkersCount;
+      //if multiple tasks
+      const multipleTasksProps = {
+        runTaskCount: runTaskCount,
+        context: context,
+        taskCount: taskCount,
+        taskCluster: taskCluster,
+        testId: testId,
+        params: params,
+        taskIds: taskIds,
+        ecs: ecs,
+        isRunning: isRunning,
       };
-      do {
-        //run tasks
-        runTaskCount = await launchWorkers(runTaskCount, params);
-
-        //get time left
-        timeRemaining = context.getRemainingTimeInMillis();
-
-        //check if test has been cancelled
-        if (runTaskCount <= 1 || timeRemaining <= 60000) {
-          isRunning = await checkTestStatus(testId, isRunning);
-        }
-
-        //if still running, double check if all tasks running, if not, add what is needed
-        if (isRunning && runTaskCount <= 1) {
-          runTaskCount = await checkRunningTasks(ecs, runTaskCount, taskCount, taskCluster, testId);
-        }
-      } while (runTaskCount > 1 && parseInt(timeRemaining, 10) > 60000); //end if out of time or no tasks left
+      isRunning = await multipleTasks(multipleTasksProps);
     }
     console.log("success");
     event.prefix = prefix;

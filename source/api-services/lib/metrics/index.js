@@ -5,7 +5,7 @@ const axios = require("axios");
 const moment = require("moment");
 
 /**
- * Sends anonymous metrics.
+ * Sends anonymized metrics.
  * @param {{ taskCount: number, testType: string, fileType: string|undefined }} - the number of containers used for the test, the test type, and the file type
  */
 const send = async (obj) => {

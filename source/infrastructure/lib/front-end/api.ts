@@ -56,10 +56,10 @@ export interface DLTAPIProps {
 
   /**
    * Solution config properties.
-   * the metric URL endpoint, send anonymous usage, solution ID, version, source code bucket, and source code prefix
+   * the metric URL endpoint, send anonymized usage, solution ID, version, source code bucket, and source code prefix
    */
   readonly metricsUrl: string;
-  readonly sendAnonymousUsage: string;
+  readonly sendAnonymizedUsage: string;
   readonly solutionId: string;
   readonly solutionVersion: string;
   readonly sourceCodeBucket: IBucket;
@@ -201,7 +201,7 @@ export class DLTAPI extends Construct {
         METRIC_URL: props.metricsUrl,
         SCENARIOS_BUCKET: props.scenariosBucketName,
         SCENARIOS_TABLE: props.scenariosTableName,
-        SEND_METRIC: props.sendAnonymousUsage,
+        SEND_METRIC: props.sendAnonymizedUsage,
         SOLUTION_ID: props.solutionId,
         STACK_ID: Aws.STACK_ID,
         STATE_MACHINE_ARN: props.taskRunnerStepFunctionsArn,

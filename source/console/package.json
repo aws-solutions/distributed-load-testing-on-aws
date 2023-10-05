@@ -1,9 +1,13 @@
 {
   "name": "distributed-load-testing-on-aws-ui",
-  "version": "3.2.2",
+  "version": "3.2.3",
   "private": true,
   "license": "Apache-2.0",
-  "author": "aws-solution-builders",
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions"
+  },
+  "description": "Distributed Load Testing on AWS UI",
   "scripts": {
     "build": "GENERATE_SOURCEMAP=false INLINE_RUNTIME_CHUNK=false react-scripts build",
     "clean": "rm -rf node_modules package-lock.json",
@@ -30,7 +34,7 @@
     "@aws-amplify/pubsub": "4.4.10",
     "@aws-amplify/ui-react": "^1.0.2",
     "aws-amplify": "4.3.31",
-    "aws-sdk": "^2.1392.0",
+    "aws-sdk": "^2.1457.0",
     "bootstrap": "^5.1.0",
     "bootstrap-icons": "^1.8.1",
     "brace": "^0.11.1",
@@ -46,16 +50,9 @@
     "solution-utils": "file:../solution-utils"
   },
   "overrides": {
-    "fast-xml-parser": "4.2.5",
     "nth-check": "2.0.1",
-    "semver": "7.5.2",
-    "optionator": "0.9.3"
-  },
-  "resolutions": {
-    "fast-xml-parser": "4.2.5",
-    "nth-check": "2.0.1",
-    "semver": "7.5.2",
-    "optionator": "0.9.3"
+    "@aws-sdk/client-s3": "3.414.0",
+    "@aws-sdk/client-sts": "3.414.0"
   },
   "readme": "./README.md",
   "devDependencies": {

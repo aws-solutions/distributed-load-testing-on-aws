@@ -39,7 +39,7 @@ test("DLT API Test", () => {
     stackType: "main",
   });
 
-  const sendAnonymousUsageCondition = new CfnCondition(stack, "condition", {
+  const sendAnonymizedUsageCondition = new CfnCondition(stack, "condition", {
     expression: Fn.conditionIf("testCondition", true, false),
   });
   const boolExistingVpc = "false";
@@ -78,13 +78,13 @@ test("DLT API Test", () => {
     uuid: "abc-123-def-456",
   });
 
-  customResources.sendAnonymousMetricsCR({
+  customResources.sendAnonymizedMetricsCR({
     existingVpc: boolExistingVpc,
     solutionId: "testId",
     uuid: "abc-123-def-456",
     solutionVersion: "testVersion",
-    sendAnonymousUsage: "Yes",
-    sendAnonymousUsageCondition,
+    sendAnonymizedUsage: "Yes",
+    sendAnonymizedUsageCondition,
   });
 
   expect(Template.fromStack(stack)).toMatchSnapshot();
@@ -98,6 +98,6 @@ test("DLT API Test", () => {
     Resource: "TestingResourcesConfigFile",
   });
   Template.fromStack(stack).hasResourceProperties("AWS::CloudFormation::CustomResource", {
-    Resource: "AnonymousMetric",
+    Resource: "AnonymizedMetric",
   });
 });

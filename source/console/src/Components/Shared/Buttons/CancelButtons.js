@@ -35,7 +35,7 @@ class CancelButtons extends React.Component {
 
   render() {
     return [
-      <Button key="cancel-button" color="danger" onClick={this.cancelToggle} size="sm">
+      <Button id="cancelButton" key="cancel-button" color="danger" onClick={this.cancelToggle} size="sm">
         Cancel
       </Button>,
       <Modal key="cancel-modal" isOpen={this.state.showModal} toggle={this.cancelToggle}>

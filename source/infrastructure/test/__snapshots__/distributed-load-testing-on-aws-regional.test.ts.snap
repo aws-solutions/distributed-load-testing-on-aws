@@ -1,13 +1,13 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Distributed Load Testing Regional stack test 1`] = `
-Object {
-  "Conditions": Object {
-    "BoolExistingVPC": Object {
-      "Fn::Not": Array [
-        Object {
-          "Fn::Equals": Array [
-            Object {
+{
+  "Conditions": {
+    "BoolExistingVPC": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
               "Ref": "ExistingVPCId",
             },
             "",
@@ -15,21 +15,21 @@ Object {
         },
       ],
     },
-    "CreateFargateVPCResources": Object {
-      "Fn::Equals": Array [
-        Object {
+    "CreateFargateVPCResources": {
+      "Fn::Equals": [
+        {
           "Ref": "ExistingVPCId",
         },
         "",
       ],
     },
-    "SendAnonymousUsage": Object {
-      "Fn::Equals": Array [
-        Object {
-          "Fn::FindInMap": Array [
+    "SendAnonymizedUsage": {
+      "Fn::Equals": [
+        {
+          "Fn::FindInMap": [
             "Solution",
             "Config",
-            "SendAnonymousUsage",
+            "SendAnonymizedUsage",
           ],
         },
         "Yes",
@@ -37,9 +37,9 @@ Object {
     },
   },
   "Description": "Distributed Load Testing on AWS regional deployment.",
-  "Mappings": Object {
-    "Solution": Object {
-      "Config": Object {
+  "Mappings": {
+    "Solution": {
+      "Config": {
         "APIServicesLambdaRoleName": "API_SERVICES_ROLE",
         "CodeVersion": "testversion",
         "ContainerImage": "testRegistry/distributed-load-testing-on-aws-load-tester:testTag",
@@ -49,7 +49,7 @@ Object {
         "S3Bucket": "testbucket",
         "ScenariosS3Bucket": "SCENARIOS_BUCKET",
         "ScenariosTable": "SCENARIOS_DDB_TABLE",
-        "SendAnonymousUsage": "Yes",
+        "SendAnonymizedUsage": "Yes",
         "SolutionId": "testId",
         "TaskCancelerRoleName": "TASK_CANCELER_ROLE",
         "TaskRunnerRoleName": "TASK_RUNNER_ROLE",
@@ -60,92 +60,63 @@ Object {
       },
     },
   },
-  "Outputs": Object {
-    "AppRegistryApplicationManagerUrl775D5C3D": Object {
-      "Description": "Application manager url for the application created.",
-      "Value": Object {
-        "Fn::Join": Array [
-          "",
-          Array [
-            "https://",
-            Object {
-              "Ref": "AWS::Region",
-            },
-            ".console.aws.amazon.com/systems-manager/appmanager/application/AWS_AppRegistry_Application-",
-            Object {
-              "Fn::Join": Array [
-                "-",
-                Array [
-                  "distributed-load-testing-on-aws",
-                  Object {
-                    "Ref": "AWS::Region",
-                  },
-                  Object {
-                    "Ref": "AWS::AccountId",
-                  },
-                ],
-              ],
-            },
-          ],
-        ],
-      },
-    },
-    "ECSCloudWatchLogGroup": Object {
+  "Outputs": {
+    "ECSCloudWatchLogGroup": {
       "Description": "The CloudWatch log group for ECS",
-      "Value": Object {
+      "Value": {
         "Ref": "DLTRegionalFargateDLTCloudWatchLogsGroupAE1278C6",
       },
     },
-    "SubnetA": Object {
+    "SubnetA": {
       "Description": "Subnet A used by the Fargate tasks",
-      "Value": Object {
-        "Fn::If": Array [
+      "Value": {
+        "Fn::If": [
           "CreateFargateVPCResources",
-          Object {
+          {
             "Ref": "DLTRegionalVpcDLTSubnetACEFDB0F7",
           },
-          Object {
+          {
             "Ref": "ExistingSubnetA",
           },
         ],
       },
     },
-    "SubnetB": Object {
+    "SubnetB": {
       "Description": "Subnet B used by the Fargate tasks",
-      "Value": Object {
-        "Fn::If": Array [
+      "Value": {
+        "Fn::If": [
           "CreateFargateVPCResources",
-          Object {
+          {
             "Ref": "DLTRegionalVpcDLTSubnetB02222C79",
           },
-          Object {
+          {
             "Ref": "ExistingSubnetB",
           },
         ],
       },
     },
-    "TaskCluster": Object {
+    "TaskCluster": {
       "Description": "Fargate task cluster",
-      "Value": Object {
+      "Value": {
         "Ref": "DLTRegionalFargateDLTEcsCluster1D89D366",
       },
     },
-    "TaskDefinition": Object {
+    "TaskDefinition": {
       "Description": "The Fargate task definition",
-      "Value": Object {
+      "Value": {
         "Ref": "DLTRegionalFargateDLTTaskDefinitionB27F0AFD",
       },
     },
-    "TaskSecurityGroup": Object {
+    "TaskSecurityGroup": {
       "Description": "Security Group used by the Fargate taks",
-      "Value": Object {
+      "Value": {
         "Ref": "DLTRegionalFargateDLTEcsSecurityGroup76A38D53",
       },
     },
   },
-  "Parameters": Object {
-    "EgressCidr": Object {
-      "AllowedPattern": "(?:^$|(\\\\d{1,3})\\\\.(\\\\d{1,3})\\\\.(\\\\d{1,3})\\\\.(\\\\d{1,3})/(\\\\d{1,2}))",
+  "Parameters": {
+    "EgressCidr": {
+      "AllowedPattern": "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
       "ConstraintDescription": "The Egress CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
       "Default": "0.0.0.0/0",
       "Description": "CIDR Block to restrict the Fargate container outbound access",
@@ -153,23 +124,23 @@ Object {
       "MinLength": 9,
       "Type": "String",
     },
-    "ExistingSubnetA": Object {
+    "ExistingSubnetA": {
       "AllowedPattern": "(?:^$|^subnet-[a-zA-Z0-9-]+)",
       "Description": "First existing subnet",
       "Type": "String",
     },
-    "ExistingSubnetB": Object {
+    "ExistingSubnetB": {
       "AllowedPattern": "(?:^$|^subnet-[a-zA-Z0-9-]+)",
       "Description": "Second existing subnet",
       "Type": "String",
     },
-    "ExistingVPCId": Object {
+    "ExistingVPCId": {
       "AllowedPattern": "(?:^$|^vpc-[a-zA-Z0-9-]+)",
       "Description": "Existing VPC ID",
       "Type": "String",
     },
-    "SubnetACidrBlock": Object {
-      "AllowedPattern": "(?:^$|(\\\\d{1,3})\\\\.(\\\\d{1,3})\\\\.(\\\\d{1,3})\\\\.(\\\\d{1,3})/(\\\\d{1,2}))",
+    "SubnetACidrBlock": {
+      "AllowedPattern": "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
       "ConstraintDescription": "The subnet CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
       "Default": "192.168.0.0/20",
       "Description": "CIDR block for subnet A of the AWS Fargate VPC",
@@ -177,15 +148,15 @@ Object {
       "MinLength": 9,
       "Type": "String",
     },
-    "SubnetBCidrBlock": Object {
-      "AllowedPattern": "(?:^$|(\\\\d{1,3})\\\\.(\\\\d{1,3})\\\\.(\\\\d{1,3})\\\\.(\\\\d{1,3})/(\\\\d{1,2}))",
+    "SubnetBCidrBlock": {
+      "AllowedPattern": "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
       "ConstraintDescription": "The subnet CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
       "Default": "192.168.16.0/20",
       "Description": "CIDR block for subnet B of the AWS Fargate VPC",
       "Type": "String",
     },
-    "VpcCidrBlock": Object {
-      "AllowedPattern": "(?:^$|(\\\\d{1,3})\\\\.(\\\\d{1,3})\\\\.(\\\\d{1,3})\\\\.(\\\\d{1,3})/(\\\\d{1,2}))",
+    "VpcCidrBlock": {
+      "AllowedPattern": "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
       "ConstraintDescription": "The VPC CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
       "Default": "192.168.0.0/16",
       "Description": "CIDR block of the new VPC where AWS Fargate will be placed",
@@ -194,43 +165,43 @@ Object {
       "Type": "String",
     },
   },
-  "Resources": Object {
-    "AppRegistry968496A3": Object {
-      "Properties": Object {
+  "Resources": {
+    "AppRegistry968496A3": {
+      "Properties": {
         "Description": "Service Catalog application to track and manage all your resources for the solution Distributed Load Testing",
-        "Name": Object {
-          "Fn::Join": Array [
+        "Name": {
+          "Fn::Join": [
             "-",
-            Array [
+            [
               "distributed-load-testing-on-aws",
-              Object {
+              {
                 "Ref": "AWS::Region",
               },
-              Object {
+              {
                 "Ref": "AWS::AccountId",
               },
             ],
           ],
         },
-        "Tags": Object {
-          "SolutionId": Object {
-            "Fn::FindInMap": Array [
+        "Tags": {
+          "SolutionId": {
+            "Fn::FindInMap": [
               "Solution",
               "Config",
               "SolutionId",
             ],
           },
           "Solutions:ApplicationType": "AWS-Solutions",
-          "Solutions:SolutionID": Object {
-            "Fn::FindInMap": Array [
+          "Solutions:SolutionID": {
+            "Fn::FindInMap": [
               "Solution",
               "Config",
               "SolutionId",
             ],
           },
           "Solutions:SolutionName": "Distributed Load Testing",
-          "Solutions:SolutionVersion": Object {
-            "Fn::FindInMap": Array [
+          "Solutions:SolutionVersion": {
+            "Fn::FindInMap": [
               "Solution",
               "Config",
               "CodeVersion",
@@ -240,31 +211,31 @@ Object {
       },
       "Type": "AWS::ServiceCatalogAppRegistry::Application",
     },
-    "AppRegistryAssociation": Object {
-      "Properties": Object {
-        "Application": Object {
-          "Fn::GetAtt": Array [
+    "AppRegistryAssociation": {
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
             "AppRegistry968496A3",
             "Id",
           ],
         },
-        "Resource": Object {
+        "Resource": {
           "Ref": "AWS::StackId",
         },
         "ResourceType": "CFN_STACK",
       },
       "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
     },
-    "AppRegistryAttributeGroupAssociationa7177d48be75C139509C": Object {
-      "Properties": Object {
-        "Application": Object {
-          "Fn::GetAtt": Array [
+    "AppRegistryAttributeGroupAssociationa7177d48be75C139509C": {
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
             "AppRegistry968496A3",
             "Id",
           ],
         },
-        "AttributeGroup": Object {
-          "Fn::GetAtt": Array [
+        "AttributeGroup": {
+          "Fn::GetAtt": [
             "DefaultApplicationAttributesFC1CC26B",
             "Id",
           ],
@@ -272,31 +243,31 @@ Object {
       },
       "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation",
     },
-    "CommonResourcesCloudWatchLogsPolicyB8257A4C": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
+    "CommonResourcesCloudWatchLogsPolicyB8257A4C": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
                 "logs:CreateLogGroup",
                 "logs:CreateLogStream",
                 "logs:PutLogEvents",
               ],
               "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
+              "Resource": {
+                "Fn::Join": [
                   "",
-                  Array [
+                  [
                     "arn:",
-                    Object {
+                    {
                       "Ref": "AWS::Partition",
                     },
                     ":logs:",
-                    Object {
+                    {
                       "Ref": "AWS::Region",
                     },
                     ":",
-                    Object {
+                    {
                       "Ref": "AWS::AccountId",
                     },
                     ":log-group:/aws/lambda/*",
@@ -308,57 +279,57 @@ Object {
           "Version": "2012-10-17",
         },
         "PolicyName": "CommonResourcesCloudWatchLogsPolicyB8257A4C",
-        "Roles": Array [
-          Object {
+        "Roles": [
+          {
             "Ref": "DLTRegionalFargateDLTTaskExecutionRole22C06EF4",
           },
-          Object {
+          {
             "Ref": "RegionalCustomResourceInfraCustomResourceLambdaRoleEBA8B208",
           },
-          Object {
+          {
             "Ref": "RealTimeDatarealTimeDataPublisherRoleA8976D01",
           },
         ],
       },
       "Type": "AWS::IAM::Policy",
     },
-    "DLTCustomResourcesAnonymousMetricE30E46B4": Object {
-      "Condition": "SendAnonymousUsage",
+    "DLTCustomResourcesAnonymizedMetric901872DA": {
+      "Condition": "SendAnonymizedUsage",
       "DeletionPolicy": "Delete",
-      "Properties": Object {
-        "Region": Object {
+      "Properties": {
+        "Region": {
           "Ref": "AWS::Region",
         },
-        "Resource": "AnonymousMetric",
-        "ServiceToken": Object {
-          "Fn::GetAtt": Array [
+        "Resource": "AnonymizedMetric",
+        "ServiceToken": {
+          "Fn::GetAtt": [
             "RegionalCustomResourceInfraCustomResourceLambda86A7E873",
             "Arn",
           ],
         },
-        "SolutionId": Object {
-          "Fn::FindInMap": Array [
+        "SolutionId": {
+          "Fn::FindInMap": [
             "Solution",
             "Config",
             "SolutionId",
           ],
         },
-        "UUID": Object {
-          "Fn::FindInMap": Array [
+        "UUID": {
+          "Fn::FindInMap": [
             "Solution",
             "Config",
             "Uuid",
           ],
         },
-        "VERSION": Object {
-          "Fn::FindInMap": Array [
+        "VERSION": {
+          "Fn::FindInMap": [
             "Solution",
             "Config",
             "CodeVersion",
           ],
         },
-        "existingVPC": Object {
-          "Fn::If": Array [
+        "existingVPC": {
+          "Fn::If": [
             "BoolExistingVPC",
             true,
             false,
@@ -368,12 +339,12 @@ Object {
       "Type": "AWS::CloudFormation::CustomResource",
       "UpdateReplacePolicy": "Delete",
     },
-    "DLTCustomResourcesGetIotEndpoint700ABCC8": Object {
+    "DLTCustomResourcesGetIotEndpoint700ABCC8": {
       "DeletionPolicy": "Delete",
-      "Properties": Object {
+      "Properties": {
         "Resource": "GetIotEndpoint",
-        "ServiceToken": Object {
-          "Fn::GetAtt": Array [
+        "ServiceToken": {
+          "Fn::GetAtt": [
             "RegionalCustomResourceInfraCustomResourceLambda86A7E873",
             "Arn",
           ],
@@ -382,68 +353,68 @@ Object {
       "Type": "AWS::CloudFormation::CustomResource",
       "UpdateReplacePolicy": "Delete",
     },
-    "DLTCustomResourcesTestingResourcesConfig0BCA657F": Object {
+    "DLTCustomResourcesTestingResourcesConfig0BCA657F": {
       "DeletionPolicy": "Delete",
-      "Properties": Object {
+      "Properties": {
         "Resource": "TestingResourcesConfigFile",
-        "ServiceToken": Object {
-          "Fn::GetAtt": Array [
+        "ServiceToken": {
+          "Fn::GetAtt": [
             "RegionalCustomResourceInfraCustomResourceLambda86A7E873",
             "Arn",
           ],
         },
-        "TestingResourcesConfig": Object {
-          "ecsCloudWatchLogGroup": Object {
+        "TestingResourcesConfig": {
+          "ecsCloudWatchLogGroup": {
             "Ref": "DLTRegionalFargateDLTCloudWatchLogsGroupAE1278C6",
           },
-          "region": Object {
+          "region": {
             "Ref": "AWS::Region",
           },
-          "subnetA": Object {
-            "Fn::If": Array [
+          "subnetA": {
+            "Fn::If": [
               "CreateFargateVPCResources",
-              Object {
+              {
                 "Ref": "DLTRegionalVpcDLTSubnetACEFDB0F7",
               },
-              Object {
+              {
                 "Ref": "ExistingSubnetA",
               },
             ],
           },
-          "subnetB": Object {
-            "Fn::If": Array [
+          "subnetB": {
+            "Fn::If": [
               "CreateFargateVPCResources",
-              Object {
+              {
                 "Ref": "DLTRegionalVpcDLTSubnetB02222C79",
               },
-              Object {
+              {
                 "Ref": "ExistingSubnetB",
               },
             ],
           },
-          "taskCluster": Object {
+          "taskCluster": {
             "Ref": "DLTRegionalFargateDLTEcsCluster1D89D366",
           },
-          "taskDefinition": Object {
+          "taskDefinition": {
             "Ref": "DLTRegionalFargateDLTTaskDefinitionB27F0AFD",
           },
-          "taskImage": Object {
-            "Fn::Join": Array [
+          "taskImage": {
+            "Fn::Join": [
               "",
-              Array [
-                Object {
+              [
+                {
                   "Ref": "AWS::StackName",
                 },
                 "-load-tester",
               ],
             ],
           },
-          "taskSecurityGroup": Object {
+          "taskSecurityGroup": {
             "Ref": "DLTRegionalFargateDLTEcsSecurityGroup76A38D53",
           },
         },
-        "Uuid": Object {
-          "Fn::FindInMap": Array [
+        "Uuid": {
+          "Fn::FindInMap": [
             "Solution",
             "Config",
             "Uuid",
@@ -453,25 +424,25 @@ Object {
       "Type": "AWS::CloudFormation::CustomResource",
       "UpdateReplacePolicy": "Delete",
     },
-    "DLTRegionalFargateDLTCloudWatchLogsGroupAE1278C6": Object {
+    "DLTRegionalFargateDLTCloudWatchLogsGroupAE1278C6": {
       "DeletionPolicy": "Retain",
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
               "id": "W84",
               "reason": "KMS encryption unnecessary for log group",
             },
           ],
         },
       },
-      "Properties": Object {
+      "Properties": {
         "RetentionInDays": 365,
-        "Tags": Array [
-          Object {
+        "Tags": [
+          {
             "Key": "SolutionId",
-            "Value": Object {
-              "Fn::FindInMap": Array [
+            "Value": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "SolutionId",
@@ -483,36 +454,36 @@ Object {
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
     },
-    "DLTRegionalFargateDLTCloudWatchLogsGroupECSLogSubscriptionFilter018E070A": Object {
-      "DependsOn": Array [
+    "DLTRegionalFargateDLTCloudWatchLogsGroupECSLogSubscriptionFilter018E070A": {
+      "DependsOn": [
         "DLTRegionalFargateDLTCloudWatchLogsGroupECSLogSubscriptionFilterCanInvokeLambda20B8ED69",
       ],
-      "Properties": Object {
-        "DestinationArn": Object {
-          "Fn::GetAtt": Array [
+      "Properties": {
+        "DestinationArn": {
+          "Fn::GetAtt": [
             "RealTimeDataRealTimeDataPublisher7E8F8F6C",
             "Arn",
           ],
         },
-        "FilterPattern": "\\"INFO: Current:\\" \\"live=true\\"",
-        "LogGroupName": Object {
+        "FilterPattern": ""INFO: Current:" "live=true"",
+        "LogGroupName": {
           "Ref": "DLTRegionalFargateDLTCloudWatchLogsGroupAE1278C6",
         },
       },
       "Type": "AWS::Logs::SubscriptionFilter",
     },
-    "DLTRegionalFargateDLTCloudWatchLogsGroupECSLogSubscriptionFilterCanInvokeLambda20B8ED69": Object {
-      "Properties": Object {
+    "DLTRegionalFargateDLTCloudWatchLogsGroupECSLogSubscriptionFilterCanInvokeLambda20B8ED69": {
+      "Properties": {
         "Action": "lambda:InvokeFunction",
-        "FunctionName": Object {
-          "Fn::GetAtt": Array [
+        "FunctionName": {
+          "Fn::GetAtt": [
             "RealTimeDataRealTimeDataPublisher7E8F8F6C",
             "Arn",
           ],
         },
         "Principal": "logs.amazonaws.com",
-        "SourceArn": Object {
-          "Fn::GetAtt": Array [
+        "SourceArn": {
+          "Fn::GetAtt": [
             "DLTRegionalFargateDLTCloudWatchLogsGroupAE1278C6",
             "Arn",
           ],
@@ -520,28 +491,28 @@ Object {
       },
       "Type": "AWS::Lambda::Permission",
     },
-    "DLTRegionalFargateDLTEcsCluster1D89D366": Object {
-      "Properties": Object {
-        "ClusterName": Object {
+    "DLTRegionalFargateDLTEcsCluster1D89D366": {
+      "Properties": {
+        "ClusterName": {
           "Ref": "AWS::StackName",
         },
-        "ClusterSettings": Array [
-          Object {
+        "ClusterSettings": [
+          {
             "Name": "containerInsights",
             "Value": "enabled",
           },
         ],
-        "Tags": Array [
-          Object {
+        "Tags": [
+          {
             "Key": "CloudFormation Stack",
-            "Value": Object {
+            "Value": {
               "Ref": "AWS::StackName",
             },
           },
-          Object {
+          {
             "Key": "SolutionId",
-            "Value": Object {
-              "Fn::FindInMap": Array [
+            "Value": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "SolutionId",
@@ -552,24 +523,24 @@ Object {
       },
       "Type": "AWS::ECS::Cluster",
     },
-    "DLTRegionalFargateDLTEcsSecurityGroup76A38D53": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
+    "DLTRegionalFargateDLTEcsSecurityGroup76A38D53": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
               "id": "W40",
               "reason": "IpProtocol set to -1 (any) as ports are not known prior to running tests",
             },
           ],
         },
       },
-      "Properties": Object {
+      "Properties": {
         "GroupDescription": "DLTS Tasks Security Group",
-        "Tags": Array [
-          Object {
+        "Tags": [
+          {
             "Key": "SolutionId",
-            "Value": Object {
-              "Fn::FindInMap": Array [
+            "Value": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "SolutionId",
@@ -577,13 +548,13 @@ Object {
             },
           },
         ],
-        "VpcId": Object {
-          "Fn::If": Array [
+        "VpcId": {
+          "Fn::If": [
             "CreateFargateVPCResources",
-            Object {
+            {
               "Ref": "DLTRegionalVpcDLTFargateVpc27038C26",
             },
-            Object {
+            {
               "Ref": "ExistingVPCId",
             },
           ],
@@ -591,64 +562,64 @@ Object {
       },
       "Type": "AWS::EC2::SecurityGroup",
     },
-    "DLTRegionalFargateDLTSecGroupEgress64416366": Object {
-      "Properties": Object {
-        "CidrIp": Object {
+    "DLTRegionalFargateDLTSecGroupEgress64416366": {
+      "Properties": {
+        "CidrIp": {
           "Ref": "EgressCidr",
         },
         "Description": "Allow tasks to call out to external resources",
-        "GroupId": Object {
+        "GroupId": {
           "Ref": "DLTRegionalFargateDLTEcsSecurityGroup76A38D53",
         },
         "IpProtocol": "-1",
       },
       "Type": "AWS::EC2::SecurityGroupEgress",
     },
-    "DLTRegionalFargateDLTSecGroupIngress5C8E0E6E": Object {
-      "Properties": Object {
+    "DLTRegionalFargateDLTSecGroupIngress5C8E0E6E": {
+      "Properties": {
         "Description": "Allow tasks to communicate",
         "FromPort": 50000,
-        "GroupId": Object {
+        "GroupId": {
           "Ref": "DLTRegionalFargateDLTEcsSecurityGroup76A38D53",
         },
         "IpProtocol": "tcp",
-        "SourceSecurityGroupId": Object {
+        "SourceSecurityGroupId": {
           "Ref": "DLTRegionalFargateDLTEcsSecurityGroup76A38D53",
         },
         "ToPort": 50000,
       },
       "Type": "AWS::EC2::SecurityGroupIngress",
     },
-    "DLTRegionalFargateDLTTaskDefinitionB27F0AFD": Object {
-      "Properties": Object {
-        "ContainerDefinitions": Array [
-          Object {
+    "DLTRegionalFargateDLTTaskDefinitionB27F0AFD": {
+      "Properties": {
+        "ContainerDefinitions": [
+          {
             "Essential": true,
-            "Image": Object {
-              "Fn::FindInMap": Array [
+            "Image": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "ContainerImage",
               ],
             },
-            "LogConfiguration": Object {
+            "LogConfiguration": {
               "LogDriver": "awslogs",
-              "Options": Object {
-                "awslogs-group": Object {
+              "Options": {
+                "awslogs-group": {
                   "Ref": "DLTRegionalFargateDLTCloudWatchLogsGroupAE1278C6",
                 },
-                "awslogs-region": Object {
+                "awslogs-region": {
                   "Ref": "AWS::Region",
                 },
                 "awslogs-stream-prefix": "load-testing",
               },
             },
             "Memory": 4096,
-            "Name": Object {
-              "Fn::Join": Array [
+            "Name": {
+              "Fn::Join": [
                 "",
-                Array [
-                  Object {
+                [
+                  {
                     "Ref": "AWS::StackName",
                   },
                   "-load-tester",
@@ -658,22 +629,22 @@ Object {
           },
         ],
         "Cpu": "2048",
-        "ExecutionRoleArn": Object {
-          "Fn::GetAtt": Array [
+        "ExecutionRoleArn": {
+          "Fn::GetAtt": [
             "DLTRegionalFargateDLTTaskExecutionRole22C06EF4",
             "Arn",
           ],
         },
         "Memory": "4096",
         "NetworkMode": "awsvpc",
-        "RequiresCompatibilities": Array [
+        "RequiresCompatibilities": [
           "FARGATE",
         ],
-        "Tags": Array [
-          Object {
+        "Tags": [
+          {
             "Key": "SolutionId",
-            "Value": Object {
-              "Fn::FindInMap": Array [
+            "Value": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "SolutionId",
@@ -681,8 +652,8 @@ Object {
             },
           },
         ],
-        "TaskRoleArn": Object {
-          "Fn::GetAtt": Array [
+        "TaskRoleArn": {
+          "Fn::GetAtt": [
             "DLTRegionalFargateDLTTaskExecutionRole22C06EF4",
             "Arn",
           ],
@@ -690,27 +661,27 @@ Object {
       },
       "Type": "AWS::ECS::TaskDefinition",
     },
-    "DLTRegionalFargateDLTTaskExecutionRole22C06EF4": Object {
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
+    "DLTRegionalFargateDLTTaskExecutionRole22C06EF4": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
               "Action": "sts:AssumeRole",
               "Effect": "Allow",
-              "Principal": Object {
+              "Principal": {
                 "Service": "ecs-tasks.amazonaws.com",
               },
             },
           ],
           "Version": "2012-10-17",
         },
-        "ManagedPolicyArns": Array [
-          Object {
-            "Fn::Join": Array [
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
               "",
-              Array [
+              [
                 "arn:",
-                Object {
+                {
                   "Ref": "AWS::Partition",
                 },
                 ":iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
@@ -718,30 +689,30 @@ Object {
             ],
           },
         ],
-        "Policies": Array [
-          Object {
-            "PolicyDocument": Object {
-              "Statement": Array [
-                Object {
-                  "Action": Array [
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
                     "s3:HeadObject",
                     "s3:PutObject",
                     "s3:GetObject",
                     "s3:ListBucket",
                   ],
                   "Effect": "Allow",
-                  "Resource": Array [
-                    Object {
-                      "Fn::Join": Array [
+                  "Resource": [
+                    {
+                      "Fn::Join": [
                         "",
-                        Array [
+                        [
                           "arn:",
-                          Object {
+                          {
                             "Ref": "AWS::Partition",
                           },
                           ":s3:::",
-                          Object {
-                            "Fn::FindInMap": Array [
+                          {
+                            "Fn::FindInMap": [
                               "Solution",
                               "Config",
                               "ScenariosS3Bucket",
@@ -750,17 +721,17 @@ Object {
                         ],
                       ],
                     },
-                    Object {
-                      "Fn::Join": Array [
+                    {
+                      "Fn::Join": [
                         "",
-                        Array [
+                        [
                           "arn:",
-                          Object {
+                          {
                             "Ref": "AWS::Partition",
                           },
                           ":s3:::",
-                          Object {
-                            "Fn::FindInMap": Array [
+                          {
+                            "Fn::FindInMap": [
                               "Solution",
                               "Config",
                               "ScenariosS3Bucket",
@@ -778,11 +749,11 @@ Object {
             "PolicyName": "ScenariosS3Policy",
           },
         ],
-        "Tags": Array [
-          Object {
+        "Tags": [
+          {
             "Key": "SolutionId",
-            "Value": Object {
-              "Fn::FindInMap": Array [
+            "Value": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "SolutionId",
@@ -793,14 +764,14 @@ Object {
       },
       "Type": "AWS::IAM::Role",
     },
-    "DLTRegionalVpcDLTFargateIGE3847EB3": Object {
+    "DLTRegionalVpcDLTFargateIGE3847EB3": {
       "Condition": "CreateFargateVPCResources",
-      "Properties": Object {
-        "Tags": Array [
-          Object {
+      "Properties": {
+        "Tags": [
+          {
             "Key": "SolutionId",
-            "Value": Object {
-              "Fn::FindInMap": Array [
+            "Value": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "SolutionId",
@@ -811,14 +782,14 @@ Object {
       },
       "Type": "AWS::EC2::InternetGateway",
     },
-    "DLTRegionalVpcDLTFargateRT243A2CBC": Object {
+    "DLTRegionalVpcDLTFargateRT243A2CBC": {
       "Condition": "CreateFargateVPCResources",
-      "Properties": Object {
-        "Tags": Array [
-          Object {
+      "Properties": {
+        "Tags": [
+          {
             "Key": "SolutionId",
-            "Value": Object {
-              "Fn::FindInMap": Array [
+            "Value": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "SolutionId",
@@ -826,41 +797,41 @@ Object {
             },
           },
         ],
-        "VpcId": Object {
+        "VpcId": {
           "Ref": "DLTRegionalVpcDLTFargateVpc27038C26",
         },
       },
       "Type": "AWS::EC2::RouteTable",
     },
-    "DLTRegionalVpcDLTFargateVpc27038C26": Object {
+    "DLTRegionalVpcDLTFargateVpc27038C26": {
       "Condition": "CreateFargateVPCResources",
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
               "id": "W60",
               "reason": "This VPC is used for the test runner Fargate tasks only, it does not require VPC flow logs.",
             },
           ],
         },
       },
-      "Properties": Object {
-        "CidrBlock": Object {
+      "Properties": {
+        "CidrBlock": {
           "Ref": "VpcCidrBlock",
         },
         "EnableDnsHostnames": true,
         "EnableDnsSupport": true,
-        "Tags": Array [
-          Object {
+        "Tags": [
+          {
             "Key": "Name",
-            "Value": Object {
+            "Value": {
               "Ref": "AWS::StackName",
             },
           },
-          Object {
+          {
             "Key": "SolutionId",
-            "Value": Object {
-              "Fn::FindInMap": Array [
+            "Value": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "SolutionId",
@@ -871,77 +842,77 @@ Object {
       },
       "Type": "AWS::EC2::VPC",
     },
-    "DLTRegionalVpcDLTGatewayattachmentA7E0AEA0": Object {
+    "DLTRegionalVpcDLTGatewayattachmentA7E0AEA0": {
       "Condition": "CreateFargateVPCResources",
-      "Properties": Object {
-        "InternetGatewayId": Object {
+      "Properties": {
+        "InternetGatewayId": {
           "Ref": "DLTRegionalVpcDLTFargateIGE3847EB3",
         },
-        "VpcId": Object {
+        "VpcId": {
           "Ref": "DLTRegionalVpcDLTFargateVpc27038C26",
         },
       },
       "Type": "AWS::EC2::VPCGatewayAttachment",
     },
-    "DLTRegionalVpcDLTRoute2F53B3BB": Object {
+    "DLTRegionalVpcDLTRoute2F53B3BB": {
       "Condition": "CreateFargateVPCResources",
-      "DependsOn": Array [
+      "DependsOn": [
         "DLTRegionalVpcDLTGatewayattachmentA7E0AEA0",
       ],
-      "Properties": Object {
+      "Properties": {
         "DestinationCidrBlock": "0.0.0.0/0",
-        "GatewayId": Object {
+        "GatewayId": {
           "Ref": "DLTRegionalVpcDLTFargateIGE3847EB3",
         },
-        "RouteTableId": Object {
+        "RouteTableId": {
           "Ref": "DLTRegionalVpcDLTFargateRT243A2CBC",
         },
       },
       "Type": "AWS::EC2::Route",
     },
-    "DLTRegionalVpcDLTRouteTableAssociationAF1EA6E2D": Object {
+    "DLTRegionalVpcDLTRouteTableAssociationAF1EA6E2D": {
       "Condition": "CreateFargateVPCResources",
-      "Properties": Object {
-        "RouteTableId": Object {
+      "Properties": {
+        "RouteTableId": {
           "Ref": "DLTRegionalVpcDLTFargateRT243A2CBC",
         },
-        "SubnetId": Object {
+        "SubnetId": {
           "Ref": "DLTRegionalVpcDLTSubnetACEFDB0F7",
         },
       },
       "Type": "AWS::EC2::SubnetRouteTableAssociation",
     },
-    "DLTRegionalVpcDLTRouteTableAssociationB661C90B5": Object {
+    "DLTRegionalVpcDLTRouteTableAssociationB661C90B5": {
       "Condition": "CreateFargateVPCResources",
-      "Properties": Object {
-        "RouteTableId": Object {
+      "Properties": {
+        "RouteTableId": {
           "Ref": "DLTRegionalVpcDLTFargateRT243A2CBC",
         },
-        "SubnetId": Object {
+        "SubnetId": {
           "Ref": "DLTRegionalVpcDLTSubnetB02222C79",
         },
       },
       "Type": "AWS::EC2::SubnetRouteTableAssociation",
     },
-    "DLTRegionalVpcDLTSubnetACEFDB0F7": Object {
+    "DLTRegionalVpcDLTSubnetACEFDB0F7": {
       "Condition": "CreateFargateVPCResources",
-      "Properties": Object {
-        "AvailabilityZone": Object {
-          "Fn::Select": Array [
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
             0,
-            Object {
+            {
               "Fn::GetAZs": "",
             },
           ],
         },
-        "CidrBlock": Object {
+        "CidrBlock": {
           "Ref": "SubnetACidrBlock",
         },
-        "Tags": Array [
-          Object {
+        "Tags": [
+          {
             "Key": "SolutionId",
-            "Value": Object {
-              "Fn::FindInMap": Array [
+            "Value": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "SolutionId",
@@ -949,31 +920,31 @@ Object {
             },
           },
         ],
-        "VpcId": Object {
+        "VpcId": {
           "Ref": "DLTRegionalVpcDLTFargateVpc27038C26",
         },
       },
       "Type": "AWS::EC2::Subnet",
     },
-    "DLTRegionalVpcDLTSubnetB02222C79": Object {
+    "DLTRegionalVpcDLTSubnetB02222C79": {
       "Condition": "CreateFargateVPCResources",
-      "Properties": Object {
-        "AvailabilityZone": Object {
-          "Fn::Select": Array [
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
             1,
-            Object {
+            {
               "Fn::GetAZs": "",
             },
           ],
         },
-        "CidrBlock": Object {
+        "CidrBlock": {
           "Ref": "SubnetBCidrBlock",
         },
-        "Tags": Array [
-          Object {
+        "Tags": [
+          {
             "Key": "SolutionId",
-            "Value": Object {
-              "Fn::FindInMap": Array [
+            "Value": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "SolutionId",
@@ -981,26 +952,26 @@ Object {
             },
           },
         ],
-        "VpcId": Object {
+        "VpcId": {
           "Ref": "DLTRegionalVpcDLTFargateVpc27038C26",
         },
       },
       "Type": "AWS::EC2::Subnet",
     },
-    "DefaultApplicationAttributesFC1CC26B": Object {
-      "Properties": Object {
-        "Attributes": Object {
+    "DefaultApplicationAttributesFC1CC26B": {
+      "Properties": {
+        "Attributes": {
           "applicationType": "AWS-Solutions",
-          "solutionID": Object {
-            "Fn::FindInMap": Array [
+          "solutionID": {
+            "Fn::FindInMap": [
               "Solution",
               "Config",
               "SolutionId",
             ],
           },
           "solutionName": "Distributed Load Testing",
-          "version": Object {
-            "Fn::FindInMap": Array [
+          "version": {
+            "Fn::FindInMap": [
               "Solution",
               "Config",
               "CodeVersion",
@@ -1008,12 +979,12 @@ Object {
           },
         },
         "Description": "Attribute group for solution information",
-        "Name": Object {
+        "Name": {
           "Ref": "AWS::StackName",
         },
-        "Tags": Object {
-          "SolutionId": Object {
-            "Fn::FindInMap": Array [
+        "Tags": {
+          "SolutionId": {
+            "Fn::FindInMap": [
               "Solution",
               "Config",
               "SolutionId",
@@ -1023,53 +994,53 @@ Object {
       },
       "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroup",
     },
-    "RealTimeDataRealTimeDataPublisher7E8F8F6C": Object {
-      "DependsOn": Array [
+    "RealTimeDataRealTimeDataPublisher7E8F8F6C": {
+      "DependsOn": [
         "RealTimeDatarealTimeDataPublisherRoleA8976D01",
       ],
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
               "id": "W58",
               "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
             },
-            Object {
+            {
               "id": "W89",
               "reason": "This Lambda function does not require a VPC",
             },
-            Object {
+            {
               "id": "W92",
               "reason": "Does not run concurrent executions",
             },
           ],
         },
       },
-      "Properties": Object {
-        "Code": Object {
-          "S3Bucket": Object {
-            "Fn::Join": Array [
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Join": [
               "-",
-              Array [
-                Object {
-                  "Fn::FindInMap": Array [
+              [
+                {
+                  "Fn::FindInMap": [
                     "Solution",
                     "Config",
                     "S3Bucket",
                   ],
                 },
-                Object {
+                {
                   "Ref": "AWS::Region",
                 },
               ],
             ],
           },
-          "S3Key": Object {
-            "Fn::Join": Array [
+          "S3Key": {
+            "Fn::Join": [
               "",
-              Array [
-                Object {
-                  "Fn::FindInMap": Array [
+              [
+                {
+                  "Fn::FindInMap": [
                     "Solution",
                     "Config",
                     "KeyPrefix",
@@ -1081,30 +1052,30 @@ Object {
           },
         },
         "Description": "Real time data publisher",
-        "Environment": Object {
-          "Variables": Object {
-            "IOT_ENDPOINT": Object {
-              "Fn::GetAtt": Array [
+        "Environment": {
+          "Variables": {
+            "IOT_ENDPOINT": {
+              "Fn::GetAtt": [
                 "DLTCustomResourcesGetIotEndpoint700ABCC8",
                 "IOT_ENDPOINT",
               ],
             },
-            "MAIN_REGION": Object {
-              "Fn::FindInMap": Array [
+            "MAIN_REGION": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "MainStackRegion",
               ],
             },
-            "SOLUTION_ID": Object {
-              "Fn::FindInMap": Array [
+            "SOLUTION_ID": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "SolutionId",
               ],
             },
-            "VERSION": Object {
-              "Fn::FindInMap": Array [
+            "VERSION": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "CodeVersion",
@@ -1113,18 +1084,18 @@ Object {
           },
         },
         "Handler": "index.handler",
-        "Role": Object {
-          "Fn::GetAtt": Array [
+        "Role": {
+          "Fn::GetAtt": [
             "RealTimeDatarealTimeDataPublisherRoleA8976D01",
             "Arn",
           ],
         },
         "Runtime": "nodejs16.x",
-        "Tags": Array [
-          Object {
+        "Tags": [
+          {
             "Key": "SolutionId",
-            "Value": Object {
-              "Fn::FindInMap": Array [
+            "Value": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "SolutionId",
@@ -1136,45 +1107,45 @@ Object {
       },
       "Type": "AWS::Lambda::Function",
     },
-    "RealTimeDatarealTimeDataPublisherRoleA8976D01": Object {
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
+    "RealTimeDatarealTimeDataPublisherRoleA8976D01": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
               "Action": "sts:AssumeRole",
               "Effect": "Allow",
-              "Principal": Object {
+              "Principal": {
                 "Service": "lambda.amazonaws.com",
               },
             },
           ],
           "Version": "2012-10-17",
         },
-        "Policies": Array [
-          Object {
-            "PolicyDocument": Object {
-              "Statement": Array [
-                Object {
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
                   "Action": "iot:Publish",
                   "Effect": "Allow",
-                  "Resource": Object {
-                    "Fn::Join": Array [
+                  "Resource": {
+                    "Fn::Join": [
                       "",
-                      Array [
+                      [
                         "arn:",
-                        Object {
+                        {
                           "Ref": "AWS::Partition",
                         },
                         ":iot:",
-                        Object {
-                          "Fn::FindInMap": Array [
+                        {
+                          "Fn::FindInMap": [
                             "Solution",
                             "Config",
                             "MainStackRegion",
                           ],
                         },
                         ":",
-                        Object {
+                        {
                           "Ref": "AWS::AccountId",
                         },
                         ":topic/*",
@@ -1188,11 +1159,11 @@ Object {
             "PolicyName": "IoTPolicy",
           },
         ],
-        "Tags": Array [
-          Object {
+        "Tags": [
+          {
             "Key": "SolutionId",
-            "Value": Object {
-              "Fn::FindInMap": Array [
+            "Value": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "SolutionId",
@@ -1203,53 +1174,53 @@ Object {
       },
       "Type": "AWS::IAM::Role",
     },
-    "RegionalCustomResourceInfraCustomResourceLambda86A7E873": Object {
-      "DependsOn": Array [
+    "RegionalCustomResourceInfraCustomResourceLambda86A7E873": {
+      "DependsOn": [
         "RegionalCustomResourceInfraCustomResourceLambdaRoleEBA8B208",
       ],
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
               "id": "W58",
               "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
             },
-            Object {
+            {
               "id": "W89",
               "reason": "VPC not needed for lambda",
             },
-            Object {
+            {
               "id": "W92",
               "reason": "Does not run concurrent executions",
             },
           ],
         },
       },
-      "Properties": Object {
-        "Code": Object {
-          "S3Bucket": Object {
-            "Fn::Join": Array [
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Join": [
               "-",
-              Array [
-                Object {
-                  "Fn::FindInMap": Array [
+              [
+                {
+                  "Fn::FindInMap": [
                     "Solution",
                     "Config",
                     "S3Bucket",
                   ],
                 },
-                Object {
+                {
                   "Ref": "AWS::Region",
                 },
               ],
             ],
           },
-          "S3Key": Object {
-            "Fn::Join": Array [
+          "S3Key": {
+            "Fn::Join": [
               "",
-              Array [
-                Object {
-                  "Fn::FindInMap": Array [
+              [
+                {
+                  "Fn::FindInMap": [
                     "Solution",
                     "Config",
                     "KeyPrefix",
@@ -1261,45 +1232,45 @@ Object {
           },
         },
         "Description": "CFN Lambda backed custom resource to deploy assets to s3",
-        "Environment": Object {
-          "Variables": Object {
-            "DDB_TABLE": Object {
-              "Fn::FindInMap": Array [
+        "Environment": {
+          "Variables": {
+            "DDB_TABLE": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "ScenariosTable",
               ],
             },
-            "MAIN_REGION": Object {
-              "Fn::FindInMap": Array [
+            "MAIN_REGION": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "MainStackRegion",
               ],
             },
-            "METRIC_URL": Object {
-              "Fn::FindInMap": Array [
+            "METRIC_URL": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "URL",
               ],
             },
-            "S3_BUCKET": Object {
-              "Fn::FindInMap": Array [
+            "S3_BUCKET": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "ScenariosS3Bucket",
               ],
             },
-            "SOLUTION_ID": Object {
-              "Fn::FindInMap": Array [
+            "SOLUTION_ID": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "SolutionId",
               ],
             },
-            "VERSION": Object {
-              "Fn::FindInMap": Array [
+            "VERSION": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "CodeVersion",
@@ -1308,18 +1279,18 @@ Object {
           },
         },
         "Handler": "index.handler",
-        "Role": Object {
-          "Fn::GetAtt": Array [
+        "Role": {
+          "Fn::GetAtt": [
             "RegionalCustomResourceInfraCustomResourceLambdaRoleEBA8B208",
             "Arn",
           ],
         },
         "Runtime": "nodejs16.x",
-        "Tags": Array [
-          Object {
+        "Tags": [
+          {
             "Key": "SolutionId",
-            "Value": Object {
-              "Fn::FindInMap": Array [
+            "Value": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "SolutionId",
@@ -1331,58 +1302,58 @@ Object {
       },
       "Type": "AWS::Lambda::Function",
     },
-    "RegionalCustomResourceInfraCustomResourceLambdaRoleEBA8B208": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
+    "RegionalCustomResourceInfraCustomResourceLambdaRoleEBA8B208": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
               "id": "W11",
               "reason": "iot:DescribeEndpoint and iot:DetachPrincipalPolicy cannot specify the resource.",
             },
           ],
         },
       },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
               "Action": "sts:AssumeRole",
               "Effect": "Allow",
-              "Principal": Object {
+              "Principal": {
                 "Service": "lambda.amazonaws.com",
               },
             },
           ],
           "Version": "2012-10-17",
         },
-        "Policies": Array [
-          Object {
-            "PolicyDocument": Object {
-              "Statement": Array [
-                Object {
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
                   "Action": "s3:GetObject",
                   "Effect": "Allow",
-                  "Resource": Object {
-                    "Fn::Join": Array [
+                  "Resource": {
+                    "Fn::Join": [
                       "",
-                      Array [
+                      [
                         "arn:",
-                        Object {
+                        {
                           "Ref": "AWS::Partition",
                         },
                         ":s3:::",
-                        Object {
-                          "Fn::Join": Array [
+                        {
+                          "Fn::Join": [
                             "-",
-                            Array [
-                              Object {
-                                "Fn::FindInMap": Array [
+                            [
+                              {
+                                "Fn::FindInMap": [
                                   "Solution",
                                   "Config",
                                   "S3Bucket",
                                 ],
                               },
-                              Object {
+                              {
                                 "Ref": "AWS::Region",
                               },
                             ],
@@ -1393,23 +1364,23 @@ Object {
                     ],
                   },
                 },
-                Object {
-                  "Action": Array [
+                {
+                  "Action": [
                     "s3:PutObject",
                     "s3:DeleteObject",
                   ],
                   "Effect": "Allow",
-                  "Resource": Object {
-                    "Fn::Join": Array [
+                  "Resource": {
+                    "Fn::Join": [
                       "",
-                      Array [
+                      [
                         "arn:",
-                        Object {
+                        {
                           "Ref": "AWS::Partition",
                         },
                         ":s3:::",
-                        Object {
-                          "Fn::FindInMap": Array [
+                        {
+                          "Fn::FindInMap": [
                             "Solution",
                             "Config",
                             "ScenariosS3Bucket",
@@ -1420,35 +1391,35 @@ Object {
                     ],
                   },
                 },
-                Object {
-                  "Action": Array [
+                {
+                  "Action": [
                     "dynamodb:PutItem",
                     "dynamodb:DeleteItem",
                   ],
                   "Effect": "Allow",
-                  "Resource": Object {
-                    "Fn::Join": Array [
+                  "Resource": {
+                    "Fn::Join": [
                       "",
-                      Array [
+                      [
                         "arn:",
-                        Object {
+                        {
                           "Ref": "AWS::Partition",
                         },
                         ":dynamodb:",
-                        Object {
-                          "Fn::FindInMap": Array [
+                        {
+                          "Fn::FindInMap": [
                             "Solution",
                             "Config",
                             "MainStackRegion",
                           ],
                         },
                         ":",
-                        Object {
+                        {
                           "Ref": "AWS::AccountId",
                         },
                         ":table/",
-                        Object {
-                          "Fn::FindInMap": Array [
+                        {
+                          "Fn::FindInMap": [
                             "Solution",
                             "Config",
                             "ScenariosTable",
@@ -1458,31 +1429,31 @@ Object {
                     ],
                   },
                 },
-                Object {
-                  "Action": Array [
+                {
+                  "Action": [
                     "iot:DescribeEndpoint",
                     "iot:DetachPrincipalPolicy",
                   ],
                   "Effect": "Allow",
                   "Resource": "*",
                 },
-                Object {
+                {
                   "Action": "iot:ListTargetsForPolicy",
                   "Effect": "Allow",
-                  "Resource": Object {
-                    "Fn::Join": Array [
+                  "Resource": {
+                    "Fn::Join": [
                       "",
-                      Array [
+                      [
                         "arn:",
-                        Object {
+                        {
                           "Ref": "AWS::Partition",
                         },
                         ":iot:",
-                        Object {
+                        {
                           "Ref": "AWS::Region",
                         },
                         ":",
-                        Object {
+                        {
                           "Ref": "AWS::AccountId",
                         },
                         ":policy/*",
@@ -1496,11 +1467,11 @@ Object {
             "PolicyName": "CustomResourcePolicy",
           },
         ],
-        "Tags": Array [
-          Object {
+        "Tags": [
+          {
             "Key": "SolutionId",
-            "Value": Object {
-              "Fn::FindInMap": Array [
+            "Value": {
+              "Fn::FindInMap": [
                 "Solution",
                 "Config",
                 "SolutionId",
@@ -1511,15 +1482,15 @@ Object {
       },
       "Type": "AWS::IAM::Role",
     },
-    "RegionalPermissionsForTaskLambdasECSCloudWatchDelMetrics67273BC1": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
+    "RegionalPermissionsForTaskLambdasECSCloudWatchDelMetrics67273BC1": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
               "Action": "logs:DeleteMetricFilter",
               "Effect": "Allow",
-              "Resource": Object {
-                "Fn::GetAtt": Array [
+              "Resource": {
+                "Fn::GetAtt": [
                   "DLTRegionalFargateDLTCloudWatchLogsGroupAE1278C6",
                   "Arn",
                 ],
@@ -1528,31 +1499,31 @@ Object {
           ],
           "Version": "2012-10-17",
         },
-        "PolicyName": Object {
-          "Fn::Join": Array [
+        "PolicyName": {
+          "Fn::Join": [
             "",
-            Array [
+            [
               "ECSCloudWatchDelMetrics-",
-              Object {
+              {
                 "Ref": "AWS::StackName",
               },
               "-",
-              Object {
+              {
                 "Ref": "AWS::Region",
               },
             ],
           ],
         },
-        "Roles": Array [
-          Object {
-            "Fn::FindInMap": Array [
+        "Roles": [
+          {
+            "Fn::FindInMap": [
               "Solution",
               "Config",
               "APIServicesLambdaRoleName",
             ],
           },
-          Object {
-            "Fn::FindInMap": Array [
+          {
+            "Fn::FindInMap": [
               "Solution",
               "Config",
               "ResultsParserRoleName",
@@ -1562,15 +1533,15 @@ Object {
       },
       "Type": "AWS::IAM::Policy",
     },
-    "RegionalPermissionsForTaskLambdasECSCloudWatchPutMetricsd8D7608DF": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
+    "RegionalPermissionsForTaskLambdasECSCloudWatchPutMetricsd8D7608DF": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
               "Action": "logs:PutMetricFilter",
               "Effect": "Allow",
-              "Resource": Object {
-                "Fn::GetAtt": Array [
+              "Resource": {
+                "Fn::GetAtt": [
                   "DLTRegionalFargateDLTCloudWatchLogsGroupAE1278C6",
                   "Arn",
                 ],
@@ -1579,24 +1550,24 @@ Object {
           ],
           "Version": "2012-10-17",
         },
-        "PolicyName": Object {
-          "Fn::Join": Array [
+        "PolicyName": {
+          "Fn::Join": [
             "",
-            Array [
+            [
               "ECSCloudWatchPutMetrics-",
-              Object {
+              {
                 "Ref": "AWS::StackName",
               },
               "-",
-              Object {
+              {
                 "Ref": "AWS::Region",
               },
             ],
           ],
         },
-        "Roles": Array [
-          Object {
-            "Fn::FindInMap": Array [
+        "Roles": [
+          {
+            "Fn::FindInMap": [
               "Solution",
               "Config",
               "TaskRunnerRoleName",
@@ -1606,27 +1577,27 @@ Object {
       },
       "Type": "AWS::IAM::Policy",
     },
-    "RegionalPermissionsForTaskLambdasECSDescribePolicyAE42B7AD": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
+    "RegionalPermissionsForTaskLambdasECSDescribePolicyAE42B7AD": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
               "Action": "ecs:DescribeTasks",
               "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
+              "Resource": {
+                "Fn::Join": [
                   "",
-                  Array [
+                  [
                     "arn:",
-                    Object {
+                    {
                       "Ref": "AWS::Partition",
                     },
                     ":ecs:",
-                    Object {
+                    {
                       "Ref": "AWS::Region",
                     },
                     ":",
-                    Object {
+                    {
                       "Ref": "AWS::AccountId",
                     },
                     ":task/*",
@@ -1637,20 +1608,20 @@ Object {
           ],
           "Version": "2012-10-17",
         },
-        "PolicyName": Object {
-          "Fn::Join": Array [
+        "PolicyName": {
+          "Fn::Join": [
             "",
-            Array [
+            [
               "ECSDescribePolicy",
-              Object {
+              {
                 "Ref": "AWS::Region",
               },
             ],
           ],
         },
-        "Roles": Array [
-          Object {
-            "Fn::FindInMap": Array [
+        "Roles": [
+          {
+            "Fn::FindInMap": [
               "Solution",
               "Config",
               "TaskStatusCheckerRoleName",
@@ -1660,48 +1631,48 @@ Object {
       },
       "Type": "AWS::IAM::Policy",
     },
-    "RegionalPermissionsForTaskLambdasECSStopPolicy32D8C7AF": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
+    "RegionalPermissionsForTaskLambdasECSStopPolicy32D8C7AF": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
               "Action": "ecs:StopTask",
               "Effect": "Allow",
-              "Resource": Array [
-                Object {
-                  "Fn::Join": Array [
+              "Resource": [
+                {
+                  "Fn::Join": [
                     "",
-                    Array [
+                    [
                       "arn:",
-                      Object {
+                      {
                         "Ref": "AWS::Partition",
                       },
                       ":ecs:",
-                      Object {
+                      {
                         "Ref": "AWS::Region",
                       },
                       ":",
-                      Object {
+                      {
                         "Ref": "AWS::AccountId",
                       },
                       ":task/*",
                     ],
                   ],
                 },
-                Object {
-                  "Fn::Join": Array [
+                {
+                  "Fn::Join": [
                     "",
-                    Array [
+                    [
                       "arn:",
-                      Object {
+                      {
                         "Ref": "AWS::Partition",
                       },
                       ":ecs:",
-                      Object {
+                      {
                         "Ref": "AWS::Region",
                       },
                       ":",
-                      Object {
+                      {
                         "Ref": "AWS::AccountId",
                       },
                       ":task-definition/*:*",
@@ -1713,24 +1684,24 @@ Object {
           ],
           "Version": "2012-10-17",
         },
-        "PolicyName": Object {
-          "Fn::Join": Array [
+        "PolicyName": {
+          "Fn::Join": [
             "",
-            Array [
+            [
               "ECSStopPolicy-",
-              Object {
+              {
                 "Ref": "AWS::StackName",
               },
               "-",
-              Object {
+              {
                 "Ref": "AWS::Region",
               },
             ],
           ],
         },
-        "Roles": Array [
-          Object {
-            "Fn::FindInMap": Array [
+        "Roles": [
+          {
+            "Fn::FindInMap": [
               "Solution",
               "Config",
               "TaskCancelerRoleName",
@@ -1740,51 +1711,51 @@ Object {
       },
       "Type": "AWS::IAM::Policy",
     },
-    "RegionalPermissionsForTaskLambdasRegionalECRPerms80299EED": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
+    "RegionalPermissionsForTaskLambdasRegionalECRPerms80299EED": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
                 "ecs:RunTask",
                 "ecs:DescribeTasks",
               ],
               "Effect": "Allow",
-              "Resource": Array [
-                Object {
-                  "Fn::Join": Array [
+              "Resource": [
+                {
+                  "Fn::Join": [
                     "",
-                    Array [
+                    [
                       "arn:",
-                      Object {
+                      {
                         "Ref": "AWS::Partition",
                       },
                       ":ecs:",
-                      Object {
+                      {
                         "Ref": "AWS::Region",
                       },
                       ":",
-                      Object {
+                      {
                         "Ref": "AWS::AccountId",
                       },
                       ":task/*",
                     ],
                   ],
                 },
-                Object {
-                  "Fn::Join": Array [
+                {
+                  "Fn::Join": [
                     "",
-                    Array [
+                    [
                       "arn:",
-                      Object {
+                      {
                         "Ref": "AWS::Partition",
                       },
                       ":ecs:",
-                      Object {
+                      {
                         "Ref": "AWS::Region",
                       },
                       ":",
-                      Object {
+                      {
                         "Ref": "AWS::AccountId",
                       },
                       ":task-definition/*:*",
@@ -1793,11 +1764,11 @@ Object {
                 },
               ],
             },
-            Object {
+            {
               "Action": "iam:PassRole",
               "Effect": "Allow",
-              "Resource": Object {
-                "Fn::GetAtt": Array [
+              "Resource": {
+                "Fn::GetAtt": [
                   "DLTRegionalFargateDLTTaskExecutionRole22C06EF4",
                   "Arn",
                 ],
@@ -1806,31 +1777,31 @@ Object {
           ],
           "Version": "2012-10-17",
         },
-        "PolicyName": Object {
-          "Fn::Join": Array [
+        "PolicyName": {
+          "Fn::Join": [
             "",
-            Array [
+            [
               "RegionalECRPerms-",
-              Object {
+              {
                 "Ref": "AWS::StackName",
               },
               "-",
-              Object {
+              {
                 "Ref": "AWS::Region",
               },
             ],
           ],
         },
-        "Roles": Array [
-          Object {
-            "Fn::FindInMap": Array [
+        "Roles": [
+          {
+            "Fn::FindInMap": [
               "Solution",
               "Config",
               "TaskRunnerRoleName",
             ],
           },
-          Object {
-            "Fn::FindInMap": Array [
+          {
+            "Fn::FindInMap": [
               "Solution",
               "Config",
               "APIServicesLambdaRoleName",
@@ -1841,15 +1812,15 @@ Object {
       "Type": "AWS::IAM::Policy",
     },
   },
-  "Rules": Object {
-    "ExistingVPCRule": Object {
-      "Assertions": Array [
-        Object {
-          "Assert": Object {
-            "Fn::Not": Array [
-              Object {
-                "Fn::Equals": Array [
-                  Object {
+  "Rules": {
+    "ExistingVPCRule": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Equals": [
+                  {
                     "Ref": "ExistingSubnetA",
                   },
                   "",
@@ -1859,12 +1830,12 @@ Object {
           },
           "AssertDescription": "If an existing VPC Id is provided, 2 subnet ids need to be provided as well. You neglected to enter the first subnet id",
         },
-        Object {
-          "Assert": Object {
-            "Fn::Not": Array [
-              Object {
-                "Fn::Equals": Array [
-                  Object {
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Equals": [
+                  {
                     "Ref": "ExistingSubnetB",
                   },
                   "",
@@ -1875,11 +1846,11 @@ Object {
           "AssertDescription": "If an existing VPC Id is provided, 2 subnet ids need to be provided as well. You neglected to enter the second subnet id",
         },
       ],
-      "RuleCondition": Object {
-        "Fn::Not": Array [
-          Object {
-            "Fn::Equals": Array [
-              Object {
+      "RuleCondition": {
+        "Fn::Not": [
+          {
+            "Fn::Equals": [
+              {
                 "Ref": "ExistingVPCId",
               },
               "",

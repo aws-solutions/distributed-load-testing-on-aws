@@ -1,121 +1,158 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`DLT API Test 1`] = `
-Object {
-  "Resources": Object {
-    "TestScenarioStorageDLTHistoryTable3639137E": Object {
+{
+  "Resources": {
+    "TestScenarioStorageDLTHistoryTable3639137E": {
       "DeletionPolicy": "Retain",
-      "Properties": Object {
-        "AttributeDefinitions": Array [
-          Object {
+      "Properties": {
+        "AttributeDefinitions": [
+          {
             "AttributeName": "testId",
             "AttributeType": "S",
           },
-          Object {
+          {
             "AttributeName": "testRunId",
             "AttributeType": "S",
           },
         ],
         "BillingMode": "PAY_PER_REQUEST",
-        "KeySchema": Array [
-          Object {
+        "KeySchema": [
+          {
             "AttributeName": "testId",
             "KeyType": "HASH",
           },
-          Object {
+          {
             "AttributeName": "testRunId",
             "KeyType": "RANGE",
           },
         ],
-        "PointInTimeRecoverySpecification": Object {
+        "PointInTimeRecoverySpecification": {
           "PointInTimeRecoveryEnabled": true,
         },
-        "SSESpecification": Object {
+        "SSESpecification": {
           "SSEEnabled": true,
         },
       },
       "Type": "AWS::DynamoDB::Table",
       "UpdateReplacePolicy": "Retain",
     },
-    "TestScenarioStorageDLTScenariosBucket9A78F6FF": Object {
+    "TestScenarioStorageDLTScenariosBucket9A78F6FF": {
       "DeletionPolicy": "Retain",
-      "Properties": Object {
-        "BucketEncryption": Object {
-          "ServerSideEncryptionConfiguration": Array [
-            Object {
-              "ServerSideEncryptionByDefault": Object {
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
                 "SSEAlgorithm": "aws:kms",
               },
             },
           ],
         },
-        "CorsConfiguration": Object {
-          "CorsRules": Array [
-            Object {
-              "AllowedHeaders": Array [
+        "CorsConfiguration": {
+          "CorsRules": [
+            {
+              "AllowedHeaders": [
                 "*",
               ],
-              "AllowedMethods": Array [
+              "AllowedMethods": [
                 "GET",
                 "POST",
                 "PUT",
               ],
-              "AllowedOrigins": Array [
+              "AllowedOrigins": [
                 "https://test.exampledomain.com",
               ],
-              "ExposedHeaders": Array [
+              "ExposedHeaders": [
                 "ETag",
               ],
             },
           ],
         },
-        "LoggingConfiguration": Object {
-          "DestinationBucketName": Object {
+        "LoggingConfiguration": {
+          "DestinationBucketName": {
             "Ref": "testLogsBucket85E419AD",
           },
           "LogFilePrefix": "scenarios-bucket-access/",
         },
-        "PublicAccessBlockConfiguration": Object {
+        "PublicAccessBlockConfiguration": {
           "BlockPublicAcls": true,
           "BlockPublicPolicy": true,
           "IgnorePublicAcls": true,
           "RestrictPublicBuckets": true,
         },
+        "VersioningConfiguration": {
+          "Status": "Enabled",
+        },
       },
       "Type": "AWS::S3::Bucket",
       "UpdateReplacePolicy": "Retain",
     },
-    "TestScenarioStorageDLTScenariosBucketPolicyDD7EC971": Object {
-      "Properties": Object {
-        "Bucket": Object {
+    "TestScenarioStorageDLTScenariosBucketPolicyDD7EC971": {
+      "Properties": {
+        "Bucket": {
           "Ref": "TestScenarioStorageDLTScenariosBucket9A78F6FF",
         },
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
+        "PolicyDocument": {
+          "Statement": [
+            {
               "Action": "s3:*",
-              "Condition": Object {
-                "Bool": Object {
-                  "aws:SecureTransport": false,
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false",
                 },
               },
               "Effect": "Deny",
-              "Principal": Object {
+              "Principal": {
                 "AWS": "*",
               },
-              "Resource": Array [
-                Object {
-                  "Fn::GetAtt": Array [
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
                     "TestScenarioStorageDLTScenariosBucket9A78F6FF",
                     "Arn",
                   ],
                 },
-                Object {
-                  "Fn::Join": Array [
+                {
+                  "Fn::Join": [
                     "",
-                    Array [
-                      Object {
-                        "Fn::GetAtt": Array [
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "TestScenarioStorageDLTScenariosBucket9A78F6FF",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "s3:*",
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": false,
+                },
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "TestScenarioStorageDLTScenariosBucket9A78F6FF",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
                           "TestScenarioStorageDLTScenariosBucket9A78F6FF",
                           "Arn",
                         ],
@@ -132,39 +169,39 @@ Object {
       },
       "Type": "AWS::S3::BucketPolicy",
     },
-    "TestScenarioStorageDLTScenariosTable136C8D56": Object {
+    "TestScenarioStorageDLTScenariosTable136C8D56": {
       "DeletionPolicy": "Retain",
-      "Properties": Object {
-        "AttributeDefinitions": Array [
-          Object {
+      "Properties": {
+        "AttributeDefinitions": [
+          {
             "AttributeName": "testId",
             "AttributeType": "S",
           },
         ],
         "BillingMode": "PAY_PER_REQUEST",
-        "KeySchema": Array [
-          Object {
+        "KeySchema": [
+          {
             "AttributeName": "testId",
             "KeyType": "HASH",
           },
         ],
-        "PointInTimeRecoverySpecification": Object {
+        "PointInTimeRecoverySpecification": {
           "PointInTimeRecoveryEnabled": true,
         },
-        "SSESpecification": Object {
+        "SSESpecification": {
           "SSEEnabled": true,
         },
       },
       "Type": "AWS::DynamoDB::Table",
       "UpdateReplacePolicy": "Retain",
     },
-    "testLogsBucket85E419AD": Object {
+    "testLogsBucket85E419AD": {
       "DeletionPolicy": "Retain",
-      "Properties": Object {
+      "Properties": {
         "AccessControl": "LogDeliveryWrite",
-        "OwnershipControls": Object {
-          "Rules": Array [
-            Object {
+        "OwnershipControls": {
+          "Rules": [
+            {
               "ObjectOwnership": "ObjectWriter",
             },
           ],

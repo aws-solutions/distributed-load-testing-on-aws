@@ -4,115 +4,141 @@
 const scenarios = require("./lib/scenarios/");
 const metrics = require("./lib/metrics/");
 
+/**
+ * API Manager Class that gets API path and their method
+ * and calls the appropriate handler function to handle the request
+ */
+class APIHandler {
+  constructor(resource, method) {
+    this.resource = resource;
+    this.method = method;
+    this.errorMsg = `Method: ${method} not supported for this resource: ${resource} `;
+  }
+  async getRegions() {
+    let data = { regions: await scenarios.getAllRegionConfigs() };
+    data.url = await scenarios.getCFUrl();
+    return data;
+  }
+  // Handle the /regions endpoint
+  async handleRegions() {
+    if (this.method === "GET") return this.getRegions();
+    throw new Error(this.errorMsg);
+  }
+
+  // Handle the /scenarios endpoint
+  async handleScenarios(config, queryParams, body, functionName, functionArn) {
+    let data;
+    switch (this.method) {
+      case "GET":
+        if (queryParams && queryParams.op === "listRegions") return this.getRegions();
+        data = await scenarios.listTests();
+        return data;
+      case "POST":
+        if (config.scheduleStep) {
+          // Handle scheduling test
+          data = await scenarios.scheduleTest(
+            {
+              resource: this.resource,
+              httpMethod: this.method,
+              body: body,
+            },
+            {
+              functionName: functionName,
+              functionArn: functionArn,
+            }
+          );
+        }
+        // Handle creating test
+        else data = await scenarios.createTest(config);
+        if (process.env.SEND_METRIC === "Yes") {
+          await metrics.send({
+            testTaskConfigs: config.testTaskConfigs,
+            testType: config.testType,
+            fileType: config.fileType,
+          });
+        }
+        return data;
+      default:
+        throw new Error(this.errorMsg);
+    }
+  }
+
+  // Handle the /scenarios/{testId} endpoint
+  async handleScenarioWithTestId(testId, functionName) {
+    switch (this.method) {
+      case "GET":
+        return scenarios.getTest(testId);
+      case "POST":
+        return scenarios.cancelTest(testId);
+      case "DELETE":
+        return scenarios.deleteTest(testId, functionName);
+      default:
+        throw new Error(this.errorMsg);
+    }
+  }
+
+  // Handle the /tasks endpoint
+  async handleTasks() {
+    if (this.method === "GET") return scenarios.listTasks();
+    throw new Error(this.errorMsg);
+  }
+
+  // Handle the /vCPUDetails endpoint
+  async handleVCPUDetails() {
+    if (this.method === "GET") return scenarios.getAccountFargatevCPUDetails();
+    throw new Error(this.errMsg);
+  }
+}
+// Helper function to handle API response
+const createResponse = (data, statusCode) => ({
+  headers: {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept",
+  },
+  statusCode: statusCode,
+  body: JSON.stringify(data),
+});
+
+// Main handler function
 exports.handler = async (event, context) => {
   console.log(JSON.stringify(event, null, 2));
-
-  const resource = event.resource;
-  const method = event.httpMethod;
-  const config = JSON.parse(event.body);
-  const errMsg = `Method: ${method} not supported for this resource: ${resource} `;
-
-  let testId;
   let data;
-  let response = {
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept",
-    },
-    statusCode: 200,
-  };
+  let response;
+  const config = JSON.parse(event.body);
+  const apiHandler = new APIHandler(event.resource, event.httpMethod);
 
   try {
-    switch (resource) {
+    switch (event.resource) {
       case "/regions":
-        {
-          if (method === "GET") {
-            data = { regions: await scenarios.getAllRegionConfigs() };
-            data.url = await scenarios.getCFUrl();
-          } else {
-            throw new Error(errMsg);
-          }
-        }
+        data = await apiHandler.handleRegions();
         break;
       case "/scenarios":
-        switch (method) {
-          case "GET":
-            if (event.queryStringParameters && event.queryStringParameters.op === "listRegions") {
-              data = { regions: await scenarios.getAllRegionConfigs() };
-              data.url = await scenarios.getCFUrl();
-            } else {
-              data = await scenarios.listTests();
-            }
-            break;
-          case "POST":
-            if (config.scheduleStep) {
-              const contextValues = {
-                functionName: context.functionName,
-                functionArn: context.invokedFunctionArn,
-              };
-              data = await scenarios.scheduleTest(
-                {
-                  resource: resource,
-                  httpMethod: method,
-                  body: event.body,
-                },
-                contextValues
-              );
-            } else {
-              data = await scenarios.createTest(config);
-            }
-            //sending anonymous metrics (task Count) to aws
-            if (process.env.SEND_METRIC === "Yes") {
-              await metrics.send({
-                testTaskConfigs: config.testTaskConfigs,
-                testType: config.testType,
-                fileType: config.fileType,
-              });
-            }
-            break;
-          default:
-            throw new Error(errMsg);
-        }
-        break;
+        data = await apiHandler.handleScenarios(
+          config,
+          event.queryStringParameters,
+          event.body,
+          context.functionName,
+          context.invokedFunctionArn
+        );
 
+        break;
       case "/scenarios/{testId}":
-        testId = event.pathParameters.testId;
-        switch (method) {
-          case "GET":
-            data = await scenarios.getTest(testId);
-            break;
-          case "POST":
-            data = await scenarios.cancelTest(testId);
-            break;
-          case "DELETE":
-            data = await scenarios.deleteTest(testId, context.functionName);
-            break;
-          default:
-            throw new Error(errMsg);
-        }
+        data = await apiHandler.handleScenarioWithTestId(event.pathParameters.testId, context.functionName);
         break;
       case "/tasks":
-        if (method === "GET") {
-          data = await scenarios.listTasks();
-        } else {
-          throw new Error(errMsg);
-        }
+        data = await apiHandler.handleTasks();
         break;
       case "/vCPUDetails":
-        if (method === "GET") {
-          data = await scenarios.getAccountFargatevCPUDetails();
-        } else {
-          throw new Error(errMsg);
-        }
+        data = await apiHandler.handleVCPUDetails();
         break;
       default:
-        throw new Error(errMsg);
+        throw new Error(apiHandler.errorMsg);
     }
-    response.body = JSON.stringify(data);
+
+    response = createResponse(data, 200);
   } catch (err) {
     console.error(err);
-    response.body = err.toString();
-    response.statusCode = 400;
+    response = createResponse(err.toString(), 400);
   }
 
   console.log(response);

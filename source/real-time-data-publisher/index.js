@@ -14,6 +14,23 @@ let options = {
 options = solutionUtils.getOptions(options);
 const iot = new AWS.IotData(options);
 
+// Define a function to create the timeout promise
+function createTimeoutPromise(timeout) {
+  return new Promise((resolve) =>
+    setTimeout(() => {
+      resolve(true); // Resolve with a true value to indicate a timeout
+    }, timeout)
+  );
+}
+
+function regexMatchPromise(string, regex) {
+  // Wrap the regular expression match in a promise
+  return new Promise((resolve) => {
+    const matched = string.match(regex);
+    resolve(matched);
+  });
+}
+
 exports.handler = async function (event) {
   const payload = Buffer.from(event.awslogs.data, "base64");
   const aggregatedTestResultData = { [process.env.AWS_REGION]: [] };
@@ -29,12 +46,37 @@ exports.handler = async function (event) {
     //i.e. testId, virtual users, avgRt, succ count, fail count, and timestamp
     for (const logItem of jsonPayload.logEvents) {
       const logString = logItem.message;
-      const regex = /^\w+|\d+(\.\d+)?(?=\svu)|\d+(\.\d+)?(?=\ssucc)|\d+(\.\d+)?(?=\sfail)|\d+(\.\d+)?(?=\savg rt\s)/g;
+      // Define individual regex patterns for each condition
+      const wordPattern = /^\w+/;
+      const vuPattern = /\d+(\.\d+)?(?=\svu)/;
+      const succPattern = /\d+(\.\d+)?(?=\ssucc)/;
+      const failPattern = /\d+(\.\d+)?(?=\sfail)/;
+      const avgRTPattern = /\d+(\.\d+)?(?=\savg rt\s)/;
+
+      // Combine the patterns using the | (or) operator
+      const regex = new RegExp(
+        `${wordPattern.source}|${vuPattern.source}|${succPattern.source}|${failPattern.source}|${avgRTPattern.source}`,
+        "g"
+      );
       const keys = ["testId", "vu", "succ", "fail", "avgRt"];
       const extractedData = {};
 
+      // Check if logString exceeds character limit
+      if (logString.length > 250) {
+        throw new Error("Log message exceeds character limit.");
+      }
+
+      // Apply a timeout for the regex match using Promise.race
+      const raceResult = await Promise.race([createTimeoutPromise(5000), regexMatchPromise(logString, regex)]);
+
+      if (raceResult === true) {
+        console.info("Regex match timed out.");
+        continue;
+      }
+      const matches = raceResult;
+
       //Extract data and parse into JSON object using keys
-      for (const [index, value] of logString.match(regex).entries()) {
+      for (const [index, value] of matches.entries()) {
         if (index > 0) {
           extractedData[keys[index]] = parseFloat(value, 10);
         } else {
