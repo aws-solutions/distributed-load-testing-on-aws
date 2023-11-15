@@ -122,7 +122,7 @@ test("DLT Task Lambda Test", () => {
     Role: {
       "Fn::GetAtt": ["TaskRunnerLambdaFunctionsLambdaResultsRole1AF5AB18", "Arn"],
     },
-    Runtime: "nodejs16.x",
+    Runtime: "nodejs18.x",
     Timeout: 120,
   });
 

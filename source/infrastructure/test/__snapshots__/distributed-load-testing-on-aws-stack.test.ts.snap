@@ -787,7 +787,7 @@ exports[`Distributed Load Testing stack test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs18.x",
         "Tags": [
           {
             "Key": "SolutionId",
@@ -2927,7 +2927,7 @@ exports[`Distributed Load Testing stack test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs18.x",
         "Tags": [
           {
             "Key": "SolutionId",
@@ -4329,7 +4329,7 @@ exports[`Distributed Load Testing stack test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs18.x",
         "Tags": [
           {
             "Key": "SolutionId",
@@ -4439,7 +4439,7 @@ exports[`Distributed Load Testing stack test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs18.x",
         "Tags": [
           {
             "Key": "SolutionId",
@@ -4574,7 +4574,7 @@ exports[`Distributed Load Testing stack test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs18.x",
         "Tags": [
           {
             "Key": "SolutionId",
@@ -4683,7 +4683,7 @@ exports[`Distributed Load Testing stack test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs18.x",
         "Tags": [
           {
             "Key": "SolutionId",
@@ -5841,7 +5841,7 @@ exports[`Distributed Load Testing stack test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs18.x",
         "Tags": [
           {
             "Key": "SolutionId",

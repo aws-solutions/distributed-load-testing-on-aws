@@ -287,7 +287,7 @@ exports.handler = async (event, context) => {
   try {
     //if not yet created by previous call, create widgets and dashboard
     if (!event.taskIds) {
-      createDashboard(testId, ecsCloudWatchLogGroup, taskCluster, region);
+      await createDashboard(testId, ecsCloudWatchLogGroup, taskCluster, region);
     }
 
     params.count = 10;

@@ -102,7 +102,7 @@ export class CustomResourceInfraConstruct extends Construct {
       handler: "index.handler",
       role: customResourceRole,
       code: Code.fromBucket(sourceBucket, `${props.sourceCodePrefix}/${props.stackType}-custom-resource.zip`),
-      runtime: Runtime.NODEJS_16_X,
+      runtime: Runtime.NODEJS_18_X,
       timeout: Duration.seconds(120),
       environment: {
         METRIC_URL: props.metricsUrl,
