@@ -13,6 +13,7 @@ const mockLambda = jest.fn();
 const mockCloudFormation = jest.fn();
 const mockServiceQuotas = jest.fn();
 const mockAWS = require("aws-sdk");
+const moment = require("moment");
 mockAWS.S3 = jest.fn(() => ({
   putObject: mockS3,
 }));
@@ -1789,6 +1790,12 @@ describe("#SCENARIOS API:: ", () => {
     }));
     mockDynamoDB.mockImplementationOnce(() => ({
       promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
         // update
         return Promise.resolve(getRegionalConf);
       },
@@ -1812,6 +1819,59 @@ describe("#SCENARIOS API:: ", () => {
     }));
     const response = await lambda.createTest(config);
     expect(response.testStatus).toEqual("running");
+  });
+
+  it("should use the right nextRun value for manually triggered recurring tests", async () => {
+    const nextRun = moment().utc().add(1, "days").format("YYYY-MM-DD HH:mm:ss");
+    config.recurrence = "daily";
+    getData.Item.nextRun = nextRun;
+    mockS3.mockImplementation(() => ({
+      promise() {
+        // putObject
+        return Promise.resolve();
+      },
+    }));
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // update
+        return Promise.resolve(getRegionalConf);
+      },
+    }));
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        return Promise.resolve(getRegionalConf2);
+      },
+    }));
+    mockStepFunctions.mockImplementation(() => ({
+      promise() {
+        // startExecution
+        return Promise.resolve();
+      },
+    }));
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // update
+        return Promise.resolve(updateData);
+      },
+    }));
+    const response = await lambda.createTest(config);
+    expect(response.testStatus).toEqual("running");
+    expect(mockDynamoDB).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ExpressionAttributeValues: expect.objectContaining({
+          ":nr": nextRun,
+        }),
+      })
+    );
+    //reset config
+    delete config.recurrence;
+    delete getData.Item.nextRun;
   });
 
   it('should record proper date when "CREATETEST" with daily recurrence', async () => {
@@ -1842,6 +1902,12 @@ describe("#SCENARIOS API:: ", () => {
     }));
     mockDynamoDB.mockImplementationOnce(() => ({
       promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
         // update
         return Promise.resolve(updateData);
       },
@@ -1860,9 +1926,58 @@ describe("#SCENARIOS API:: ", () => {
     delete config.recurrence;
   });
 
+  it("should return SUCCESS for eventBridge triggered test", async () => {
+    config.eventBridge = "true";
+    mockS3.mockImplementation(() => ({
+      promise() {
+        // putObject
+        return Promise.resolve();
+      },
+    }));
+    mockStepFunctions.mockImplementation(() => ({
+      promise() {
+        // startExecution
+        return Promise.resolve();
+      },
+    }));
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // update
+        return Promise.resolve(getRegionalConf);
+      },
+    }));
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // update
+        return Promise.resolve(getRegionalConf2);
+      },
+    }));
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // update
+        return Promise.resolve(updateData);
+      },
+    }));
+
+    const response = await lambda.createTest(config);
+    expect(response.testStatus).toEqual("running");
+    delete config.eventBridge;
+  });
+
   it('should record proper date when "CREATETEST" with weekly recurrence', async () => {
     config.recurrence = "weekly";
-
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
     mockS3.mockImplementation(() => ({
       promise() {
         // putObject
@@ -1909,7 +2024,12 @@ describe("#SCENARIOS API:: ", () => {
 
   it('should record proper date when "CREATETEST" with biweekly recurrence', async () => {
     config.recurrence = "biweekly";
-
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
     mockS3.mockImplementation(() => ({
       promise() {
         // putObject
@@ -1956,7 +2076,12 @@ describe("#SCENARIOS API:: ", () => {
 
   it('should record proper date when "CREATETEST" with daily recurrence', async () => {
     config.recurrence = "monthly";
-
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
     mockS3.mockImplementation(() => ({
       promise() {
         // putObject
@@ -2691,7 +2816,12 @@ describe("#SCENARIOS API:: ", () => {
         return Promise.reject("STEP FUNCTIONS ERROR");
       },
     }));
-
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
     try {
       await lambda.createTest(config);
     } catch (error) {
@@ -2728,6 +2858,12 @@ describe("#SCENARIOS API:: ", () => {
 
   it('should return "InvalidParameter" when "CREATETEST" fails due to task count being less than 1', async () => {
     config.testTaskConfigs[0]["taskCount"] = "0";
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
     try {
       await lambda.createTest(config);
     } catch (error) {
@@ -2742,6 +2878,12 @@ describe("#SCENARIOS API:: ", () => {
     config.testTaskConfigs[0]["taskCount"] = "3000";
     const availableTasks = config.regionalTaskDetails["us-east-1"].dltAvailableTasks;
     let errorThrown = false;
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
     try {
       await lambda.createTest(config);
     } catch (error) {
@@ -2758,6 +2900,12 @@ describe("#SCENARIOS API:: ", () => {
     config.testTaskConfigs[1]["taskCount"] = "2000";
     const availableTasks = config.regionalTaskDetails["eu-west-1"].dltAvailableTasks;
     let errorThrown = false;
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
     try {
       await lambda.createTest(config);
     } catch (error) {
@@ -2772,6 +2920,12 @@ describe("#SCENARIOS API:: ", () => {
 
   it('should return "InvalidParameter" when "CREATETEST" fails due to concurrency being less 1', async () => {
     config.testTaskConfigs[0]["concurrency"] = "0";
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
     try {
       await lambda.createTest(config);
     } catch (error) {
@@ -2783,7 +2937,12 @@ describe("#SCENARIOS API:: ", () => {
 
   it('should return "InvalidParameter" when "CREATETEST" fails due to hold-for less than min with no units', async () => {
     config.testScenario.execution[0]["hold-for"] = "0";
-
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
     try {
       await lambda.createTest(config);
     } catch (error) {
@@ -2795,7 +2954,12 @@ describe("#SCENARIOS API:: ", () => {
 
   it('should return "InvalidParameter" when "CREATETEST" fails due to hold-for less than min with units', async () => {
     config.testScenario.execution[0]["hold-for"] = "0 ms";
-
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
     try {
       await lambda.createTest(config);
     } catch (error) {
@@ -2808,7 +2972,12 @@ describe("#SCENARIOS API:: ", () => {
 
   it('should return "InvalidParameter" when "CREATETEST" fails due to hold-for units being invalid', async () => {
     config.testScenario.execution[0]["hold-for"] = "2 seconds";
-
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
     try {
       await lambda.createTest(config);
     } catch (error) {
@@ -2821,7 +2990,12 @@ describe("#SCENARIOS API:: ", () => {
   it('should return "InvalidParameter" when "CREATETEST" fails due to hold-for being invalid', async () => {
     config.testScenario.execution[0]["hold-for"] = "a";
     config.testType = "simple";
-
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
     try {
       await lambda.createTest(config);
     } catch (error) {
@@ -2834,7 +3008,12 @@ describe("#SCENARIOS API:: ", () => {
 
   it('should return "InvalidParameter" when "CREATETEST" fails due to recurrence being invalid', async () => {
     config.recurrence = "invalid";
-
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
     try {
       await lambda.createTest(config);
     } catch (error) {
@@ -2869,7 +3048,12 @@ describe("#SCENARIOS API:: ", () => {
         return Promise.resolve();
       },
     }));
-
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
     mockDynamoDB.mockImplementationOnce(() => ({
       promise() {
         // get
@@ -3233,6 +3417,12 @@ it("should return an error when no exports returned", async () => {
 });
 
 it('should return "S3 ERROR" when "PUTOBJECT" fails', async () => {
+  mockDynamoDB.mockImplementationOnce(() => ({
+    promise() {
+      // get
+      return Promise.resolve(getData);
+    },
+  }));
   mockS3.mockImplementation(() => ({
     promise() {
       // putObject

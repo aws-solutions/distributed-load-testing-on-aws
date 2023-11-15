@@ -104,7 +104,7 @@ exports.handler = async (event, context) => {
   console.log(JSON.stringify(event, null, 2));
   let data;
   let response;
-  const config = JSON.parse(event.body);
+  let config = JSON.parse(event.body);
   const apiHandler = new APIHandler(event.resource, event.httpMethod);
 
   try {
@@ -113,6 +113,8 @@ exports.handler = async (event, context) => {
         data = await apiHandler.handleRegions();
         break;
       case "/scenarios":
+        if (!event.headers) config.eventBridge = "true";
+
         data = await apiHandler.handleScenarios(
           config,
           event.queryStringParameters,

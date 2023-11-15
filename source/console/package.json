@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws-ui",
-  "version": "3.2.3",
+  "version": "3.2.4",
   "private": true,
   "license": "Apache-2.0",
   "author": {
@@ -52,7 +52,9 @@
   "overrides": {
     "nth-check": "2.0.1",
     "@aws-sdk/client-s3": "3.414.0",
-    "@aws-sdk/client-sts": "3.414.0"
+    "@aws-sdk/client-sts": "3.414.0",
+    "resolve-url-loader": "5.0.0",
+    "axios": "^1.6.0"
   },
   "readme": "./README.md",
   "devDependencies": {

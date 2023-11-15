@@ -449,32 +449,32 @@ const setTestId = (testId) =>
   testId || utils.generateUniqueId(10);
 /**
  * Sets the next schedule test run
+ * @param {string} scheduledTime
  * @param {string} scheduleRecurrence
  * @returns next run, scheduleRecurrence
  */
-const setNextRun = (scheduleRecurrence = "") => {
+const setNextRun = (scheduledTime, scheduleRecurrence = "") => {
   let nextRun = "";
   if (scheduleRecurrence) {
     switch (scheduleRecurrence) {
       case "daily":
-        nextRun = moment().utc().add(1, "d").format("YYYY-MM-DD HH:mm:ss");
+        nextRun = scheduledTime.add(1, "d").format("YYYY-MM-DD HH:mm:ss");
         break;
       case "weekly":
-        nextRun = moment().utc().add(7, "d").format("YYYY-MM-DD HH:mm:ss");
+        nextRun = scheduledTime.add(7, "d").format("YYYY-MM-DD HH:mm:ss");
         break;
       case "biweekly":
-        nextRun = moment().utc().add(14, "d").format("YYYY-MM-DD HH:mm:ss");
+        nextRun = scheduledTime.add(14, "d").format("YYYY-MM-DD HH:mm:ss");
         break;
       case "monthly":
-        nextRun = moment().utc().add(1, "M").format("YYYY-MM-DD HH:mm:ss");
+        nextRun = scheduledTime.add(1, "M").format("YYYY-MM-DD HH:mm:ss");
         break;
       default:
         throw new ErrorException("InvalidParameter", "Invalid recurrence value.");
     }
   }
-  return { nextRun, scheduleRecurrence };
+  return nextRun;
 };
-
 /**
  * Validates the setting for task count and task concurrency
  * @param {object} testTaskConfigs
@@ -758,16 +758,28 @@ const updateTestDBEntry = async (updateTestConfigs) => {
  */
 const createTest = async (config) => {
   console.log(`Create test: ${JSON.stringify(config, null, 2)}`);
-
   try {
     const { testName, testDescription, testType, showLive, regionalTaskDetails } = config;
-    let { testId, testScenario, testTaskConfigs, fileType } = config;
-
+    let { testId, testScenario, testTaskConfigs, fileType, scheduleTime, eventBridge, recurrence } = config;
+    let nextRun;
     fileType = setFileType(testType, fileType);
     testId = setTestId(testId);
 
-    const startTime = moment().utc().format("YYYY-MM-DD HH:mm:ss");
-    let { nextRun, scheduleRecurrence } = setNextRun(config.recurrence);
+    const testEntry = await getTestEntry(testId);
+    if (testEntry && testEntry.nextRun) nextRun = moment.utc(testEntry.nextRun, "YYYY-MM-DD HH:mm:ss");
+
+    let startTime = moment().utc();
+    if (eventBridge) {
+      const startDate = moment().format("YYYY-MM-DD");
+      // If it is eventBridge triggered definitely has scheduleTime
+      startTime = moment.utc(`${startDate} ${scheduleTime}:00`, "YYYY-MM-DD HH:mm:ss");
+    }
+
+    if (nextRun && startTime.isBefore(nextRun)) nextRun = nextRun.format("YYYY-MM-DD HH:mm:ss");
+    else nextRun = setNextRun(startTime, recurrence);
+
+    const scheduleRecurrence = recurrence ? recurrence : "";
+    startTime = startTime.format("YYYY-MM-DD HH:mm:ss");
 
     testTaskConfigs = validateTaskCountConcurrency(testTaskConfigs, regionalTaskDetails);
 
@@ -996,7 +1008,7 @@ const getTestHistoryTestRunIds = async (testId) => {
     };
     do {
       const testRunIds = await dynamoDB.query(params).promise();
-      testRunIds.Items.map((testRunItem) => {
+      testRunIds.Items.forEach((testRunItem) => {
         response.push(testRunItem.testRunId);
       });
       params.ExclusiveStartKey = testRunIds.LastEvaluatedKey;

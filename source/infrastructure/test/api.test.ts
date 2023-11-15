@@ -52,7 +52,7 @@ test("DLT API Test", () => {
   Template.fromStack(stack).hasResourceProperties("AWS::Lambda::Function", {
     Description: "API microservices for creating, updating, listing and deleting test scenarios",
     Handler: "index.handler",
-    Runtime: "nodejs16.x",
+    Runtime: "nodejs18.x",
     Environment: {
       Variables: {
         HISTORY_TABLE: "testHistoryDDBTable",

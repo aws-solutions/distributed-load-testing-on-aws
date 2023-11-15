@@ -52,7 +52,7 @@ test("DLT real time data resources Test", () => {
       },
     },
     Handler: "index.handler",
-    Runtime: "nodejs16.x",
+    Runtime: "nodejs18.x",
     Timeout: 180,
   });
   Template.fromStack(stack).hasResourceProperties("AWS::Logs::SubscriptionFilter", {

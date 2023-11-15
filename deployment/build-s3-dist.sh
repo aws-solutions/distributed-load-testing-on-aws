@@ -143,13 +143,13 @@ echo "--------------------------------------------------------------------------
 echo "Creating container deployment package"
 echo "------------------------------------------------------------------------------"
 cd ${template_dir}/ecr/distributed-load-testing-on-aws-load-tester
-# Downloading jetty 9.4.34.v20201102
-curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-alpn-client/9.4.34.v20201102/jetty-alpn-client-9.4.34.v20201102.jar
-curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-alpn-openjdk8-client/9.4.34.v20201102/jetty-alpn-openjdk8-client-9.4.34.v20201102.jar
-curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-client/9.4.34.v20201102/jetty-client-9.4.34.v20201102.jar
-curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-http/9.4.34.v20201102/jetty-http-9.4.34.v20201102.jar
-curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-io/9.4.34.v20201102/jetty-io-9.4.34.v20201102.jar
-curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-util/9.4.34.v20201102/jetty-util-9.4.34.v20201102.jar
+# Downloading jetty 9.4.53.v20231009
+curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-alpn-client/9.4.53.v20231009/jetty-alpn-client-9.4.53.v20231009.jar
+curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-alpn-openjdk8-client/9.4.53.v20231009/jetty-alpn-openjdk8-client-9.4.53.v20231009.jar
+curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-client/9.4.53.v20231009/jetty-client-9.4.53.v20231009.jar
+curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-http/9.4.53.v20231009/jetty-http-9.4.53.v20231009.jar
+curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-io/9.4.53.v20231009/jetty-io-9.4.53.v20231009.jar
+curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-util/9.4.53.v20231009/jetty-util-9.4.53.v20231009.jar
 
 echo "------------------------------------------------------------------------------"
 echo "Building console"
