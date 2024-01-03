@@ -77,8 +77,16 @@ class TestControlButtons extends React.Component {
         ],
       };
     } else {
+      var extension;
+      if (data.testType === "jmeter") {
+        extension = "jmx";
+      }
+      if (data.testType === "k6") {
+        extension = "js";
+      }
+      payload.testScenario.execution[0].executor = data.testType;
       payload.testScenario.scenarios[data.testName] = {
-        script: `${testId}.jmx`,
+        script: `${testId}.${extension}`,
       };
       payload.fileType = data.fileType;
     }
