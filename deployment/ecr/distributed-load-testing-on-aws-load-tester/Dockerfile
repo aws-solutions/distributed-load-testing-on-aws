@@ -1,4 +1,4 @@
-FROM blazemeter/taurus:1.16.26
+FROM blazemeter/taurus:1.16.27
 # taurus includes python and pip
 RUN /usr/bin/python3 -m pip install --upgrade pip
 RUN pip install --no-cache-dir awscli
@@ -28,7 +28,7 @@ RUN gem install activesupport -v 7.0.7.1
 # Replacing urllib3, Werkzeug and cryptography with more stable Versions to fix vulnerabilities
 RUN pip install urllib3==2.0.7
 RUN pip install Werkzeug==3.0.1
-RUN pip install cryptography==41.0.5
+RUN pip install cryptography==41.0.6
 RUN rm -rf /root/.bzt/python-packages/3.10.12/urllib3*
 RUN rm -rf /root/.bzt/python-packages/3.10.12/werkzeug*
 RUN rm -rf /root/.bzt/python-packages/3.10.12/cryptography*

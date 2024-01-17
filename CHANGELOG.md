@@ -5,12 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.5] - 2024-01-11
+
+### Changed
+
+- Updated version of taurus image to 1.16.27
+- Updated Jmeter dependencies and taurus dependencis within the docker image to enhance the security of the docker image
+- Updated version of "@aws-solutions-constructs/aws-cloudfront-s3" from 2.46.0 to 2.48.0
+- Updated version of "@aws-cdk/aws-servicecatalogappregistry-alpha" from 2.108.0-alpha.0 to 2.121.1-alpha.0
+
+### Fixed
+
+- Bug fix to resolve issues with automatic plugins installation [#152](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/152)
+
 ## [3.2.4] - 2023-11-10
 
 ### Changed
 
-- Updating Lambda Runtimes to Use Node-18
-- Updated Version of Taurus image to 1.16.26
+- Updating lambda runtimes to use node-18
+- Updated version of taurus image to 1.16.26
 - Updated Jmeter dependencies and taurus dependencis within the docker image to enhance the security of the docker image
 
 ### Fixed

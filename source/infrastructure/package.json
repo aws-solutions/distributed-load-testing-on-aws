@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws-infrastructure",
-  "version": "3.2.4",
+  "version": "3.2.5",
   "author": {
     "name": "Amazon Web Services",
     "url": "https://aws.amazon.com/solutions"
@@ -18,8 +18,8 @@
     "cdk": "cdk"
   },
   "devDependencies": {
-    "@aws-solutions-constructs/aws-cloudfront-s3": "2.46.0",
-    "@aws-cdk/aws-servicecatalogappregistry-alpha": "2.108.0-alpha.0",
+    "@aws-solutions-constructs/aws-cloudfront-s3": "2.48.0",
+    "@aws-cdk/aws-servicecatalogappregistry-alpha": "2.121.1-alpha.0",
     "aws-cdk": "^2.96.2",
     "aws-cdk-lib": "^2.105.0",
     "constructs": "10.3.0",

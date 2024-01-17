@@ -2649,19 +2649,13 @@ exports[`Distributed Load Testing stack test 1`] = `
                 ],
               },
               "Id": "DLTStackDLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1022BE4E8",
-              "S3OriginConfig": {
-                "OriginAccessIdentity": {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "origin-access-identity/cloudfront/",
-                      {
-                        "Ref": "DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1S3Origin5080EA34",
-                      },
-                    ],
-                  ],
-                },
+              "OriginAccessControlId": {
+                "Fn::GetAtt": [
+                  "DLTConsoleResourcesDLTCloudFrontToS3CloudFrontOac3AF5A4EE",
+                  "Id",
+                ],
               },
+              "S3OriginConfig": {},
             },
           ],
         },
@@ -2680,13 +2674,37 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::CloudFront::Distribution",
     },
-    "DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1S3Origin5080EA34": {
+    "DLTConsoleResourcesDLTCloudFrontToS3CloudFrontOac3AF5A4EE": {
       "Properties": {
-        "CloudFrontOriginAccessIdentityConfig": {
-          "Comment": "Identity for DLTStackDLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1022BE4E8",
+        "OriginAccessControlConfig": {
+          "Description": "Origin access control provisioned by aws-cloudfront-s3",
+          "Name": {
+            "Fn::Join": [
+              "",
+              [
+                "aws-cloudfront-s3-DLTCtToS3-",
+                {
+                  "Fn::Select": [
+                    2,
+                    {
+                      "Fn::Split": [
+                        "/",
+                        {
+                          "Ref": "AWS::StackId",
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            ],
+          },
+          "OriginAccessControlOriginType": "s3",
+          "SigningBehavior": "always",
+          "SigningProtocol": "sigv4",
         },
       },
-      "Type": "AWS::CloudFront::CloudFrontOriginAccessIdentity",
+      "Type": "AWS::CloudFront::OriginAccessControl",
     },
     "DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63": {
       "DeletionPolicy": "Retain",
@@ -2797,14 +2815,28 @@ exports[`Distributed Load Testing stack test 1`] = `
             },
             {
               "Action": "s3:GetObject",
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceArn": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:aws:cloudfront::",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":distribution/",
+                        {
+                          "Ref": "DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistribution3EF384B4",
+                        },
+                      ],
+                    ],
+                  },
+                },
+              },
               "Effect": "Allow",
               "Principal": {
-                "CanonicalUser": {
-                  "Fn::GetAtt": [
-                    "DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1S3Origin5080EA34",
-                    "S3CanonicalUserId",
-                  ],
-                },
+                "Service": "cloudfront.amazonaws.com",
               },
               "Resource": {
                 "Fn::Join": [
