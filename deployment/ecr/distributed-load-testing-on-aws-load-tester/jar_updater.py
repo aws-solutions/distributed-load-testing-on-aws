@@ -7,24 +7,33 @@ from bzt.modules.jmeter import JarCleaner
 
 
 """
-jar_updater.py updates json-smart, neo4j-java-driver, xalan to address CVEs on the taurus image. this is not DLT application code. 
+jar_updater.py updates following jar files to address CVEs on the taurus image. this is not DLT application code. 
 the script may be removed once taurus updates the libraries on the image.
 Affected Jmeter jars:
-    * json-smart v2.4.8 will be replaced with v2.4.9
+    * json-smart v2.4.8 will be replaced with v2.4.10
     * neo4j-java-driver v4.12.0 will be replaced with v5.14.0
-    * xalan v2.7.2 will be replaced with v2.7.3
+    * batik-script v1.14 will be replaced with v1.17
+    * batik-bridge v1.14 will be replaced with v1.17
+    * batik-transcoder v1.14 will be replaced with v1.17
+    * lets-plot-batik v2.2.1 will be replaced with 4.2.0
+
+Also jmeter plugins manager will be updated to v1.10 to address CVEs and cmdrunner will be updated to v2.3 to accomodate with plugins manager.
 """
 
 # these jars should be replaced with newer version in order to fix some vulnerabilities
 # component name and download link in https://repo1.maven.org/maven2/
 # These are Components with regards to JMETER
 JMETER_COMPONENTS = {
-    "json-smart": "net/minidev/json-smart/2.4.9/json-smart-2.4.9.jar",
+    "json-smart": "net/minidev/json-smart/2.4.10/json-smart-2.4.10.jar",
     "neo4j-java-driver": "org/neo4j/driver/neo4j-java-driver/5.14.0/neo4j-java-driver-5.14.0.jar",
-    "xalan": "xalan/xalan/2.7.3/xalan-2.7.3.jar",
+    "batik-script": "org/apache/xmlgraphics/batik-script/1.17/batik-script-1.17.jar",
+    "batik-bridge": "org/apache/xmlgraphics/batik-bridge/1.17/batik-bridge-1.17.jar",
+    "batik-transcoder": "org/apache/xmlgraphics/batik-transcoder/1.17/batik-transcoder-1.17.jar",
+    "lets-plot-batik":  "org/jetbrains/lets-plot/lets-plot-batik/4.2.0/lets-plot-batik-4.2.0.jar"
 }
-JMETER_VERSION = "5.4.3"
-
+JMETER_VERSION = "5.5"
+JMETER_PLUGINS_MANAGER_VERSION = "1.10"
+CMD_RUNNER_VERSION = "2.3"
 # To add other platform, and what to update, add affected components and version HERE
 
 def download(url, target_path):
@@ -45,11 +54,14 @@ class Platform:
         self.affected_components = affected_components
 
     def install_jmeter_plugins(self):
-        plugins_mgr_version = "1.10"
-        plugins_mgr_link = f'https://search.maven.org/remotecontent?filepath=kg/apc/jmeter-plugins-manager/{plugins_mgr_version}/jmeter-plugins-manager-{plugins_mgr_version}.jar'
+        plugins_mgr_link = f'https://search.maven.org/remotecontent?filepath=kg/apc/jmeter-plugins-manager/{JMETER_PLUGINS_MANAGER_VERSION}/jmeter-plugins-manager-{JMETER_PLUGINS_MANAGER_VERSION}.jar'
+        command_runner_link = f'https://search.maven.org/remotecontent?filepath=kg/apc/cmdrunner/{CMD_RUNNER_VERSION}/cmdrunner-{CMD_RUNNER_VERSION}.jar'
         plugins_mgr_name = os.path.basename(plugins_mgr_link)
+        command_runner_name = os.path.basename(command_runner_link)
         pm_installer_path = os.path.join(self.lib_dir, 'ext', plugins_mgr_name)
+        command_runner_path = os.path.join(self.lib_dir, command_runner_name)
         download(plugins_mgr_link, pm_installer_path)
+        download(command_runner_link, command_runner_path)
         self.obj._JMeter__install_plugins_manager(pm_installer_path)
         cleaner = JarCleaner(self.obj.log)
         cleaner.clean(os.path.join(self.lib_dir, 'ext'))
