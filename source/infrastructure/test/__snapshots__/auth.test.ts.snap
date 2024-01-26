@@ -2,7 +2,546 @@
 
 exports[`DLT API Test 1`] = `
 {
+  "Conditions": {
+    "TestAuth2createUserPoolResourceFC69F2CD": {
+      "Fn::Equals": [
+        "us-east-1_123456789",
+        "",
+      ],
+    },
+    "TestAuthcreateUserPoolResource77A00B00": {
+      "Fn::Equals": [
+        "",
+        "",
+      ],
+    },
+  },
   "Resources": {
+    "TestAuth2CognitoAttachRole863AFAC5": {
+      "Properties": {
+        "IdentityPoolId": {
+          "Ref": "TestAuth2DLTIdentityPool7C26D9E7",
+        },
+        "Roles": {
+          "authenticated": {
+            "Fn::GetAtt": [
+              "TestAuth2DLTCognitoAuthorizedRole49996B14",
+              "Arn",
+            ],
+          },
+          "unauthenticated": {
+            "Fn::GetAtt": [
+              "TestAuth2DLTCognitoUnauthorizedRole23C24F64",
+              "Arn",
+            ],
+          },
+        },
+      },
+      "Type": "AWS::Cognito::IdentityPoolRoleAttachment",
+    },
+    "TestAuth2CognitoUserF2DBD145": {
+      "Properties": {
+        "DesiredDeliveryMediums": [
+          "EMAIL",
+        ],
+        "ForceAliasCreation": true,
+        "UserAttributes": [
+          {
+            "Name": "email",
+            "Value": "test@test.com",
+          },
+          {
+            "Name": "nickname",
+            "Value": "testname",
+          },
+          {
+            "Name": "email_verified",
+            "Value": "true",
+          },
+        ],
+        "UserPoolId": {
+          "Fn::If": [
+            "TestAuth2createUserPoolResourceFC69F2CD",
+            {
+              "Ref": "TestAuth2DLTUserPoolE05ABCC0",
+            },
+            "us-east-1_123456789",
+          ],
+        },
+        "Username": "testname",
+      },
+      "Type": "AWS::Cognito::UserPoolUser",
+    },
+    "TestAuth2DLTCognitoAuthorizedRole49996B14": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W11",
+              "reason": "iot:AttachPrincipalPolicy does not allow for resource specification",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "ForAnyValue:StringLike": {
+                  "cognito-identity.amazonaws.com:amr": "authenticated",
+                },
+                "StringEquals": {
+                  "cognito-identity.amazonaws.com:aud": {
+                    "Ref": "TestAuth2DLTIdentityPool7C26D9E7",
+                  },
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": "cognito-identity.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              " Identity Pool authenticated role",
+            ],
+          ],
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "execute-api:Invoke",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":execute-api:",
+                        {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":apiId12345/prod/*",
+                      ],
+                    ],
+                  },
+                },
+                {
+                  "Action": [
+                    "s3:PutObject",
+                    "s3:GetObject",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": [
+                    "arn:aws:s3:::DOC-EXAMPLE-BUCKET/public/*",
+                    "arn:aws:s3:::DOC-EXAMPLE-BUCKET/cloudWatchImages/*",
+                  ],
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "InvokeApiPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "iot:AttachPrincipalPolicy",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                {
+                  "Action": "iot:Connect",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iot:",
+                        {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":client/*",
+                      ],
+                    ],
+                  },
+                },
+                {
+                  "Action": "iot:Subscribe",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iot:",
+                        {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":topicfilter/*",
+                      ],
+                    ],
+                  },
+                },
+                {
+                  "Action": "iot:Receive",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iot:",
+                        {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":topic/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "IoTPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestAuth2DLTCognitoUnauthorizedRole23C24F64": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "ForAnyValue:StringLike": {
+                  "cognito-identity.amazonaws.com:amr": "unauthenticated",
+                },
+                "StringEquals": {
+                  "cognito-identity.amazonaws.com:aud": {
+                    "Ref": "TestAuth2DLTIdentityPool7C26D9E7",
+                  },
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": "cognito-identity.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestAuth2DLTIdentityPool7C26D9E7": {
+      "Properties": {
+        "AllowUnauthenticatedIdentities": false,
+        "CognitoIdentityProviders": [
+          {
+            "ClientId": {
+              "Ref": "TestAuth2DLTUserPoolClient13957063",
+            },
+            "ProviderName": {
+              "Fn::Join": [
+                "",
+                [
+                  "cognito-idp.",
+                  {
+                    "Ref": "AWS::Region",
+                  },
+                  ".amazonaws.com/",
+                  {
+                    "Fn::If": [
+                      "TestAuth2createUserPoolResourceFC69F2CD",
+                      {
+                        "Ref": "TestAuth2DLTUserPoolE05ABCC0",
+                      },
+                      "us-east-1_123456789",
+                    ],
+                  },
+                ],
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Cognito::IdentityPool",
+    },
+    "TestAuth2DLTUserPoolClient13957063": {
+      "Properties": {
+        "AllowedOAuthFlows": [
+          "implicit",
+          "code",
+        ],
+        "AllowedOAuthFlowsUserPoolClient": true,
+        "AllowedOAuthScopes": [
+          "profile",
+          "phone",
+          "email",
+          "openid",
+          "aws.cognito.signin.user.admin",
+        ],
+        "CallbackURLs": [
+          "https://example.com",
+        ],
+        "ClientName": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-userpool-client",
+            ],
+          ],
+        },
+        "GenerateSecret": false,
+        "RefreshTokenValidity": 1440,
+        "SupportedIdentityProviders": [
+          "COGNITO",
+        ],
+        "TokenValidityUnits": {
+          "RefreshToken": "minutes",
+        },
+        "UserPoolId": {
+          "Fn::If": [
+            "TestAuth2createUserPoolResourceFC69F2CD",
+            {
+              "Ref": "TestAuth2DLTUserPoolE05ABCC0",
+            },
+            "us-east-1_123456789",
+          ],
+        },
+        "WriteAttributes": [
+          "address",
+          "email",
+          "phone_number",
+        ],
+      },
+      "Type": "AWS::Cognito::UserPoolClient",
+    },
+    "TestAuth2DLTUserPoolE05ABCC0": {
+      "Condition": "TestAuth2createUserPoolResourceFC69F2CD",
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "AccountRecoverySetting": {
+          "RecoveryMechanisms": [
+            {
+              "Name": "verified_phone_number",
+              "Priority": 1,
+            },
+            {
+              "Name": "verified_email",
+              "Priority": 2,
+            },
+          ],
+        },
+        "AdminCreateUserConfig": {
+          "AllowAdminCreateUserOnly": true,
+          "InviteMessageTemplate": {
+            "EmailMessage": "
+                <p>
+                   Please use the credentials below to login to the Distributed Load Testing console.
+                </p>
+                <p>
+                    Username: <strong>{username}</strong>
+                </p>
+                <p>
+                    Password: <strong>{####}</strong>
+                </p>
+                <p>
+                    Console: <strong>https://test.com/</strong>
+                </p>
+              ",
+            "EmailSubject": "Welcome to Distributed Load Testing",
+            "SMSMessage": "Your username is {username} and temporary password is {####}.",
+          },
+        },
+        "AliasAttributes": [
+          "email",
+        ],
+        "AutoVerifiedAttributes": [
+          "email",
+        ],
+        "EmailVerificationMessage": "The verification code to your new account is {####}",
+        "EmailVerificationSubject": "Verify your new account",
+        "Policies": {
+          "PasswordPolicy": {
+            "MinimumLength": 12,
+            "RequireLowercase": true,
+            "RequireNumbers": true,
+            "RequireSymbols": true,
+            "RequireUppercase": true,
+          },
+        },
+        "Schema": [
+          {
+            "Mutable": true,
+            "Name": "email",
+            "Required": true,
+          },
+        ],
+        "SmsVerificationMessage": "The verification code to your new account is {####}",
+        "UserPoolAddOns": {
+          "AdvancedSecurityMode": "ENFORCED",
+        },
+        "UserPoolName": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-user-pool",
+            ],
+          ],
+        },
+        "VerificationMessageTemplate": {
+          "DefaultEmailOption": "CONFIRM_WITH_CODE",
+          "EmailMessage": "The verification code to your new account is {####}",
+          "EmailSubject": "Verify your new account",
+          "SmsMessage": "The verification code to your new account is {####}",
+        },
+      },
+      "Type": "AWS::Cognito::UserPool",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "TestAuth2IoTPolicyE8BD0DF0": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W11",
+              "reason": "Cannot specify the resource to attach policy to identity",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "iot:Connect",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":iot:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":client/*",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": "iot:Subscribe",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":iot:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":topicfilter/*",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": "iot:Receive",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":iot:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":topic/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IoT::Policy",
+    },
     "TestAuthCognitoAttachRole3C8C2843": {
       "Properties": {
         "IdentityPoolId": {
@@ -46,7 +585,13 @@ exports[`DLT API Test 1`] = `
           },
         ],
         "UserPoolId": {
-          "Ref": "TestAuthDLTUserPool047D7286",
+          "Fn::If": [
+            "TestAuthcreateUserPoolResource77A00B00",
+            {
+              "Ref": "TestAuthDLTUserPool047D7286",
+            },
+            "",
+          ],
         },
         "Username": "testname",
       },
@@ -266,9 +811,24 @@ exports[`DLT API Test 1`] = `
               "Ref": "TestAuthDLTUserPoolClient68D1C3B2",
             },
             "ProviderName": {
-              "Fn::GetAtt": [
-                "TestAuthDLTUserPool047D7286",
-                "ProviderName",
+              "Fn::Join": [
+                "",
+                [
+                  "cognito-idp.",
+                  {
+                    "Ref": "AWS::Region",
+                  },
+                  ".amazonaws.com/",
+                  {
+                    "Fn::If": [
+                      "TestAuthcreateUserPoolResource77A00B00",
+                      {
+                        "Ref": "TestAuthDLTUserPool047D7286",
+                      },
+                      "",
+                    ],
+                  },
+                ],
               ],
             },
           },
@@ -277,6 +837,7 @@ exports[`DLT API Test 1`] = `
       "Type": "AWS::Cognito::IdentityPool",
     },
     "TestAuthDLTUserPool047D7286": {
+      "Condition": "TestAuthcreateUserPoolResource77A00B00",
       "DeletionPolicy": "Delete",
       "Properties": {
         "AccountRecoverySetting": {
@@ -398,7 +959,13 @@ exports[`DLT API Test 1`] = `
           "RefreshToken": "minutes",
         },
         "UserPoolId": {
-          "Ref": "TestAuthDLTUserPool047D7286",
+          "Fn::If": [
+            "TestAuthcreateUserPoolResource77A00B00",
+            {
+              "Ref": "TestAuthDLTUserPool047D7286",
+            },
+            "",
+          ],
         },
         "WriteAttributes": [
           "address",
