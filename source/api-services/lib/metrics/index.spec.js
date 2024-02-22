@@ -33,6 +33,22 @@ describe("#SEND METRICS", () => {
     expect(response).toEqual(200);
   });
 
+  it('should return "200" on a send metrics success for zip K6 test', async () => {
+    let mock = new MockAdapter(axios);
+    mock.onPost().reply(200, {});
+
+    let response = await lambda.send({ taskCount: _taskCount, testType: "k6", fileType: "zip" });
+    expect(response).toEqual(200);
+  });
+
+  it('should return "200" on a send metrics success for script K6 test', async () => {
+    let mock = new MockAdapter(axios);
+    mock.onPost().reply(200, {});
+
+    let response = await lambda.send({ taskCount: _taskCount, testType: "k6" });
+    expect(response).toEqual(200);
+  });
+
   it('should return "Network Error" on connection timedout', async () => {
     let mock = new MockAdapter(axios);
     mock.onPut().networkError();
