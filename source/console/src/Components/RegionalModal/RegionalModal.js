@@ -3,7 +3,7 @@
 
 import React from "react";
 import { Modal, ModalHeader, ModalBody, Row, Col, Button, ListGroup, ListGroupItem, Tooltip } from "reactstrap";
-import { API } from "aws-amplify";
+import { get } from "aws-amplify/api";
 
 class RegionalModal extends React.Component {
   constructor(props) {
@@ -37,7 +37,11 @@ class RegionalModal extends React.Component {
   listRegions = async () => {
     try {
       const regions = [];
-      const data = await API.get("dlts", "/regions");
+      const _data = await get({
+        apiName: "dlts",
+        path: "/regions",
+      }).response;
+      const data = await _data.body.json();
       for (const item of data.regions) {
         regions.push(item.region);
       }

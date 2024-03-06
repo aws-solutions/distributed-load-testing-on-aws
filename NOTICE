@@ -1,5 +1,11 @@
-Distributed Load Testing Reference Architecture
+Distributed Load Testing 
+
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+Licensed under the Apache License Version 2.0 (the "License"). You may not use this file except
+in compliance with the License. A copy of the License is located at http://www.apache.org/licenses/
+or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the
+specific language governing permissions and limitations under the License.
 
 **********************
 THIRD PARTY COMPONENTS
@@ -25,7 +31,7 @@ bootstrap under the Massachusetts Institute of Technology (MIT) license
 bootstrap-icons under the Massachusetts Institute of Technology (MIT) license
 brace under the Massachusetts Institute of Technology (MIT) license
 chart.js under the Massachusetts Institute of Technology (MIT) license
-chartjs-adapter-moment under the Massachusetts Institute of Technology (MIT) license
+chartjs-adapter-date-fns under the Massachusetts Institute of Technology (MIT) license
 constructs under the Apache License 2.0
 eslint under the Massachusetts Institute of Technology (MIT) license
 eslint-config-prettier under the Massachusetts Institute of Technology (MIT) license

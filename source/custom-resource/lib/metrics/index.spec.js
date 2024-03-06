@@ -11,32 +11,52 @@ const _config = {
   Version: "testVersion",
   UUID: "999-999",
   Region: "testRegion",
-  ExistingVpc: "testTest",
+  existingVPC: "testTest",
 };
 
 describe("#SEND METRICS", () => {
-  it("Send metrics success", async () => {
-    const mock = new MockAdapter(axios);
-
-    lambda.send(_config, "Create", () => {
-      expect(mock).toHaveBeenCalledTimes(1);
-      expect(mock).toHaveBeenCalledWith(_config);
-      expect("metrics").toBeDefined();
-      expect("metrics").toHaveProperty("Solution", "SO00XX");
-      expect("metrics").toHaveProperty("Version", "testVersion");
-      expect("metrics").toHaveProperty("UUID", "999-999");
-      expect("metrics").toHaveProperty("Data.Region", "testRegion");
-      expect("metrics").toHaveProperty("Data.ExistingVpc", "testTest");
-    });
+  beforeEach(() => {
+    process.env.METRIC_URL = "TestEndpoint";
   });
 
-  it("should return error", async () => {
-    let mock = new MockAdapter(axios);
-    mock.onPut().networkError();
+  afterEach(() => {
+    delete process.env.METRIC_URL;
+  });
 
-    await lambda.send(_config, "Create").catch((err) => {
-      expect(mock).toHaveBeenCalledTimes(1);
-      expect(err.toString()).toEqual("Error: Network Error");
-    });
+  it("send metrics success", async () => {
+    // Arrange
+    const expected_metric_object = {
+      Solution: _config.SolutionId,
+      Version: _config.Version,
+      UUID: _config.UUID,
+      Data: {
+        Type: "Create",
+        Region: _config.Region,
+        ExistingVpc: _config.existingVPC,
+      },
+    };
+    const mock = new MockAdapter(axios);
+    mock.onPost().reply(200);
+
+    // Act
+    await lambda.send(_config, "Create");
+
+    // Assert
+    expect(mock.history.post.length).toEqual(1); // called once
+    expect(mock.history.post[0].url).toEqual(process.env.METRIC_URL);
+    expect(typeof Date.parse(JSON.parse(mock.history.post[0].data).TimeStamp)).toEqual("number"); // epoch time
+    expect(JSON.parse(mock.history.post[0].data)).toMatchObject(expected_metric_object);
+  });
+
+  it("should not throw error, when metric send fails", async () => {
+    // Arrange
+    let mock = new MockAdapter(axios);
+    mock.onPost().networkError();
+
+    // Act
+    await lambda.send(_config, "Create");
+
+    // Assert
+    expect(mock.history.post.length).toBe(1); // called once
   });
 });

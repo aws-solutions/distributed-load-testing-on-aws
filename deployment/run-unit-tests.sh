@@ -45,9 +45,9 @@ run_tests() {
 
   if [ $component_name = "solution-utils" ]
   then
-    rm -rf coverage package-lock.json
+    rm -rf coverage
   else
-    rm -rf coverage node_modules package-lock.json
+    rm -rf coverage node_modules
   fi
 }
 
@@ -57,7 +57,6 @@ coverage_reports_top_path=$source_dir/test/coverage-reports
 
 #install dependencies
 cd $source_dir
-npm run clean:all
 npm run install:all
 
 #run prettier
@@ -85,7 +84,6 @@ else
   echo "******************************************************************************"
   exit 1
 fi
-npm run clean
 
 # Run unit tests
 echo "Running unit tests"
@@ -101,6 +99,7 @@ declare -a packages=(
     "task-canceler"
     "task-runner"
     "task-status-checker"
+    "console"
 )
 
 for package in "${packages[@]}"; do

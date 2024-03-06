@@ -373,6 +373,7 @@ export class DLTStack extends Stack {
       scenariosBucket: dltStorage.scenariosBucket.bucketName,
       scenariosTable: dltStorage.scenariosTable,
       uuid,
+      mainStackRegion,
     });
 
     const taskRunnerStepFunctions = new TaskRunnerStepFunctionConstruct(this, "DLTStepFunction", {

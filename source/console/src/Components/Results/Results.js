@@ -20,7 +20,7 @@ import {
   ModalHeader,
   ModalBody,
 } from "reactstrap";
-import { Storage } from "aws-amplify";
+import { downloadData } from "aws-amplify/storage";
 import AceEditor from "react-ace";
 
 class Results extends React.Component {
@@ -101,8 +101,8 @@ class Results extends React.Component {
    */
   retrieveImage = async (metricS3ImageLocation) => {
     try {
-      const image = await Storage.get(metricS3ImageLocation, { contentType: "data:image/jpeg;base64", download: true });
-      const imageBodyText = await image.Body.text();
+      const { body } = await downloadData({ key: metricS3ImageLocation }).result;
+      const imageBodyText = await body.text();
       this.setState({ metricImage: imageBodyText });
     } catch (error) {
       console.error("There was an error trying to retrieve the CloudWatch widget image from S3: ", error);

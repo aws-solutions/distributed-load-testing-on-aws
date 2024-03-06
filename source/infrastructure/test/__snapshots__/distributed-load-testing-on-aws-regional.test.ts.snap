@@ -226,23 +226,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       },
       "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
     },
-    "AppRegistryAttributeGroupAssociationa7177d48be75C139509C": {
-      "Properties": {
-        "Application": {
-          "Fn::GetAtt": [
-            "AppRegistry968496A3",
-            "Id",
-          ],
-        },
-        "AttributeGroup": {
-          "Fn::GetAtt": [
-            "DefaultApplicationAttributesFC1CC26B",
-            "Id",
-          ],
-        },
-      },
-      "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation",
-    },
     "CommonResourcesCloudWatchLogsPolicyB8257A4C": {
       "Properties": {
         "PolicyDocument": {
@@ -957,6 +940,23 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         },
       },
       "Type": "AWS::EC2::Subnet",
+    },
+    "DefaultApplicationAttributesApplicationAttributeGroupAssociationbd111f642bde61D21AEC": {
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "AttributeGroup": {
+          "Fn::GetAtt": [
+            "DefaultApplicationAttributesFC1CC26B",
+            "Id",
+          ],
+        },
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation",
     },
     "DefaultApplicationAttributesFC1CC26B": {
       "Properties": {
@@ -1719,6 +1719,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
               "Action": [
                 "ecs:RunTask",
                 "ecs:DescribeTasks",
+                "ecs:TagResource",
               ],
               "Effect": "Allow",
               "Resource": [

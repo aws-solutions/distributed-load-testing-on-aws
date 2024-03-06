@@ -78,6 +78,7 @@ test("DLT Task Lambda Test", () => {
     scenariosBucket: "testBucket",
     scenariosTable: testTable,
     uuid: "testId",
+    mainStackRegion: "us-east-1",
   });
 
   expect(Template.fromStack(stack)).toMatchSnapshot();

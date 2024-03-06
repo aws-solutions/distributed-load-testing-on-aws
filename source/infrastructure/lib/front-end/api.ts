@@ -98,7 +98,7 @@ export class DLTAPI extends Construct {
             }),
             new PolicyStatement({
               effect: Effect.ALLOW,
-              actions: ["ecs:RunTask", "ecs:DescribeTasks"],
+              actions: ["ecs:RunTask", "ecs:DescribeTasks", "ecs:TagResource"],
               resources: [taskArn, taskDefArn],
             }),
             new PolicyStatement({

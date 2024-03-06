@@ -1,9 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const moment = require("moment");
 const parser = require("./lib/parser/");
-const metrics = require("./lib/metrics/");
 const AWS = require("aws-sdk");
 const utils = require("solution-utils");
 let options = {};
@@ -158,7 +156,7 @@ const getFilesByRegion = async (resultList) => {
   //get all results files from test sorted by region
   for (const content of resultList) {
     //extract region from file name
-    const regex = /\w+-\w+-\w+(?=.xml)/g;
+    const regex = /[a-z]{1,3}-[a-z]+-\d(?=.xml)/g;
 
     // Check if logString exceeds character limit
     if (content.Key.length > 250) throw new Error("Log message exceeds character limit.");
@@ -196,7 +194,10 @@ const getFilesByRegion = async (resultList) => {
 exports.handler = async (event) => {
   console.log(JSON.stringify(event, null, 2));
   const { testId, fileType, prefix, testTaskConfig: eventConfigs } = event;
-  const endTime = moment().utc().format("YYYY-MM-DD HH:mm:ss");
+  const endTime = new Date()
+    .toISOString()
+    .replace("T", " ")
+    .replace(/\.\d+Z$/, "");
 
   try {
     const scenariosTableItems = await getScenariosTableItems(testId);
@@ -226,7 +227,14 @@ exports.handler = async (event) => {
     }
 
     // Send anonymized metrics
-    if (process.env.SEND_METRIC === "Yes") await metrics.send({ testType, totalDuration, fileType, testResult });
+    if (process.env.SEND_METRIC === "Yes")
+      await utils.sendMetric({
+        Type: "TaskCompletion",
+        TestType: testType,
+        FileType: fileType || (testType === "simple" ? "none" : "script"),
+        TestResult: testResult,
+        Duration: totalDuration,
+      });
     return "success";
   } catch (error) {
     console.error(error);
@@ -253,3 +261,7 @@ const updateScenariosTable = async (testId, errorReason) => {
     })
     .promise();
 };
+
+if (process.env.RUNNING_UNIT_TESTS === "True") {
+  exports._getFilesByRegion = getFilesByRegion;
+}

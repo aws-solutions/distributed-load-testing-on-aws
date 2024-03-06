@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const AWS = require("aws-sdk");
-const moment = require("moment");
 const utils = require("solution-utils");
 const { HISTORY_TABLE, SCENARIOS_TABLE, SCENARIOS_BUCKET, STATE_MACHINE_ARN, TASK_CANCELER_ARN, STACK_ID } =
   process.env;
@@ -252,14 +251,14 @@ const scheduleTest = async (event, context) => {
     }
 
     if (config.scheduleStep === "create") {
-      //Schedule for 1 min prior to account for time it takes to create rule
-      const createRun = moment([year, parseInt(month, 10) - 1, day, hour, minute])
-        .subtract(1, "minute")
-        .format("YYYY-MM-DD HH:mm:ss");
-      let [createDate, createTime] = createRun.split(" ");
-      const [createHour, createMin] = createTime.split(":");
-      const [createYear, createMonth, createDay] = createDate.split("-");
-      const cronStart = `cron(${createMin} ${createHour} ${createDay} ${createMonth} ? ${createYear})`;
+      const createRun = new Date(year, parseInt(month, 10) - 1, day, hour, minute);
+
+      // Schedule for 1 min prior to account for time it takes to create rule
+      // getMonth() returns Jan with index Zero that is why months need a +1
+      // refrence https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/getMonth
+      const cronStart = `cron(${createRun.getMinutes() - 1} ${createRun.getHours()} ${createRun.getDate()} ${
+        createRun.getMonth() + 1
+      } ? ${createRun.getFullYear()})`;
       scheduleRecurrence = config.recurrence;
 
       //Create rule to create schedule
@@ -447,33 +446,35 @@ const setFileType = (testType, fileType) => {
 const setTestId = (testId) =>
   // When accessing API directly and no testId
   testId || utils.generateUniqueId(10);
+
 /**
  * Sets the next schedule test run
- * @param {string} scheduledTime
+ * @param {Date} scheduledTime
  * @param {string} scheduleRecurrence
- * @returns next run, scheduleRecurrence
+ * @returns nextRun
  */
 const setNextRun = (scheduledTime, scheduleRecurrence = "") => {
-  let nextRun = "";
-  if (scheduleRecurrence) {
-    switch (scheduleRecurrence) {
-      case "daily":
-        nextRun = scheduledTime.add(1, "d").format("YYYY-MM-DD HH:mm:ss");
-        break;
-      case "weekly":
-        nextRun = scheduledTime.add(7, "d").format("YYYY-MM-DD HH:mm:ss");
-        break;
-      case "biweekly":
-        nextRun = scheduledTime.add(14, "d").format("YYYY-MM-DD HH:mm:ss");
-        break;
-      case "monthly":
-        nextRun = scheduledTime.add(1, "M").format("YYYY-MM-DD HH:mm:ss");
-        break;
-      default:
-        throw new ErrorException("InvalidParameter", "Invalid recurrence value.");
-    }
+  let newDate = new Date(scheduledTime.getTime());
+  if (!scheduleRecurrence) {
+    return "";
   }
-  return nextRun;
+  switch (scheduleRecurrence) {
+    case "daily":
+      newDate.setDate(newDate.getDate() + 1);
+      break;
+    case "weekly":
+      newDate.setDate(newDate.getDate() + 7);
+      break;
+    case "biweekly":
+      newDate.setDate(newDate.getDate() + 14);
+      break;
+    case "monthly":
+      newDate.setMonth(newDate.getMonth() + 1);
+      break;
+    default:
+      throw new ErrorException("InvalidParameter", "Invalid recurrence value.");
+  }
+  return convertDateToString(newDate);
 };
 /**
  * Validates the setting for task count and task concurrency
@@ -752,6 +753,18 @@ const updateTestDBEntry = async (updateTestConfigs) => {
 };
 
 /**
+ * @function convertDateToString
+ * Description: Formats the date to a YYYY-MM-DD HH:MM:SS format
+ * @config {string} a formatted string date
+ *  */
+const convertDateToString = (date) => {
+  return date
+    .toISOString()
+    .replace("T", " ")
+    .replace(/\.\d+Z$/, "");
+};
+
+/**
  * @function createTest
  * Description: returns a consolidated list of test scenarios
  * @config {object} test scenario configuration
@@ -766,20 +779,21 @@ const createTest = async (config) => {
     testId = setTestId(testId);
 
     const testEntry = await getTestEntry(testId);
-    if (testEntry && testEntry.nextRun) nextRun = moment.utc(testEntry.nextRun, "YYYY-MM-DD HH:mm:ss");
+    if (testEntry && testEntry.nextRun) nextRun = new Date(testEntry.nextRun);
 
-    let startTime = moment().utc();
+    let startTime = new Date();
+
     if (eventBridge) {
-      const startDate = moment().format("YYYY-MM-DD");
+      const startDate = new Date().toISOString().slice(0, 10);
       // If it is eventBridge triggered definitely has scheduleTime
-      startTime = moment.utc(`${startDate} ${scheduleTime}:00`, "YYYY-MM-DD HH:mm:ss");
+      startTime = new Date(`${startDate} ${scheduleTime}:00`);
     }
 
-    if (nextRun && startTime.isBefore(nextRun)) nextRun = nextRun.format("YYYY-MM-DD HH:mm:ss");
+    if (nextRun && startTime < nextRun) nextRun = convertDateToString(nextRun);
     else nextRun = setNextRun(startTime, recurrence);
 
     const scheduleRecurrence = recurrence ? recurrence : "";
-    startTime = startTime.format("YYYY-MM-DD HH:mm:ss");
+    startTime = convertDateToString(startTime);
 
     testTaskConfigs = validateTaskCountConcurrency(testTaskConfigs, regionalTaskDetails);
 
@@ -841,6 +855,7 @@ const createTest = async (config) => {
       testType,
       fileType,
     };
+
     const data = await updateTestDBEntry(updateDBData);
 
     console.log(`Create test complete: ${JSON.stringify(data)}`);

@@ -4,7 +4,7 @@
 import React from "react";
 import { withRouter } from "react-router-dom";
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter } from "reactstrap";
-import { API } from "aws-amplify";
+import { post } from "aws-amplify/api";
 
 class CancelButtons extends React.Component {
   constructor(props) {
@@ -25,7 +25,7 @@ class CancelButtons extends React.Component {
   cancelTest = async () => {
     const testId = this.props.testId;
     try {
-      await API.post("dlts", `/scenarios/${testId}`);
+      await post({ apiName: "dlts", path: `/scenarios/${testId}` }).response;
     } catch (err) {
       alert(err);
     }

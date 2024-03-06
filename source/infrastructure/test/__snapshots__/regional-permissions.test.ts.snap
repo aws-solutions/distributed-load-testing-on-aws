@@ -200,6 +200,7 @@ exports[`DLT Regional Permission Test 1`] = `
               "Action": [
                 "ecs:RunTask",
                 "ecs:DescribeTasks",
+                "ecs:TagResource",
               ],
               "Effect": "Allow",
               "Resource": [

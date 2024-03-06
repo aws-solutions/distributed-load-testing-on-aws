@@ -58,8 +58,7 @@ declare -A templates=(
 )
 
 cd ${source_dir}/infrastructure
-npm run clean
-npm install
+npm ci
 
 for template in "${!templates[@]}"; do
   node_modules/aws-cdk/bin/cdk synth --asset-metadata false --path-metadata false -a "npx ts-node --prefer-ts-exts bin/${template}.ts" > ${templates[$template]}/${template}.template
@@ -76,9 +75,7 @@ done
 
 # Setup solution utils package
 cd ${source_dir}/solution-utils
-rm -rf node_modules 
-npm install --production
-rm -rf package-lock.json
+npm ci --production
 
 # Creating custom resource resources for both stacks
 main_stack_custom_resource_files="index.js node_modules lib/*"
@@ -90,9 +87,7 @@ declare -a stacks=(
 )
 
 cd ${source_dir}/custom-resource
-rm -rf node_modules/
-npm install --production
-rm package-lock.json
+npm ci --production
 for stack in "${stacks[@]}"; do
   cp ${stack}-index.js index.js
   files_to_zip=${stack}_stack_custom_resource_files
@@ -124,9 +119,7 @@ for package in "${packages[@]}"; do
   echo "Creating $package deployment package"
   echo "------------------------------------------------------------------------------"
   cd ${source_dir}/${package}
-  rm -rf node_modules/
-  npm install --production
-  rm package-lock.json
+  npm ci --production
   zip -q -r9 ${build_dist_dir}/${package}.zip *
   if [ $? -eq 0 ]
   then
@@ -156,8 +149,7 @@ echo "Building console"
 echo "------------------------------------------------------------------------------"
 cd ${source_dir}/console
 [ -e build ] && rm -r build
-[ -e node_modules ] && rm -rf node_modules
-npm install
+npm ci
 npm run build
 mkdir ${build_dist_dir}/console
 cp -r ./build/* ${build_dist_dir}/console/

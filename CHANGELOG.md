@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.6] - 2024-03-06 
+
+### Changed
+
+- Updated version of chartjs fromv v3.0.0 to v4
+- Updated version of react from v17 to v18
+- Updated version of react-dom from v17 to v18
+- Removed moment.js as the library was in maintenance mode. Replaced with built-in javascript date and time 
+- Updated Jmeter dependencies and taurus dependencis within the docker image to enhance the security of the docker image
+- Updated taurus version from v1.16.27 to v1.16.29
+
+### Fixed
+
+- Bug fix to resolve issue with graph not showing on scheduled tests [#158](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/158)
+- Bug fix created by changes of the ECS account setting and enabling Tag Resource Authorization as default settings [#162](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/162)
+- Bug fix to resolve issue with running the tests on OPT-IN regions [#163](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/163)
+
 ## [3.2.5] - 2024-01-11
 
 ### Changed

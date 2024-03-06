@@ -422,23 +422,6 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
     },
-    "AppRegistryAttributeGroupAssociation17c9944e720456F5A644": {
-      "Properties": {
-        "Application": {
-          "Fn::GetAtt": [
-            "AppRegistry968496A3",
-            "Id",
-          ],
-        },
-        "AttributeGroup": {
-          "Fn::GetAtt": [
-            "DefaultApplicationAttributesFC1CC26B",
-            "Id",
-          ],
-        },
-      },
-      "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation",
-    },
     "DLTApi0C903EB5": {
       "Properties": {
         "Description": {
@@ -878,6 +861,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                   "Action": [
                     "ecs:RunTask",
                     "ecs:DescribeTasks",
+                    "ecs:TagResource",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -3953,6 +3937,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                   "Action": [
                     "ecs:RunTask",
                     "ecs:DescribeTasks",
+                    "ecs:TagResource",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -4577,6 +4562,9 @@ exports[`Distributed Load Testing stack test 1`] = `
         "Description": "Task runner for ECS task definitions",
         "Environment": {
           "Variables": {
+            "MAIN_STACK_REGION": {
+              "Ref": "AWS::Region",
+            },
             "SCENARIOS_BUCKET": {
               "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
             },
@@ -4868,7 +4856,7 @@ exports[`Distributed Load Testing stack test 1`] = `
           "Fn::Join": [
             "",
             [
-              "{"StartAt":"Regions for testing","States":{"Regions for testing":{"Type":"Map","ResultPath":null,"Next":"Parse result","InputPath":"$","Parameters":{"testTaskConfig.$":"$$.Map.Item.Value","testId.$":"$.testId","testType.$":"$.testType","fileType.$":"$.fileType","showLive.$":"$.showLive","testDuration.$":"$.testDuration","prefix.$":"$.prefix"},"Iterator":{"StartAt":"Check running tests","States":{"Check running tests":{"Next":"No running tests","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
+              "{"StartAt":"Regions for testing","States":{"Regions for testing":{"Type":"Map","ResultPath":null,"Next":"Parse result","InputPath":"$","ItemsPath":"$.testTaskConfig","ItemSelector":{"testTaskConfig.$":"$$.Map.Item.Value","testId.$":"$.testId","testType.$":"$.testType","fileType.$":"$.fileType","showLive.$":"$.showLive","testDuration.$":"$.testDuration","prefix.$":"$.prefix"},"ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"Check running tests","States":{"Check running tests":{"Next":"No running tests","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -4934,7 +4922,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"Wait 1 minute - task status":{"Type":"Wait","Comment":"Wait 1 minute to check task status again","Seconds":60,"Next":"Check task status"},"Are all tasks done?":{"Type":"Choice","Choices":[{"Variable":"$.isRunning","BooleanEquals":false,"Next":"Map End"}],"Default":"Wait 1 minute - task status"},"Map End":{"Type":"Pass","End":true}}},"ItemsPath":"$.testTaskConfig"},"Parse result":{"Next":"Done","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","Resource":"arn:",
+              "","Payload.$":"$"}},"Wait 1 minute - task status":{"Type":"Wait","Comment":"Wait 1 minute to check task status again","Seconds":60,"Next":"Check task status"},"Are all tasks done?":{"Type":"Choice","Choices":[{"Variable":"$.isRunning","BooleanEquals":false,"Next":"Map End"}],"Default":"Wait 1 minute - task status"},"Map End":{"Type":"Pass","End":true}}}},"Parse result":{"Next":"Done","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -5057,20 +5045,6 @@ exports[`Distributed Load Testing stack test 1`] = `
         "PolicyDocument": {
           "Statement": [
             {
-              "Action": [
-                "logs:CreateLogDelivery",
-                "logs:GetLogDelivery",
-                "logs:UpdateLogDelivery",
-                "logs:DeleteLogDelivery",
-                "logs:ListLogDeliveries",
-                "logs:PutResourcePolicy",
-                "logs:DescribeResourcePolicies",
-                "logs:DescribeLogGroups",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-            {
               "Action": "lambda:InvokeFunction",
               "Effect": "Allow",
               "Resource": [
@@ -5173,6 +5147,20 @@ exports[`Distributed Load Testing stack test 1`] = `
                   ],
                 },
               ],
+            },
+            {
+              "Action": [
+                "logs:CreateLogDelivery",
+                "logs:GetLogDelivery",
+                "logs:UpdateLogDelivery",
+                "logs:DeleteLogDelivery",
+                "logs:ListLogDeliveries",
+                "logs:PutResourcePolicy",
+                "logs:DescribeResourcePolicies",
+                "logs:DescribeLogGroups",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
             },
           ],
           "Version": "2012-10-17",
@@ -5744,6 +5732,23 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
       },
       "Type": "AWS::EC2::Subnet",
+    },
+    "DefaultApplicationAttributesApplicationAttributeGroupAssociation137261565f10E63E4638": {
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "AttributeGroup": {
+          "Fn::GetAtt": [
+            "DefaultApplicationAttributesFC1CC26B",
+            "Id",
+          ],
+        },
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation",
     },
     "DefaultApplicationAttributesFC1CC26B": {
       "Properties": {

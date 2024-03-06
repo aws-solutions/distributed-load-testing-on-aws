@@ -3,7 +3,9 @@
 
 import React from "react";
 import { Spinner } from "reactstrap";
-import { API, Storage } from "aws-amplify";
+import { get } from "aws-amplify/api";
+import { getUrl } from "aws-amplify/storage";
+import { Amplify } from "aws-amplify";
 
 import PageHeader from "../Shared/PageHeader/PageHeader.js";
 import RefreshButtons from "../Shared/Buttons/RefreshButtons.js";
@@ -96,7 +98,11 @@ class Details extends React.Component {
   getTest = async () => {
     const testId = this.state.testId;
     try {
-      const data = await API.get("dlts", `/scenarios/${testId}`);
+      const _data = await get({
+        apiName: "dlts",
+        path: `/scenarios/${testId}`,
+      }).response;
+      const data = await _data.body.json();
       if (data.nextRun) {
         const [scheduleDate, scheduleTime] = data.nextRun.split(" ");
         data.scheduleDate = scheduleDate;
@@ -104,7 +110,8 @@ class Details extends React.Component {
         data.recurrence = data.scheduleRecurrence;
         delete data.nextRun;
       }
-      data.regionalTaskDetails = await API.get("dlts", "/vCPUDetails");
+      const _vCPUDetails = await get({ apiName: "dlts", path: "/vCPUDetails" }).response;
+      data.regionalTaskDetails = await _vCPUDetails.body.json();
       this.setTestData(data);
     } catch (err) {
       console.error(err);
@@ -132,8 +139,8 @@ class Details extends React.Component {
       const testId = this.state.testId;
       const { testType } = this.state.data;
       let filename = this.state.data.fileType === "zip" ? `${testId}.zip` : `${testId}.jmx`;
-      const url = await Storage.get(`test-scenarios/${testType}/${filename}`, { expires: 10 });
-      window.open(url, "_blank");
+      const url = await getUrl({ key: `test-scenarios/${testType}/${filename}` });
+      window.open(url.url, "_blank");
     } catch (error) {
       console.error("Error", error);
     }
@@ -142,7 +149,9 @@ class Details extends React.Component {
   async handleFullTestDataLocation() {
     try {
       const testId = this.state.testId;
-      const url = `https://console.aws.amazon.com/s3/buckets/${Storage._config.AWSS3.bucket}?prefix=results/${testId}/`;
+      const url = `https://console.aws.amazon.com/s3/buckets/${
+        Amplify.getConfig().Storage.S3.bucket
+      }?prefix=results/${testId}/`;
       window.open(url, "_blank");
     } catch (error) {
       console.error("Failed to open S3 location for test run results", error);
