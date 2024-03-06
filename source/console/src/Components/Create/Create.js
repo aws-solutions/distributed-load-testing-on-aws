@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import React from "react";
-import { API, Storage } from "aws-amplify";
+import { uploadData } from "aws-amplify/storage";
+import { get, post } from "aws-amplify/api";
 import "brace";
+import { v4 as uuidv4 } from "uuid";
+
 import AceEditor from "react-ace";
 import {
   Card,
@@ -40,14 +43,10 @@ class Create extends React.Component {
   constructor(props) {
     super(props);
     if (this.props.location.state && this.props.location.state.data.testId) {
-      let fileType = "";
-      if (this.props.location.state.data.testType && this.props.location.state.data.testType !== "simple") {
-        if (this.props.location.state.data.fileType) {
-          fileType = this.props.location.state.data.fileType;
-        } else {
-          fileType = "script";
-        }
-      }
+      let fileType = this.setInitialFileType();
+      this.props.location.state.data.testTaskConfigs.forEach((config) => {
+        config.id = uuidv4();
+      });
       this.state = {
         isLoading: false,
         isUploading: false,
@@ -105,7 +104,7 @@ class Create extends React.Component {
         formValues: {
           testName: "",
           testDescription: "",
-          testTaskConfigs: [{ concurrency: 0, taskCount: 0, region: "" }],
+          testTaskConfigs: [{ concurrency: 0, taskCount: 0, region: "", id: uuidv4() }],
           holdFor: 0,
           holdForUnits: "m",
           rampUp: 0,
@@ -141,6 +140,15 @@ class Create extends React.Component {
     this.checkForTaskCountWarning = this.checkForTaskCountWarning.bind(this);
   }
 
+  setInitialFileType() {
+    if (this.props.location.state.data.testType && this.props.location.state.data.testType !== "simple") {
+      if (this.props.location.state.data.fileType) {
+        return this.props.location.state.data.fileType;
+      }
+      return "script";
+    }
+  }
+
   parseJson(str) {
     try {
       return JSON.parse(str);
@@ -150,100 +158,77 @@ class Create extends React.Component {
   }
 
   handleSubmit = async () => {
-    const values = this.state.formValues;
+    const {
+      testName,
+      testDescription,
+      testTaskConfigs,
+      rampUp,
+      rampUpUnits,
+      holdFor,
+      holdForUnits,
+      onSchedule,
+      scheduleDate,
+      scheduleTime,
+      recurrence,
+      testType,
+      fileType,
+      showLive,
+      headers,
+      body,
+      endpoint,
+      method,
+    } = this.state.formValues;
 
     if (!this.form.current.reportValidity()) {
       this.setState({ isLoading: false });
       return false;
     }
-
     const testId = this.state.testId || generateUniqueId(10);
     let payload = {
       testId,
-      testName: values.testName,
-      testDescription: values.testDescription,
-      testTaskConfigs: values.testTaskConfigs,
+      testName: testName,
+      testDescription: testDescription,
+      testTaskConfigs: testTaskConfigs.map(({ id, ...rest }) => rest),
       testScenario: {
         execution: [
           {
-            "ramp-up": String(parseInt(values.rampUp)).concat(values.rampUpUnits),
-            "hold-for": String(parseInt(values.holdFor)).concat(values.holdForUnits),
-            scenario: values.testName,
+            "ramp-up": String(parseInt(rampUp)).concat(rampUpUnits),
+            "hold-for": String(parseInt(holdFor)).concat(holdForUnits),
+            scenario: testName,
           },
         ],
         scenarios: {
-          [values.testName]: {},
+          [testName]: {},
         },
       },
-      showLive: values.showLive,
-      testType: values.testType,
-      fileType: values.fileType,
+      showLive: showLive,
+      testType: testType,
+      fileType: fileType,
       regionalTaskDetails: this.state.regionalTaskDetails,
     };
 
-    if (!!parseInt(values.onSchedule)) {
-      payload.scheduleDate = values.scheduleDate;
-      payload.scheduleTime = values.scheduleTime;
+    if (!!parseInt(onSchedule)) {
+      payload.scheduleDate = scheduleDate;
+      payload.scheduleTime = scheduleTime;
       payload.scheduleStep = "start";
       if (this.state.activeTab === "2") {
         payload.scheduleStep = "create";
-        payload.recurrence = values.recurrence;
+        payload.recurrence = recurrence;
       }
     }
-
-    if (values.testType === "simple") {
-      if (!values.headers) {
-        values.headers = "{}";
-      }
-      if (!values.body) {
-        values.body = "{}";
-      }
-      if (!this.parseJson(values.headers.trim())) {
-        return alert("WARNING: headers text is not valid JSON");
-      }
-      if (!this.parseJson(values.body.trim())) {
-        return alert("WARNING: body text is not valid JSON");
-      }
-
-      payload.testScenario.scenarios[values.testName] = {
-        requests: [
-          {
-            url: values.endpoint,
-            method: values.method,
-            body: this.parseJson(values.body.trim()),
-            headers: this.parseJson(values.headers.trim()),
-          },
-        ],
-      };
-    } else {
-      payload.testScenario.scenarios[values.testName] = {
-        script: `${testId}.jmx`,
-      };
-
-      if (this.state.file) {
-        try {
-          const file = this.state.file;
-          let filename = `${testId}.jmx`;
-
-          if (file.type && file.type.includes("zip")) {
-            payload.fileType = "zip";
-            filename = `${testId}.zip`;
-          } else {
-            payload.fileType = "script";
-          }
-          this.setState({ isUploading: true });
-          await Storage.put(`test-scenarios/jmeter/${filename}`, file);
-          console.log("Script uploaded successfully");
-        } catch (error) {
-          console.error("Error", error);
-        }
-      }
-    }
+    await this.setPayloadTestScenario({ testType, testName, endpoint, method, headers, body, payload, testId });
 
     this.setState({ isLoading: true });
     this.setState({ isUploading: false });
     try {
-      const response = await API.post("dlts", "/scenarios", { body: payload });
+      const _response = await post({
+        apiName: "dlts",
+        path: "/scenarios",
+        options: {
+          body: payload,
+        },
+      }).response;
+      const response = await _response.body.json();
       console.log("Scenario created successfully", response.testId);
       this.props.history.push({ pathname: `/details/${response.testId}`, state: { testId: response.testId } });
     } catch (err) {
@@ -251,6 +236,62 @@ class Create extends React.Component {
       this.setState({ isLoading: false });
     }
   };
+
+  async setPayloadTestScenario(props) {
+    let { testType, testName, endpoint, method, headers, body, payload, testId } = props;
+    if (testType === "simple") {
+      headers = headers || "{}";
+      body = body || "{}";
+
+      if (!this.parseJson(headers.trim())) {
+        return alert("WARNING: headers text is not valid JSON");
+      }
+      if (!this.parseJson(body.trim())) {
+        return alert("WARNING: body text is not valid JSON");
+      }
+
+      payload.testScenario.scenarios[testName] = {
+        requests: [
+          {
+            url: endpoint,
+            method: method,
+            body: this.parseJson(body.trim()),
+            headers: this.parseJson(headers.trim()),
+          },
+        ],
+      };
+      console.log(payload);
+    } else {
+      payload.testScenario.scenarios[testName] = {
+        script: `${testId}.jmx`,
+      };
+
+      if (this.state.file) {
+        payload.fileType = await this.uploadFileToScenarioBucket(testId);
+      }
+    }
+  }
+
+  async uploadFileToScenarioBucket(testId) {
+    const file = this.state.file;
+    let filename;
+    let fileType;
+    if (file.type && file.type.includes("zip")) {
+      fileType = "zip";
+      filename = `${testId}.zip`;
+    } else {
+      fileType = "script";
+      filename = `${testId}.jmx`;
+    }
+    try {
+      this.setState({ isUploading: true });
+      await uploadData({ key: `test-scenarios/jmeter/${filename}`, data: file }).result;
+      console.log("Script uploaded successfully");
+    } catch (error) {
+      console.error("Error", error);
+    }
+    return fileType;
+  }
 
   setFormValue(key, value, id) {
     const formValues = this.state.formValues;
@@ -363,7 +404,11 @@ class Create extends React.Component {
   listRegions = async () => {
     try {
       const regions = {};
-      const data = await API.get("dlts", "/regions");
+      const _data = await get({
+        apiName: "dlts",
+        path: "/regions",
+      }).response;
+      const data = await _data.body.json();
       for (const item of data.regions) {
         regions[item.region] = item.region;
       }
@@ -377,8 +422,11 @@ class Create extends React.Component {
     try {
       this.setState({ vCPUDetailsLoading: true });
 
-      const vCPUDetails = await API.get("dlts", "/vCPUDetails");
-
+      const _vCPUDetails = await get({
+        apiName: "dlts",
+        path: "/vCPUDetails",
+      }).response;
+      const vCPUDetails = await _vCPUDetails.body.json();
       const regions = {};
       for (const region in vCPUDetails) {
         const regionDetails = vCPUDetails[region];
@@ -421,17 +469,17 @@ class Create extends React.Component {
     await this.getvCPUDetails();
   }
 
-  render() {
-    const getTableIcon = () => {
-      if (this.state.vCPUDetailsLoading) {
-        return <Spinner color="secondary" size="sm" />;
-      } else if (this.state.showResourceTable) {
-        return <i className="large bi bi-caret-down" />;
-      } else {
-        return <i className="large bi bi-caret-right" />;
-      }
-    };
+  getTableIcon = () => {
+    if (this.state.vCPUDetailsLoading) {
+      return <Spinner color="secondary" size="sm" />;
+    } else if (this.state.showResourceTable) {
+      return <i className="large bi bi-caret-down" />;
+    } else {
+      return <i className="large bi bi-caret-right" />;
+    }
+  };
 
+  render() {
     const cancel = () => {
       return this.state.testId === null
         ? this.props.history.push("/")
@@ -479,7 +527,9 @@ class Create extends React.Component {
                   required
                   onChange={this.handleInputChange}
                 />
-                <FormText color="muted">Short description of the test scenario.</FormText>
+                <FormText key="description" color="muted">
+                  Short description of the test scenario.
+                </FormText>
               </FormGroup>
               <FormGroup>
                 <Row className="regional-config-title-row">
@@ -494,7 +544,7 @@ class Create extends React.Component {
                   </Col>
                 </Row>
                 {this.state.formValues.testTaskConfigs.map((value, index) => (
-                  <Row key={index} className="regional-config-input-row">
+                  <Row key={value.id} className="regional-config-input-row">
                     <Col xs="3">
                       <Input
                         value={value.taskCount}
@@ -563,7 +613,12 @@ class Create extends React.Component {
                             onClick={() => {
                               const formValues = this.state.formValues;
                               index < maxRegions - 1 &&
-                                formValues.testTaskConfigs.push({ concurrency: 0, taskCount: 0, region: "" });
+                                formValues.testTaskConfigs.push({
+                                  concurrency: 0,
+                                  taskCount: 0,
+                                  region: "",
+                                  id: uuidv4(),
+                                });
                               this.setState({ formValues });
                             }}
                           >
@@ -619,7 +674,7 @@ class Create extends React.Component {
                     }}
                   >
                     <div id="availableTasksTableIcon" className="available-tasks-table-icon">
-                      {getTableIcon()}
+                      {this.getTableIcon()}
                     </div>
                     {"Currently Available Tasks"}
                   </CardHeader>

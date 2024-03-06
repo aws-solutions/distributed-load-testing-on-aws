@@ -27,7 +27,7 @@ test("DLT Regional Permission Test", () => {
     PolicyDocument: {
       Statement: [
         {
-          Action: ["ecs:RunTask", "ecs:DescribeTasks"],
+          Action: ["ecs:RunTask", "ecs:DescribeTasks", "ecs:TagResource"],
           Effect: "Allow",
           Resource: [
             {

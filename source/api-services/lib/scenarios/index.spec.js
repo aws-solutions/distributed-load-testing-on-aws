@@ -13,7 +13,6 @@ const mockLambda = jest.fn();
 const mockCloudFormation = jest.fn();
 const mockServiceQuotas = jest.fn();
 const mockAWS = require("aws-sdk");
-const moment = require("moment");
 mockAWS.S3 = jest.fn(() => ({
   putObject: mockS3,
 }));
@@ -64,8 +63,6 @@ mockAWS.ECS = jest.fn(() => ({
 mockAWS.ServiceQuotas = jest.fn(() => ({
   getServiceQuota: mockServiceQuotas,
 }));
-
-Date.now = jest.fn(() => new Date("2017-04-22T02:28:37.000Z"));
 
 const testId = "1234";
 const listData = {
@@ -729,8 +726,13 @@ describe("#SCENARIOS API:: ", () => {
     mockCloudFormation.mockReset();
     mockServiceQuotas.mockReset();
     getData = { ...origData };
+    jest.useFakeTimers("modern");
+    jest.setSystemTime(new Date(Date.UTC(2017, 3, 22, 2, 28, 37))); // Note: Month is 0-indexed
   });
 
+  beforeAll(() => {
+    process.env.TZ = "UTC";
+  });
   //Positive tests
   it('should return "SUCCESS" when "LISTTESTS" returns success', async () => {
     mockDynamoDB.mockImplementationOnce(() => ({
@@ -1822,9 +1824,8 @@ describe("#SCENARIOS API:: ", () => {
   });
 
   it("should use the right nextRun value for manually triggered recurring tests", async () => {
-    const nextRun = moment().utc().add(1, "days").format("YYYY-MM-DD HH:mm:ss");
     config.recurrence = "daily";
-    getData.Item.nextRun = nextRun;
+    getData.Item.nextRun = "2017-04-23 02:28:37";
     mockS3.mockImplementation(() => ({
       promise() {
         // putObject
@@ -1865,11 +1866,11 @@ describe("#SCENARIOS API:: ", () => {
     expect(mockDynamoDB).toHaveBeenCalledWith(
       expect.objectContaining({
         ExpressionAttributeValues: expect.objectContaining({
-          ":nr": nextRun,
+          ":nr": "2017-04-23 02:28:37",
         }),
       })
     );
-    //reset config
+    // reset config
     delete config.recurrence;
     delete getData.Item.nextRun;
   });
@@ -2074,7 +2075,7 @@ describe("#SCENARIOS API:: ", () => {
     delete config.recurrence;
   });
 
-  it('should record proper date when "CREATETEST" with daily recurrence', async () => {
+  it('should record proper date when "CREATETEST" with monthly recurrence', async () => {
     config.recurrence = "monthly";
     mockDynamoDB.mockImplementationOnce(() => ({
       promise() {

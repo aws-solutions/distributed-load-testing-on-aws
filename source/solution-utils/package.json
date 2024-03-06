@@ -1,6 +1,6 @@
 {
   "name": "solution-utils",
-  "version": "3.2.5",
+  "version": "3.2.6",
   "description": "Utilities package for Distributed Load Testing on AWS",
   "license": "Apache-2.0",
   "author": {
@@ -13,10 +13,12 @@
     "test": "jest --coverage --silent"
   },
   "dependencies": {
-    "nanoid": "^3.1.25"
+    "nanoid": "^3.1.25",
+    "axios": "^1.6.0"
   },
   "devDependencies": {
-    "jest": "29.7.0"
+    "jest": "29.7.0",
+    "axios-mock-adapter": "1.19.0"
   },
   "engines": {
     "node": "^18.x"

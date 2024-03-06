@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const scenarios = require("./lib/scenarios/");
-const metrics = require("./lib/metrics/");
-
+const utils = require("solution-utils");
 /**
  * API Manager Class that gets API path and their method
  * and calls the appropriate handler function to handle the request
@@ -51,10 +50,11 @@ class APIHandler {
         // Handle creating test
         else data = await scenarios.createTest(config);
         if (process.env.SEND_METRIC === "Yes") {
-          await metrics.send({
-            testTaskConfigs: config.testTaskConfigs,
-            testType: config.testType,
-            fileType: config.fileType,
+          await utils.sendMetric({
+            Type: "TaskCreate",
+            TestType: config.testType,
+            FileType: config.fileType || (config.testType === "simple" ? "none" : "script"),
+            TaskCount: config.taskCount,
           });
         }
         return data;

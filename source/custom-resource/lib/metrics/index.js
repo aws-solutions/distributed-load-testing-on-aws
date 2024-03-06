@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const axios = require("axios");
-const moment = require("moment");
 
 const send = async (config, type) => {
   try {
@@ -10,7 +9,8 @@ const send = async (config, type) => {
       Solution: config.SolutionId,
       Version: config.Version,
       UUID: config.UUID,
-      TimeStamp: moment().utc().format("YYYY-MM-DD HH:mm:ss.S"),
+      // Date and time instant in a java.sql.Timestamp compatible format
+      TimeStamp: new Date().toISOString().replace("T", " ").replace("Z", ""),
       Data: {
         Type: type,
         Region: config.Region,

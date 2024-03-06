@@ -1,6 +1,6 @@
 {
   "name": "real-time-data-publisher",
-  "version": "3.2.5",
+  "version": "3.2.6",
   "description": "Publishes real time test data to an IoT endpoint",
   "repository": {
     "type": "git",
@@ -14,11 +14,11 @@
   "main": "index.js",
   "scripts": {
     "clean": "rm -rf node_modules package-lock.json",
-    "test": "jest lib/*.spec.js --coverage --silent"
+    "test": "jest --coverage --silent"
   },
   "dependencies": {
     "solution-utils": "file:../solution-utils",
-    "aws-sdk": "^2.1001.0"  
+    "aws-sdk": "^2.1001.0"
   },
   "devDependencies": {
     "jest": "29.7.0"

@@ -48,6 +48,7 @@ export interface TestRunnerLambdasConstructProps {
   readonly sourceCodeBucket: IBucket;
   readonly sourceCodePrefix: string;
   readonly uuid: string;
+  readonly mainStackRegion: string;
 }
 
 /**
@@ -164,7 +165,7 @@ export class TestRunnerLambdasConstruct extends Construct {
             }),
             new PolicyStatement({
               effect: Effect.ALLOW,
-              actions: ["ecs:RunTask", "ecs:DescribeTasks"],
+              actions: ["ecs:RunTask", "ecs:DescribeTasks", "ecs:TagResource"],
               resources: [taskArn, taskDefArn],
             }),
             new PolicyStatement({
@@ -209,6 +210,7 @@ export class TestRunnerLambdasConstruct extends Construct {
         SCENARIOS_TABLE: props.scenariosTable.tableName,
         SOLUTION_ID: props.solutionId,
         VERSION: props.solutionVersion,
+        MAIN_STACK_REGION: props.mainStackRegion,
       },
       runtime: Runtime.NODEJS_18_X,
       timeout: Duration.seconds(900),

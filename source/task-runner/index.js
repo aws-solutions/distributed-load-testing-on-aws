@@ -264,6 +264,7 @@ exports.handler = async (event, context) => {
         {
           name: taskImage,
           environment: [
+            { name: "MAIN_STACK_REGION", value: process.env.MAIN_STACK_REGION },
             { name: "S3_BUCKET", value: process.env.SCENARIOS_BUCKET },
             { name: "TEST_ID", value: testId },
             { name: "TEST_TYPE", value: testType },

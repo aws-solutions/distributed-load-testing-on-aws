@@ -16,6 +16,7 @@ Affected Jmeter jars:
     * batik-bridge v1.14 will be replaced with v1.17
     * batik-transcoder v1.14 will be replaced with v1.17
     * lets-plot-batik v2.2.1 will be replaced with 4.2.0
+    * commons-net v3.8.0 will be replaced with v3.9.0
 
 Also jmeter plugins manager will be updated to v1.10 to address CVEs and cmdrunner will be updated to v2.3 to accomodate with plugins manager.
 """
@@ -29,7 +30,8 @@ JMETER_COMPONENTS = {
     "batik-script": "org/apache/xmlgraphics/batik-script/1.17/batik-script-1.17.jar",
     "batik-bridge": "org/apache/xmlgraphics/batik-bridge/1.17/batik-bridge-1.17.jar",
     "batik-transcoder": "org/apache/xmlgraphics/batik-transcoder/1.17/batik-transcoder-1.17.jar",
-    "lets-plot-batik":  "org/jetbrains/lets-plot/lets-plot-batik/4.2.0/lets-plot-batik-4.2.0.jar"
+    "lets-plot-batik":  "org/jetbrains/lets-plot/lets-plot-batik/4.2.0/lets-plot-batik-4.2.0.jar",
+    "commons-net": "commons-net/commons-net/3.9.0/commons-net-3.9.0.jar"
 }
 JMETER_VERSION = "5.5"
 JMETER_PLUGINS_MANAGER_VERSION = "1.10"

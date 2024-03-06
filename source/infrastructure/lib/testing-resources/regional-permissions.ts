@@ -68,7 +68,7 @@ export class RegionalPermissionsConstruct extends Construct {
       statements: [
         new PolicyStatement({
           effect: Effect.ALLOW,
-          actions: ["ecs:RunTask", "ecs:DescribeTasks"],
+          actions: ["ecs:RunTask", "ecs:DescribeTasks", "ecs:TagResource"],
           resources: [taskArn, taskDefArn],
         }),
         new PolicyStatement({

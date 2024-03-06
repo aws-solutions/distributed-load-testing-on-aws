@@ -122,6 +122,6 @@ export class CommonResourcesConstruct extends Construct {
         solutionName,
       },
     });
-    application.associateAttributeGroup(attributeGroup);
+    attributeGroup.associateWith(application);
   }
 }

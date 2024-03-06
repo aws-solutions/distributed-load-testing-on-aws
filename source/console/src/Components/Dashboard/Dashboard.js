@@ -4,7 +4,7 @@
 import React from "react";
 import { Table, Spinner } from "reactstrap";
 import { Link } from "react-router-dom";
-import { API } from "aws-amplify";
+import { get } from "aws-amplify/api";
 
 import PageHeader from "../Shared/PageHeader/PageHeader";
 import RefreshButtons from "../Shared/Buttons/RefreshButtons";
@@ -25,7 +25,11 @@ class Dashboard extends React.Component {
     });
 
     try {
-      const data = await API.get("dlts", "/scenarios");
+      const _data = await get({
+        apiName: "dlts",
+        path: "/scenarios",
+      }).response;
+      const data = await _data.body.json();
       data.Items.sort((a, b) => {
         if (!a.startTime) a.startTime = "";
         if (!b.startTime) b.startTime = "";

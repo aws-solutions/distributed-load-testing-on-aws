@@ -46,6 +46,7 @@ process.env = {
   SCENARIOS_BUCKET: "mock-bucket",
   SOLUTION_ID: "SO0062",
   VERSION: "2.0.1",
+  MAIN_STACK_REGION: "us-west-2",
 };
 
 const lambda = require("../index.js");
@@ -91,6 +92,7 @@ let mockParam = {
       {
         name: event.testTaskConfig.taskImage,
         environment: [
+          { name: "MAIN_STACK_REGION", value: process.env.MAIN_STACK_REGION },
           { name: "S3_BUCKET", value: process.env.SCENARIOS_BUCKET },
           { name: "TEST_ID", value: event.testId },
           { name: "TEST_TYPE", value: "simple" },
@@ -346,7 +348,7 @@ describe("#TASK RUNNER:: ", () => {
     expect(response).toEqual(expect.objectContaining(expectedResponse));
   });
   it("should return when launching leader task is successful", async () => {
-    mockParam.overrides.containerOverrides[0].environment[7].value = "ecscontroller.py";
+    mockParam.overrides.containerOverrides[0].environment[8].value = "ecscontroller.py";
     mockParam.overrides.containerOverrides[0].environment.push({ name: "IPNETWORK", value: "" });
     mockParam.overrides.containerOverrides[0].environment.push({ name: "IPHOSTS", value: "" });
     let taskIds = getTaskIds(5);

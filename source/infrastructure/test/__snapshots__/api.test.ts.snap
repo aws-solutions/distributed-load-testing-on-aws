@@ -263,6 +263,7 @@ exports[`DLT API Test 1`] = `
                   "Action": [
                     "ecs:RunTask",
                     "ecs:DescribeTasks",
+                    "ecs:TagResource",
                   ],
                   "Effect": "Allow",
                   "Resource": [

@@ -3,9 +3,9 @@
 
 import React from "react";
 import { Button, Table, Col, Row } from "reactstrap";
-import { PubSub } from "@aws-amplify/pubsub";
+import { pubsub } from "../../pubsub";
 import Chart from "chart.js/auto";
-import "chartjs-adapter-moment";
+import "chartjs-adapter-date-fns";
 declare var awsConfig;
 
 class Running extends React.Component {
@@ -85,9 +85,9 @@ class Running extends React.Component {
       //set regions for graph data
       this.setGraphRegions();
       //subscribe to iot topic, handle incoming messages
-      this.iotSubscription = PubSub.subscribe(`dlt/${this.props.testId}`).subscribe({
+      this.iotSubscription = pubsub.subscribe({ topics: `dlt/${this.props.testId}` }).subscribe({
         next: (data) => {
-          this.handleMessage(data.value);
+          this.handleMessage(data);
         },
         error: (error) => console.error(error),
         complete: () => console.log("closing connection"),

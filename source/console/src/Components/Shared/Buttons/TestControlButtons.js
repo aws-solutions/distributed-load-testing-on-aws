@@ -4,7 +4,7 @@
 import React from "react";
 import { withRouter, Link } from "react-router-dom";
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter } from "reactstrap";
-import { API } from "aws-amplify";
+import { del, post } from "aws-amplify/api";
 
 import "brace";
 import "brace/theme/github";
@@ -30,7 +30,7 @@ class TestControlButtons extends React.Component {
   deleteTest = async () => {
     const testId = this.props.testId;
     try {
-      await API.del("dlts", `/scenarios/${testId}`);
+      await del({ apiName: "dlts", path: `/scenarios/${testId}` }).response;
     } catch (err) {
       alert(err);
     }
@@ -99,7 +99,8 @@ class TestControlButtons extends React.Component {
 
     try {
       hasEmptyRegion && this.emptyRegionError();
-      const response = await API.post("dlts", "/scenarios", { body: payload });
+      const _response = await post({ apiName: "dlts", path: "/scenarios", options: { body: payload } }).response;
+      const response = await _response.body.json();
       console.log("Scenario started successfully", response.testId);
       await this.props.refreshFunction();
     } catch (err) {

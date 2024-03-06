@@ -48,10 +48,10 @@ exports.handler = async function (event) {
       const logString = logItem.message;
       // Define individual regex patterns for each condition
       const wordPattern = /^\w+/;
-      const vuPattern = /\d+(\.\d+)?(?=\svu)/;
-      const succPattern = /\d+(\.\d+)?(?=\ssucc)/;
-      const failPattern = /\d+(\.\d+)?(?=\sfail)/;
-      const avgRTPattern = /\d+(\.\d+)?(?=\savg rt\s)/;
+      const vuPattern = /\d{1,6}(?=\svu)/;
+      const succPattern = /\d{1,6}(?=\ssucc)/;
+      const failPattern = /\d{1,6}(?=\sfail)/;
+      const avgRTPattern = /\d{1,3}(\.\d{1,3})?(?=\savg rt\s)/;
 
       // Combine the patterns using the | (or) operator
       const regex = new RegExp(

@@ -110,7 +110,7 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
       inputPath: "$",
       resultPath: JsonPath.DISCARD,
       itemsPath: "$.testTaskConfig",
-      parameters: {
+      itemSelector: {
         "testTaskConfig.$": "$$.Map.Item.Value",
         "testId.$": "$.testId",
         "testType.$": "$.testType",
@@ -166,7 +166,7 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
     });
     checkRunningTests.next(noRunningTests);
 
-    const definition = Chain.start(regionConfigsForTest.iterator(checkRunningTests)).next(parseResult);
+    const definition = Chain.start(regionConfigsForTest.itemProcessor(checkRunningTests)).next(parseResult);
 
     this.taskRunnerStepFunctions = new StateMachine(this, "TaskRunnerStepFunctions", {
       definitionBody: DefinitionBody.fromChainable(definition),

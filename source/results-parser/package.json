@@ -1,6 +1,6 @@
 {
   "name": "results-parser",
-  "version": "3.2.5",
+  "version": "3.2.6",
   "description": "result parser for indexing xml test results to DynamoDB",
   "repository": {
     "type": "git",
@@ -14,15 +14,13 @@
   "main": "index.js",
   "scripts": {
     "clean": "rm -rf node_modules package-lock.json",
-    "test": "jest lib/**/*.spec.js --coverage --silent"
+    "test": "jest --coverage --silent"
   },
   "dependencies": {
     "axios": "^1.6.0",
-    "moment": "^2.29.1",
     "solution-utils": "file:../solution-utils",
     "xml-js": "^1.6.11",
     "aws-sdk": "^2.1001.0"
-
   },
   "devDependencies": {
     "axios-mock-adapter": "1.19.0",

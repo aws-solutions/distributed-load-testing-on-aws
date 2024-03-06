@@ -6,9 +6,10 @@ import { BrowserRouter as Router, Route, Switch, Link } from "react-router-dom";
 import { Collapse, Navbar, NavbarToggler, NavbarBrand, Nav, NavItem } from "reactstrap";
 
 //Amplify
-import { Amplify, Auth } from "aws-amplify";
+import { Amplify } from "aws-amplify";
+import { getCurrentUser, signOut, fetchAuthSession } from "aws-amplify/auth";
 import { withAuthenticator } from "@aws-amplify/ui-react";
-import { PubSub, AWSIoTProvider } from "@aws-amplify/pubsub";
+import "@aws-amplify/ui-react/styles.css";
 import AWS from "aws-sdk";
 
 //Components
@@ -16,16 +17,33 @@ import Dashboard from "./Components/Dashboard/Dashboard.js";
 import Create from "./Components/Create/Create.js";
 import Details from "./Components/Details/Details.js";
 import RegionalModal from "./Components/RegionalModal/RegionalModal.js";
-
 declare var awsConfig;
-Amplify.addPluggable(
-  new AWSIoTProvider({
-    aws_pubsub_region: awsConfig.aws_project_region,
-    aws_pubsub_endpoint: "wss://" + awsConfig.aws_iot_endpoint + "/mqtt",
-  })
-);
-PubSub.configure(awsConfig);
-Amplify.configure(awsConfig);
+
+const ResourcesConfig = {
+  Auth: {
+    Cognito: {
+      userPoolId: awsConfig.aws_user_pools_id,
+      userPoolClientId: awsConfig.aws_user_pools_web_client_id,
+      identityPoolId: awsConfig.aws_cognito_identity_pool_id,
+    },
+  },
+  API: {
+    REST: {
+      dlts: {
+        endpoint: awsConfig.aws_cloud_logic_custom[0].endpoint,
+        region: awsConfig.aws_cloud_logic_custom[0].region,
+      },
+    },
+  },
+  Storage: {
+    S3: {
+      bucket: awsConfig.aws_user_files_s3_bucket, // Optional
+      region: awsConfig.aws_user_files_s3_bucket_region, // Optional
+    },
+  },
+};
+
+Amplify.configure({ ...ResourcesConfig });
 
 class App extends React.Component {
   constructor(props) {
@@ -45,15 +63,15 @@ class App extends React.Component {
    */
   async componentDidMount() {
     try {
-      await Auth.currentAuthenticatedUser();
+      await getCurrentUser();
     } catch (error) {
       console.log("User is not signed in");
     }
-    const credentials = await Auth.currentCredentials();
+    const credentials = await fetchAuthSession();
     const identityId = credentials.identityId;
     AWS.config.update({
       region: awsConfig.aws_project_region,
-      credentials: Auth.essentialCredentials(credentials),
+      credentials: credentials.credentials,
     });
     const params = {
       policyName: awsConfig.aws_iot_policy_name,
@@ -89,7 +107,7 @@ class App extends React.Component {
   }
 
   async signOut() {
-    await Auth.signOut();
+    await signOut();
     window.location.reload();
   }
 
@@ -168,4 +186,4 @@ class App extends React.Component {
   }
 }
 
-export default withAuthenticator(App, false);
+export default withAuthenticator(App);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const { customAlphabet } = require("nanoid");
+const axios = require("axios");
 
 /**
  * Generates an unique ID based on the parameter length.
@@ -31,7 +32,40 @@ const getOptions = (options) => {
   return options;
 };
 
+/**
+ * Sends anonymized metrics.
+ * @param {{ taskCount: number, testType: string, fileType: string|undefined }} - the number of containers used for the test, the test type, and the file type
+ */
+const sendMetric = async (metricData) => {
+  let data;
+
+  try {
+    const metrics = {
+      Solution: process.env.SOLUTION_ID,
+      UUID: process.env.UUID,
+      // Date and time instant in a java.sql.Timestamp compatible format
+      TimeStamp: new Date().toISOString().replace("T", " ").replace("Z", ""),
+      Version: process.env.VERSION,
+      Data: metricData,
+    };
+    const params = {
+      method: "post",
+      port: 443,
+      url: process.env.METRIC_URL,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      data: metrics,
+    };
+    data = await axios(params);
+    return data.status;
+  } catch (err) {
+    console.error(err);
+  }
+};
+
 module.exports = {
   generateUniqueId: generateUniqueId,
   getOptions: getOptions,
+  sendMetric: sendMetric,
 };

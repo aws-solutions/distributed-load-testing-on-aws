@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const utils = require("../utils");
+const axios = require("axios");
+const MockAdapter = require("axios-mock-adapter");
 
 describe("#GET OPTIONS:: ", () => {
   const OLD_ENV = process.env;
@@ -71,5 +73,78 @@ describe("#GENERATE UNIQUE ID:: ", () => {
   it("should return a unique id of length 20", () => {
     const uniqueId = utils.generateUniqueId(20);
     expect(uniqueId).toHaveLength(20);
+  });
+});
+
+describe("#SEND METRICS", () => {
+  beforeEach(() => {
+    process.env.UUID = "MyUUID";
+    process.env.SOLUTION_ID = "MySolutionID";
+    process.env.VERSION = "MyVersion";
+    process.env.METRIC_URL = "MyEndpoint";
+  });
+
+  afterEach(() => {
+    delete process.env.UUID;
+    delete process.env.SOLUTION_ID;
+    delete process.env.VERSION;
+    delete process.env.METRIC_URL;
+  });
+
+  it("should return 200 status code on success", async () => {
+    // Arrange
+    let mock = new MockAdapter(axios);
+    mock.onPost().reply(200, {});
+    const metricData = {
+      Type: "TaskCompletion",
+      Duration: 300.0,
+      TestType: "simple",
+      TestResult: "completed",
+    };
+
+    // Act
+    let response = await utils.sendMetric(metricData);
+
+    // Assert
+    expect(response).toEqual(200);
+  });
+
+  it("should send metric in correct format", async () => {
+    // Arrange
+    let mock = new MockAdapter(axios);
+    mock.onPost().reply(200, {});
+    const metricData = {
+      Type: "TaskCompletion",
+      Duration: 300.0,
+      TestType: "jmeter",
+      FileType: "zip",
+      TestResult: "failed",
+    };
+    const expectedMetricObject = {
+      Solution: process.env.SOLUTION_ID,
+      UUID: process.env.UUID,
+      Version: process.env.VERSION,
+      Data: metricData,
+    };
+
+    // Act
+    await utils.sendMetric(metricData);
+
+    // Assert
+    expect(mock.history.post[0].url).toEqual(process.env.METRIC_URL);
+    expect(JSON.parse(mock.history.post[0].data)).toMatchObject(expectedMetricObject);
+    expect(typeof Date.parse(JSON.parse(mock.history.post[0].data).TimeStamp)).toEqual("number"); // epoch time
+  });
+
+  it("should not throw error, when metric send fails", async () => {
+    // Arrange
+    let mock = new MockAdapter(axios);
+    mock.onPost().networkError();
+
+    // Act
+    await utils.sendMetric({});
+
+    // Assert
+    expect(mock.history.post.length).toBe(1); // called once
   });
 });

@@ -40,6 +40,7 @@ exports[`DLT Task Lambda Test 1`] = `
                   "Action": [
                     "ecs:RunTask",
                     "ecs:DescribeTasks",
+                    "ecs:TagResource",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -457,6 +458,7 @@ exports[`DLT Task Lambda Test 1`] = `
         "Description": "Task runner for ECS task definitions",
         "Environment": {
           "Variables": {
+            "MAIN_STACK_REGION": "us-east-1",
             "SCENARIOS_BUCKET": "testBucket",
             "SCENARIOS_TABLE": {
               "Ref": "TestTable5769773A",
