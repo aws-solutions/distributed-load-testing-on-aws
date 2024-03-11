@@ -5,16 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.2.6] - 2024-03-06 
+## [3.2.7] - 2024-03-11
+
+### Fixed
+
+- Fixed CHANGELOG for v3.2.6
+
+### Added
+
+- Added package-lock.json
+
+## [3.2.6] - 2024-03-06
 
 ### Changed
 
-- Updated version of chartjs fromv v3.0.0 to v4
-- Updated version of react from v17 to v18
-- Updated version of react-dom from v17 to v18
-- Removed moment.js as the library was in maintenance mode. Replaced with built-in javascript date and time 
+- Updated version of taurus from v1.16.27 to v1.16.29
+- Updated version of chart.js from v3.9.1 to v4.1.1
+- Updated version of react from v17.0.2 to v18.2.0
+- Updated version of react-dom from v17.0.2 to v18.2.0
+- Updated version of aws-amplify from v4.3.31 to v6.0.17
+- Updated version of @aws-amplify/pubsub from v4.4.10 to v6.0.17
+- Updated version of @aws-amplify/ui-react from v1.2.26 to v6.1.4
+- Removed moment.js as the library was in maintenance mode. Replaced with javascript built-in date objects
 - Updated Jmeter dependencies and taurus dependencis within the docker image to enhance the security of the docker image
-- Updated taurus version from v1.16.27 to v1.16.29
 
 ### Fixed
 

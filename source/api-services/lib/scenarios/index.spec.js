@@ -13,6 +13,7 @@ const mockLambda = jest.fn();
 const mockCloudFormation = jest.fn();
 const mockServiceQuotas = jest.fn();
 const mockAWS = require("aws-sdk");
+
 mockAWS.S3 = jest.fn(() => ({
   putObject: mockS3,
 }));
