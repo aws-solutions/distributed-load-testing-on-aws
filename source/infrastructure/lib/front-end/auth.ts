@@ -11,7 +11,7 @@ import {
   CfnUserPoolUser,
 } from "aws-cdk-lib/aws-cognito";
 import { Effect, FederatedPrincipal, PolicyDocument, PolicyStatement, Role } from "aws-cdk-lib/aws-iam";
-import { Aws, ArnFormat, CfnResource, Duration, RemovalPolicy, Stack } from "aws-cdk-lib";
+import { Aws, ArnFormat, CfnResource, Duration, RemovalPolicy, Stack, CfnCondition, Fn } from "aws-cdk-lib";
 import { CfnPolicy } from "aws-cdk-lib/aws-iot";
 import { Construct } from "constructs";
 
@@ -26,6 +26,7 @@ export interface CognitoAuthConstructProps {
   apiId: string;
   cloudFrontDomainName: string;
   scenariosBucketArn: string;
+  existingCognitoPoolId: string;
 }
 
 export class CognitoAuthConstruct extends Construct {
@@ -36,6 +37,11 @@ export class CognitoAuthConstruct extends Construct {
 
   constructor(scope: Construct, id: string, props: CognitoAuthConstructProps) {
     super(scope, id);
+
+    // CFN Conditions
+    const createUserPoolResourceCondition = new CfnCondition(this, "createUserPoolResource", {
+      expression: Fn.conditionEquals(props.existingCognitoPoolId, ""),
+    });
 
     const dltIotPolicy = new CfnPolicy(this, "IoT-Policy", {
       policyDocument: new PolicyDocument({
@@ -132,7 +138,14 @@ export class CognitoAuthConstruct extends Construct {
       userPoolName: `${Aws.STACK_NAME}-user-pool`,
     });
     (cognitoUserPool.node.defaultChild as CfnUserPool).userPoolAddOns = { advancedSecurityMode: "ENFORCED" };
-    this.cognitoUserPoolId = cognitoUserPool.userPoolId;
+    (cognitoUserPool.node.defaultChild as CfnUserPool).cfnOptions.condition = createUserPoolResourceCondition;
+
+    this.cognitoUserPoolId = Fn.conditionIf(
+      createUserPoolResourceCondition.logicalId,
+      cognitoUserPool.userPoolId,
+      props.existingCognitoPoolId
+    ).toString();
+    const userPool = UserPool.fromUserPoolId(this, "UserPool", this.cognitoUserPoolId);
 
     const clientWriteAttributes = new ClientAttributes().withStandardAttributes({
       address: true,
@@ -142,7 +155,7 @@ export class CognitoAuthConstruct extends Construct {
 
     const cognitoUserPoolClient = new UserPoolClient(this, "DLTUserPoolClient", {
       userPoolClientName: `${Aws.STACK_NAME}-userpool-client`,
-      userPool: cognitoUserPool,
+      userPool,
       generateSecret: false,
       writeAttributes: clientWriteAttributes,
       refreshTokenValidity: Duration.days(1),
@@ -155,7 +168,7 @@ export class CognitoAuthConstruct extends Construct {
       cognitoIdentityProviders: [
         {
           clientId: this.cognitoUserPoolClientId,
-          providerName: cognitoUserPool.userPoolProviderName,
+          providerName: `cognito-idp.${userPool.env.region}.amazonaws.com/${userPool.userPoolId}`,
         },
       ],
     });

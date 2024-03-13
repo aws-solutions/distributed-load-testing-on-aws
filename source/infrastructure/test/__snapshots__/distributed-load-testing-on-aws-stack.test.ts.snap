@@ -24,6 +24,14 @@ exports[`Distributed Load Testing stack test 1`] = `
         "",
       ],
     },
+    "DLTCognitoAuthcreateUserPoolResource406911CC": {
+      "Fn::Equals": [
+        {
+          "Ref": "ExistingCognitoPoolId",
+        },
+        "",
+      ],
+    },
     "SendAnonymizedUsage": {
       "Fn::Equals": [
         {
@@ -191,6 +199,14 @@ exports[`Distributed Load Testing stack test 1`] = `
             "EgressCidr",
           ],
         },
+        {
+          "Label": {
+            "default": "Enter value here to use your own existing Cognito Pool",
+          },
+          "Parameters": [
+            "ExistingCognitoPoolId",
+          ],
+        },
       ],
       "ParameterLabels": {
         "AdminEmail": {
@@ -201,6 +217,9 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
         "EgressCidr": {
           "default": "AWS Fargate SecurityGroup CIDR Block",
+        },
+        "ExistingCognitoPoolId": {
+          "default": "The ID of an existing Cognito User Pool in this region. Ex: \`us-east-1_123456789\`",
         },
         "ExistingSubnetA": {
           "default": "The ID of a subnet within the existing VPC. Ex: \`subnet-7h8i9j0k\`",
@@ -318,6 +337,10 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Description": "CIDR Block to restrict the ECS container outbound access",
       "MaxLength": 18,
       "MinLength": 9,
+      "Type": "String",
+    },
+    "ExistingCognitoPoolId": {
+      "Description": "Existing Cognito Pool ID",
       "Type": "String",
     },
     "ExistingSubnetA": {
@@ -1875,7 +1898,15 @@ exports[`Distributed Load Testing stack test 1`] = `
           },
         ],
         "UserPoolId": {
-          "Ref": "DLTCognitoAuthDLTUserPoolFA41A712",
+          "Fn::If": [
+            "DLTCognitoAuthcreateUserPoolResource406911CC",
+            {
+              "Ref": "DLTCognitoAuthDLTUserPoolFA41A712",
+            },
+            {
+              "Ref": "ExistingCognitoPoolId",
+            },
+          ],
         },
         "Username": {
           "Ref": "AdminName",
@@ -2151,9 +2182,26 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Ref": "DLTCognitoAuthDLTUserPoolClientA2F8B2DB",
             },
             "ProviderName": {
-              "Fn::GetAtt": [
-                "DLTCognitoAuthDLTUserPoolFA41A712",
-                "ProviderName",
+              "Fn::Join": [
+                "",
+                [
+                  "cognito-idp.",
+                  {
+                    "Ref": "AWS::Region",
+                  },
+                  ".amazonaws.com/",
+                  {
+                    "Fn::If": [
+                      "DLTCognitoAuthcreateUserPoolResource406911CC",
+                      {
+                        "Ref": "DLTCognitoAuthDLTUserPoolFA41A712",
+                      },
+                      {
+                        "Ref": "ExistingCognitoPoolId",
+                      },
+                    ],
+                  },
+                ],
               ],
             },
           },
@@ -2198,7 +2246,15 @@ exports[`Distributed Load Testing stack test 1`] = `
           "RefreshToken": "minutes",
         },
         "UserPoolId": {
-          "Ref": "DLTCognitoAuthDLTUserPoolFA41A712",
+          "Fn::If": [
+            "DLTCognitoAuthcreateUserPoolResource406911CC",
+            {
+              "Ref": "DLTCognitoAuthDLTUserPoolFA41A712",
+            },
+            {
+              "Ref": "ExistingCognitoPoolId",
+            },
+          ],
         },
         "WriteAttributes": [
           "address",
@@ -2209,6 +2265,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Type": "AWS::Cognito::UserPoolClient",
     },
     "DLTCognitoAuthDLTUserPoolFA41A712": {
+      "Condition": "DLTCognitoAuthcreateUserPoolResource406911CC",
       "DeletionPolicy": "Delete",
       "Properties": {
         "AccountRecoverySetting": {
@@ -3271,7 +3328,15 @@ exports[`Distributed Load Testing stack test 1`] = `
               "',
       aws_user_pools_id: '",
               {
-                "Ref": "DLTCognitoAuthDLTUserPoolFA41A712",
+                "Fn::If": [
+                  "DLTCognitoAuthcreateUserPoolResource406911CC",
+                  {
+                    "Ref": "DLTCognitoAuthDLTUserPoolFA41A712",
+                  },
+                  {
+                    "Ref": "ExistingCognitoPoolId",
+                  },
+                ],
               },
               "',
       aws_user_pools_web_client_id: '",

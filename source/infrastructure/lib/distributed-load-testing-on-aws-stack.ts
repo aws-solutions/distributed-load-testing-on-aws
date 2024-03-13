@@ -167,6 +167,11 @@ export class DLTStack extends Stack {
       constraintDescription: "The Egress CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
     });
 
+    const existingCognitoPoolId = new CfnParameter(this, "ExistingCognitoPoolId", {
+      type: "String",
+      description: "Existing Cognito Pool ID",
+    });
+
     // CloudFormation metadata
     this.templateOptions.metadata = {
       "AWS::CloudFormation::Interface": {
@@ -188,6 +193,10 @@ export class DLTStack extends Stack {
               egressCidrBlock.logicalId,
             ],
           },
+          {
+            Label: { default: "Enter value here to use your own existing Cognito Pool" },
+            Parameters: [existingCognitoPoolId.logicalId],
+          },
         ],
         ParameterLabels: {
           [adminName.logicalId]: { default: "* Console Administrator Name" },
@@ -199,6 +208,9 @@ export class DLTStack extends Stack {
           [subnetACidrBlock.logicalId]: { default: "AWS Fargate Subnet A CIDR Block" },
           [subnetBCidrBlock.logicalId]: { default: "AWS Fargate Subnet A CIDR Block" },
           [egressCidrBlock.logicalId]: { default: "AWS Fargate SecurityGroup CIDR Block" },
+          [existingCognitoPoolId.logicalId]: {
+            default: "The ID of an existing Cognito User Pool in this region. Ex: `us-east-1_123456789`",
+          },
         },
       },
     };
@@ -413,6 +425,7 @@ export class DLTStack extends Stack {
       apiId: dltApi.apiId,
       cloudFrontDomainName: dltConsole.cloudFrontDomainName,
       scenariosBucketArn: dltStorage.scenariosBucket.bucketArn,
+      existingCognitoPoolId: existingCognitoPoolId.valueAsString,
     });
 
     customResources.copyConsoleFiles({
