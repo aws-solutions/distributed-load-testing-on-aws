@@ -21,7 +21,7 @@ describe("#SEND METRICS", () => {
     let mock = new MockAdapter(axios);
     mock.onPost().reply(200, {});
 
-    let response = await lambda.send({ taskCount: _taskCount, testType: "jmter", fileType: "zip" });
+    let response = await lambda.send({ taskCount: _taskCount, testType: "jmeter", fileType: "zip" });
     expect(response).toEqual(200);
   });
 
@@ -29,7 +29,7 @@ describe("#SEND METRICS", () => {
     let mock = new MockAdapter(axios);
     mock.onPost().reply(200, {});
 
-    let response = await lambda.send({ taskCount: _taskCount, testType: "jemter" });
+    let response = await lambda.send({ taskCount: _taskCount, testType: "jmeter" });
     expect(response).toEqual(200);
   });
 
