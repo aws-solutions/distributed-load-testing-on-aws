@@ -68,7 +68,7 @@ export class ScenarioTestRunnerStorageConstruct extends Construct {
       statements: [
         new PolicyStatement({
           effect: Effect.ALLOW,
-          actions: ["s3:HeadObject", "s3:PutObject", "s3:GetObject", "s3:ListBucket"],
+          actions: ["s3:HeadObject", "s3:PutObject", "s3:GetObject", "s3:DeleteObject", "s3:ListBucket"],
           resources: [this.scenariosBucket.bucketArn, `${this.scenariosBucket.bucketArn}/*`],
         }),
       ],
