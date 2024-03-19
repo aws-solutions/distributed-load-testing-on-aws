@@ -28,7 +28,7 @@
     "jest": "^29.7.0"
   },
   "engines": {
-    "node": "^16.x"
+    "node": "^20.x"
   },
   "readme": "./README.md"
 }
