@@ -1,10 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { RemovalPolicy } from "aws-cdk-lib";
+import { Duration, RemovalPolicy } from "aws-cdk-lib";
 import { AttributeType, BillingMode, Table, TableEncryption } from "aws-cdk-lib/aws-dynamodb";
 import { AnyPrincipal, Effect, Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
-import { BlockPublicAccess, Bucket, BucketEncryption, HttpMethods } from "aws-cdk-lib/aws-s3";
+import { BlockPublicAccess, Bucket, BucketEncryption, HttpMethods, LifecycleRule } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 
 export interface ScenarioTestRunnerStorageConstructProps {
@@ -14,6 +14,8 @@ export interface ScenarioTestRunnerStorageConstructProps {
   readonly cloudFrontDomainName: string;
   // Solution Id
   readonly solutionId: string;
+  // Lifecycle Rules
+  readonly lifecycleRules?: LifecycleRule[];
 }
 
 /**
@@ -32,6 +34,12 @@ export class ScenarioTestRunnerStorageConstruct extends Construct {
   constructor(scope: Construct, id: string, props: ScenarioTestRunnerStorageConstructProps) {
     super(scope, id);
 
+    // we always include a lifecycleRule to generic cleanup tasks
+    const lifecycleRules = (props.lifecycleRules || []).concat({
+      enabled: true,
+      abortIncompleteMultipartUploadAfter: Duration.days(7), // if a multipart upload is not complete, abort it after 1 week
+      expiredObjectDeleteMarker: true, // remove delete marker after all versions are deleted
+    });
     this.scenariosBucket = new Bucket(this, "DLTScenariosBucket", {
       removalPolicy: RemovalPolicy.RETAIN,
       serverAccessLogsBucket: props.s3LogsBucket,
@@ -39,6 +47,7 @@ export class ScenarioTestRunnerStorageConstruct extends Construct {
       encryption: BucketEncryption.KMS_MANAGED,
       enforceSSL: true,
       versioned: true,
+      lifecycleRules: lifecycleRules,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       cors: [
         {
