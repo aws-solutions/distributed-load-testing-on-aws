@@ -2405,6 +2405,18 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
           "Version": "2012-10-17",
         },
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": {
+              "Fn::FindInMap": [
+                "Solution",
+                "Config",
+                "SolutionId",
+              ],
+            },
+          },
+        ],
       },
       "Type": "AWS::IoT::Policy",
     },
