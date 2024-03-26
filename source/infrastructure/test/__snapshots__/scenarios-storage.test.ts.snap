@@ -69,6 +69,17 @@ exports[`DLT API Test 1`] = `
             },
           ],
         },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 7,
+              },
+              "ExpiredObjectDeleteMarker": true,
+              "Status": "Enabled",
+            },
+          ],
+        },
         "LoggingConfiguration": {
           "DestinationBucketName": {
             "Ref": "testLogsBucket85E419AD",
