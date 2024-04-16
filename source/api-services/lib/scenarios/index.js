@@ -252,11 +252,11 @@ const scheduleTest = async (event, context) => {
 
     if (config.scheduleStep === "create") {
       const createRun = new Date(year, parseInt(month, 10) - 1, day, hour, minute);
-
       // Schedule for 1 min prior to account for time it takes to create rule
       // getMonth() returns Jan with index Zero that is why months need a +1
       // refrence https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/getMonth
-      const cronStart = `cron(${createRun.getMinutes() - 1} ${createRun.getHours()} ${createRun.getDate()} ${
+      createRun.setMinutes(createRun.getMinutes() - 1);
+      const cronStart = `cron(${createRun.getMinutes()} ${createRun.getHours()} ${createRun.getDate()} ${
         createRun.getMonth() + 1
       } ? ${createRun.getFullYear()})`;
       scheduleRecurrence = config.recurrence;

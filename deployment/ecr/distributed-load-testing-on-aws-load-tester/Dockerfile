@@ -20,16 +20,11 @@ RUN chmod 755 /bzt-configs/ecscontroller.py
 RUN chmod 755 /bzt-configs/jar_updater.py
 RUN python3 /bzt-configs/jar_updater.py
 
-# Fixing CVE-2023-22796
-WORKDIR /usr/local/rbenv/versions/3.2.2/lib/ruby/gems/3.2.0/gems/rbs-2.8.2/steep
-RUN sed -i 's/7.0.4/7.0.7.1/g' Gemfile.lock
-RUN gem install activesupport -v 7.0.7.1
+# Remove K6 as it is not supported in DLT by default
+RUN apt remove -y k6
 
-# Fixing CVE-2023-36617
-WORKDIR /usr/local/rbenv/versions/3.2.2/lib/ruby/gems/3.2.0/specifications/default
-RUN sed -i 's/0.12.1/0.12.2.0/g' uri-0.12.1.gemspec
-RUN mv uri-0.12.1.gemspec uri-0.12.2.gemspec
-RUN gem install --default uri -v 0.12.2.0
+RUN /bin/bash -c "source /etc/profile.d/rbenv.sh && yes | rbenv uninstall $(cat /usr/local/rbenv/version)"
+RUN rm -rf /usr/local/rbenv
 
 # Replacing urllib3 with more stable Versions to resolve vulnerabilities
 RUN pip install urllib3==2.0.7
@@ -48,11 +43,17 @@ RUN cp -r /usr/local/lib/python3.10/dist-packages/cryptography* /root/.bzt/pytho
 
 # Replacing Pillow with more stable version resolve CVE-2023-50447	
 RUN rm -rf /root/.local/lib/python3.10/site-packages/Pillow*
-RUN pip install --upgrade pillow --target /root/.local/lib/python3.10/site-packages/
+RUN pip install pillow==10.3.0 
+RUN cp -r /usr/local/lib/python3.10/dist-packages/pillow* /root/.local/lib/python3.10/site-packages/
 
-# Replaing aiohttp with more stable version to resolve CVE-2024-23334
+# Replacing aiohttp with more stable version to resolve CVE-2024-23334
 RUN rm -rf /usr/local/lib/python3.10/dist-packages/aiohttp* 
 RUN  pip install --upgrade aiohttp
+
+# Replacing idna with more stable version to resolve CVE-2024-3651
+RUN pip install --upgrade idna
+RUN rm -rf /root/.bzt/python-packages/3.10.12/idna*
+RUN cp -r /usr/local/lib/python3.10/dist-packages/idna* /root/.bzt/python-packages/3.10.12/
 
 WORKDIR /bzt-configs/
 ENTRYPOINT ["./load-test.sh"]

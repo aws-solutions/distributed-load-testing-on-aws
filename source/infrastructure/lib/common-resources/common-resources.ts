@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Aws, CfnResource, Fn, RemovalPolicy, Stack, Tags } from "aws-cdk-lib";
+import { Aws, CfnResource, Fn, RemovalPolicy, Stack, Tags, CfnCondition } from "aws-cdk-lib";
 import {
   BlockPublicAccess,
   Bucket,
@@ -13,6 +13,12 @@ import {
 import { AnyPrincipal, Effect, Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import * as appreg from "@aws-cdk/aws-servicecatalogappregistry-alpha";
 import { Construct } from "constructs";
+import {
+  CfnResourceAssociation,
+  CfnApplication,
+  CfnAttributeGroup,
+  CfnAttributeGroupAssociation,
+} from "aws-cdk-lib/aws-servicecatalogappregistry";
 
 export interface CommonResourcesConstructProps {
   readonly sourceCodeBucket: string;
@@ -123,5 +129,32 @@ export class CommonResourcesConstruct extends Construct {
       },
     });
     attributeGroup.associateWith(application);
+    // Add hard-coded conditions to the AppRegistry resources
+    // These can be later on changed by users if they failed to update the
+    // Stack due to change of AppRegistry resources logical Id
+    this.addConditions(stack, [
+      CfnApplication,
+      CfnAttributeGroup,
+      CfnAttributeGroupAssociation,
+      CfnResourceAssociation,
+    ]);
+  }
+
+  private addConditions(stack: Stack, resourceTypes: Array<any>) {
+    const createAppCondition = new CfnCondition(this, "AppRegistryCondition", {
+      expression: Fn.conditionEquals("true", "true"),
+    });
+
+    const visit = (node: Construct) => {
+      for (const resourceType of resourceTypes) {
+        if (node instanceof resourceType) {
+          (node as CfnResource).cfnOptions.condition = createAppCondition;
+        }
+      }
+      for (const child of node.node.children) {
+        visit(child as Construct);
+      }
+    };
+    visit(stack);
   }
 }

@@ -15,6 +15,12 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         },
       ],
     },
+    "CommonResourcesAppRegistryConditionC0F1A3E5": {
+      "Fn::Equals": [
+        "true",
+        "true",
+      ],
+    },
     "CreateFargateVPCResources": {
       "Fn::Equals": [
         {
@@ -167,6 +173,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
   },
   "Resources": {
     "AppRegistry968496A3": {
+      "Condition": "CommonResourcesAppRegistryConditionC0F1A3E5",
       "Properties": {
         "Description": "Service Catalog application to track and manage all your resources for the solution Distributed Load Testing",
         "Name": {
@@ -212,6 +219,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       "Type": "AWS::ServiceCatalogAppRegistry::Application",
     },
     "AppRegistryAssociation": {
+      "Condition": "CommonResourcesAppRegistryConditionC0F1A3E5",
       "Properties": {
         "Application": {
           "Fn::GetAtt": [
@@ -942,6 +950,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       "Type": "AWS::EC2::Subnet",
     },
     "DefaultApplicationAttributesApplicationAttributeGroupAssociationbd111f642bde61D21AEC": {
+      "Condition": "CommonResourcesAppRegistryConditionC0F1A3E5",
       "Properties": {
         "Application": {
           "Fn::GetAtt": [
@@ -959,6 +968,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation",
     },
     "DefaultApplicationAttributesFC1CC26B": {
+      "Condition": "CommonResourcesAppRegistryConditionC0F1A3E5",
       "Properties": {
         "Attributes": {
           "applicationType": "AWS-Solutions",
