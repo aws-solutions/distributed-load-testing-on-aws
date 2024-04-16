@@ -1,6 +1,6 @@
 {
   "name": "api-services",
-  "version": "3.2.7",
+  "version": "3.2.8",
   "description": "REST API micro services",
   "repository": {
     "type": "git",

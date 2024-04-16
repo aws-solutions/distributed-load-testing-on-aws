@@ -1,6 +1,6 @@
 {
   "name": "real-time-data-publisher",
-  "version": "3.2.7",
+  "version": "3.2.8",
   "description": "Publishes real time test data to an IoT endpoint",
   "repository": {
     "type": "git",

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.8] - 2024-04-15
+
+### Updated
+
+- Updated webpack-dev-middleware from 5.3.3 to 5.3.4 to resolve security vulnerability [CVE-2024-29180]
+- Updated express from 4.18.1 to 4.19.2 to resolve security vulnerability [CVE-2024-29041]
+- Updated follow-redirects from 1.15.4 to 1.15.6 to resolve security vulnerability [CVE-2024-28849]
+- Updated docker image to resolve security vulnerabilities
+
+### Fixed
+
+- Fixed issues pertaining to [https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/170] 
+- Fixed issues pertaining the update stack problem from versions before DLT v3.2.6 to DLT versions after 3.2.6 
+
 ## [3.2.7] - 2024-03-11
 
 ### Fixed

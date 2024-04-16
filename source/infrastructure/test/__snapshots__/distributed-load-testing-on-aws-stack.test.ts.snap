@@ -24,6 +24,12 @@ exports[`Distributed Load Testing stack test 1`] = `
         "",
       ],
     },
+    "DLTCommonResourcesAppRegistryConditionCCEF54F8": {
+      "Fn::Equals": [
+        "true",
+        "true",
+      ],
+    },
     "SendAnonymizedUsage": {
       "Fn::Equals": [
         {
@@ -363,6 +369,7 @@ exports[`Distributed Load Testing stack test 1`] = `
   },
   "Resources": {
     "AppRegistry968496A3": {
+      "Condition": "DLTCommonResourcesAppRegistryConditionCCEF54F8",
       "Properties": {
         "Description": "Service Catalog application to track and manage all your resources for the solution Distributed Load Testing",
         "Name": {
@@ -408,6 +415,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Type": "AWS::ServiceCatalogAppRegistry::Application",
     },
     "AppRegistryAssociation": {
+      "Condition": "DLTCommonResourcesAppRegistryConditionCCEF54F8",
       "Properties": {
         "Application": {
           "Fn::GetAtt": [
@@ -5734,6 +5742,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Type": "AWS::EC2::Subnet",
     },
     "DefaultApplicationAttributesApplicationAttributeGroupAssociation137261565f10E63E4638": {
+      "Condition": "DLTCommonResourcesAppRegistryConditionCCEF54F8",
       "Properties": {
         "Application": {
           "Fn::GetAtt": [
@@ -5751,6 +5760,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation",
     },
     "DefaultApplicationAttributesFC1CC26B": {
+      "Condition": "DLTCommonResourcesAppRegistryConditionCCEF54F8",
       "Properties": {
         "Attributes": {
           "applicationType": "AWS-Solutions",

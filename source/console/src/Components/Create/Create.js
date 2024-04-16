@@ -43,85 +43,9 @@ class Create extends React.Component {
   constructor(props) {
     super(props);
     if (this.props.location.state && this.props.location.state.data.testId) {
-      let fileType = this.setInitialFileType();
-      this.props.location.state.data.testTaskConfigs.forEach((config) => {
-        config.id = uuidv4();
-      });
-      this.state = {
-        isLoading: false,
-        isUploading: false,
-        runningTasks: false,
-        testId: this.props.location.state.data.testId,
-        file: null,
-        validFile: false,
-        chooseNewFile: false,
-        activeTab: this.props.location.state.data.recurrence ? "2" : "1",
-        submitLabel: this.props.location.state.data.scheduleDate ? "Schedule" : "Run Now",
-        availableRegions: {},
-        regionalTaskDetails: {},
-        showTaskWarning: false,
-        showResourceTable: false,
-        vCPUDetailsLoading: true,
-        regionsExceedingResources: new Set(),
-        formValues: {
-          testName: this.props.location.state.data.testName,
-          testDescription: this.props.location.state.data.testDescription,
-          testTaskConfigs: this.props.location.state.data.testTaskConfigs,
-          holdFor: this.props.location.state.data.holdFor.slice(0, -1),
-          holdForUnits: this.props.location.state.data.holdFor.slice(-1),
-          rampUp: this.props.location.state.data.rampUp.slice(0, -1),
-          rampUpUnits: this.props.location.state.data.rampUp.slice(-1),
-          endpoint: this.props.location.state.data.endpoint,
-          method: this.props.location.state.data.method,
-          body: JSON.stringify(this.props.location.state.data.body, null, 2),
-          headers: JSON.stringify(this.props.location.state.data.headers, null, 2),
-          testType: this.props.location.state.data.testType ? this.props.location.state.data.testType : "simple",
-          fileType: fileType,
-          onSchedule: this.props.location.state.data.scheduleDate ? "1" : "0",
-          scheduleDate: this.props.location.state.data.scheduleDate || "",
-          scheduleTime: this.props.location.state.data.scheduleTime || "",
-          recurrence: this.props.location.state.data.recurrence || "",
-          showLive: this.props.location.state.data.showLive || false,
-        },
-      };
+      this.initializeStateForExistingTest();
     } else {
-      this.state = {
-        isLoading: false,
-        isUploading: false,
-        runningTasks: false,
-        testId: null,
-        file: null,
-        validFile: false,
-        chooseNewFile: false,
-        activeTab: "1",
-        submitLabel: "Run Now",
-        availableRegions: {},
-        regionalTaskDetails: {},
-        showTaskWarning: false,
-        showResourceTable: false,
-        vCPUDetailsLoading: true,
-        regionsExceedingResources: new Set(),
-        formValues: {
-          testName: "",
-          testDescription: "",
-          testTaskConfigs: [{ concurrency: 0, taskCount: 0, region: "", id: uuidv4() }],
-          holdFor: 0,
-          holdForUnits: "m",
-          rampUp: 0,
-          rampUpUnits: "m",
-          endpoint: "",
-          method: "GET",
-          body: "",
-          headers: "",
-          testType: "simple",
-          fileType: "",
-          onSchedule: "0",
-          scheduleDate: "",
-          scheduleTime: "",
-          recurrence: "",
-          showLive: false,
-        },
-      };
+      this.initializeStateForNewTest();
     }
 
     this.form = React.createRef();
@@ -140,6 +64,90 @@ class Create extends React.Component {
     this.checkForTaskCountWarning = this.checkForTaskCountWarning.bind(this);
   }
 
+  initializeStateForExistingTest() {
+    let fileType = this.setInitialFileType();
+    this.props.location.state.data.testTaskConfigs.forEach((config) => {
+      config.id = uuidv4();
+    });
+    this.state = {
+      isLoading: false,
+      isUploading: false,
+      runningTasks: false,
+      testId: this.props.location.state.data.testId,
+      file: null,
+      validFile: false,
+      chooseNewFile: false,
+      activeTab: this.props.location.state.data.recurrence ? "2" : "1",
+      submitLabel: this.props.location.state.data.scheduleDate ? "Schedule" : "Run Now",
+      availableRegions: {},
+      regionalTaskDetails: {},
+      showTaskWarning: false,
+      showResourceTable: false,
+      vCPUDetailsLoading: true,
+      regionsExceedingResources: new Set(),
+      formValues: {
+        testName: this.props.location.state.data.testName,
+        testDescription: this.props.location.state.data.testDescription,
+        testTaskConfigs: this.props.location.state.data.testTaskConfigs,
+        holdFor: this.props.location.state.data.holdFor.slice(0, -1),
+        holdForUnits: this.props.location.state.data.holdFor.slice(-1),
+        rampUp: this.props.location.state.data.rampUp.slice(0, -1),
+        rampUpUnits: this.props.location.state.data.rampUp.slice(-1),
+        endpoint: this.props.location.state.data.endpoint,
+        method: this.props.location.state.data.method,
+        body: JSON.stringify(this.props.location.state.data.body, null, 2),
+        headers: JSON.stringify(this.props.location.state.data.headers, null, 2),
+        testType: this.props.location.state.data.testType ? this.props.location.state.data.testType : "simple",
+        fileType: fileType,
+        onSchedule: this.props.location.state.data.scheduleDate ? "1" : "0",
+        scheduleDate: this.props.location.state.data.scheduleDate || "",
+        scheduleTime: this.props.location.state.data.scheduleTime || "",
+        recurrence: this.props.location.state.data.recurrence || "",
+        showLive: this.props.location.state.data.showLive || false,
+      },
+    };
+  }
+
+  initializeStateForNewTest() {
+    this.state = {
+      isLoading: false,
+      isUploading: false,
+      runningTasks: false,
+      testId: null,
+      file: null,
+      validFile: false,
+      chooseNewFile: false,
+      activeTab: "1",
+      submitLabel: "Run Now",
+      availableRegions: {},
+      regionalTaskDetails: {},
+      showTaskWarning: false,
+      showResourceTable: false,
+      vCPUDetailsLoading: true,
+      regionsExceedingResources: new Set(),
+      formValues: {
+        testName: "",
+        testDescription: "",
+        testTaskConfigs: [{ concurrency: 0, taskCount: 0, region: "", id: uuidv4() }],
+        holdFor: 0,
+        holdForUnits: "m",
+        rampUp: 0,
+        rampUpUnits: "m",
+        endpoint: "",
+        method: "GET",
+        body: "",
+        headers: "",
+        testType: "simple",
+        fileType: "",
+        onSchedule: "0",
+        scheduleDate: "",
+        scheduleTime: "",
+        recurrence: "",
+        showLive: false,
+      },
+    };
+  }
+
   setInitialFileType() {
     if (this.props.location.state.data.testType && this.props.location.state.data.testType !== "simple") {
       if (this.props.location.state.data.fileType) {
@@ -147,6 +155,7 @@ class Create extends React.Component {
       }
       return "script";
     }
+    return "";
   }
 
   parseJson(str) {
