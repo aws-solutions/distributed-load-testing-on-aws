@@ -10,7 +10,7 @@ import { Amplify } from "aws-amplify";
 import { getCurrentUser, signOut, fetchAuthSession } from "aws-amplify/auth";
 import { withAuthenticator } from "@aws-amplify/ui-react";
 import "@aws-amplify/ui-react/styles.css";
-import AWS from "aws-sdk";
+import { IoT } from "@aws-sdk/client-iot";
 
 //Components
 import Dashboard from "./Components/Dashboard/Dashboard.js";
@@ -69,16 +69,15 @@ class App extends React.Component {
     }
     const credentials = await fetchAuthSession();
     const identityId = credentials.identityId;
-    AWS.config.update({
-      region: awsConfig.aws_project_region,
-      credentials: credentials.credentials,
-    });
     const params = {
       policyName: awsConfig.aws_iot_policy_name,
       principal: identityId,
     };
     try {
-      await new AWS.Iot().attachPrincipalPolicy(params).promise();
+      await new IoT({
+        region: awsConfig.aws_project_region,
+        credentials: credentials.credentials,
+      }).attachPrincipalPolicy(params);
     } catch (error) {
       console.error("Error occurred while attaching principal policy", error);
     }
