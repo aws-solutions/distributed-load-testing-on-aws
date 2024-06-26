@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws-ui",
-  "version": "3.2.8",
+  "version": "3.2.9",
   "private": true,
   "license": "Apache-2.0",
   "author": {
@@ -40,12 +40,10 @@
     "brace": "^0.11.1",
     "chart.js": "^4.0.0",
     "chartjs-adapter-date-fns": "^3.0.0",
-    "jest": "^29.7.0",
     "react": "^18.2.0",
     "react-ace": "^10.1.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^5.2.0",
-    "react-scripts": "^5.0.1",
     "reactstrap": "^9.0.0",
     "solution-utils": "file:../solution-utils"
   },
@@ -61,7 +59,9 @@
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "@testing-library/jest-dom": "^6.4.2",
-    "@testing-library/react": "^14.2.1"
+    "@testing-library/react": "^14.2.1",
+    "react-scripts": "^5.0.1",
+    "jest": "^29.7.0"
   },
   "jest": {
     "transformIgnorePatterns": [

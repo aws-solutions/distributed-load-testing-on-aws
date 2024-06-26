@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.9] - 2024-06-21
+
+### Updated
+
+- Updated braces from 3.0.2 to 3.0.3 to mitigate security vulnerability [CVE-2024-4068](https://avd.aquasec.com/nvd/2024/cve-2024-4068)
+- Updated ejs from 3.1.9 to 3.1.10 to mitigate security vulnerability [CVE-2024-33883](https://avd.aquasec.com/nvd/2024/cve-2024-33883)
+- Updated ws from 7.5.9 to 7.5.10 to mitigate security vulnerability [CVE-2024-37890](https://github.com/advisories/GHSA-3h5v-q93c-6h6q)
+- Updated json-path from 2.7.0 to 2.9.0 to mitigate security vulnerability [CVE-2023-51074](https://nvd.nist.gov/vuln/detail/CVE-2023-51074)
+- Updated taurus from 1.16.29 to 1.16.31
+
 ## [3.2.8] - 2024-04-15
 
 ### Updated

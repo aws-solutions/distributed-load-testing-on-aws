@@ -1,4 +1,4 @@
-FROM blazemeter/taurus:1.16.29
+FROM blazemeter/taurus:1.16.31
 # taurus includes python and pip
 RUN /usr/bin/python3 -m pip install --upgrade pip
 RUN pip install --no-cache-dir awscli
@@ -41,10 +41,8 @@ RUN pip install cryptography==42.0.5
 RUN rm -rf /root/.bzt/python-packages/3.10.12/cryptography*
 RUN cp -r /usr/local/lib/python3.10/dist-packages/cryptography* /root/.bzt/python-packages/3.10.12/
 
-# Replacing Pillow with more stable version resolve CVE-2023-50447	
-RUN rm -rf /root/.local/lib/python3.10/site-packages/Pillow*
-RUN pip install pillow==10.3.0 
-RUN cp -r /usr/local/lib/python3.10/dist-packages/pillow* /root/.local/lib/python3.10/site-packages/
+# Removing dotnet dependencies as NUnit and Xunit is not supported in DLT
+RUN rm -rf /usr/share/dotnet
 
 # Replacing aiohttp with more stable version to resolve CVE-2024-23334
 RUN rm -rf /usr/local/lib/python3.10/dist-packages/aiohttp* 
