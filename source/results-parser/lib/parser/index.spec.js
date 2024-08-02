@@ -35,7 +35,7 @@ describe("#RESULTS PARSER::", () => {
   process.env.SCENARIOS_BUCKET = "scenario_bucket";
   const content = "XML_FILE_CONTENT";
   const testId = "abcd";
-  const json = {
+  const mockJsonSingleRC = {
     FinalStatus: {
       TestDuration: {
         _text: 123,
@@ -128,111 +128,870 @@ describe("#RESULTS PARSER::", () => {
       ],
     },
   };
-  const resultJson = {
-    avg_ct: 0.23043,
-    p95_0: 4.896,
-    rc: [
-      {
-        code: "UnknownHostException",
-        count: 20753,
+  const mockJsonMultipleRC = {
+    FinalStatus: {
+      TestDuration: {
+        _text: 120,
       },
-    ],
-    testDuration: 123,
-  };
-  const finalData = [
-    {
-      duration: "39",
-      labels: [
+      Group: [
         {
-          avg_ct: 0.00096,
-          avg_lt: 0,
-          avg_rt: 0.00103,
-          bytes: 48258556,
-          concurrency: 4,
-          fail: 21064,
-          label: "HTTP GET Request",
-          p0_0: 0,
-          p50_0: 0,
-          p90_0: 0,
-          p95_0: 0.001,
-          p99_0: 0.013,
-          p99_9: 0.105,
-          p100_0: 0.396,
-          stdev_rt: 0.01049,
-          succ: 0,
-          testDuration: 39,
-          throughput: 21064,
+          _attributes: {
+            label: "API1",
+          },
+          throughput: {
+            _attributes: {
+              value: "16175",
+            },
+            name: {
+              _text: "throughput",
+            },
+            value: {
+              _text: 16175,
+            },
+          },
+          concurrency: {
+            _attributes: {
+              value: "5",
+            },
+            name: {
+              _text: "concurrency",
+            },
+            value: {
+              _text: 5,
+            },
+          },
+          succ: {
+            _attributes: {
+              value: "308",
+            },
+            name: {
+              _text: "succ",
+            },
+            value: {
+              _text: 308,
+            },
+          },
+          fail: {
+            _attributes: {
+              value: "15867",
+            },
+            name: {
+              _text: "fail",
+            },
+            value: {
+              _text: 15867,
+            },
+          },
+          avg_rt: {
+            _attributes: {
+              value: "0.01817",
+            },
+            name: {
+              _text: "avg_rt",
+            },
+            value: {
+              _text: 0.01817,
+            },
+          },
+          stdev_rt: {
+            _attributes: {
+              value: "0.01198",
+            },
+            name: {
+              _text: "stdev_rt",
+            },
+            value: {
+              _text: 0.01198,
+            },
+          },
+          avg_lt: {
+            _attributes: {
+              value: "0.01785",
+            },
+            name: {
+              _text: "avg_lt",
+            },
+            value: {
+              _text: 0.01785,
+            },
+          },
+          avg_ct: {
+            _attributes: {
+              value: "0.00705",
+            },
+            name: {
+              _text: "avg_ct",
+            },
+            value: {
+              _text: 0.00705,
+            },
+          },
+          bytes: {
+            _attributes: {
+              value: "114370983",
+            },
+            name: {
+              _text: "bytes",
+            },
+            value: {
+              _text: 114370983,
+            },
+          },
           rc: [
-            { code: "UnknownHostException", count: 20753 },
-            { code: "UnknownHostException", count: 20753 },
+            {
+              _attributes: {
+                value: "10547",
+                param: "503",
+              },
+              name: {
+                _text: "rc/503",
+              },
+              value: {
+                _text: 10547,
+              },
+            },
+            {
+              _attributes: {
+                value: "308",
+                param: "200",
+              },
+              name: {
+                _text: "rc/200",
+              },
+              value: {
+                _text: 308,
+              },
+            },
+            {
+              _attributes: {
+                value: "5320",
+                param: "429",
+              },
+              name: {
+                _text: "rc/429",
+              },
+              value: {
+                _text: 5320,
+              },
+            },
+          ],
+          perc: [
+            {
+              _attributes: {
+                value: "0.00500",
+                param: "0.0",
+              },
+              name: {
+                _text: "perc/0.0",
+              },
+              value: {
+                _text: 0.005,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.01700",
+                param: "50.0",
+              },
+              name: {
+                _text: "perc/50.0",
+              },
+              value: {
+                _text: 0.017,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.02500",
+                param: "90.0",
+              },
+              name: {
+                _text: "perc/90.0",
+              },
+              value: {
+                _text: 0.025,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.03000",
+                param: "95.0",
+              },
+              name: {
+                _text: "perc/95.0",
+              },
+              value: {
+                _text: 0.03,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.06800",
+                param: "99.0",
+              },
+              name: {
+                _text: "perc/99.0",
+              },
+              value: {
+                _text: 0.068,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.11700",
+                param: "99.9",
+              },
+              name: {
+                _text: "perc/99.9",
+              },
+              value: {
+                _text: 0.117,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.39700",
+                param: "100.0",
+              },
+              name: {
+                _text: "perc/100.0",
+              },
+              value: {
+                _text: 0.397,
+              },
+            },
+          ],
+        },
+        {
+          _attributes: {
+            label: "",
+          },
+          throughput: {
+            _attributes: {
+              value: "31301",
+            },
+            name: {
+              _text: "throughput",
+            },
+            value: {
+              _text: 31301,
+            },
+          },
+          concurrency: {
+            _attributes: {
+              value: "5",
+            },
+            name: {
+              _text: "concurrency",
+            },
+            value: {
+              _text: 5,
+            },
+          },
+          succ: {
+            _attributes: {
+              value: "308",
+            },
+            name: {
+              _text: "succ",
+            },
+            value: {
+              _text: 308,
+            },
+          },
+          fail: {
+            _attributes: {
+              value: "30993",
+            },
+            name: {
+              _text: "fail",
+            },
+            value: {
+              _text: 30993,
+            },
+          },
+          avg_rt: {
+            _attributes: {
+              value: "0.01886",
+            },
+            name: {
+              _text: "avg_rt",
+            },
+            value: {
+              _text: 0.01886,
+            },
+          },
+          stdev_rt: {
+            _attributes: {
+              value: "0.01490",
+            },
+            name: {
+              _text: "stdev_rt",
+            },
+            value: {
+              _text: 0.0149,
+            },
+          },
+          avg_lt: {
+            _attributes: {
+              value: "0.01868",
+            },
+            name: {
+              _text: "avg_lt",
+            },
+            value: {
+              _text: 0.01868,
+            },
+          },
+          avg_ct: {
+            _attributes: {
+              value: "0.00769",
+            },
+            name: {
+              _text: "avg_ct",
+            },
+            value: {
+              _text: 0.00769,
+            },
+          },
+          bytes: {
+            _attributes: {
+              value: "153701120",
+            },
+            name: {
+              _text: "bytes",
+            },
+            value: {
+              _text: 153701120,
+            },
+          },
+          rc: [
+            {
+              _attributes: {
+                value: "14895",
+                param: "503",
+              },
+              name: {
+                _text: "rc/503",
+              },
+              value: {
+                _text: 14895,
+              },
+            },
+            {
+              _attributes: {
+                value: "308",
+                param: "200",
+              },
+              name: {
+                _text: "rc/200",
+              },
+              value: {
+                _text: 308,
+              },
+            },
+            {
+              _attributes: {
+                value: "16098",
+                param: "429",
+              },
+              name: {
+                _text: "rc/429",
+              },
+              value: {
+                _text: 16098,
+              },
+            },
+          ],
+          perc: [
+            {
+              _attributes: {
+                value: "0.00500",
+                param: "0.0",
+              },
+              name: {
+                _text: "perc/0.0",
+              },
+              value: {
+                _text: 0.005,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.01700",
+                param: "50.0",
+              },
+              name: {
+                _text: "perc/50.0",
+              },
+              value: {
+                _text: 0.017,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.03000",
+                param: "90.0",
+              },
+              name: {
+                _text: "perc/90.0",
+              },
+              value: {
+                _text: 0.03,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.04000",
+                param: "95.0",
+              },
+              name: {
+                _text: "perc/95.0",
+              },
+              value: {
+                _text: 0.04,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.07200",
+                param: "99.0",
+              },
+              name: {
+                _text: "perc/99.0",
+              },
+              value: {
+                _text: 0.072,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.16000",
+                param: "99.9",
+              },
+              name: {
+                _text: "perc/99.9",
+              },
+              value: {
+                _text: 0.16,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.51700",
+                param: "100.0",
+              },
+              name: {
+                _text: "perc/100.0",
+              },
+              value: {
+                _text: 0.517,
+              },
+            },
+          ],
+        },
+        {
+          _attributes: {
+            label: "API2",
+          },
+          throughput: {
+            _attributes: {
+              value: "15126",
+            },
+            name: {
+              _text: "throughput",
+            },
+            value: {
+              _text: 15126,
+            },
+          },
+          concurrency: {
+            _attributes: {
+              value: "5",
+            },
+            name: {
+              _text: "concurrency",
+            },
+            value: {
+              _text: 5,
+            },
+          },
+          succ: {
+            _attributes: {
+              value: "0",
+            },
+            name: {
+              _text: "succ",
+            },
+            value: {
+              _text: 0,
+            },
+          },
+          fail: {
+            _attributes: {
+              value: "15126",
+            },
+            name: {
+              _text: "fail",
+            },
+            value: {
+              _text: 15126,
+            },
+          },
+          avg_rt: {
+            _attributes: {
+              value: "0.01960",
+            },
+            name: {
+              _text: "avg_rt",
+            },
+            value: {
+              _text: 0.0196,
+            },
+          },
+          stdev_rt: {
+            _attributes: {
+              value: "0.01747",
+            },
+            name: {
+              _text: "stdev_rt",
+            },
+            value: {
+              _text: 0.01747,
+            },
+          },
+          avg_lt: {
+            _attributes: {
+              value: "0.01957",
+            },
+            name: {
+              _text: "avg_lt",
+            },
+            value: {
+              _text: 0.01957,
+            },
+          },
+          avg_ct: {
+            _attributes: {
+              value: "0.00837",
+            },
+            name: {
+              _text: "avg_ct",
+            },
+            value: {
+              _text: 0.00837,
+            },
+          },
+          bytes: {
+            _attributes: {
+              value: "39330137",
+            },
+            name: {
+              _text: "bytes",
+            },
+            value: {
+              _text: 39330137,
+            },
+          },
+          rc: [
+            {
+              _attributes: {
+                value: "10778",
+                param: "429",
+              },
+              name: {
+                _text: "rc/429",
+              },
+              value: {
+                _text: 10778,
+              },
+            },
+            {
+              _attributes: {
+                value: "4348",
+                param: "503",
+              },
+              name: {
+                _text: "rc/503",
+              },
+              value: {
+                _text: 4348,
+              },
+            },
+          ],
+          perc: [
+            {
+              _attributes: {
+                value: "0.00500",
+                param: "0.0",
+              },
+              name: {
+                _text: "perc/0.0",
+              },
+              value: {
+                _text: 0.005,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.01500",
+                param: "50.0",
+              },
+              name: {
+                _text: "perc/50.0",
+              },
+              value: {
+                _text: 0.015,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.03600",
+                param: "90.0",
+              },
+              name: {
+                _text: "perc/90.0",
+              },
+              value: {
+                _text: 0.036,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.04700",
+                param: "95.0",
+              },
+              name: {
+                _text: "perc/95.0",
+              },
+              value: {
+                _text: 0.047,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.08100",
+                param: "99.0",
+              },
+              name: {
+                _text: "perc/99.0",
+              },
+              value: {
+                _text: 0.081,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.19000",
+                param: "99.9",
+              },
+              name: {
+                _text: "perc/99.9",
+              },
+              value: {
+                _text: 0.19,
+              },
+            },
+            {
+              _attributes: {
+                value: "0.51700",
+                param: "100.0",
+              },
+              name: {
+                _text: "perc/100.0",
+              },
+              value: {
+                _text: 0.517,
+              },
+            },
           ],
         },
       ],
+    },
+  };
+
+  const finalData = [
+    {
       stats: {
-        avg_ct: 0.00096,
-        avg_lt: 0,
-        avg_rt: 0.00103,
-        bytes: 48258556,
-        concurrency: 4,
-        fail: 21064,
-        p0_0: 0,
-        p50_0: 0,
-        p90_0: 0,
-        p95_0: 0.001,
-        p99_0: 0.013,
-        p99_9: 0.105,
-        p100_0: 0.396,
-        stdev_rt: 0.01049,
-        succ: 0,
-        testDuration: 39,
-        throughput: 21064,
         rc: [
-          { code: "UnknownHostException", count: 20753 },
-          { code: "UnknownHostException", count: 20753 },
+          {
+            code: "503",
+            count: 14895,
+          },
+          {
+            code: "429",
+            count: 16098,
+          },
         ],
+        throughput: 31301,
+        concurrency: 5,
+        succ: 308,
+        fail: 30993,
+        avg_rt: 0.01886,
+        stdev_rt: 0.0149,
+        avg_lt: 0.01868,
+        avg_ct: 0.00769,
+        bytes: 153701120,
+        p0_0: 0.005,
+        p50_0: 0.017,
+        p90_0: 0.03,
+        p95_0: 0.04,
+        p99_0: 0.072,
+        p99_9: 0.16,
+        p100_0: 0.517,
+        testDuration: 120,
       },
+      labels: [
+        {
+          rc: [
+            {
+              code: "503",
+              count: 10547,
+            },
+            {
+              code: "429",
+              count: 5320,
+            },
+          ],
+          throughput: 16175,
+          concurrency: 5,
+          succ: 308,
+          fail: 15867,
+          avg_rt: 0.01817,
+          stdev_rt: 0.01198,
+          avg_lt: 0.01785,
+          avg_ct: 0.00705,
+          bytes: 114370983,
+          p0_0: 0.005,
+          p50_0: 0.017,
+          p90_0: 0.025,
+          p95_0: 0.03,
+          p99_0: 0.068,
+          p99_9: 0.117,
+          p100_0: 0.397,
+          label: "API1",
+        },
+        {
+          rc: [
+            {
+              code: "429",
+              count: 10778,
+            },
+            {
+              code: "503",
+              count: 4348,
+            },
+          ],
+          throughput: 15126,
+          concurrency: 5,
+          succ: 0,
+          fail: 15126,
+          avg_rt: 0.0196,
+          stdev_rt: 0.01747,
+          avg_lt: 0.01957,
+          avg_ct: 0.00837,
+          bytes: 39330137,
+          p0_0: 0.005,
+          p50_0: 0.015,
+          p90_0: 0.036,
+          p95_0: 0.047,
+          p99_0: 0.081,
+          p99_9: 0.19,
+          p100_0: 0.517,
+          label: "API2",
+        },
+      ],
+      duration: 120,
     },
   ];
   const singleAggregatedResult = {
-    avg_ct: "0.00096",
-    avg_lt: "0.00000",
-    avg_rt: "0.00103",
-    bytes: "48258556",
-    concurrency: "4",
-    fail: 21064,
-    p0_0: "0.000",
-    p50_0: "0.000",
-    p95_0: "0.001",
-    p90_0: "0.000",
-    p99_0: "0.013",
-    p99_9: "0.105",
-    p100_0: "0.396",
-    rc: [{ code: "UnknownHostException", count: 41506 }],
-    stdev_rt: "0.010",
-    succ: 0,
-    testDuration: "39",
-    throughput: 21064,
+    avg_ct: "0.00769",
+    avg_lt: "0.01868",
+    avg_rt: "0.01886",
+    bytes: "153701120",
+    concurrency: "5",
+    fail: 30993,
+    p0_0: "0.005",
+    p100_0: "0.517",
+    p50_0: "0.017",
+    p90_0: "0.030",
+    p95_0: "0.040",
+    p99_0: "0.072",
+    p99_9: "0.160",
+    stdev_rt: "0.015",
+    succ: 308,
+    testDuration: "120",
+    throughput: 31301,
+    rc: [
+      {
+        code: "503",
+        count: 14895,
+      },
+      {
+        code: "429",
+        count: 16098,
+      },
+    ],
     labels: [
       {
-        avg_ct: "0.00096",
-        avg_lt: "0.00000",
-        avg_rt: "0.00103",
-        bytes: "48258556",
-        concurrency: "4",
-        fail: 21064,
-        label: "HTTP GET Request",
-        p0_0: "0.000",
-        p50_0: "0.000",
-        p95_0: "0.001",
-        p90_0: "0.000",
-        p99_0: "0.013",
-        p99_9: "0.105",
-        p100_0: "0.396",
-        rc: [{ code: "UnknownHostException", count: 41506 }],
-        stdev_rt: "0.010",
+        avg_ct: "0.00705",
+        avg_lt: "0.01785",
+        avg_rt: "0.01817",
+        bytes: "114370983",
+        concurrency: "5",
+        fail: 15867,
+        label: "API1",
+        p0_0: "0.005",
+        p100_0: "0.397",
+        p50_0: "0.017",
+        p90_0: "0.025",
+        p95_0: "0.030",
+        p99_0: "0.068",
+        p99_9: "0.117",
+        stdev_rt: "0.012",
+        succ: 308,
+        testDuration: "0",
+        throughput: 16175,
+        rc: [
+          {
+            code: "503",
+            count: 10547,
+          },
+          {
+            code: "429",
+            count: 5320,
+          },
+        ],
+      },
+      {
+        avg_ct: "0.00837",
+        avg_lt: "0.01957",
+        avg_rt: "0.01960",
+        bytes: "39330137",
+        concurrency: "5",
+        fail: 15126,
+        label: "API2",
+        p0_0: "0.005",
+        p100_0: "0.517",
+        p50_0: "0.015",
+        p90_0: "0.036",
+        p95_0: "0.047",
+        p99_0: "0.081",
+        p99_9: "0.190",
+        stdev_rt: "0.017",
         succ: 0,
-        testDuration: "39",
-        throughput: 21064,
+        testDuration: "0",
+        throughput: 15126,
+        rc: [
+          {
+            code: "429",
+            count: 10778,
+          },
+          {
+            code: "503",
+            count: 4348,
+          },
+        ],
       },
     ],
   };
@@ -417,77 +1176,32 @@ describe("#RESULTS PARSER::", () => {
   });
 
   it("should return the result object when parse results are processed successfully for the single RC", async () => {
-    mockParse.mockImplementation(() => json);
+    mockParse.mockImplementation(() => mockJsonSingleRC);
 
     const response = await lambda.results(content, testId);
-    expect(response).toEqual({
-      stats: resultJson,
-      labels: [
-        {
-          avg_ct: 0.23043,
-          p95_0: 4.896,
-          rc: [
-            {
-              code: "UnknownHostException",
-              count: 20753,
-            },
-          ],
-          label: "HTTP GET Request",
-        },
-      ],
-      duration: json.FinalStatus.TestDuration._text,
-    });
+    expect(response.stats.rc).toEqual([
+      {
+        code: "UnknownHostException",
+        count: 20753,
+      },
+    ]);
   });
 
   it("should return the result object when parse results are processed successfully for the multiple RCs", async () => {
-    json.FinalStatus.Group[0].rc = [
-      {
-        _attributes: {
-          value: "20753",
-          param: "UnknownHostException",
-        },
-        name: {
-          _text: "rc/UnknownHostException",
-        },
-        value: {
-          _text: 20753,
-        },
-      },
-      {
-        _attributes: {
-          value: "1",
-          param: "200",
-        },
-        name: {
-          _text: "rc/200",
-        },
-        value: {
-          _text: 1,
-        },
-      },
-    ];
-    json.FinalStatus.Group[1].rc = json.FinalStatus.Group[0].rc;
-
-    mockParse.mockImplementation(() => json);
+    mockParse.mockImplementation(() => mockJsonMultipleRC);
 
     const response = await lambda.results(content, testId);
-    expect(response).toEqual({
-      stats: resultJson,
-      labels: [
-        {
-          avg_ct: 0.23043,
-          p95_0: 4.896,
-          rc: [
-            {
-              code: "UnknownHostException",
-              count: 20753,
-            },
-          ],
-          label: "HTTP GET Request",
-        },
-      ],
-      duration: json.FinalStatus.TestDuration._text,
-    });
+    expect(response.stats.succ).toEqual(308);
+    expect(response.stats.rc).toEqual([
+      {
+        code: "503",
+        count: 14895,
+      },
+      {
+        code: "429",
+        count: 16098,
+      },
+    ]);
   });
 
   it("should return the final result when final results are processed successfully", async () => {
@@ -518,6 +1232,36 @@ describe("#RESULTS PARSER::", () => {
     }));
     const response = await lambda.finalResults(testId, finalData);
     expect(response).toEqual(singleAggregatedResult);
+  });
+
+  it("should return an equal number of failure to sum of response codes error count", async () => {
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // update
+        return Promise.resolve();
+      },
+    }));
+    mockCloudWatch.mockImplementation(() => ({
+      promise() {
+        // getMetricWidgetImage
+        return Promise.resolve({ MetricWidgetImage: "CloudWatchImage" });
+      },
+    }));
+
+    mockS3.mockImplementation(() => ({
+      promise() {
+        // putObject
+        return Promise.resolve();
+      },
+    }));
+    mockCloudWatchLogs.mockImplementation(() => ({
+      promise() {
+        // deleteMetricFilter
+        return Promise.resolve();
+      },
+    }));
+    const response = await lambda.finalResults(testId, finalData);
+    expect(response.fail).toEqual(response.rc[0].count + response.rc[1].count);
   });
 
   it('should return "XML ERROR" when parse results fails', async () => {

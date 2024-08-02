@@ -19,6 +19,7 @@ Affected Jmeter jars:
     * commons-net v3.8.0 will be replaced with v3.9.0
     * tika-core v1.28.3 will be replaced with v2.9.2
     * json-path v2.7.0 will be replaced with v2.9.0
+    * dnsjava v2.1.9 will be replaced with v3.6.1
 
 Also jmeter plugins manager will be updated to v1.10 to address CVEs and cmdrunner will be updated to v2.3 to accomodate with plugins manager.
 """
@@ -35,7 +36,8 @@ JMETER_COMPONENTS = {
     "lets-plot-batik":  "org/jetbrains/lets-plot/lets-plot-batik/4.2.0/lets-plot-batik-4.2.0.jar",
     "commons-net": "commons-net/commons-net/3.9.0/commons-net-3.9.0.jar",
     "tika-core": "org/apache/tika/tika-core/2.9.2/tika-core-2.9.2.jar",
-    "json-path": "com/jayway/jsonpath/json-path/2.9.0/json-path-2.9.0.jar"
+    "json-path": "com/jayway/jsonpath/json-path/2.9.0/json-path-2.9.0.jar",
+    "dnsjava": "dnsjava/dnsjava/3.6.1/dnsjava-3.6.1.jar"
 }
 JMETER_VERSION = "5.5"
 JMETER_PLUGINS_MANAGER_VERSION = "1.10"

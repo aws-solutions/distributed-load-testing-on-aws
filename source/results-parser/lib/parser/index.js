@@ -264,7 +264,10 @@ async function finalResults(testId, data) {
     labels: [],
   };
   let stats;
-  for (let result of data) {
+
+  // Creating the deep copy to avoid duplicating values when calculating error counts for each rc
+  const dataDeepCopy = JSON.parse(JSON.stringify(data));
+  for (let result of dataDeepCopy) {
     let { labels, stats } = result;
     createAggregatedData(stats, all);
 
