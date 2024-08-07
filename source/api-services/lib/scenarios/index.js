@@ -648,6 +648,64 @@ const writeTestScenarioToS3 = async (testTaskConfigs, testScenario, testId) => {
 /**
  *
  * @param {object} testTaskConfigs
+ * @param {string} testId
+ */
+const deleteTestScenarioFromS3 = async (testTaskConfigs, testId) => {
+  try {
+    const s3Promises = testTaskConfigs.map((testTaskConfig) => {
+      const params = {
+        Bucket: SCENARIOS_BUCKET,
+        Key: `test-scenarios/${testId}-${testTaskConfig.region}.json`,
+      };
+      return s3.deleteObject(params).promise();
+    });
+    // deleteObject also returns without exception if the object does not exist
+    await Promise.all(s3Promises);
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
+};
+
+/**
+ *
+ * @param {string} testId
+ * @param {string} testType
+ * @param {string} fileType
+ * @returns {Promise<void>}
+ */
+const deleteTestAssetsFromS3 = async (testId, testType, fileType) => {
+  // the creation is done in the frontend, so changes should stay in sync between both
+  if (testType === "simple") {
+    // simple tests don't have assets
+    return;
+  }
+  let extension = "";
+  if (fileType === "zip") {
+    extension = "zip";
+  } else if (testType === "jmeter") {
+    extension = "jmx";
+  } else if (testType === "k6") {
+    extension = "js";
+  } else {
+    console.error(`Invalid testType: ${testType}`);
+    throw new ErrorException("InvalidParameter", "Invalid test type.");
+  }
+  try {
+    const params = {
+      Bucket: SCENARIOS_BUCKET,
+      Key: `public/test-scenarios/${testType}/${testId}.${extension}`,
+    };
+    await s3.deleteObject(params).promise();
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
+};
+
+/**
+ *
+ * @param {object} testTaskConfigs
  * @returns the scheduled test config for tasks and regional
  *          ecs infrastructure configuration in one object
  */
@@ -1152,10 +1210,16 @@ const deleteTest = async (testId, functionName) => {
       await lambda.removePermission({ FunctionName: functionName, StatementId: ruleName }).promise();
       await cloudwatchevents.deleteRule({ Name: ruleName }).promise();
     }
+    //Delete test
     await deleteDDBTestEntry(testId);
+    //Delete history
     const testRunIds = await getTestHistoryTestRunIds(testId);
     const testRuns = createBatchRequestItems(testId, testRunIds);
     await parseBatchRequests(testRuns);
+    //Delete s3 files
+    await deleteTestScenarioFromS3(testAndRegionalInfraConfigs.testTaskConfigs, testId);
+    await deleteTestAssetsFromS3(testId, testAndRegionalInfraConfigs.testType, testAndRegionalInfraConfigs.fileType);
+
     return "success";
   } catch (err) {
     console.error(err);
