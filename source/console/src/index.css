@@ -555,3 +555,34 @@ img {
     font-weight: 600;
   }
 }
+
+.pagination .disabled {
+  display: none;
+}
+.page-item .page-link{
+  color: black !important;
+  box-shadow: none;
+}
+.page-item.active .page-link{
+  color: white !important;
+  background-color: #ffa500;
+  border-color: #ffa500;
+}
+.page-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+}
+.page-container.no-results {
+  justify-content: center;
+}
+.rows-info, .pagination {
+  flex: 1;
+}
+.search-info {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
