@@ -1,4 +1,4 @@
-FROM blazemeter/taurus:1.16.31
+FROM blazemeter/taurus:1.16.34
 # taurus includes python and pip
 RUN /usr/bin/python3 -m pip install --upgrade pip
 RUN pip install --no-cache-dir awscli
@@ -23,21 +23,21 @@ RUN python3 /bzt-configs/jar_updater.py
 # Remove K6 as it is not supported in DLT by default
 RUN apt remove -y k6
 
-RUN /bin/bash -c "source /etc/profile.d/rbenv.sh && yes | rbenv uninstall $(cat /usr/local/rbenv/version)"
+RUN /bin/bash -c "source /etc/profile.d/rbenv.sh && rbenv uninstall --force $(cat /usr/local/rbenv/version)"
 RUN rm -rf /usr/local/rbenv
 
 # Replacing urllib3 with more stable Versions to resolve vulnerabilities
-RUN pip install urllib3==2.0.7
+RUN pip install urllib3==2.2.2
 RUN rm -rf /root/.bzt/python-packages/3.10.12/urllib3*
 RUN cp -r /usr/local/lib/python3.10/dist-packages/urllib3* /root/.bzt/python-packages/3.10.12/
 
 # Replacing Werkzeug with more stable version to resolve vulnerabilities
-RUN pip install Werkzeug==3.0.1
+RUN pip install Werkzeug==3.0.3
 RUN rm -rf /root/.bzt/python-packages/3.10.12/werkzeug*
 RUN cp -r /usr/local/lib/python3.10/dist-packages/werkzeug* /root/.bzt/python-packages/3.10.12/
 
 # Replacing cryptography with more stable version to resolve vulnerabilities
-RUN pip install cryptography==42.0.5
+RUN pip install cryptography==42.0.6
 RUN rm -rf /root/.bzt/python-packages/3.10.12/cryptography*
 RUN cp -r /usr/local/lib/python3.10/dist-packages/cryptography* /root/.bzt/python-packages/3.10.12/
 
