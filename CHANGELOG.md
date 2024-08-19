@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.11] - 2024-08-19
+
+### Updated
+
+- Updated taurus from 1.16.31 to 1.16.34
+- Updated axios to 1.7.4 to mitigate [CVE-2024-39338](https://nvd.nist.gov/vuln/detail/CVE-2024-39338)
+- Updated urllib3 to 2.2.2 to mitgate [CVE-2024-37891](https://nvd.nist.gov/vuln/detail/CVE-2024-37891)
+- Updated Werkzeug to 3.0.3 to mitigate [CVE-2024-34069](https://nvd.nist.gov/vuln/detail/CVE-2024-34069)
+- Updated cryptography to 42.0.6 to mitigate [CVE-2024-2511](https://nvd.nist.gov/vuln/detail/CVE-2024-2511)
+
 ## [3.2.10] - 2024-08-02
 
 ### Updated
