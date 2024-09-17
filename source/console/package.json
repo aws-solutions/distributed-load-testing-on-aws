@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws-ui",
-  "version": "3.2.11",
+  "version": "3.3.0",
   "private": true,
   "license": "Apache-2.0",
   "author": {
@@ -43,8 +43,10 @@
     "react": "^18.2.0",
     "react-ace": "^10.1.0",
     "react-dom": "^18.2.0",
+    "react-js-cron": "^5.0.1",
     "react-router-dom": "^5.2.0",
     "reactstrap": "^9.0.0",
+    "cron-parser": "^4.9.0",
     "solution-utils": "file:../solution-utils"
   },
   "overrides": {
@@ -61,13 +63,35 @@
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^14.2.1",
-    "eslint-config-react-app": "^7.0.1",
+    "identity-obj-proxy": "^3.0.0",
     "jest": "^29.7.0",
+    "jest-transform-stub": "^2.0.0",
+    "eslint-config-react-app": "^7.0.1",
     "react-scripts": "^5.0.1"
   },
   "jest": {
+    "moduleNameMapper": {
+      "\\.(css|less)$": "identity-obj-proxy",
+      "\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2)$": "jest-transform-stub"
+    },
     "transformIgnorePatterns": [
-      "/node_modules/(?!(axios)/)"
+      "/node_modules/(?!(react-js-cron|axios)/)"
+    ],
+    "transform": {
+      "^.+\\.(js|jsx|ts|tsx)$": "babel-jest"
+    }
+  },
+  "babel": {
+    "presets": [
+      [
+        "@babel/preset-env",
+        {
+          "targets": {
+            "node": "current"
+          }
+        }
+      ],
+      "@babel/preset-react"
     ]
   }
 }

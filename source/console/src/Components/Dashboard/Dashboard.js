@@ -35,7 +35,6 @@ class Dashboard extends React.Component {
         if (!b.startTime) b.startTime = "";
         return b.startTime.localeCompare(a.startTime);
       });
-
       this.setState({
         Items: data.Items,
         isLoading: false,
@@ -51,7 +50,6 @@ class Dashboard extends React.Component {
 
   render() {
     const { Items } = this.state;
-
     const welcome = (
       <div className="welcome">
         <h2>To get started select Create test from the top menu.</h2>
@@ -68,7 +66,7 @@ class Dashboard extends React.Component {
             <td>{item.startTime}</td>
             <td className={item.status}>{item.status}</td>
             <td>{item.nextRun}</td>
-            <td className="recurrence">{item.scheduleRecurrence}</td>
+            <td className="recurrence">{item.cronValue ? `cron( ${item.cronValue} )` : item.scheduleRecurrence}</td>
             <td className="td-center">
               <Link
                 id={`detailLink-${item.testId}`}

@@ -3,9 +3,8 @@
 
 const AWS = require("aws-sdk");
 const utils = require("solution-utils");
-let options = {};
 
-options = utils.getOptions(options);
+let options = utils.getOptions({});
 const dynamoDb = new AWS.DynamoDB.DocumentClient(options);
 const lambda = new AWS.Lambda(options);
 

@@ -163,5 +163,31 @@ manifest_json=$(IFS=,;printf "%s" "${manifest[*]}")
 echo "[\"${manifest_json}\"]" | sed 's/,/","/g' > ./console-manifest.json
 
 echo "------------------------------------------------------------------------------"
+echo "Build Metrics utils lambda archive."
+echo "------------------------------------------------------------------------------"
+cd ${source_dir}/metrics-utils
+npm run build && npm run zip
+if [ $? -eq 0 ]
+then
+  echo "Build for metrics-utils succeeded"
+else
+  echo "******************************************************************************"
+  echo "Build FAILED for metrics-utils"
+  echo "******************************************************************************"
+  exit 1
+fi
+mv ${source_dir}/metrics-utils/dist/*.zip ${build_dist_dir}/metrics-utils.zip
+if [ $? -eq 0 ]
+then
+  echo "moved metrics-utils.zip to ${build_dist_dir}"
+else
+  echo "******************************************************************************"
+  echo "FAILED to move metrics-utils.zip to ${build_dist_dir}"
+  echo "******************************************************************************"
+  exit 1
+fi
+
+
+echo "------------------------------------------------------------------------------"
 echo "Build S3 Packaging Complete"
 echo "------------------------------------------------------------------------------"

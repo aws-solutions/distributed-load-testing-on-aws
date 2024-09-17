@@ -3,12 +3,12 @@
 
 const AWS = require("aws-sdk");
 const utils = require("solution-utils");
+const cronParser = require("cron-parser");
+
 const { HISTORY_TABLE, SCENARIOS_TABLE, SCENARIOS_BUCKET, STATE_MACHINE_ARN, TASK_CANCELER_ARN, STACK_ID } =
   process.env;
 AWS.config.logger = console;
-let options = {};
-options = utils.getOptions(options);
-options.region = process.env.AWS_REGION;
+let options = utils.getOptions({ region: process.env.AWS_REGION });
 const s3 = new AWS.S3(options);
 const lambda = new AWS.Lambda(options);
 const dynamoDB = new AWS.DynamoDB.DocumentClient(options);
@@ -21,11 +21,14 @@ const cloudformation = new AWS.CloudFormation(options);
  * @param {string} code
  * @param {string} errMsg
  */
-class ErrorException {
+class ErrorException extends Error {
   constructor(code, errMsg) {
+    super(errMsg);
     this.code = code;
     this.message = errMsg;
-    this.status = 400;
+  }
+  toString() {
+    return `${this.code}: ${this.message}`;
   }
 }
 
@@ -203,6 +206,7 @@ const listTests = async () => {
         "startTime",
         "nextRun",
         "scheduleRecurrence",
+        "cronValue",
       ],
       ScanFilter: {
         testId: {
@@ -224,23 +228,209 @@ const listTests = async () => {
 };
 
 /**
+ * Convert Linux cron expression to AWS cron expression
+ * @param {string} linux cron input
+ * @returns An equivalent string in AWS cron format
+ */
+const convertLinuxCronToAwsCron = (linuxCron, cronExpiryDate) => {
+  const parts = linuxCron.trim().split(" ");
+
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+
+  let awsDayOfMonth = dayOfMonth;
+  let awsDayOfWeek = dayOfWeek;
+
+  // Adjust the day of the week and day of the month
+  if (dayOfMonth === "*" && dayOfWeek === "*") {
+    awsDayOfWeek = "?";
+  } else if (dayOfMonth !== "*" && dayOfWeek === "*") {
+    awsDayOfWeek = "?";
+  } else if (dayOfMonth === "*" && dayOfWeek !== "*") {
+    awsDayOfMonth = "?";
+  } else if (dayOfMonth !== "*" && dayOfWeek !== "*") {
+    awsDayOfWeek = "?";
+  }
+
+  // Handle ranges and steps in the day_of_week field
+  awsDayOfWeek = awsDayOfWeek.replace(/\b[0-7]\b/g, (match) => {
+    if (match === "0" || match === "7") {
+      return "1";
+    } else {
+      return (parseInt(match) + 1).toString();
+    }
+  });
+
+  let cronYear = new Date().getFullYear();
+  if (cronExpiryDate && cronYear < new Date(cronExpiryDate).getFullYear()) {
+    const cronExpiryYear = new Date(cronExpiryDate).getFullYear();
+    cronYear = `${cronYear}-${cronExpiryYear}`;
+  }
+
+  return `${minute} ${hour} ${awsDayOfMonth} ${month} ${awsDayOfWeek} ${cronYear}`;
+};
+
+const checkEnoughIntervalDiff = (cronValue, cronExpiryDate, holdFor, rampUp, testTaskConfigs) => {
+  if (!holdFor || !rampUp) return "";
+  let cronExpiry = new Date(cronExpiryDate);
+
+  let cronInterval;
+  try {
+    cronInterval = cronParser.parseExpression(cronValue, { utc: true });
+  } catch (err) {
+    throw new ErrorException("Invalid Linux cron expression", "Expected format: 0 * * * *");
+  }
+
+  let fields = JSON.parse(JSON.stringify(cronInterval.fields));
+  let totalTaskCount = 0;
+  for (const testTaskConfig of testTaskConfigs) totalTaskCount += testTaskConfig.taskCount;
+  let estimatedTestDuration = 2 * Math.floor(Math.ceil(totalTaskCount / 10) * 1.5 + 600);
+  estimatedTestDuration += getTestDurationSeconds(holdFor);
+  estimatedTestDuration += getTestDurationSeconds(rampUp);
+  let prev = cronInterval.next();
+  let next = cronInterval.next();
+
+  let prevDate = new Date(prev);
+  let nextDate = new Date(next);
+
+  // Only one run exist
+  if (nextDate > cronExpiry) return null;
+
+  // Making sure only one integer in the minute field
+  // and diff of two tests are at least one hour
+  if (fields.minute.length !== 1) {
+    throw new ErrorException("Invalid Parameter", "The interval between scheduled tests cannot be less than an hour.");
+  }
+
+  while (next && prev) {
+    prevDate = new Date(prev);
+    nextDate = new Date(next);
+    if (nextDate - prevDate < estimatedTestDuration * 1000)
+      throw new ErrorException(
+        "Invalid Parameter",
+        "The interval between scheduled tests is too short. Please ensure there is enough time between test runs to accommodate the duration of each test."
+      );
+
+    if (prevDate > cronExpiry) {
+      break;
+    }
+    prev = next;
+    next = cronInterval.next();
+  }
+};
+
+/**
+ * Parsing cron value next run
+ * @param {string} linux cron input
+ * @returns A map of nextRunDate object and its string value.
+ */
+const cronNextRun = (cronValue, cronExpiryDate = "", scheduleStep = "") => {
+  const parts = cronValue.trim().split(" ");
+  if (parts.length !== 5) throw new ErrorException("Invalid Linux cron expression", "Expected format: 0 * * * *");
+
+  let cronInterval;
+  try {
+    cronInterval = cronParser.parseExpression(cronValue, { utc: true });
+  } catch (err) {
+    throw new ErrorException("Invalid Linux cron expression", "Expected format: 0 * * * *");
+  }
+
+  const initRun = cronInterval.next().toString();
+  const nextRunDate = new Date(initRun);
+  if (cronExpiryDate && new Date(cronExpiryDate) < nextRunDate) {
+    if (scheduleStep) {
+      throw new ErrorException("Invalid Parameter", "Cron Expiry Date older than the next run.");
+    }
+    return { nextRunDate: "", nextRun: "" };
+  }
+
+  const year = nextRunDate.getUTCFullYear();
+  const month = String(nextRunDate.getUTCMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+  const day = String(nextRunDate.getUTCDate()).padStart(2, "0");
+  const hour = String(nextRunDate.getUTCHours()).padStart(2, "0");
+  const minute = String(nextRunDate.getUTCMinutes()).padStart(2, "0");
+  const time = `${hour}:${minute}:00`;
+  const date = `${year}-${month}-${day}`;
+  const nextRun = `${date} ${time}`;
+  return { nextRunDate: nextRunDate, nextRun: nextRun };
+};
+
+const getScheduleString = (props) => {
+  const { recurrence, cronValue, minute, hour, day, month, year, cronExpiryDate } = props;
+  if (recurrence && !cronValue) {
+    switch (recurrence) {
+      case "daily":
+        return "rate(1 day)";
+      case "weekly":
+        return "rate(7 days)";
+      case "biweekly":
+        return "rate(14 days)";
+      case "monthly":
+        return `cron(${minute} ${hour} ${day} * ? *)`;
+      default:
+        throw new ErrorException("InvalidParameter", "Invalid recurrence value.");
+    }
+  } else if (cronValue) {
+    const scheduleString = `cron(${convertLinuxCronToAwsCron(cronValue, cronExpiryDate)})`;
+    console.log(`scheduleString: ${scheduleString}`);
+    return scheduleString;
+  } else {
+    const scheduleString = `cron(${minute} ${hour} ${day} ${month} ? ${year})`;
+    console.log(`scheduleString: ${scheduleString}`);
+    return scheduleString;
+  }
+};
+
+/**
+ * remove eventbirdge rules and targets
+ * @param {object} testId
+ * @param {object} lambda function name that is the target
+ * @param {object} recurrence
+ * @returns
+ */
+const removeRules = async (testId, functionName, recurrence) => {
+  if (recurrence) {
+    let ruleName = `${testId}Create`;
+    await cloudwatchevents.removeTargets({ Rule: ruleName, Ids: [ruleName] }).promise();
+    await lambda.removePermission({ FunctionName: functionName, StatementId: ruleName }).promise();
+    await cloudwatchevents.deleteRule({ Name: ruleName }).promise();
+  }
+};
+
+/**
  * Schedules test and returns a consolidated list of test scenarios
  * @param {object} event test event information
  * @param {object} context the lambda context information
  * @returns A map of attribute values in Dynamodb after scheduled.
  */
 const scheduleTest = async (event, context) => {
+  console.log("Scheduling Test::");
   try {
     let config = JSON.parse(event.body);
-    const { testId, scheduleDate, scheduleTime, showLive } = config;
-    const [hour, minute] = scheduleTime.split(":");
+    let {
+      testId,
+      scheduleDate,
+      scheduleTime,
+      showLive,
+      cronValue,
+      cronExpiryDate,
+      recurrence,
+      testScenario,
+      testTaskConfigs,
+      regionalTaskDetails,
+    } = config;
+    cronExpiryDate = cronExpiryDate ? cronExpiryDate : "";
+    let [hour, minute] = scheduleTime.split(":");
     let [year, month, day] = scheduleDate.split("-");
     let nextRun = `${year}-${month}-${day} ${hour}:${minute}:00`;
     const functionName = context.functionName;
     const functionArn = context.functionArn;
-    let scheduleRecurrence = "";
-
-    //check if rule exists, delete rule if exists
+    let scheduleRecurrence = recurrence ? recurrence : "";
+    if (!cronValue && !scheduleDate && !scheduleTime)
+      throw new ErrorException(
+        "InvalidParameter",
+        "Missing cronValue, scheduleDate and ScheduleTime. Cannot schedule the Test."
+      );
+    // check if rule exists, delete rule if exists
     let rulesResponse = await cloudwatchevents.listRules({ NamePrefix: testId }).promise();
 
     for (let rule of rulesResponse.Rules) {
@@ -250,16 +440,33 @@ const scheduleTest = async (event, context) => {
       await cloudwatchevents.deleteRule({ Name: ruleName }).promise();
     }
 
+    let createRun;
     if (config.scheduleStep === "create") {
-      const createRun = new Date(year, parseInt(month, 10) - 1, day, hour, minute);
-      // Schedule for 1 min prior to account for time it takes to create rule
+      testTaskConfigs = validateTaskCountConcurrency(testTaskConfigs, regionalTaskDetails);
+      if (cronValue) {
+        checkEnoughIntervalDiff(
+          cronValue,
+          cronExpiryDate,
+          testScenario.execution[0]["hold-for"],
+          testScenario.execution[0]["ramp-up"],
+          testTaskConfigs
+        );
+
+        const cronNextRunObj = cronNextRun(cronValue, cronExpiryDate, config.scheduleStep);
+        createRun = cronNextRunObj.nextRunDate;
+        nextRun = cronNextRunObj.nextRun;
+        [scheduleDate, scheduleTime] = nextRun.split(" ");
+        config.scheduleTime = scheduleTime;
+        config.scheduleDate = scheduleDate;
+      } else {
+        createRun = new Date(year, parseInt(month, 10) - 1, day, hour, minute);
+      } // Schedule for 1 min prior to account for time it takes to create rule
       // getMonth() returns Jan with index Zero that is why months need a +1
       // refrence https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/getMonth
       createRun.setMinutes(createRun.getMinutes() - 1);
       const cronStart = `cron(${createRun.getMinutes()} ${createRun.getHours()} ${createRun.getDate()} ${
         createRun.getMonth() + 1
       } ? ${createRun.getFullYear()})`;
-      scheduleRecurrence = config.recurrence;
 
       //Create rule to create schedule
       const createRuleParams = {
@@ -298,28 +505,8 @@ const scheduleTest = async (event, context) => {
       await cloudwatchevents.putTargets(createTargetParams).promise();
     } else {
       //create schedule expression
-      let scheduleString;
-      if (config.recurrence) {
-        scheduleRecurrence = config.recurrence;
-        switch (config.recurrence) {
-          case "daily":
-            scheduleString = "rate(1 day)";
-            break;
-          case "weekly":
-            scheduleString = "rate(7 days)";
-            break;
-          case "biweekly":
-            scheduleString = "rate(14 days)";
-            break;
-          case "monthly":
-            scheduleString = `cron(${minute} ${hour} ${day} * ? *)`;
-            break;
-          default:
-            throw new ErrorException("InvalidParameter", "Invalid recurrence value.");
-        }
-      } else {
-        scheduleString = `cron(${minute} ${hour} ${day} ${month} ? ${year})`;
-      }
+      const getScheduleStringProps = { recurrence, cronValue, minute, hour, day, month, year, cronExpiryDate };
+      let scheduleString = getScheduleString(getScheduleStringProps);
 
       //Create rule to run on schedule
       const ruleParams = {
@@ -357,58 +544,29 @@ const scheduleTest = async (event, context) => {
       };
       await cloudwatchevents.putTargets(targetParams).promise();
 
-      //Remove rule created during create schedule step
-      if (config.recurrence) {
-        let ruleName = `${testId}Create`;
-        await cloudwatchevents.removeTargets({ Rule: ruleName, Ids: [ruleName] }).promise();
-        await lambda.removePermission({ FunctionName: functionName, StatementId: ruleName }).promise();
-        await cloudwatchevents.deleteRule({ Name: ruleName }).promise();
-      }
+      // Remove rule created during create schedule step
+      await removeRules(testId, functionName, recurrence);
     }
 
     //Update DynamoDB if table was not already updated by "create" schedule step
-    if (config.scheduleStep || !config.recurrence) {
-      let params = {
-        TableName: SCENARIOS_TABLE,
-        Key: {
-          testId: testId,
-        },
-        UpdateExpression:
-          "set #n = :n, #d = :d, #tc = :tc, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #nr = :nr, #sr = :sr, #sl = :sl, #tt = :tt, #ft = :ft",
-        ExpressionAttributeNames: {
-          "#n": "testName",
-          "#d": "testDescription",
-          "#tc": "testTaskConfigs",
-          "#t": "testScenario",
-          "#s": "status",
-          "#r": "results",
-          "#st": "startTime",
-          "#et": "endTime",
-          "#nr": "nextRun",
-          "#sr": "scheduleRecurrence",
-          "#sl": "showLive",
-          "#tt": "testType",
-          "#ft": "fileType",
-        },
-        ExpressionAttributeValues: {
-          ":n": config.testName,
-          ":d": config.testDescription,
-          ":tc": config.testTaskConfigs,
-          ":t": JSON.stringify(config.testScenario),
-          ":s": "scheduled",
-          ":r": {},
-          ":st": "",
-          ":et": "",
-          ":nr": nextRun,
-          ":sr": scheduleRecurrence,
-          ":sl": showLive,
-          ":tt": config.testType,
-          ":ft": config.fileType,
-        },
-        ReturnValues: "ALL_NEW",
+    if (config.scheduleStep || !recurrence) {
+      const updateDBData = {
+        testId,
+        testName: config.testName,
+        testDescription: config.testDescription,
+        testTaskConfigs: config.testTaskConfigs,
+        testScenario: testScenario,
+        status: "scheduled",
+        startTime: "",
+        nextRun,
+        scheduleRecurrence,
+        showLive,
+        testType: config.testType,
+        fileType: config.fileType,
+        cronValue,
+        cronExpiryDate,
       };
-      let data = await dynamoDB.update(params).promise();
-
+      let data = await updateTestDBEntry(updateDBData);
       console.log(`Schedule test complete: ${JSON.stringify(data, null, 2)}`);
 
       return data.Attributes;
@@ -453,11 +611,15 @@ const setTestId = (testId) =>
  * @param {string} scheduleRecurrence
  * @returns nextRun
  */
-const setNextRun = (scheduledTime, scheduleRecurrence = "") => {
-  let newDate = new Date(scheduledTime.getTime());
+const setNextRun = (scheduledTime, scheduleRecurrence = "", cronValue = "", cronExpiryDate = "") => {
+  if (cronValue) {
+    const nextRunObj = cronNextRun(cronValue, cronExpiryDate);
+    return nextRunObj.nextRun;
+  }
   if (!scheduleRecurrence) {
     return "";
   }
+  let newDate = new Date(scheduledTime.getTime());
   switch (scheduleRecurrence) {
     case "daily":
       newDate.setDate(newDate.getDate() + 1);
@@ -699,20 +861,25 @@ const updateTestDBEntry = async (updateTestConfigs) => {
       testDescription,
       testTaskConfigs,
       testScenario,
+      status,
       startTime,
       nextRun,
       scheduleRecurrence,
       showLive,
       testType,
       fileType,
+      cronExpiryDate,
     } = updateTestConfigs;
+
+    let cronValue = updateTestConfigs.cronValue || "";
+    let endTime = status == "running" ? "running" : "";
     const params = {
       TableName: SCENARIOS_TABLE,
       Key: {
         testId: testId,
       },
       UpdateExpression:
-        "set #n = :n, #d = :d, #tc = :tc, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #nr = :nr, #sr = :sr, #sl = :sl, #tt = :tt, #ft = :ft",
+        "set #n = :n, #d = :d, #tc = :tc, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #nr = :nr, #sr = :sr, #sl = :sl, #tt = :tt, #ft = :ft, #cv = :cv, #ced = :ced",
       ExpressionAttributeNames: {
         "#n": "testName",
         "#d": "testDescription",
@@ -727,21 +894,25 @@ const updateTestDBEntry = async (updateTestConfigs) => {
         "#sl": "showLive",
         "#tt": "testType",
         "#ft": "fileType",
+        "#cv": "cronValue",
+        "#ced": "cronExpiryDate",
       },
       ExpressionAttributeValues: {
         ":n": testName,
         ":d": testDescription,
         ":tc": testTaskConfigs,
         ":t": JSON.stringify(testScenario),
-        ":s": "running",
+        ":s": status,
         ":r": {},
         ":st": startTime,
-        ":et": "running",
+        ":et": endTime,
         ":nr": nextRun,
         ":sr": scheduleRecurrence,
         ":sl": showLive,
         ":tt": testType,
         ":ft": fileType,
+        ":cv": cronValue,
+        ":ced": cronExpiryDate,
       },
       ReturnValues: "ALL_NEW",
     };
@@ -757,11 +928,29 @@ const updateTestDBEntry = async (updateTestConfigs) => {
  * Description: Formats the date to a YYYY-MM-DD HH:MM:SS format
  * @config {string} a formatted string date
  *  */
-const convertDateToString = (date) => {
-  return date
+const convertDateToString = (date) =>
+  date
     .toISOString()
     .replace("T", " ")
     .replace(/\.\d+Z$/, "");
+
+/** 
+ * Description: handle eventbridge scheduled test start time
+ * @param {string} cronValue
+ * @param {string} scheduleTime
+   @returns {Date} startTime
+ *  */
+const getEbSchedTestStartTime = (cronValue, scheduleTime, cronExpiryDate) => {
+  if (!cronValue) {
+    const startDate = new Date().toISOString().slice(0, 10);
+    return new Date(`${startDate} ${scheduleTime}:00`);
+  }
+  const cronExpiry = new Date(cronExpiryDate);
+  let cronInterval = cronParser.parseExpression(cronValue, { utc: true });
+  const startTime = new Date(cronInterval.prev().toString());
+  if (startTime > cronExpiry) return "Cron Expiry Reached";
+
+  return startTime;
 };
 
 /**
@@ -769,11 +958,13 @@ const convertDateToString = (date) => {
  * Description: returns a consolidated list of test scenarios
  * @config {object} test scenario configuration
  */
-const createTest = async (config) => {
-  console.log(`Create test: ${JSON.stringify(config, null, 2)}`);
+const createTest = async (config, functionName) => {
+  console.log("Create test: ");
   try {
-    const { testName, testDescription, testType, showLive, regionalTaskDetails } = config;
-    let { testId, testScenario, testTaskConfigs, fileType, scheduleTime, eventBridge, recurrence } = config;
+    const { testName, testDescription, testType, showLive, regionalTaskDetails, cronValue } = config;
+    let { testId, testScenario, testTaskConfigs, fileType, scheduleTime, eventBridge, recurrence, cronExpiryDate } =
+      config;
+    cronExpiryDate = cronExpiryDate ? cronExpiryDate : "";
     let nextRun;
     fileType = setFileType(testType, fileType);
     testId = setTestId(testId);
@@ -783,14 +974,15 @@ const createTest = async (config) => {
 
     let startTime = new Date();
 
-    if (eventBridge) {
-      const startDate = new Date().toISOString().slice(0, 10);
-      // If it is eventBridge triggered definitely has scheduleTime
-      startTime = new Date(`${startDate} ${scheduleTime}:00`);
+    if (eventBridge) startTime = getEbSchedTestStartTime(cronValue, scheduleTime, cronExpiryDate);
+    if (startTime == "Cron Expiry Reached") {
+      console.log("Cron Expiry Reached");
+      await deleteRules(testId, functionName);
+      return null;
     }
 
     if (nextRun && startTime < nextRun) nextRun = convertDateToString(nextRun);
-    else nextRun = setNextRun(startTime, recurrence);
+    else nextRun = setNextRun(startTime, recurrence, cronValue, cronExpiryDate);
 
     const scheduleRecurrence = recurrence ? recurrence : "";
     startTime = convertDateToString(startTime);
@@ -848,12 +1040,15 @@ const createTest = async (config) => {
       testDescription,
       testTaskConfigs,
       testScenario,
+      status: "running",
       startTime,
       nextRun,
       scheduleRecurrence,
       showLive,
       testType,
       fileType,
+      cronValue,
+      cronExpiryDate,
     };
 
     const data = await updateTestDBEntry(updateDBData);
@@ -1129,6 +1324,23 @@ const deleteDashboards = async (testId, testAndRegionalInfraConfigs) => {
   }
 };
 
+const deleteRules = async (testId, functionName) => {
+  try {
+    //Get Rules
+    let rulesResponse = await cloudwatchevents.listRules({ NamePrefix: testId }).promise();
+    //Delete Rule
+    for (let rule of rulesResponse.Rules) {
+      let ruleName = rule.Name;
+      await cloudwatchevents.removeTargets({ Rule: ruleName, Ids: [ruleName] }).promise();
+      await lambda.removePermission({ FunctionName: functionName, StatementId: ruleName }).promise();
+      await cloudwatchevents.deleteRule({ Name: ruleName }).promise();
+    }
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
+};
+
 /**
  * Deletes all data related to a specific testId
  * @param {string} testId the unique id of test scenario to delete
@@ -1143,15 +1355,7 @@ const deleteTest = async (testId, functionName) => {
   await deleteDashboards(testId, testAndRegionalInfraConfigs);
 
   try {
-    //Get Rules
-    let rulesResponse = await cloudwatchevents.listRules({ NamePrefix: testId }).promise();
-    //Delete Rule
-    for (let rule of rulesResponse.Rules) {
-      let ruleName = rule.Name;
-      await cloudwatchevents.removeTargets({ Rule: ruleName, Ids: [ruleName] }).promise();
-      await lambda.removePermission({ FunctionName: functionName, StatementId: ruleName }).promise();
-      await cloudwatchevents.deleteRule({ Name: ruleName }).promise();
-    }
+    await deleteRules(testId, functionName);
     await deleteDDBTestEntry(testId);
     const testRunIds = await getTestHistoryTestRunIds(testId);
     const testRuns = createBatchRequestItems(testId, testRunIds);

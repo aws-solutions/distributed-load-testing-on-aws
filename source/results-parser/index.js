@@ -4,8 +4,7 @@
 const parser = require("./lib/parser/");
 const AWS = require("aws-sdk");
 const utils = require("solution-utils");
-let options = {};
-options = utils.getOptions(options);
+let options = utils.getOptions({});
 const s3 = new AWS.S3(options);
 const dynamoDb = new AWS.DynamoDB.DocumentClient(options);
 
@@ -142,13 +141,12 @@ const getResultList = async (testId, prefix) => {
 };
 
 // // Define a function to create the timeout promise
-const createTimeoutPromise = (timeout) => {
-  return new Promise((resolve) =>
+const createTimeoutPromise = (timeout) =>
+  new Promise((resolve) =>
     setTimeout(() => {
       resolve(true); // Resolve with a true value to indicate a timeout
     }, timeout)
   );
-};
 
 const getFilesByRegion = async (resultList) => {
   const promises = {};
@@ -234,11 +232,17 @@ exports.handler = async (event) => {
         FileType: fileType || (testType === "simple" ? "none" : "script"),
         TestResult: testResult,
         Duration: totalDuration,
+        TestId: testId,
       });
     return "success";
   } catch (error) {
     console.error(error);
-    await updateScenariosTable(testId, "Failed to parse the results.");
+    if (error.message.includes("Item size has exceeded the maximum allowed size"))
+      await updateScenariosTable(
+        testId,
+        "Failed to parse the results - One item uploading to DynamoDB has exceeded the maximum allowed size (400KB)"
+      );
+    else await updateScenariosTable(testId, `Failed to parse the results - ${error.message}`);
 
     throw error;
   }

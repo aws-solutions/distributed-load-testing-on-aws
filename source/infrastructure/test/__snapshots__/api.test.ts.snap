@@ -132,7 +132,7 @@ exports[`DLT API Test 1`] = `
       },
       "Type": "AWS::ApiGateway::Account",
     },
-    "TestAPIDLTAPIServicesLambda1C09DECC": {
+    "TestAPIDLTAPIServicesLambdaNew475B08B2": {
       "DependsOn": [
         "TestAPIDLTAPIServicesLambdaRole446F20B1",
       ],
@@ -189,12 +189,12 @@ exports[`DLT API Test 1`] = `
       },
       "Type": "AWS::Lambda::Function",
     },
-    "TestAPIDLTAPIServicesLambdaDLTApiInvokePermissionFDC1055F": {
+    "TestAPIDLTAPIServicesLambdaNewDLTApiInvokePermissionBFEA2149": {
       "Properties": {
         "Action": "lambda:InvokeFunction",
         "FunctionName": {
           "Fn::GetAtt": [
-            "TestAPIDLTAPIServicesLambda1C09DECC",
+            "TestAPIDLTAPIServicesLambdaNew475B08B2",
             "Arn",
           ],
         },
@@ -440,7 +440,7 @@ exports[`DLT API Test 1`] = `
       "Type": "AWS::IAM::Role",
       "UpdateReplacePolicy": "Retain",
     },
-    "TestAPIDLTApiDeployment7935ADA27d567a21f4c19426fb338f10f77fd745": {
+    "TestAPIDLTApiDeployment7935ADA2be88c56492bcdb9d63dd1d51367ddbbc": {
       "DependsOn": [
         "TestAPIAPIAllRequestValidator9A179146",
         "TestAPIDLTApiOPTIONS380FFB97",
@@ -503,7 +503,7 @@ exports[`DLT API Test 1`] = `
           "Format": "{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","user":"$context.identity.user","caller":"$context.identity.caller","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.resourcePath","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength"}",
         },
         "DeploymentId": {
-          "Ref": "TestAPIDLTApiDeployment7935ADA27d567a21f4c19426fb338f10f77fd745",
+          "Ref": "TestAPIDLTApiDeployment7935ADA2be88c56492bcdb9d63dd1d51367ddbbc",
         },
         "MethodSettings": [
           {
@@ -593,7 +593,7 @@ exports[`DLT API Test 1`] = `
                 ":lambda:path/2015-03-31/functions/",
                 {
                   "Fn::GetAtt": [
-                    "TestAPIDLTAPIServicesLambda1C09DECC",
+                    "TestAPIDLTAPIServicesLambdaNew475B08B2",
                     "Arn",
                   ],
                 },
@@ -706,7 +706,7 @@ exports[`DLT API Test 1`] = `
                 ":lambda:path/2015-03-31/functions/",
                 {
                   "Fn::GetAtt": [
-                    "TestAPIDLTAPIServicesLambda1C09DECC",
+                    "TestAPIDLTAPIServicesLambdaNew475B08B2",
                     "Arn",
                   ],
                 },
@@ -831,7 +831,7 @@ exports[`DLT API Test 1`] = `
                 ":lambda:path/2015-03-31/functions/",
                 {
                   "Fn::GetAtt": [
-                    "TestAPIDLTAPIServicesLambda1C09DECC",
+                    "TestAPIDLTAPIServicesLambdaNew475B08B2",
                     "Arn",
                   ],
                 },
@@ -929,7 +929,7 @@ exports[`DLT API Test 1`] = `
                 ":lambda:path/2015-03-31/functions/",
                 {
                   "Fn::GetAtt": [
-                    "TestAPIDLTAPIServicesLambda1C09DECC",
+                    "TestAPIDLTAPIServicesLambdaNew475B08B2",
                     "Arn",
                   ],
                 },
@@ -1057,7 +1057,7 @@ exports[`DLT API Test 1`] = `
                 ":lambda:path/2015-03-31/functions/",
                 {
                   "Fn::GetAtt": [
-                    "TestAPIDLTAPIServicesLambda1C09DECC",
+                    "TestAPIDLTAPIServicesLambdaNew475B08B2",
                     "Arn",
                   ],
                 },
@@ -1229,7 +1229,7 @@ exports[`DLT API Test 1`] = `
               "Effect": "Allow",
               "Resource": {
                 "Fn::GetAtt": [
-                  "TestAPIDLTAPIServicesLambda1C09DECC",
+                  "TestAPIDLTAPIServicesLambdaNew475B08B2",
                   "Arn",
                 ],
               },
@@ -1245,6 +1245,25 @@ exports[`DLT API Test 1`] = `
         ],
       },
       "Type": "AWS::IAM::Policy",
+    },
+    "TestAPIdltApiServicesLambdaLogGroupFB2A284C": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "TestAPIDLTAPIServicesLambdaNew475B08B2",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 731,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
     },
     "TestLogGroup4EEF7AD4": {
       "DeletionPolicy": "Retain",

@@ -1,6 +1,6 @@
 {
   "name": "task-canceler",
-  "version": "3.2.11",
+  "version": "3.3.0",
   "description": "Triggered by api-services lambda function, cancels ecs tasks",
   "repository": {
     "type": "git",

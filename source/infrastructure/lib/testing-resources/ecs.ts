@@ -41,6 +41,7 @@ export class ECSResourcesConstruct extends Construct {
   public taskDefinitionArn: string;
   public taskExecutionRoleArn: string;
   public ecsSecurityGroupId: string;
+  public taskDefinitionFamily: string | undefined;
 
   constructor(scope: Construct, id: string, props: ECSResourcesConstructProps) {
     super(scope, id);
@@ -102,6 +103,7 @@ export class ECSResourcesConstruct extends Construct {
       executionRoleArn: this.taskExecutionRoleArn,
       requiresCompatibilities: ["FARGATE"],
       taskRoleArn: this.taskExecutionRoleArn,
+      family: `${Aws.STACK_NAME}-task-family`,
       containerDefinitions: [
         {
           essential: true,
@@ -121,6 +123,7 @@ export class ECSResourcesConstruct extends Construct {
     });
 
     this.taskDefinitionArn = dltTaskDefinition.ref;
+    this.taskDefinitionFamily = dltTaskDefinition.family;
 
     const ecsSecurityGroup = new CfnSecurityGroup(this, "DLTEcsSecurityGroup", {
       vpcId: props.fargateVpcId,

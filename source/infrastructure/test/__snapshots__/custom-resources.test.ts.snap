@@ -28,7 +28,7 @@ exports[`DLT API Test 1`] = `
         },
         "SolutionId": "testId",
         "UUID": "abc-123-def-456",
-        "VERSION": "testVersion",
+        "Version": "testVersion",
         "existingVPC": "false",
       },
       "Type": "AWS::CloudFormation::CustomResource",

@@ -45,113 +45,6 @@ exports[`Distributed Load Testing stack test 1`] = `
   },
   "Description": "Distributed Load Testing on AWS is a reference architecture to perform application load testing at scale.",
   "Mappings": {
-    "ServiceprincipalMap": {
-      "af-south-1": {
-        "states": "states.af-south-1.amazonaws.com",
-      },
-      "ap-east-1": {
-        "states": "states.ap-east-1.amazonaws.com",
-      },
-      "ap-northeast-1": {
-        "states": "states.ap-northeast-1.amazonaws.com",
-      },
-      "ap-northeast-2": {
-        "states": "states.ap-northeast-2.amazonaws.com",
-      },
-      "ap-northeast-3": {
-        "states": "states.ap-northeast-3.amazonaws.com",
-      },
-      "ap-south-1": {
-        "states": "states.ap-south-1.amazonaws.com",
-      },
-      "ap-south-2": {
-        "states": "states.ap-south-2.amazonaws.com",
-      },
-      "ap-southeast-1": {
-        "states": "states.ap-southeast-1.amazonaws.com",
-      },
-      "ap-southeast-2": {
-        "states": "states.ap-southeast-2.amazonaws.com",
-      },
-      "ap-southeast-3": {
-        "states": "states.ap-southeast-3.amazonaws.com",
-      },
-      "ap-southeast-4": {
-        "states": "states.ap-southeast-4.amazonaws.com",
-      },
-      "ca-central-1": {
-        "states": "states.ca-central-1.amazonaws.com",
-      },
-      "cn-north-1": {
-        "states": "states.cn-north-1.amazonaws.com",
-      },
-      "cn-northwest-1": {
-        "states": "states.cn-northwest-1.amazonaws.com",
-      },
-      "eu-central-1": {
-        "states": "states.eu-central-1.amazonaws.com",
-      },
-      "eu-central-2": {
-        "states": "states.eu-central-2.amazonaws.com",
-      },
-      "eu-north-1": {
-        "states": "states.eu-north-1.amazonaws.com",
-      },
-      "eu-south-1": {
-        "states": "states.eu-south-1.amazonaws.com",
-      },
-      "eu-south-2": {
-        "states": "states.eu-south-2.amazonaws.com",
-      },
-      "eu-west-1": {
-        "states": "states.eu-west-1.amazonaws.com",
-      },
-      "eu-west-2": {
-        "states": "states.eu-west-2.amazonaws.com",
-      },
-      "eu-west-3": {
-        "states": "states.eu-west-3.amazonaws.com",
-      },
-      "il-central-1": {
-        "states": "states.il-central-1.amazonaws.com",
-      },
-      "me-central-1": {
-        "states": "states.me-central-1.amazonaws.com",
-      },
-      "me-south-1": {
-        "states": "states.me-south-1.amazonaws.com",
-      },
-      "sa-east-1": {
-        "states": "states.sa-east-1.amazonaws.com",
-      },
-      "us-east-1": {
-        "states": "states.us-east-1.amazonaws.com",
-      },
-      "us-east-2": {
-        "states": "states.us-east-2.amazonaws.com",
-      },
-      "us-gov-east-1": {
-        "states": "states.us-gov-east-1.amazonaws.com",
-      },
-      "us-gov-west-1": {
-        "states": "states.us-gov-west-1.amazonaws.com",
-      },
-      "us-iso-east-1": {
-        "states": "states.amazonaws.com",
-      },
-      "us-iso-west-1": {
-        "states": "states.amazonaws.com",
-      },
-      "us-isob-east-1": {
-        "states": "states.amazonaws.com",
-      },
-      "us-west-1": {
-        "states": "states.us-west-1.amazonaws.com",
-      },
-      "us-west-2": {
-        "states": "states.us-west-2.amazonaws.com",
-      },
-    },
     "Solution": {
       "Config": {
         "CodeVersion": "testversion",
@@ -159,7 +52,7 @@ exports[`Distributed Load Testing stack test 1`] = `
         "KeyPrefix": "distributed-load-testing-on-aws/testversion",
         "S3Bucket": "testbucket",
         "SendAnonymizedUsage": "Yes",
-        "SolutionId": "testId",
+        "SolutionId": "SO0062",
         "URL": "http://testurl.com",
       },
     },
@@ -387,13 +280,6 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
         },
         "Tags": {
-          "SolutionId": {
-            "Fn::FindInMap": [
-              "Solution",
-              "Config",
-              "SolutionId",
-            ],
-          },
           "Solutions:ApplicationType": "AWS-Solutions",
           "Solutions:SolutionID": {
             "Fn::FindInMap": [
@@ -453,18 +339,6 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
         },
         "Name": "DLTApi",
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::ApiGateway::RestApi",
     },
@@ -534,18 +408,6 @@ exports[`Distributed Load Testing stack test 1`] = `
             "PolicyName": "apiLoggingPolicy",
           },
         ],
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::IAM::Role",
     },
@@ -563,18 +425,6 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Properties": {
         "RetentionInDays": 365,
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
@@ -638,23 +488,48 @@ exports[`Distributed Load Testing stack test 1`] = `
             ],
           },
         ],
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::IAM::Role",
       "UpdateReplacePolicy": "Retain",
     },
-    "DLTApiDLTAPIServicesLambda9D76BA5C": {
+    "DLTApiDLTAPIServicesLambdaNewDLTApiInvokePermission9CFC1132": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "DLTApiDLTAPIServicesLambdaNewF30B7DE0",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "DLTApi0C903EB5",
+              },
+              "/*",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "DLTApiDLTAPIServicesLambdaNewF30B7DE0": {
       "DependsOn": [
         "DLTApiDLTAPIServicesLambdaRole4465EAA4",
       ],
@@ -752,7 +627,7 @@ exports[`Distributed Load Testing stack test 1`] = `
             },
             "TASK_CANCELER_ARN": {
               "Fn::GetAtt": [
-                "DLTLambdaFunctionTaskCanceler4E12BDA6",
+                "DLTLambdaFunctionTaskCancelerNewA6986F4A",
                 "Arn",
               ],
             },
@@ -779,58 +654,9 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
         },
         "Runtime": "nodejs18.x",
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "Timeout": 120,
       },
       "Type": "AWS::Lambda::Function",
-    },
-    "DLTApiDLTAPIServicesLambdaDLTApiInvokePermissionC6CBE43A": {
-      "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Fn::GetAtt": [
-            "DLTApiDLTAPIServicesLambda9D76BA5C",
-            "Arn",
-          ],
-        },
-        "Principal": "apigateway.amazonaws.com",
-        "SourceArn": {
-          "Fn::Join": [
-            "",
-            [
-              "arn:",
-              {
-                "Ref": "AWS::Partition",
-              },
-              ":execute-api:",
-              {
-                "Ref": "AWS::Region",
-              },
-              ":",
-              {
-                "Ref": "AWS::AccountId",
-              },
-              ":",
-              {
-                "Ref": "DLTApi0C903EB5",
-              },
-              "/*",
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Permission",
     },
     "DLTApiDLTAPIServicesLambdaRole4465EAA4": {
       "Metadata": {
@@ -989,22 +815,10 @@ exports[`Distributed Load Testing stack test 1`] = `
             "PolicyName": "DLTAPIServicesLambdaPolicy",
           },
         ],
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::IAM::Role",
     },
-    "DLTApiDeployment098FF888cb409d5b175926be9719cf717cb2aab7": {
+    "DLTApiDeployment098FF8887a092ac50519ad658ef9afd5b40df777": {
       "DependsOn": [
         "DLTApiAPIAllRequestValidator02C9D47F",
         "DLTApiOPTIONS823B5F09",
@@ -1081,7 +895,7 @@ exports[`Distributed Load Testing stack test 1`] = `
           "Format": "{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","user":"$context.identity.user","caller":"$context.identity.caller","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.resourcePath","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength"}",
         },
         "DeploymentId": {
-          "Ref": "DLTApiDeployment098FF888cb409d5b175926be9719cf717cb2aab7",
+          "Ref": "DLTApiDeployment098FF8887a092ac50519ad658ef9afd5b40df777",
         },
         "MethodSettings": [
           {
@@ -1095,18 +909,6 @@ exports[`Distributed Load Testing stack test 1`] = `
           "Ref": "DLTApi0C903EB5",
         },
         "StageName": "prod",
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "TracingEnabled": true,
       },
       "Type": "AWS::ApiGateway::Stage",
@@ -1214,7 +1016,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Effect": "Allow",
               "Resource": {
                 "Fn::GetAtt": [
-                  "DLTApiDLTAPIServicesLambda9D76BA5C",
+                  "DLTApiDLTAPIServicesLambdaNewF30B7DE0",
                   "Arn",
                 ],
               },
@@ -1274,6 +1076,25 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::ApiGateway::Method",
     },
+    "DLTApidltApiServicesLambdaLogGroup54338B12": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "DLTApiDLTAPIServicesLambdaNewF30B7DE0",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 731,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
     "DLTApiregionsANY2B8B3A61": {
       "Properties": {
         "AuthorizationType": "AWS_IAM",
@@ -1303,7 +1124,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                 ":lambda:path/2015-03-31/functions/",
                 {
                   "Fn::GetAtt": [
-                    "DLTApiDLTAPIServicesLambda9D76BA5C",
+                    "DLTApiDLTAPIServicesLambdaNewF30B7DE0",
                     "Arn",
                   ],
                 },
@@ -1416,7 +1237,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                 ":lambda:path/2015-03-31/functions/",
                 {
                   "Fn::GetAtt": [
-                    "DLTApiDLTAPIServicesLambda9D76BA5C",
+                    "DLTApiDLTAPIServicesLambdaNewF30B7DE0",
                     "Arn",
                   ],
                 },
@@ -1541,7 +1362,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                 ":lambda:path/2015-03-31/functions/",
                 {
                   "Fn::GetAtt": [
-                    "DLTApiDLTAPIServicesLambda9D76BA5C",
+                    "DLTApiDLTAPIServicesLambdaNewF30B7DE0",
                     "Arn",
                   ],
                 },
@@ -1654,7 +1475,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                 ":lambda:path/2015-03-31/functions/",
                 {
                   "Fn::GetAtt": [
-                    "DLTApiDLTAPIServicesLambda9D76BA5C",
+                    "DLTApiDLTAPIServicesLambdaNewF30B7DE0",
                     "Arn",
                   ],
                 },
@@ -1767,7 +1588,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                 ":lambda:path/2015-03-31/functions/",
                 {
                   "Fn::GetAtt": [
-                    "DLTApiDLTAPIServicesLambda9D76BA5C",
+                    "DLTApiDLTAPIServicesLambdaNewF30B7DE0",
                     "Arn",
                   ],
                 },
@@ -2096,18 +1917,6 @@ exports[`Distributed Load Testing stack test 1`] = `
             "PolicyName": "IoTPolicy",
           },
         ],
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::IAM::Role",
     },
@@ -2135,18 +1944,6 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
           "Version": "2012-10-17",
         },
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::IAM::Role",
     },
@@ -2304,15 +2101,6 @@ exports[`Distributed Load Testing stack test 1`] = `
               "-user-pool",
             ],
           ],
-        },
-        "UserPoolTags": {
-          "SolutionId": {
-            "Fn::FindInMap": [
-              "Solution",
-              "Config",
-              "SolutionId",
-            ],
-          },
         },
         "VerificationMessageTemplate": {
           "DefaultEmailOption": "CONFIRM_WITH_CODE",
@@ -2521,18 +2309,6 @@ exports[`Distributed Load Testing stack test 1`] = `
           "IgnorePublicAcls": true,
           "RestrictPublicBuckets": true,
         },
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "VersioningConfiguration": {
           "Status": "Enabled",
         },
@@ -2651,18 +2427,6 @@ exports[`Distributed Load Testing stack test 1`] = `
             },
           ],
         },
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::CloudFront::Distribution",
     },
@@ -2735,18 +2499,6 @@ exports[`Distributed Load Testing stack test 1`] = `
           "IgnorePublicAcls": true,
           "RestrictPublicBuckets": true,
         },
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "VersioningConfiguration": {
           "Status": "Enabled",
         },
@@ -2952,18 +2704,6 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
         },
         "Runtime": "nodejs18.x",
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "Timeout": 120,
       },
       "Type": "AWS::Lambda::Function",
@@ -3121,18 +2861,6 @@ exports[`Distributed Load Testing stack test 1`] = `
             "PolicyName": "CustomResourcePolicy",
           },
         ],
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::IAM::Role",
     },
@@ -3205,7 +2933,7 @@ exports[`Distributed Load Testing stack test 1`] = `
             "UUID",
           ],
         },
-        "VERSION": {
+        "Version": {
           "Fn::FindInMap": [
             "Solution",
             "Config",
@@ -3583,7 +3311,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Properties": {
         "DestinationArn": {
           "Fn::GetAtt": [
-            "RealTimeDataRealTimeDataPublisher7E8F8F6C",
+            "RealTimeDataRealTimeDataPublisherNew82D06000",
             "Arn",
           ],
         },
@@ -3599,7 +3327,7 @@ exports[`Distributed Load Testing stack test 1`] = `
         "Action": "lambda:InvokeFunction",
         "FunctionName": {
           "Fn::GetAtt": [
-            "RealTimeDataRealTimeDataPublisher7E8F8F6C",
+            "RealTimeDataRealTimeDataPublisherNew82D06000",
             "Arn",
           ],
         },
@@ -3627,18 +3355,6 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Properties": {
         "RetentionInDays": 365,
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
@@ -3688,18 +3404,6 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Properties": {
         "GroupDescription": "DLTS Tasks Security Group",
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "VpcId": {
           "Fn::If": [
             "CreateFargateVPCResources",
@@ -3787,22 +3491,21 @@ exports[`Distributed Load Testing stack test 1`] = `
             "Arn",
           ],
         },
+        "Family": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-task-family",
+            ],
+          ],
+        },
         "Memory": "4096",
         "NetworkMode": "awsvpc",
         "RequiresCompatibilities": [
           "FARGATE",
-        ],
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
         ],
         "TaskRoleArn": {
           "Fn::GetAtt": [
@@ -3891,18 +3594,6 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Version": "2012-10-17",
             },
             "PolicyName": "ScenariosS3Policy",
-          },
-        ],
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
           },
         ],
       },
@@ -4037,18 +3728,6 @@ exports[`Distributed Load Testing stack test 1`] = `
             "PolicyName": "TaskLambdaPolicy",
           },
         ],
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::IAM::Role",
     },
@@ -4117,18 +3796,6 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
           "Version": "2012-10-17",
         },
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::IAM::Role",
     },
@@ -4227,22 +3894,29 @@ exports[`Distributed Load Testing stack test 1`] = `
             "PolicyName": "TaskCancelerPolicy",
           },
         ],
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::IAM::Role",
     },
-    "DLTLambdaFunctionResultsParserFF5CC920": {
+    "DLTLambdaFunctionResultsParserLambdaLogGroupADF0ADEA": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "DLTLambdaFunctionResultsParserNew4A490450",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 731,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "DLTLambdaFunctionResultsParserNew4A490450": {
       "DependsOn": [
         "DLTLambdaFunctionLambdaResultsRole2CF2D707",
       ],
@@ -4355,23 +4029,40 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
         },
         "Runtime": "nodejs18.x",
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "Timeout": 120,
       },
       "Type": "AWS::Lambda::Function",
     },
-    "DLTLambdaFunctionTaskCanceler4E12BDA6": {
+    "DLTLambdaFunctionTaskCancelerInvokePolicyA1C7562A": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionTaskCancelerNewA6986F4A",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "DLTLambdaFunctionTaskCancelerInvokePolicyA1C7562A",
+        "Roles": [
+          {
+            "Ref": "DLTLambdaFunctionTaskStatusRole9288E645",
+          },
+          {
+            "Ref": "DLTApiDLTAPIServicesLambdaRole4465EAA4",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "DLTLambdaFunctionTaskCancelerNewA6986F4A": {
       "DependsOn": [
         "DLTLambdaFunctionLambdaTaskCancelerRoleAE2C84CF",
       ],
@@ -4465,52 +4156,49 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
         },
         "Runtime": "nodejs18.x",
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
     },
-    "DLTLambdaFunctionTaskCancelerInvokePolicyA1C7562A": {
+    "DLTLambdaFunctionTaskCancellerLambdaLogGroupBD1D284E": {
+      "DeletionPolicy": "Retain",
       "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": "lambda:InvokeFunction",
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "DLTLambdaFunctionTaskCanceler4E12BDA6",
-                  "Arn",
-                ],
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "DLTLambdaFunctionTaskCancelerNewA6986F4A",
               },
-            },
+            ],
           ],
-          "Version": "2012-10-17",
         },
-        "PolicyName": "DLTLambdaFunctionTaskCancelerInvokePolicyA1C7562A",
-        "Roles": [
-          {
-            "Ref": "DLTLambdaFunctionTaskStatusRole9288E645",
-          },
-          {
-            "Ref": "DLTApiDLTAPIServicesLambdaRole4465EAA4",
-          },
-        ],
+        "RetentionInDays": 731,
       },
-      "Type": "AWS::IAM::Policy",
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
     },
-    "DLTLambdaFunctionTaskRunnerAAAD9171": {
+    "DLTLambdaFunctionTaskRunnerLambdaLogGroupF801BE82": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "DLTLambdaFunctionTaskRunnerNew5AE1A3C2",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 731,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "DLTLambdaFunctionTaskRunnerNew5AE1A3C2": {
       "DependsOn": [
         "DLTLambdaFunctionDLTTestLambdaTaskRole1FDBCEDD",
       ],
@@ -4603,23 +4291,11 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
         },
         "Runtime": "nodejs18.x",
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
     },
-    "DLTLambdaFunctionTaskStatusChecker1AA63EC9": {
+    "DLTLambdaFunctionTaskStatusCheckerNew00D99653": {
       "DependsOn": [
         "DLTLambdaFunctionTaskStatusRole9288E645",
       ],
@@ -4691,7 +4367,7 @@ exports[`Distributed Load Testing stack test 1`] = `
             },
             "TASK_CANCELER_ARN": {
               "Fn::GetAtt": [
-                "DLTLambdaFunctionTaskCanceler4E12BDA6",
+                "DLTLambdaFunctionTaskCancelerNewA6986F4A",
                 "Arn",
               ],
             },
@@ -4712,18 +4388,6 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
         },
         "Runtime": "nodejs18.x",
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "Timeout": 180,
       },
       "Type": "AWS::Lambda::Function",
@@ -4791,20 +4455,27 @@ exports[`Distributed Load Testing stack test 1`] = `
             "PolicyName": "TaskStatusPolicy",
           },
         ],
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::IAM::Role",
+    },
+    "DLTLambdaFunctiontaskStatusCheckerLambdaLogGroup1988969D": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "DLTLambdaFunctionTaskStatusCheckerNew00D99653",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 731,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
     },
     "DLTStepFunctionStepFunctionsLogGroup8DABDAB7": {
       "DeletionPolicy": "Retain",
@@ -4837,18 +4508,6 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
         },
         "RetentionInDays": 365,
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
@@ -4871,7 +4530,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               ":states:::lambda:invoke","Parameters":{"FunctionName":"",
               {
                 "Fn::GetAtt": [
-                  "DLTLambdaFunctionTaskStatusChecker1AA63EC9",
+                  "DLTLambdaFunctionTaskStatusCheckerNew00D99653",
                   "Arn",
                 ],
               },
@@ -4882,7 +4541,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               ":states:::lambda:invoke","Parameters":{"FunctionName":"",
               {
                 "Fn::GetAtt": [
-                  "DLTLambdaFunctionTaskRunnerAAAD9171",
+                  "DLTLambdaFunctionTaskRunnerNew5AE1A3C2",
                   "Arn",
                 ],
               },
@@ -4893,7 +4552,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               ":states:::lambda:invoke","Parameters":{"FunctionName":"",
               {
                 "Fn::GetAtt": [
-                  "DLTLambdaFunctionTaskStatusChecker1AA63EC9",
+                  "DLTLambdaFunctionTaskStatusCheckerNew00D99653",
                   "Arn",
                 ],
               },
@@ -4904,7 +4563,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               ":states:::lambda:invoke","Parameters":{"FunctionName":"",
               {
                 "Fn::GetAtt": [
-                  "DLTLambdaFunctionTaskCanceler4E12BDA6",
+                  "DLTLambdaFunctionTaskCancelerNewA6986F4A",
                   "Arn",
                 ],
               },
@@ -4915,7 +4574,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               ":states:::lambda:invoke","Parameters":{"FunctionName":"",
               {
                 "Fn::GetAtt": [
-                  "DLTLambdaFunctionTaskRunnerAAAD9171",
+                  "DLTLambdaFunctionTaskRunnerNew5AE1A3C2",
                   "Arn",
                 ],
               },
@@ -4926,7 +4585,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               ":states:::lambda:invoke","Parameters":{"FunctionName":"",
               {
                 "Fn::GetAtt": [
-                  "DLTLambdaFunctionTaskStatusChecker1AA63EC9",
+                  "DLTLambdaFunctionTaskStatusCheckerNew00D99653",
                   "Arn",
                 ],
               },
@@ -4937,7 +4596,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               ":states:::lambda:invoke","Parameters":{"FunctionName":"",
               {
                 "Fn::GetAtt": [
-                  "DLTLambdaFunctionResultsParserFF5CC920",
+                  "DLTLambdaFunctionResultsParserNew4A490450",
                   "Arn",
                 ],
               },
@@ -4967,18 +4626,6 @@ exports[`Distributed Load Testing stack test 1`] = `
             "Arn",
           ],
         },
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::StepFunctions::StateMachine",
       "UpdateReplacePolicy": "Delete",
@@ -5005,32 +4652,12 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Action": "sts:AssumeRole",
               "Effect": "Allow",
               "Principal": {
-                "Service": {
-                  "Fn::FindInMap": [
-                    "ServiceprincipalMap",
-                    {
-                      "Ref": "AWS::Region",
-                    },
-                    "states",
-                  ],
-                },
+                "Service": "states.amazonaws.com",
               },
             },
           ],
           "Version": "2012-10-17",
         },
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::IAM::Role",
     },
@@ -5058,7 +4685,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Resource": [
                 {
                   "Fn::GetAtt": [
-                    "DLTLambdaFunctionResultsParserFF5CC920",
+                    "DLTLambdaFunctionResultsParserNew4A490450",
                     "Arn",
                   ],
                 },
@@ -5068,7 +4695,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                     [
                       {
                         "Fn::GetAtt": [
-                          "DLTLambdaFunctionResultsParserFF5CC920",
+                          "DLTLambdaFunctionResultsParserNew4A490450",
                           "Arn",
                         ],
                       },
@@ -5084,7 +4711,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Resource": [
                 {
                   "Fn::GetAtt": [
-                    "DLTLambdaFunctionTaskStatusChecker1AA63EC9",
+                    "DLTLambdaFunctionTaskStatusCheckerNew00D99653",
                     "Arn",
                   ],
                 },
@@ -5094,7 +4721,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                     [
                       {
                         "Fn::GetAtt": [
-                          "DLTLambdaFunctionTaskStatusChecker1AA63EC9",
+                          "DLTLambdaFunctionTaskStatusCheckerNew00D99653",
                           "Arn",
                         ],
                       },
@@ -5110,7 +4737,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Resource": [
                 {
                   "Fn::GetAtt": [
-                    "DLTLambdaFunctionTaskRunnerAAAD9171",
+                    "DLTLambdaFunctionTaskRunnerNew5AE1A3C2",
                     "Arn",
                   ],
                 },
@@ -5120,7 +4747,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                     [
                       {
                         "Fn::GetAtt": [
-                          "DLTLambdaFunctionTaskRunnerAAAD9171",
+                          "DLTLambdaFunctionTaskRunnerNew5AE1A3C2",
                           "Arn",
                         ],
                       },
@@ -5136,7 +4763,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Resource": [
                 {
                   "Fn::GetAtt": [
-                    "DLTLambdaFunctionTaskCanceler4E12BDA6",
+                    "DLTLambdaFunctionTaskCancelerNewA6986F4A",
                     "Arn",
                   ],
                 },
@@ -5146,7 +4773,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                     [
                       {
                         "Fn::GetAtt": [
-                          "DLTLambdaFunctionTaskCanceler4E12BDA6",
+                          "DLTLambdaFunctionTaskCancelerNewA6986F4A",
                           "Arn",
                         ],
                       },
@@ -5212,18 +4839,6 @@ exports[`Distributed Load Testing stack test 1`] = `
         "SSESpecification": {
           "SSEEnabled": true,
         },
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::DynamoDB::Table",
       "UpdateReplacePolicy": "Retain",
@@ -5285,18 +4900,6 @@ exports[`Distributed Load Testing stack test 1`] = `
           "IgnorePublicAcls": true,
           "RestrictPublicBuckets": true,
         },
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "VersioningConfiguration": {
           "Status": "Enabled",
         },
@@ -5407,18 +5010,6 @@ exports[`Distributed Load Testing stack test 1`] = `
         "SSESpecification": {
           "SSEEnabled": true,
         },
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::DynamoDB::Table",
       "UpdateReplacePolicy": "Retain",
@@ -5549,37 +5140,11 @@ exports[`Distributed Load Testing stack test 1`] = `
     },
     "DLTVpcDLTFargateIG0E71BA5C": {
       "Condition": "CreateFargateVPCResources",
-      "Properties": {
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
-      },
       "Type": "AWS::EC2::InternetGateway",
     },
     "DLTVpcDLTFargateRT86406464": {
       "Condition": "CreateFargateVPCResources",
       "Properties": {
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "VpcId": {
           "Ref": "DLTVpcDLTFargateVpc0E6FEAB7",
         },
@@ -5609,16 +5174,6 @@ exports[`Distributed Load Testing stack test 1`] = `
             "Key": "Name",
             "Value": {
               "Ref": "AWS::StackName",
-            },
-          },
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
             },
           },
         ],
@@ -5691,18 +5246,6 @@ exports[`Distributed Load Testing stack test 1`] = `
         "CidrBlock": {
           "Ref": "SubnetACidrBlock",
         },
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "VpcId": {
           "Ref": "DLTVpcDLTFargateVpc0E6FEAB7",
         },
@@ -5723,18 +5266,6 @@ exports[`Distributed Load Testing stack test 1`] = `
         "CidrBlock": {
           "Ref": "SubnetBCidrBlock",
         },
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "VpcId": {
           "Ref": "DLTVpcDLTFargateVpc0E6FEAB7",
         },
@@ -5784,19 +5315,29 @@ exports[`Distributed Load Testing stack test 1`] = `
         "Name": {
           "Ref": "AWS::StackName",
         },
-        "Tags": {
-          "SolutionId": {
-            "Fn::FindInMap": [
-              "Solution",
-              "Config",
-              "SolutionId",
-            ],
-          },
-        },
       },
       "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroup",
     },
-    "RealTimeDataRealTimeDataPublisher7E8F8F6C": {
+    "RealTimeDataRealTimeDataPublisherLogGroup3FE55F9A": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "RealTimeDataRealTimeDataPublisherNew82D06000",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 731,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "RealTimeDataRealTimeDataPublisherNew82D06000": {
       "DependsOn": [
         "RealTimeDatarealTimeDataPublisherRoleA8976D01",
       ],
@@ -5889,18 +5430,6 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
         },
         "Runtime": "nodejs18.x",
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "Timeout": 180,
       },
       "Type": "AWS::Lambda::Function",
@@ -5953,20 +5482,674 @@ exports[`Distributed Load Testing stack test 1`] = `
             "PolicyName": "IoTPolicy",
           },
         ],
-        "Tags": [
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "SolutionMetricsBilledDurationQueryFC2D10CF": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "LogGroupNames": [
           {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
+            "Ref": "DLTLambdaFunctionTaskRunnerLambdaLogGroupF801BE82",
+          },
+          {
+            "Ref": "RealTimeDataRealTimeDataPublisherLogGroup3FE55F9A",
+          },
+          {
+            "Ref": "DLTLambdaFunctionResultsParserLambdaLogGroupADF0ADEA",
+          },
+          {
+            "Ref": "DLTLambdaFunctionTaskCancellerLambdaLogGroupBD1D284E",
+          },
+          {
+            "Ref": "DLTLambdaFunctiontaskStatusCheckerLambdaLogGroup1988969D",
+          },
+          {
+            "Ref": "DLTApidltApiServicesLambdaLogGroup54338B12",
+          },
+        ],
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-BilledDurationQuery",
+            ],
+          ],
+        },
+        "QueryString": "stats sum(@billedDuration) as AWSLambdaBilledDuration, max(@memorySize) as AWSLambdaMemorySize",
+      },
+      "Type": "AWS::Logs::QueryDefinition",
+    },
+    "SolutionMetricsEventbridgeRuleToLambdaEventsRule3849A6EF": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "ScheduleExpression": "cron(0 23 ? * MON *)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "SolutionMetricsMetricsLambdaBD5829C7",
+                "Arn",
               ],
+            },
+            "Id": "Target0",
+            "InputTransformer": {
+              "InputPathsMap": {
+                "detail-type": "$.detail-type",
+                "time": "$.time",
+              },
+              "InputTemplate": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "{"detail-type": <detail-type>, "time": <time>, "metrics-data-query": [{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    {
+                      "Ref": "DLTLambdaFunctionTaskRunnerNew5AE1A3C2",
+                    },
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"Id":"id_",
+                    {
+                      "Fn::Join": [
+                        "_",
+                        {
+                          "Fn::Split": [
+                            "-",
+                            {
+                              "Ref": "AWS::StackName",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    "_0"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    {
+                      "Ref": "RealTimeDataRealTimeDataPublisherNew82D06000",
+                    },
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"Id":"id_",
+                    {
+                      "Fn::Join": [
+                        "_",
+                        {
+                          "Fn::Split": [
+                            "-",
+                            {
+                              "Ref": "AWS::StackName",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    "_1"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    {
+                      "Ref": "DLTLambdaFunctionResultsParserNew4A490450",
+                    },
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"Id":"id_",
+                    {
+                      "Fn::Join": [
+                        "_",
+                        {
+                          "Fn::Split": [
+                            "-",
+                            {
+                              "Ref": "AWS::StackName",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    "_2"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    {
+                      "Ref": "DLTLambdaFunctionTaskCancelerNewA6986F4A",
+                    },
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"Id":"id_",
+                    {
+                      "Fn::Join": [
+                        "_",
+                        {
+                          "Fn::Split": [
+                            "-",
+                            {
+                              "Ref": "AWS::StackName",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    "_3"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    {
+                      "Ref": "DLTLambdaFunctionTaskStatusCheckerNew00D99653",
+                    },
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"Id":"id_",
+                    {
+                      "Fn::Join": [
+                        "_",
+                        {
+                          "Fn::Split": [
+                            "-",
+                            {
+                              "Ref": "AWS::StackName",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    "_4"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    {
+                      "Ref": "DLTCustomResourceInfraCustomResourceLambdaA4053269",
+                    },
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"Id":"id_",
+                    {
+                      "Fn::Join": [
+                        "_",
+                        {
+                          "Fn::Split": [
+                            "-",
+                            {
+                              "Ref": "AWS::StackName",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    "_5"},{"MetricStat":{"Metric":{"Namespace":"AWS/DynamoDB","Dimensions":[{"Name":"TableName","Value":"",
+                    {
+                      "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+                    },
+                    ""}],"MetricName":"ConsumedReadCapacityUnits"},"Stat":"Sum","Period":604800},"Id":"id_",
+                    {
+                      "Fn::Join": [
+                        "_",
+                        {
+                          "Fn::Split": [
+                            "-",
+                            {
+                              "Ref": "AWS::StackName",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    "_6"},{"MetricStat":{"Metric":{"Namespace":"AWS/DynamoDB","Dimensions":[{"Name":"TableName","Value":"",
+                    {
+                      "Ref": "DLTTestRunnerStorageDLTHistoryTable46D850CC",
+                    },
+                    ""}],"MetricName":"ConsumedReadCapacityUnits"},"Stat":"Sum","Period":604800},"Id":"id_",
+                    {
+                      "Fn::Join": [
+                        "_",
+                        {
+                          "Fn::Split": [
+                            "-",
+                            {
+                              "Ref": "AWS::StackName",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    "_7"},{"MetricStat":{"Metric":{"Namespace":"AWS/DynamoDB","Dimensions":[{"Name":"TableName","Value":"",
+                    {
+                      "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+                    },
+                    ""}],"MetricName":"ConsumedWriteCapacityUnits"},"Stat":"Sum","Period":604800},"Id":"id_",
+                    {
+                      "Fn::Join": [
+                        "_",
+                        {
+                          "Fn::Split": [
+                            "-",
+                            {
+                              "Ref": "AWS::StackName",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    "_8"},{"MetricStat":{"Metric":{"Namespace":"AWS/DynamoDB","Dimensions":[{"Name":"TableName","Value":"",
+                    {
+                      "Ref": "DLTTestRunnerStorageDLTHistoryTable46D850CC",
+                    },
+                    ""}],"MetricName":"ConsumedWriteCapacityUnits"},"Stat":"Sum","Period":604800},"Id":"id_",
+                    {
+                      "Fn::Join": [
+                        "_",
+                        {
+                          "Fn::Split": [
+                            "-",
+                            {
+                              "Ref": "AWS::StackName",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    "_9"},{"MetricStat":{"Metric":{"Namespace":"ECS/ContainerInsights","Dimensions":[{"Name":"ClusterName","Value":"",
+                    {
+                      "Ref": "DLTEcsDLTEcsClusterBC5CE23B",
+                    },
+                    ""},{"Name":"TaskDefinitionFamily","Value":"",
+                    {
+                      "Ref": "AWS::StackName",
+                    },
+                    "-task-family"}],"MetricName":"CpuUtilized"},"Stat":"Average","Period":300},"Id":"id_",
+                    {
+                      "Fn::Join": [
+                        "_",
+                        {
+                          "Fn::Split": [
+                            "-",
+                            {
+                              "Ref": "AWS::StackName",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    "_10"},{"MetricStat":{"Metric":{"Namespace":"ECS/ContainerInsights","Dimensions":[{"Name":"ClusterName","Value":"",
+                    {
+                      "Ref": "DLTEcsDLTEcsClusterBC5CE23B",
+                    },
+                    ""},{"Name":"TaskDefinitionFamily","Value":"",
+                    {
+                      "Ref": "AWS::StackName",
+                    },
+                    "-task-family"}],"MetricName":"MemoryUtilized"},"Stat":"Average","Period":300},"Id":"id_",
+                    {
+                      "Fn::Join": [
+                        "_",
+                        {
+                          "Fn::Split": [
+                            "-",
+                            {
+                              "Ref": "AWS::StackName",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    "_11"}]}",
+                  ],
+                ],
+              },
             },
           },
         ],
       },
+      "Type": "AWS::Events::Rule",
+    },
+    "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2": {
+      "Condition": "SendAnonymizedUsage",
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "DelaySeconds": 900,
+        "KmsMasterKeyId": "alias/aws/sqs",
+        "MaximumMessageSize": 1024,
+        "MessageRetentionPeriod": 86400,
+        "ReceiveMessageWaitTimeSeconds": 20,
+        "VisibilityTimeout": 1020,
+      },
+      "Type": "AWS::SQS::Queue",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueuePolicy30A8FD64": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "sqs:DeleteMessage",
+                "sqs:ReceiveMessage",
+                "sqs:SendMessage",
+                "sqs:GetQueueAttributes",
+                "sqs:RemovePermission",
+                "sqs:AddPermission",
+                "sqs:SetQueueAttributes",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":root",
+                    ],
+                  ],
+                },
+              },
+              "Resource": {
+                "Fn::GetAtt": [
+                  "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+                  "Arn",
+                ],
+              },
+              "Sid": "QueueOwnerOnlyAccess",
+            },
+            {
+              "Action": "SQS:*",
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false",
+                },
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": {
+                "Fn::GetAtt": [
+                  "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+                  "Arn",
+                ],
+              },
+              "Sid": "HttpsOnly",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Queues": [
+          {
+            "Ref": "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+          },
+        ],
+      },
+      "Type": "AWS::SQS::QueuePolicy",
+    },
+    "SolutionMetricsMetricsLambdaAwsEventsLambdaInvokePermission175518221": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "SolutionMetricsMetricsLambdaBD5829C7",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "SolutionMetricsEventbridgeRuleToLambdaEventsRule3849A6EF",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "SolutionMetricsMetricsLambdaBD5829C7": {
+      "Condition": "SendAnonymizedUsage",
+      "DependsOn": [
+        "SolutionMetricsMetricsLambdaServiceRoleDefaultPolicyE7D305A3",
+        "SolutionMetricsMetricsLambdaServiceRole662035AC",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Join": [
+              "-",
+              [
+                {
+                  "Fn::FindInMap": [
+                    "Solution",
+                    "Config",
+                    "S3Bucket",
+                  ],
+                },
+                {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": {
+            "Fn::Join": [
+              "",
+              [
+                {
+                  "Fn::FindInMap": [
+                    "Solution",
+                    "Config",
+                    "KeyPrefix",
+                  ],
+                },
+                "/metrics-utils.zip",
+              ],
+            ],
+          },
+        },
+        "Description": "Metrics util",
+        "Environment": {
+          "Variables": {
+            "EXECUTION_DAY": "MON",
+            "QUERY_PREFIX": {
+              "Fn::Join": [
+                "",
+                [
+                  {
+                    "Ref": "AWS::StackName",
+                  },
+                  "-",
+                ],
+              ],
+            },
+            "SOLUTION_ID": "SO0062",
+            "SOLUTION_NAME": "distributed-load-testing-on-aws",
+            "SOLUTION_VERSION": "testversion",
+            "SQS_QUEUE_URL": {
+              "Ref": "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+            },
+            "UUID": {
+              "Fn::GetAtt": [
+                "DLTCustomResourcesCustomResourceUuidD1C03F15",
+                "UUID",
+              ],
+            },
+          },
+        },
+        "Handler": "index.handler",
+        "MemorySize": 128,
+        "Role": {
+          "Fn::GetAtt": [
+            "SolutionMetricsMetricsLambdaServiceRole662035AC",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs18.x",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "SolutionMetricsMetricsLambdaServiceRole662035AC": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
       "Type": "AWS::IAM::Role",
+    },
+    "SolutionMetricsMetricsLambdaServiceRoleDefaultPolicyE7D305A3": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "sqs:SendMessage",
+                "sqs:GetQueueAttributes",
+                "sqs:GetQueueUrl",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "sqs:ReceiveMessage",
+                "sqs:ChangeMessageVisibility",
+                "sqs:GetQueueUrl",
+                "sqs:DeleteMessage",
+                "sqs:GetQueueAttributes",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": "cloudwatch:GetMetricData",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "logs:StartQuery",
+                "logs:GetQueryResults",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionTaskRunnerLambdaLogGroupF801BE82",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "logs:StartQuery",
+                "logs:GetQueryResults",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "RealTimeDataRealTimeDataPublisherLogGroup3FE55F9A",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "logs:StartQuery",
+                "logs:GetQueryResults",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionResultsParserLambdaLogGroupADF0ADEA",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "logs:StartQuery",
+                "logs:GetQueryResults",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionTaskCancellerLambdaLogGroupBD1D284E",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "logs:StartQuery",
+                "logs:GetQueryResults",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctiontaskStatusCheckerLambdaLogGroup1988969D",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "logs:StartQuery",
+                "logs:GetQueryResults",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTApidltApiServicesLambdaLogGroup54338B12",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": "logs:DescribeQueryDefinitions",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SolutionMetricsMetricsLambdaServiceRoleDefaultPolicyE7D305A3",
+        "Roles": [
+          {
+            "Ref": "SolutionMetricsMetricsLambdaServiceRole662035AC",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "SolutionMetricsMetricsLambdaSqsEventSourceDLTStackSolutionMetricsLambdaToSqsToLambdalambdatosqsqueue58E53CDD28E90BDF": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "EventSourceArn": {
+          "Fn::GetAtt": [
+            "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+            "Arn",
+          ],
+        },
+        "FunctionName": {
+          "Ref": "SolutionMetricsMetricsLambdaBD5829C7",
+        },
+      },
+      "Type": "AWS::Lambda::EventSourceMapping",
     },
   },
   "Rules": {

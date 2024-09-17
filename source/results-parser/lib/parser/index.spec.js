@@ -1039,7 +1039,13 @@ describe("#RESULTS PARSER::", () => {
     [
       "distributed-load-testing",
       `${testId}-numVu`,
-      { region: "us-east-1", color: "#1f77b4", label: "Virtual Users", stat: "Sum", yAxis: "right" },
+      {
+        region: "us-east-1",
+        color: "#1f77b4",
+        label: "Accumulated Virtual Users Activities",
+        stat: "Sum",
+        yAxis: "right",
+      },
     ],
     [
       "distributed-load-testing",
@@ -1086,7 +1092,7 @@ describe("#RESULTS PARSER::", () => {
       {
         region: "us-east-1",
         color: "#1f77b4",
-        label: "Virtual Users",
+        label: "Accumulated Virtual Users Activities",
         stat: "Sum",
         yAxis: "right",
         id: "numVu0",
@@ -1164,7 +1170,14 @@ describe("#RESULTS PARSER::", () => {
       },
     ],
     [{ expression: "AVG([avgRt0,avgRt1])", color: "#FF9900", label: "Avg Response Time" }],
-    [{ expression: "SUM([numVu0,numVu1])", color: "#1f77b4", label: "Virtual Users", yAxis: "right" }],
+    [
+      {
+        expression: "SUM([numVu0,numVu1])",
+        color: "#1f77b4",
+        label: "Accumulated Virtual Users Activities",
+        yAxis: "right",
+      },
+    ],
     [{ expression: "SUM([numSucc0,numSucc1])", color: "#2CA02C", label: "Successes", yAxis: "right" }],
     [{ expression: "SUM([numFail0,numFail1])", color: "#D62728", label: "Failures", yAxis: "right" }],
   ];

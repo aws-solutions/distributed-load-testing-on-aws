@@ -6,6 +6,10 @@ import { uploadData } from "aws-amplify/storage";
 import { get, post } from "aws-amplify/api";
 import "brace";
 import { v4 as uuidv4 } from "uuid";
+import { Cron } from "react-js-cron";
+
+import "react-js-cron/dist/styles.css";
+import cronParser from "cron-parser";
 
 import AceEditor from "react-ace";
 import {
@@ -27,6 +31,9 @@ import {
   NavLink,
   TabContent,
   TabPane,
+  Modal,
+  ModalBody,
+  ModalFooter,
 } from "reactstrap";
 import "brace/theme/github";
 import { generateUniqueId } from "solution-utils";
@@ -37,7 +44,7 @@ import RefreshButtons from "../Shared/Buttons/RefreshButtons";
 const FILE_SIZE_LIMIT = 50 * 1024 * 1024;
 
 // Allowed file extensions
-const FILE_EXTENSIONS = ["jmx", "zip"];
+const SCRIPT_FILE_EXTENSIONS = { jmeter: "jmx" };
 
 class Create extends React.Component {
   constructor(props) {
@@ -85,6 +92,11 @@ class Create extends React.Component {
       showResourceTable: false,
       vCPUDetailsLoading: true,
       regionsExceedingResources: new Set(),
+      showModal: false,
+      cronError: false,
+      cronDateError: false,
+      submitFailure: "",
+      intervalDiff: false,
       formValues: {
         testName: this.props.location.state.data.testName,
         testDescription: this.props.location.state.data.testDescription,
@@ -104,8 +116,13 @@ class Create extends React.Component {
         scheduleTime: this.props.location.state.data.scheduleTime || "",
         recurrence: this.props.location.state.data.recurrence || "",
         showLive: this.props.location.state.data.showLive || false,
+        cronValue: this.props.location.state.data.cronValue || "0 * * * *",
+        cronExpiryDate: this.props.location.state.data.cronExpiryDate || "",
       },
     };
+    if (this.props.location.state.data.cronValue) {
+      this.state.activeTab = "3";
+    }
   }
 
   initializeStateForNewTest() {
@@ -125,6 +142,11 @@ class Create extends React.Component {
       showResourceTable: false,
       vCPUDetailsLoading: true,
       regionsExceedingResources: new Set(),
+      showModal: false,
+      cronError: false,
+      submitFailure: "",
+      intervalDiff: false,
+
       formValues: {
         testName: "",
         testDescription: "",
@@ -144,6 +166,8 @@ class Create extends React.Component {
         scheduleTime: "",
         recurrence: "",
         showLive: false,
+        cronValue: "0 * * * *",
+        cronExpiryDate: "",
       },
     };
   }
@@ -165,6 +189,30 @@ class Create extends React.Component {
       return false;
     }
   }
+  alertsForBadCronInputs() {
+    if ((this.state.formValues.cronValue && this.state.cronError) || !this.state.formValues.cronValue) {
+      return alert("Please provide a valid cron expression");
+    }
+
+    if (this.state.cronDateError) {
+      return alert("cron expiry date cannot be older than the today's date.");
+    }
+  }
+
+  onSchedulePayloadUpdate = (payload) => {
+    const { scheduleDate, scheduleTime, recurrence, cronValue, cronExpiryDate } = this.state.formValues;
+    payload.scheduleStep = "start";
+    payload.scheduleDate = scheduleDate;
+    payload.scheduleTime = scheduleTime;
+    payload.cronValue = "";
+    if (this.state.activeTab !== "1") {
+      payload.scheduleStep = "create";
+      payload.recurrence = recurrence ? recurrence : "";
+      payload.cronExpiryDate = cronExpiryDate ? cronExpiryDate : "";
+      payload.cronValue = !recurrence ? cronValue : "";
+    }
+    return payload;
+  };
 
   handleSubmit = async () => {
     const {
@@ -175,10 +223,6 @@ class Create extends React.Component {
       rampUpUnits,
       holdFor,
       holdForUnits,
-      onSchedule,
-      scheduleDate,
-      scheduleTime,
-      recurrence,
       testType,
       fileType,
       showLive,
@@ -186,6 +230,7 @@ class Create extends React.Component {
       body,
       endpoint,
       method,
+      onSchedule,
     } = this.state.formValues;
 
     if (!this.form.current.reportValidity()) {
@@ -204,6 +249,7 @@ class Create extends React.Component {
             "ramp-up": String(parseInt(rampUp)).concat(rampUpUnits),
             "hold-for": String(parseInt(holdFor)).concat(holdForUnits),
             scenario: testName,
+            executor: testType !== "simple" ? testType : "jmeter",
           },
         ],
         scenarios: {
@@ -215,18 +261,12 @@ class Create extends React.Component {
       fileType: fileType,
       regionalTaskDetails: this.state.regionalTaskDetails,
     };
+    console.log("Payload", payload);
+    if (!!parseInt(onSchedule)) payload = this.onSchedulePayloadUpdate(payload);
 
-    if (!!parseInt(onSchedule)) {
-      payload.scheduleDate = scheduleDate;
-      payload.scheduleTime = scheduleTime;
-      payload.scheduleStep = "start";
-      if (this.state.activeTab === "2") {
-        payload.scheduleStep = "create";
-        payload.recurrence = recurrence;
-      }
-    }
     await this.setPayloadTestScenario({ testType, testName, endpoint, method, headers, body, payload, testId });
 
+    this.alertsForBadCronInputs();
     this.setState({ isLoading: true });
     this.setState({ isUploading: false });
     try {
@@ -241,7 +281,7 @@ class Create extends React.Component {
       console.log("Scenario created successfully", response.testId);
       this.props.history.push({ pathname: `/details/${response.testId}`, state: { testId: response.testId } });
     } catch (err) {
-      console.error("Failed to create scenario", err);
+      this.state.submitFailure = err;
       this.setState({ isLoading: false });
     }
   };
@@ -269,19 +309,20 @@ class Create extends React.Component {
           },
         ],
       };
-      console.log(payload);
     } else {
+      const extension = SCRIPT_FILE_EXTENSIONS[testType];
       payload.testScenario.scenarios[testName] = {
-        script: `${testId}.jmx`,
+        script: `${testId}.${extension}`,
       };
 
       if (this.state.file) {
-        payload.fileType = await this.uploadFileToScenarioBucket(testId);
+        payload.fileType = await this.uploadFileToScenarioBucket(testId, testType);
       }
     }
   }
 
-  async uploadFileToScenarioBucket(testId) {
+  async uploadFileToScenarioBucket(testId, testType) {
+    const extension = SCRIPT_FILE_EXTENSIONS[testType];
     const file = this.state.file;
     let filename;
     let fileType;
@@ -290,11 +331,11 @@ class Create extends React.Component {
       filename = `${testId}.zip`;
     } else {
       fileType = "script";
-      filename = `${testId}.jmx`;
+      filename = `${testId}.${extension}`;
     }
     try {
       this.setState({ isUploading: true });
-      await uploadData({ key: `test-scenarios/jmeter/${filename}`, data: file }).result;
+      await uploadData({ key: `test-scenarios/${testType}/${filename}`, data: file }).result;
       console.log("Script uploaded successfully");
     } catch (error) {
       console.error("Error", error);
@@ -313,7 +354,16 @@ class Create extends React.Component {
     this.setState({ formValues });
   }
 
+  onCronError = (error) => {
+    this.setState({ cronError: false, intervalDiff: false, submitFailure: false });
+    if (this.checkOneHourDiff()) this.setState({ cronError: true });
+    if (this.checkEnoughIntervalDiff()) this.setState({ intervalDiff: true });
+    if (error && error.type === "invalid_cron") this.setState({ cronError: true });
+  };
+
   handleInputChange(event) {
+    this.setState({ submitFailure: false });
+
     const value = event.target.name === "showLive" ? event.target.checked : event.target.value;
     const name = event.target.name;
     const id = event.target.id;
@@ -324,7 +374,18 @@ class Create extends React.Component {
       this.setState({ submitLabel: value === "1" ? "Schedule" : "Run Now" });
     } else if (name === "testTaskConfigs") {
       this.checkForTaskCountWarning(value, id);
-    }
+    } else if (name === "cronExpiryDate" && value) {
+      const [year, month, day] = value.split("-");
+      let selectedDate = new Date(year, month - 1, day);
+      selectedDate.setDate(selectedDate.getDate() + 1);
+      const today = new Date();
+      this.setState({ cronDateError: selectedDate <= today });
+      this.setFormValue("cronExpiryDate", value, id);
+    } else if (name === "cronValue") {
+      this.setState({ cronError: true });
+    } else if (name === "holdFor" || name === "rampUp") this.setFormValue(name, value, id);
+    this.setState({ intervalDiff: false });
+    if (this.checkEnoughIntervalDiff()) this.setState({ intervalDiff: true });
 
     this.setFormValue(name, value, id);
   }
@@ -343,19 +404,20 @@ class Create extends React.Component {
       file: null,
       validFile: false,
     });
-
     if (file) {
       const { name, size } = file;
       const extension = name.split(".").pop();
-
+      const testType = this.state.formValues.testType;
       // Limit upload file size
       if (size > FILE_SIZE_LIMIT) {
         return alert(`WARNING: exceeded file size limit ${FILE_SIZE_LIMIT}`);
       }
 
-      // Limit file extension
-      if (!FILE_EXTENSIONS.includes(extension)) {
-        return alert(`WARNING: only allows (${FILE_EXTENSIONS.join(",")}) files.`);
+      if (extension === "zip") {
+        console.debug(`zip file provided for ${testType} test`);
+      } else if (extension !== SCRIPT_FILE_EXTENSIONS[testType]) {
+        event.target.value = null;
+        return alert(`WARNING: ${testType} cannot support ${extension} files.`);
       }
 
       this.setState({
@@ -486,6 +548,275 @@ class Create extends React.Component {
     } else {
       return <i className="large bi bi-caret-right" />;
     }
+  };
+
+  uploadFileDescription = () => {
+    if (!["jmeter"].includes(this.state.formValues.testType)) {
+      return null;
+    }
+    const ext = SCRIPT_FILE_EXTENSIONS[this.state.formValues.testType];
+    return (
+      <>
+        You can choose either a <code>.${ext}</code> file or a <code>.zip</code> file. Choose <code>.zip</code> file if
+        you have any files to upload other than a <code>.${ext}</code> script file.
+      </>
+    );
+  };
+
+  getNextRunDates = () => {
+    const { scheduleDate, scheduleTime, recurrence } = this.state.formValues;
+    const startDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
+    const nextRunDates = [];
+
+    // Calculate the next five run dates and times based on the recurrence
+    for (let i = 0; i < 5; i++) {
+      let nextRunDate;
+
+      switch (recurrence) {
+        case "daily":
+          nextRunDate = new Date(startDateTime.getTime() + i * 24 * 60 * 60 * 1000);
+          break;
+        case "weekly":
+          nextRunDate = new Date(startDateTime.getTime() + i * 7 * 24 * 60 * 60 * 1000);
+          break;
+        case "biweekly":
+          nextRunDate = new Date(startDateTime.getTime() + i * 2 * 7 * 24 * 60 * 60 * 1000);
+          break;
+        case "monthly":
+          nextRunDate = new Date(
+            startDateTime.getFullYear(),
+            startDateTime.getMonth() + i + 1,
+            startDateTime.getDate(),
+            startDateTime.getHours(),
+            startDateTime.getMinutes()
+          );
+          break;
+        default:
+          break;
+      }
+      if (nextRunDate) nextRunDates.push(nextRunDate);
+      else break;
+    }
+
+    if (nextRunDates.length === 0) return [];
+
+    const formattedDates = nextRunDates.map((date) => {
+      const options = {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric",
+      };
+      return date.toLocaleString("en-US", options);
+    });
+
+    return formattedDates;
+  };
+
+  renderNextRunDatesRecurring = () => {
+    const { scheduleDate, scheduleTime, recurrence } = this.state.formValues;
+
+    // Check if all required values are present
+    if (!scheduleDate || !scheduleTime || !recurrence) {
+      return null; // Return null to avoid rendering
+    }
+
+    const nextRunDates = this.getNextRunDates();
+
+    if (!nextRunDates || nextRunDates.length === 0) {
+      return null; // Return null if there are no run dates
+    }
+
+    return (
+      <div>
+        <br></br>
+        <h4>Next Run Dates (UTC):</h4>
+        <ul>
+          {nextRunDates.map((date) => (
+            <li key={date}>{date}</li>
+          ))}
+        </ul>
+        <p>These are the next 5 scheduled runs. More runs are scheduled.</p>
+      </div>
+    );
+  };
+
+  renderNextRunDatesAdvancedRecurring = () => {
+    const { formValues, cronError } = this.state;
+    const { cronValue, cronExpiryDate } = formValues;
+
+    // Check if cronValue is present and cronError is false
+    if (!cronValue || cronError) {
+      return null; // Return null to avoid rendering
+    }
+    const nextRunDates = this.nextSixRuns();
+
+    if (nextRunDates.length === 0) {
+      return null;
+    }
+
+    const options = {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+      timeZone: "UTC",
+    };
+    const upcomingRunsMessage =
+      nextRunDates.length <= 5
+        ? `These are all the upcoming runs. The test expires on ${cronExpiryDate}`
+        : "These are the next 5 scheduled runs. More runs are scheduled beyond these until the expiry date.";
+    return (
+      <div>
+        <h4>Next Run Dates (UTC):</h4>
+        <ul>
+          {nextRunDates.slice(0, 5).map((date) => (
+            <li key={date}>{date.toLocaleString("en-US", options)}</li>
+          ))}
+        </ul>
+        <p>{upcomingRunsMessage}</p>
+      </div>
+    );
+  };
+
+  nextSixRuns = () => {
+    let interval;
+    const { cronValue, cronError, cronExpiryDate } = this.state.formValues;
+    if (!cronValue || cronError) {
+      return null; // Return null to avoid rendering
+    }
+    try {
+      interval = cronParser.parseExpression(cronValue, { utc: true });
+    } catch {
+      return null;
+    }
+    let cronExpiry = new Date(cronExpiryDate);
+    let nextRunDates = [];
+    // Calculate the next six run dates and times based on the cron expression
+    // Adding one extra run date to the list, enough to make sure are upcomingRunsMessages are accurate
+    for (let i = 0; i < 6; i++) {
+      let nextRun = new Date(interval.next());
+      if (nextRun > cronExpiry) break;
+      nextRunDates.push(nextRun);
+    }
+
+    return nextRunDates;
+  };
+
+  failedFromErrors = (oneHourErrorMsg, enoughIntervalDiffMsg) => {
+    console.log(this.state.submitFailure.response.body);
+    let errors = [];
+    if (this.state.submitFailure.response.body.includes("Cron Expiry Date older than the next run."))
+      errors.push("Cron Expiry Date cannot be older than the next run");
+    else if (this.state.submitFailure.response.body.includes(oneHourErrorMsg)) errors.push(oneHourErrorMsg);
+    else if (this.state.submitFailure.response.body.includes(enoughIntervalDiffMsg)) errors.push(enoughIntervalDiffMsg);
+    return errors;
+  };
+
+  schedulingErrors = () => {
+    let errors = [];
+
+    if (this.state.cronDateError) errors.push("Cron Expiry Date cannot be older than current Date");
+
+    const { formValues } = this.state;
+    const { cronValue, cronError } = formValues;
+    const oneHourErrorMsg = "The interval between scheduled tests cannot be less than an hour.";
+    const noNewRunErrMsg = "No new run will be scheduled";
+    const enoughIntervalDiffMsg =
+      "The interval between scheduled tests is too short. Please ensure there is enough time between test runs to accommodate the duration of each test.";
+    if (!cronValue || cronError) {
+      return null; // Return null to avoid rendering
+    }
+
+    const nextSixRuns = this.nextSixRuns();
+    if (nextSixRuns && nextSixRuns.length === 0) errors.push(noNewRunErrMsg);
+
+    if (this.checkOneHourDiff()) errors.push(oneHourErrorMsg);
+    else if (this.checkEnoughIntervalDiff()) errors.push(enoughIntervalDiffMsg);
+    if (this.state.submitFailure && this.state.submitFailure.response.body)
+      errors = this.failedFromErrors(oneHourErrorMsg, enoughIntervalDiffMsg);
+
+    if (!errors) return null;
+    return errors.map((error) => (
+      <div
+        key={error}
+        className={`alert ${error !== noNewRunErrMsg ? "alert-danger" : "alert-warning"}`}
+        role={error !== noNewRunErrMsg ? "error" : "alert"}
+      >
+        {error}
+      </div>
+    ));
+  };
+
+  checkOneHourDiff = () => {
+    let interval;
+    const { formValues } = this.state;
+    const { cronValue, cronError } = formValues;
+    if (!cronValue || cronError) return false; // Return null to avoid rendering
+
+    try {
+      interval = cronParser.parseExpression(cronValue, { utc: true });
+    } catch {
+      return false;
+    }
+
+    const nextSixRuns = this.nextSixRuns();
+    let fields = JSON.parse(JSON.stringify(interval.fields));
+    if (fields.minute.length !== 1 && nextSixRuns && nextSixRuns.length > 1) return true;
+
+    return false;
+  };
+
+  checkEnoughIntervalDiff = () => {
+    let interval;
+    const { formValues } = this.state;
+    const { cronValue, cronExpiryDate, holdFor, holdForUnits, rampUp, rampUpUnits, testTaskConfigs } = formValues;
+    try {
+      interval = cronParser.parseExpression(cronValue, { utc: true });
+    } catch {
+      return null;
+    }
+    let prev = interval.next();
+    let next = interval.next();
+    let cronExpiry = new Date(cronExpiryDate);
+    let totalTaskCount = 0;
+
+    for (const testTaskConfig of testTaskConfigs) totalTaskCount += testTaskConfig.taskCount;
+
+    // Initial buffer for 1 call every 1.5 sec to create a task,
+    // 2 min to enter running, 1 min launch for leader, 2 min for leader to enter running + 5 min buffer
+    // multiplied by two to account for provisisioning and deprovisioning
+    let estimatedTestDuration = 2 * Math.floor(Math.ceil(totalTaskCount / 10) * 1.5 + 600);
+    estimatedTestDuration += holdForUnits == "m" ? parseInt(holdFor) * 60 : parseInt(holdFor);
+    estimatedTestDuration += rampUpUnits == "m" ? parseInt(rampUp) * 60 : parseInt(rampUp);
+
+    // Times posted for the next runs are not UTC
+    // Error for input issue
+    for (let i = 0; i < 100; i++) {
+      if (!(next && prev)) break;
+      let prevDate = new Date(prev);
+      let nextDate = new Date(next);
+      if (prevDate > cronExpiry) break;
+      if (nextDate - prevDate < estimatedTestDuration * 1000) return true;
+      prev = next;
+      next = interval.next();
+    }
+    return false;
+  };
+
+  disableSubmitButton = () => {
+    return (
+      (this.state.formValues.testType !== "simple" &&
+        !this.state.file &&
+        (this.state.chooseNewFile || !["zip", "script"].includes(this.state.formValues.fileType)) &&
+        (this.state.cronError || this.state.cronDateError || this.state.intervalDiff)) ||
+      (this.state.formValues.testType === "simple" &&
+        (this.state.cronError || this.state.cronDateError || this.state.intervalDiff))
+    );
   };
 
   render() {
@@ -821,6 +1152,15 @@ class Create extends React.Component {
                       Recurring
                     </NavLink>
                   </NavItem>
+                  <NavItem>
+                    <NavLink
+                      className="custom-tab"
+                      active={this.state.activeTab === "3"}
+                      onClick={() => this.toggleTab("3")}
+                    >
+                      Cron
+                    </NavLink>
+                  </NavItem>
                 </Nav>
                 <TabContent activeTab={this.state.activeTab} className="schedule-tab-content">
                   <TabPane tabId="1">
@@ -837,7 +1177,7 @@ class Create extends React.Component {
                           min={currentDate}
                           value={this.state.formValues.scheduleDate}
                           onChange={this.handleInputChange}
-                          required={parseInt(this.state.formValues.onSchedule) === 1}
+                          required={this.state.onSchedule && this.state.activeTab === "1"}
                         ></Input>
                         <Label className="inline-label-left" for="scheduleTime">
                           Time:
@@ -849,7 +1189,7 @@ class Create extends React.Component {
                           placeholder="time placeholder"
                           value={this.state.formValues.scheduleTime}
                           onChange={this.handleInputChange}
-                          required={parseInt(this.state.formValues.onSchedule) === 1}
+                          required={this.state.onSchedule && this.state.activeTab === "1"}
                         ></Input>
                       </InputGroup>
                       <FormText color="muted">The date and time(UTC) to run the test.</FormText>
@@ -869,7 +1209,7 @@ class Create extends React.Component {
                           min={currentDate}
                           value={this.state.formValues.scheduleDate}
                           onChange={this.handleInputChange}
-                          required={this.state.activeTab === "2"}
+                          required={this.state.onSchedule && this.state.activeTab === "2"}
                         />
                         <Label className="inline-label-left" for="scheduleTime">
                           Time:
@@ -881,7 +1221,7 @@ class Create extends React.Component {
                           placeholder="time placeholder"
                           value={this.state.formValues.scheduleTime}
                           onChange={this.handleInputChange}
-                          required={this.state.activeTab === "2"}
+                          required={this.state.onSchedule && this.state.activeTab === "2"}
                         />
                       </InputGroup>
                       <FormText color="muted">The date and time(UTC) to first run the test.</FormText>
@@ -948,10 +1288,53 @@ class Create extends React.Component {
                         </Col>
                       </Row>
                       <FormText color="muted">How often to run the test.</FormText>
+                      {this.renderNextRunDatesRecurring()}
                     </FormGroup>
+                  </TabPane>
+                  <TabPane tabId="3">
+                    <FormGroup>
+                      <InputGroup className="schedule-date-time">
+                        <Label className="inline-label-left" for="cronValue">
+                          Cron:
+                        </Label>
+                        <input
+                          type="text"
+                          className={`form-control ${this.state.cronError ? "is-invalid" : ""}`}
+                          id="cronValue"
+                          name="cronValue"
+                          value={this.state.formValues.cronValue}
+                          onChange={this.handleInputChange}
+                          required={this.state.activeTab == 3}
+                        />
+                        <Label className="inline-label-left" for="cronExpiryDate">
+                          &nbsp; Cron Expiry Date:
+                        </Label>
+                        <Input
+                          type="date"
+                          name="cronExpiryDate"
+                          id="cronExpiryDate"
+                          placeholder="date placeholder"
+                          value={this.state.formValues.cronExpiryDate}
+                          onChange={this.handleInputChange}
+                          className={this.state.cronDateError ? "is-invalid" : ""}
+                          required={this.state.activeTab == 3}
+                        />
+                      </InputGroup>
+                    </FormGroup>
+                    <FormGroup>
+                      <Cron
+                        value={this.state.formValues.cronValue}
+                        setValue={(e) => this.setFormValue("cronValue", e)}
+                        allowEmpty="never"
+                        humanizeLabels={true}
+                        onError={this.onCronError}
+                      />
+                    </FormGroup>
+                    {this.renderNextRunDatesAdvancedRecurring()}
                   </TabPane>
                 </TabContent>
               </Collapse>
+              {this.state.activeTab === "3" && this.schedulingErrors()}
               <FormGroup check>
                 <Input
                   name="showLive"
@@ -1078,24 +1461,26 @@ class Create extends React.Component {
                           id="newScriptCheckbox"
                           type="checkbox"
                           onClick={this.handleCheckBox}
-                          defaultChecked={this.state.chooseNewFile}
+                          defaultChecked={this.chooseNewFile}
                         />{" "}
                         Choose a new file.
                       </Label>
                     </FormGroup>
                   )}
-                  {((this.state.formValues.testType !== "simple" &&
+                  {((Object.keys(SCRIPT_FILE_EXTENSIONS).includes(this.state.formValues.testType) &&
                     !["zip", "script"].includes(this.state.formValues.fileType)) ||
                     this.state.chooseNewFile) && (
                     <FormGroup>
                       <Label for="fileUpload">Upload File</Label>
-                      <Input type="file" id="fileUpload" name="fileUpload" onChange={this.handleFileChange} />
-                      <FormText color="muted">
-                        You can choose either a <code>.jmx</code> file or a <code>.zip</code> file. Choose{" "}
-                        <code>.zip</code> file if you have any files to upload other than a <code>.jmx</code> script
-                        file.
-                      </FormText>
-                      {this.state.isUploading && (
+                      <Input
+                        type="file"
+                        id="fileUpload"
+                        name="fileUpload"
+                        onChange={this.handleFileChange}
+                        key={this.state.formValues.testType || ""}
+                      />
+                      <FormText color="muted">{this.uploadFileDescription()}</FormText>
+                      {this.isUploading && (
                         <div className="alert alert-info" role="alert">
                           This may take some time, please wait...
                         </div>
@@ -1109,11 +1494,7 @@ class Create extends React.Component {
                 className="submit"
                 size="sm"
                 onClick={this.handleSubmit}
-                disabled={
-                  this.state.formValues.testType !== "simple" &&
-                  !this.state.file &&
-                  (this.state.chooseNewFile || !["zip", "script"].includes(this.state.formValues.fileType))
-                }
+                disabled={this.disableSubmitButton()}
               >
                 {this.state.submitLabel}
               </Button>

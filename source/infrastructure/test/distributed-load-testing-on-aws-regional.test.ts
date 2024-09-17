@@ -18,7 +18,13 @@ const props = {
 };
 
 test("Distributed Load Testing Regional stack test", () => {
-  const app = new App();
+  const app = new App({
+    context: {
+      codeVersion: "testversion",
+      solutionId: "SO0062",
+      solutionName: "distributed-load-testing-on-aws",
+    },
+  });
   const stack = new RegionalInfrastructureDLTStack(app, "TestDLTRegionalStack", {
     synthesizer: new DefaultStackSynthesizer({
       generateBootstrapVersionRule: false,

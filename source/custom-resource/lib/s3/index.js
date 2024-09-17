@@ -4,8 +4,7 @@
 const AWS = require("aws-sdk");
 const utils = require("solution-utils");
 AWS.config.logger = console;
-let options = {};
-options = utils.getOptions(options);
+let options = utils.getOptions({});
 const s3 = new AWS.S3(options);
 const yaml = require("js-yaml");
 

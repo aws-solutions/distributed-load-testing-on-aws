@@ -6,7 +6,7 @@ import { Code, Function as LambdaFunction, Runtime } from "aws-cdk-lib/aws-lambd
 import { Effect, PolicyStatement, PolicyDocument, Role, ServicePrincipal, Policy } from "aws-cdk-lib/aws-iam";
 import { IBucket } from "aws-cdk-lib/aws-s3";
 import { Table } from "aws-cdk-lib/aws-dynamodb";
-import { LogGroup } from "aws-cdk-lib/aws-logs";
+import { LogGroup, ILogGroup } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 
 export interface TestRunnerLambdasConstructProps {
@@ -63,6 +63,10 @@ export class TestRunnerLambdasConstruct extends Construct {
   public taskCancelerInvokePolicy: Policy;
   public taskStatusChecker: LambdaFunction;
   public realTimeDataPublisher: LambdaFunction;
+  public resultsParserLambdaLogGroup: ILogGroup;
+  public taskRunnerLambdaLogGroup: ILogGroup;
+  public taskCancelerLambdaLogGroup: ILogGroup;
+  public taskStatusCheckerLambdaLogGroup: ILogGroup;
 
   constructor(scope: Construct, id: string, props: TestRunnerLambdasConstructProps) {
     super(scope, id);
@@ -109,7 +113,7 @@ export class TestRunnerLambdasConstruct extends Construct {
       ],
     });
 
-    this.resultsParser = new LambdaFunction(this, "ResultsParser", {
+    this.resultsParser = new LambdaFunction(this, "ResultsParserNew", {
       description: "Result parser for indexing xml test results to DynamoDB",
       handler: "index.handler",
       role: lambdaResultsRole,
@@ -127,6 +131,13 @@ export class TestRunnerLambdasConstruct extends Construct {
         VERSION: props.solutionVersion,
       },
     });
+
+    const resultsParserLambdaLogGroup = new LogGroup(this, "ResultsParserLambdaLogGroup", {
+      logGroupName: `/aws/lambda/${this.resultsParser.functionName}`,
+    });
+
+    this.resultsParserLambdaLogGroup = resultsParserLambdaLogGroup;
+
     const resultsParserResource = this.resultsParser.node.defaultChild as CfnResource;
     resultsParserResource.addMetadata("cfn_nag", {
       rules_to_suppress: [
@@ -200,7 +211,7 @@ export class TestRunnerLambdasConstruct extends Construct {
       ],
     });
 
-    this.taskRunner = new LambdaFunction(this, "TaskRunner", {
+    this.taskRunner = new LambdaFunction(this, "TaskRunnerNew", {
       description: "Task runner for ECS task definitions",
       handler: "index.handler",
       role: lambdaTaskRole,
@@ -215,6 +226,13 @@ export class TestRunnerLambdasConstruct extends Construct {
       runtime: Runtime.NODEJS_18_X,
       timeout: Duration.seconds(900),
     });
+
+    const taskRunnerLambdaLogGroup = new LogGroup(this, "TaskRunnerLambdaLogGroup", {
+      logGroupName: `/aws/lambda/${this.taskRunner.functionName}`,
+    });
+
+    this.taskRunnerLambdaLogGroup = taskRunnerLambdaLogGroup;
+
     const taskRunnerResource = this.taskRunner.node.defaultChild as CfnResource;
     taskRunnerResource.addMetadata("cfn_nag", {
       rules_to_suppress: [
@@ -269,7 +287,7 @@ export class TestRunnerLambdasConstruct extends Construct {
       ],
     });
 
-    this.taskCanceler = new LambdaFunction(this, "TaskCanceler", {
+    this.taskCanceler = new LambdaFunction(this, "TaskCancelerNew", {
       description: "Stops ECS task",
       handler: "index.handler",
       role: taskCancelerRole,
@@ -283,6 +301,12 @@ export class TestRunnerLambdasConstruct extends Construct {
         SCENARIOS_TABLE: props.scenariosTable.tableName,
       },
     });
+
+    const taskCancelerLambdaLogGroup = new LogGroup(this, "TaskCancellerLambdaLogGroup", {
+      logGroupName: `/aws/lambda/${this.taskCanceler.functionName}`,
+    });
+
+    this.taskCancelerLambdaLogGroup = taskCancelerLambdaLogGroup;
     const taskCancelerResource = this.taskCanceler.node.defaultChild as CfnResource;
     taskCancelerResource.addMetadata("cfn_nag", {
       rules_to_suppress: [
@@ -344,7 +368,7 @@ export class TestRunnerLambdasConstruct extends Construct {
       ],
     });
 
-    this.taskStatusChecker = new LambdaFunction(this, "TaskStatusChecker", {
+    this.taskStatusChecker = new LambdaFunction(this, "TaskStatusCheckerNew", {
       description: "Task status checker",
       handler: "index.handler",
       role: taskStatusCheckerRole,
@@ -358,6 +382,12 @@ export class TestRunnerLambdasConstruct extends Construct {
         VERSION: props.solutionVersion,
       },
     });
+
+    const taskStatusCheckerLambdaLogGroup = new LogGroup(this, "taskStatusCheckerLambdaLogGroup", {
+      logGroupName: `/aws/lambda/${this.taskStatusChecker.functionName}`,
+    });
+
+    this.taskStatusCheckerLambdaLogGroup = taskStatusCheckerLambdaLogGroup;
     const taskStatusCheckerResource = this.taskStatusChecker.node.defaultChild as CfnResource;
     taskStatusCheckerResource.addMetadata("cfn_nag", {
       rules_to_suppress: [

@@ -51,6 +51,7 @@ class TestControlButtons extends React.Component {
             "ramp-up": data.rampUp,
             "hold-for": data.holdFor,
             scenario: data.testName,
+            executor: data.testType !== "simple" ? data.testType : "jmeter", // default value
           },
         ],
         scenarios: {
@@ -65,8 +66,8 @@ class TestControlButtons extends React.Component {
       regionalTaskDetails: data.regionalTaskDetails,
     };
 
-    if (data.testType === "simple") {
-      payload.testScenario.scenarios[data.testName] = {
+    const obj = {
+      simple: {
         requests: [
           {
             url: data.endpoint,
@@ -75,13 +76,12 @@ class TestControlButtons extends React.Component {
             headers: data.headers,
           },
         ],
-      };
-    } else {
-      payload.testScenario.scenarios[data.testName] = {
+      },
+      jmeter: {
         script: `${testId}.jmx`,
-      };
-      payload.fileType = data.fileType;
-    }
+      },
+    };
+    payload.testScenario.scenarios[data.testName] = obj[data.testType];
 
     return payload;
   }

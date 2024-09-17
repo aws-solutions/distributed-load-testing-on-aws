@@ -14,7 +14,6 @@ import {
   IAspect,
   Stack,
   StackProps,
-  Tags,
 } from "aws-cdk-lib";
 import { Construct, IConstruct } from "constructs";
 import { DLTAPI } from "./front-end/api";
@@ -29,6 +28,7 @@ import { TaskRunnerStepFunctionConstruct } from "./back-end/step-functions";
 import { TestRunnerLambdasConstruct } from "./back-end/test-task-lambdas";
 import { FargateVpcConstruct } from "./testing-resources/vpc";
 import { RealTimeDataConstruct } from "./testing-resources/real-time-data";
+import { SolutionsMetrics } from "../../metrics-utils";
 
 /**
  * CDK Aspect implementation to set up conditions to the entire Construct resources
@@ -245,12 +245,6 @@ export class DLTStack extends Stack {
     const containerImage = solutionMapping.findInMap("Config", "ContainerImage");
     const mainStackRegion = Aws.REGION;
 
-    // Stack level tags
-    Tags.of(this).add("SolutionId", solutionId);
-
-    // Stack level tags
-    Tags.of(this).add("SolutionId", solutionId);
-
     // CFN Conditions
     const sendAnonymizedUsageCondition = new CfnCondition(this, "SendAnonymizedUsage", {
       expression: Fn.conditionEquals(sendAnonymizedUsage, "Yes"),
@@ -340,7 +334,7 @@ export class DLTStack extends Stack {
       solutionId,
     });
 
-    new RealTimeDataConstruct(this, "RealTimeData", {
+    const realTimeDataConstruct = new RealTimeDataConstruct(this, "RealTimeData", {
       cloudWatchLogsPolicy: commonResources.cloudWatchLogsPolicy,
       ecsCloudWatchLogGroup: fargateResources.ecsCloudWatchLogGroup,
       iotEndpoint,
@@ -428,11 +422,11 @@ export class DLTStack extends Stack {
       scenariosBucket: dltStorage.scenariosBucket.bucketName,
       mainStackRegion,
       apiServicesLambdaRoleName: dltApi.apiServicesLambdaRoleName,
-      resultsParserRoleName: stepLambdaFunctions.resultsParser.role!.roleName,
+      resultsParserRoleName: <string>stepLambdaFunctions.resultsParser.role?.roleName,
       scenariosTable: dltStorage.scenariosTable.tableName,
-      taskRunnerRoleName: stepLambdaFunctions.taskRunner.role!.roleName,
-      taskCancelerRoleName: stepLambdaFunctions.taskCanceler.role!.roleName,
-      taskStatusCheckerRoleName: stepLambdaFunctions.taskStatusChecker.role!.roleName,
+      taskRunnerRoleName: <string>stepLambdaFunctions.taskRunner.role?.roleName,
+      taskCancelerRoleName: <string>stepLambdaFunctions.taskCanceler.role?.roleName,
+      taskStatusCheckerRoleName: <string>stepLambdaFunctions.taskStatusChecker.role?.roleName,
       uuid,
     });
 
@@ -479,6 +473,47 @@ export class DLTStack extends Stack {
       solutionId,
       applicationName: props.solutionName,
     });
+
+    // metrics
+
+    const solutionsMetrics = new SolutionsMetrics(this, "SolutionMetrics", {
+      uuid: uuid,
+      sourceCodeBucket: commonResources.sourceBucket,
+      sourceCodePrefix: sourceCodePrefix,
+    });
+    solutionsMetrics.addLambdaInvocationCount(stepLambdaFunctions.taskRunner.functionName);
+    solutionsMetrics.addLambdaInvocationCount(realTimeDataConstruct.realTimeDataPublisher.functionName);
+    solutionsMetrics.addLambdaInvocationCount(stepLambdaFunctions.resultsParser.functionName);
+    solutionsMetrics.addLambdaInvocationCount(stepLambdaFunctions.taskCanceler.functionName);
+    solutionsMetrics.addLambdaInvocationCount(stepLambdaFunctions.taskStatusChecker.functionName);
+    solutionsMetrics.addLambdaInvocationCount(customResourceInfra.customResourceLambdaFunctionName);
+    solutionsMetrics.addLambdaBilledDurationMemorySize(
+      [
+        stepLambdaFunctions.taskRunnerLambdaLogGroup,
+        realTimeDataConstruct.realTimeDataPublisherLogGroup,
+        stepLambdaFunctions.resultsParserLambdaLogGroup,
+        stepLambdaFunctions.taskCancelerLambdaLogGroup,
+        stepLambdaFunctions.taskStatusCheckerLambdaLogGroup,
+        dltApi.apiLambdaLogGroup,
+      ],
+      "BilledDurationQuery"
+    );
+
+    solutionsMetrics.addDynamoDBConsumedReadCapacityUnits(dltStorage.scenariosTable.tableName);
+    solutionsMetrics.addDynamoDBConsumedReadCapacityUnits(dltStorage.historyTable.tableName);
+    solutionsMetrics.addDynamoDBConsumedWriteCapacityUnits(dltStorage.scenariosTable.tableName);
+    solutionsMetrics.addDynamoDBConsumedWriteCapacityUnits(dltStorage.historyTable.tableName);
+
+    solutionsMetrics.addECSAverageCPUUtilization(
+      fargateResources.taskClusterName,
+      fargateResources.taskDefinitionFamily
+    );
+    solutionsMetrics.addECSAverageMemoryUtilization(
+      fargateResources.taskClusterName,
+      fargateResources.taskDefinitionFamily
+    );
+
+    Aspects.of(solutionsMetrics).add(new ConditionAspect(sendAnonymizedUsageCondition));
 
     // Outputs
     new CfnOutput(this, "Console", {

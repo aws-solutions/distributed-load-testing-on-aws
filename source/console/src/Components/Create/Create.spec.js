@@ -112,7 +112,7 @@ describe("Functions Testing", () => {
     });
   });
 
-  test("setPayloadTestScenario for NOT simple test type", async () => {
+  test("setPayloadTestScenario for non simple test type", async () => {
     const createInstance = new Create(commonProps);
     // Mock the internal method and state as needed
     createInstance.uploadFileToScenarioBucket = jest.fn(() => Promise.resolve());
@@ -120,7 +120,7 @@ describe("Functions Testing", () => {
 
     const payload = { testScenario: { scenarios: {} } }; // Initial empty payload structure
     const props = {
-      testType: "NOT SIMPLE",
+      testType: "jmeter",
       testName: "testName",
       endpoint: "http://example.com",
       method: "GET",
@@ -142,7 +142,6 @@ describe("Functions Testing", () => {
       },
     });
   });
-
   describe("uploadFileToScenarioBucket", () => {
     test.each([
       ["zip", "test.zip"],

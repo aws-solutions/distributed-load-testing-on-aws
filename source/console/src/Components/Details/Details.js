@@ -85,6 +85,8 @@ class Details extends React.Component {
       data.method = data.testScenario.scenarios[`${data.testName}`].requests[0].method;
       data.body = data.testScenario.scenarios[`${data.testName}`].requests[0].body;
       data.headers = data.testScenario.scenarios[`${data.testName}`].requests[0].headers;
+    } else {
+      data.testScenario.execution[0].executor = data.testType;
     }
 
     this.setState({
@@ -103,11 +105,12 @@ class Details extends React.Component {
         path: `/scenarios/${testId}`,
       }).response;
       const data = await _data.body.json();
+      console.log(data);
       if (data.nextRun) {
         const [scheduleDate, scheduleTime] = data.nextRun.split(" ");
         data.scheduleDate = scheduleDate;
         data.scheduleTime = scheduleTime.split(":", 2).join(":");
-        data.recurrence = data.scheduleRecurrence;
+        data.recurrence = data.cronValue ? `cron( ${data.cronValue} )` : data.scheduleRecurrence;
         delete data.nextRun;
       }
       const _vCPUDetails = await get({ apiName: "dlts", path: "/vCPUDetails" }).response;
@@ -138,7 +141,10 @@ class Details extends React.Component {
     try {
       const testId = this.state.testId;
       const { testType } = this.state.data;
-      let filename = this.state.data.fileType === "zip" ? `${testId}.zip` : `${testId}.jmx`;
+      const scriptExtensions = { jmeter: "jmx" };
+      const extension = scriptExtensions[testType];
+
+      let filename = this.state.data.fileType === "zip" ? `${testId}.zip` : `${testId}.${extension}`;
       const url = await getUrl({ key: `test-scenarios/${testType}/${filename}` });
       window.open(url.url, "_blank");
     } catch (error) {

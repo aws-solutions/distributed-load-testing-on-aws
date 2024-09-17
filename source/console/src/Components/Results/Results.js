@@ -177,7 +177,7 @@ class Results extends React.Component {
         color: "#FF9900",
       },
       numVu: {
-        label: "Virtual Users",
+        label: "Virtual Users Activities",
         color: "#1f77b4",
         stat: "Sum",
       },

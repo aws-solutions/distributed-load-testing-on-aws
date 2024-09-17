@@ -5,10 +5,9 @@ const AWS = require("aws-sdk");
 const utils = require("solution-utils");
 AWS.config.logger = console;
 const { MAIN_REGION, DDB_TABLE, S3_BUCKET, AWS_REGION } = process.env;
-let options = {
+let options = utils.getOptions({
   region: MAIN_REGION,
-};
-options = utils.getOptions(options);
+});
 const s3 = new AWS.S3(options);
 const dynamoDB = new AWS.DynamoDB.DocumentClient(options);
 

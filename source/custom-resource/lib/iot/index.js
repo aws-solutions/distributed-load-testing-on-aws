@@ -4,8 +4,7 @@
 const AWS = require("aws-sdk");
 const utils = require("solution-utils");
 AWS.config.logger = console;
-let options = { region: process.env.MAIN_REGION };
-options = utils.getOptions(options);
+let options = utils.getOptions({ region: process.env.MAIN_REGION });
 const iot = new AWS.Iot(options);
 
 /**

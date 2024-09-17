@@ -116,7 +116,7 @@ class Running extends React.Component {
           labelDescription = "Response Time";
           break;
         case "vu":
-          labelDescription = "Virtual Users";
+          labelDescription = "Virtual Users Activities";
           break;
         case "succ":
           labelDescription = "Successes";

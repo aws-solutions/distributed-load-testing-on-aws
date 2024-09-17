@@ -377,7 +377,7 @@ function getWidgetMetrics(testId, options) {
       color: "#FF9900",
     },
     numVu: {
-      label: "Virtual Users",
+      label: "Accumulated Virtual Users Activities",
       color: "#1f77b4",
     },
     numSucc: {
