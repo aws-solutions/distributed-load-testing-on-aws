@@ -16,16 +16,17 @@ const generateUniqueId = (length = 10) => {
 };
 
 /**
- * Sets the customUserAgent if SOLUTION_ID and SOLUTION_VERSION are provided as environment variables.
+ * Sets the customUserAgent if SOLUTION_ID and VERSION are provided as environment variables.
  * @param options An object, can be empty {}
  * @returns The options object with customUserAgent set if environment variables exist
  */
 
 const getOptions = (options) => {
-  const { SOLUTION_ID, SOLUTION_VERSION } = process.env;
-  if (SOLUTION_ID && SOLUTION_VERSION) {
-    if (SOLUTION_ID.trim() !== "" && SOLUTION_VERSION.trim() !== "") {
-      options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${SOLUTION_VERSION}`;
+  options = options || {}; // Ensure options is an object
+  const { SOLUTION_ID, VERSION } = process.env;
+  if (SOLUTION_ID && VERSION) {
+    if (SOLUTION_ID.trim() !== "" && VERSION.trim() !== "") {
+      options.customUserAgent = `AwsSolution/${SOLUTION_ID}/${VERSION}`;
     }
   }
 

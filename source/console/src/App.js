@@ -18,6 +18,8 @@ import Create from "./Components/Create/Create.js";
 import Details from "./Components/Details/Details.js";
 import RegionalModal from "./Components/RegionalModal/RegionalModal.js";
 declare var awsConfig;
+const utils = require("solution-utils");
+let options = utils.getOptions({});
 
 const ResourcesConfig = {
   Auth: {
@@ -78,7 +80,7 @@ class App extends React.Component {
       principal: identityId,
     };
     try {
-      await new AWS.Iot().attachPrincipalPolicy(params).promise();
+      await new AWS.Iot(options).attachPrincipalPolicy(params).promise();
     } catch (error) {
       console.error("Error occurred while attaching principal policy", error);
     }

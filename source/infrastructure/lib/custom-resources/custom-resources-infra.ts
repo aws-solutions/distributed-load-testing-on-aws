@@ -4,6 +4,7 @@
 import { ArnFormat, CfnResource, Duration, Stack } from "aws-cdk-lib";
 import { Effect, Policy, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import { Code, Function as LambdaFunction, Runtime } from "aws-cdk-lib/aws-lambda";
+import { ILogGroup } from "aws-cdk-lib/aws-logs";
 import { Bucket, IBucket } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 
@@ -27,6 +28,8 @@ export interface CustomResourceInfraConstructProps {
  */
 export class CustomResourceInfraConstruct extends Construct {
   public customResourceArn: string;
+  public customResourceLambdaLogGroup: ILogGroup;
+  public customResourceLambdaFunctionName: string;
 
   constructor(scope: Construct, id: string, props: CustomResourceInfraConstructProps) {
     super(scope, id);
@@ -125,6 +128,7 @@ export class CustomResourceInfraConstruct extends Construct {
     }
 
     this.customResourceArn = customResourceLambda.functionArn;
+    this.customResourceLambdaFunctionName = customResourceLambda.functionName;
 
     const customResource = customResourceLambda.node.defaultChild as CfnResource;
     customResource.addMetadata("cfn_nag", {

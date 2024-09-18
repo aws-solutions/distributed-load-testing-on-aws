@@ -1,6 +1,6 @@
 {
   "name": "source",
-  "version": "3.2.11",
+  "version": "3.3.0",
   "private": true,
   "description": "ESLint and prettier dependencies to be used within the solution",
   "license": "Apache-2.0",
@@ -11,7 +11,7 @@
   "scripts": {
     "lint": "npx eslint . --ext .ts,.js",
     "prettier-format": "npx prettier --config .prettierrc.yml '**/*.{js,ts}' --ignore-path '../.gitignore' --write",
-    "prettier-check": "prettier --config .prettierrc.yml '**/*.{js,ts}' --check --ignore-path '../.gitignore'",
+    "prettier-check": "npx prettier --config .prettierrc.yml '**/*.{js,ts}' --check --ignore-path '../.gitignore'",
     "install:api-services": "cd ./api-services && npm ci",
     "install:console": "cd ./console && npm ci",
     "install:custom-resource": "cd ./custom-resource && npm ci",
@@ -22,6 +22,7 @@
     "install:task-canceler": "cd ./task-canceler && npm run clean && ci",
     "install:task-runner": "cd ./task-runner && npm run clean && ci",
     "install:task-status-checker": "cd ./task-status-checker && npm ci",
+    "install:metrics-utils": "cd ./metrics-utils && npm ci",
     "install:all": "find . -maxdepth 2 -name package.json -execdir npm ci \\;",
     "clean:all": "find . -maxdepth 2 -name package.json -execdir npm run clean \\;",
     "clean": "rm -rf node_modules package-lock.json"
@@ -33,6 +34,7 @@
     "eslint": "^8.35.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-config-standard": "^17.0.0",
+    "eslint-plugin-cypress": "^3.3.0",
     "eslint-plugin-header": "^3.1.1",
     "eslint-plugin-import": "^2.27.5",
     "eslint-plugin-jsdoc": "^39.3.6",

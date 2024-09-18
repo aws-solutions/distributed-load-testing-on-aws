@@ -48,10 +48,10 @@ RUN rm -rf /usr/share/dotnet
 RUN rm -rf /usr/local/lib/python3.10/dist-packages/aiohttp* 
 RUN  pip install --upgrade aiohttp
 
-# Replacing idna with more stable version to resolve CVE-2024-3651
-RUN pip install --upgrade idna
-RUN rm -rf /root/.bzt/python-packages/3.10.12/idna*
-RUN cp -r /usr/local/lib/python3.10/dist-packages/idna* /root/.bzt/python-packages/3.10.12/
+# Replacing idna and Flas_Cors with more stable version to resolve CVE-2024-3651 and  CVE-2024-6221
+RUN pip install --upgrade idna Flask_Cors
+RUN rm -rf /root/.bzt/python-packages/3.10.12/idna* /root/.bzt/python-packages/3.10.12/Flask_Cors*
+RUN cp -r /usr/local/lib/python3.10/dist-packages/idna* /usr/local/lib/python3.10/dist-packages/Flask_Cors* /root/.bzt/python-packages/3.10.12/
 
 WORKDIR /bzt-configs/
 ENTRYPOINT ["./load-test.sh"]

@@ -175,7 +175,7 @@ export class CustomResourcesConstruct extends Construct {
       Resource: "AnonymizedMetric",
       SolutionId: props.solutionId,
       UUID: props.uuid,
-      VERSION: props.solutionVersion,
+      Version: props.solutionVersion,
     });
     const cfnSendAnonymizedMetrics = sendAnonymizedMetrics.node.defaultChild as CfnCustomResource;
     cfnSendAnonymizedMetrics.cfnOptions.condition = props.sendAnonymizedUsageCondition;

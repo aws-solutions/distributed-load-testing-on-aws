@@ -14,13 +14,15 @@ describe("#GET OPTIONS:: ", () => {
 
   it("should return an empty object if no solution ID or versions are not provided", () => {
     let options = {};
+    process.env.SOLUTION_ID = " ";
+    process.env.VERSION = " ";
     options = utils.getOptions(options);
     expect(options).toEqual({});
   });
 
   it("should return an empty object if no solution ID or versions are provided as empty strings", () => {
     process.env.SOLUTION_ID = " ";
-    process.env.SOLUTION_VERSION = " ";
+    process.env.VERSION = " ";
     let options = {};
     options = utils.getOptions(options);
     expect(options).toEqual({});
@@ -30,13 +32,15 @@ describe("#GET OPTIONS:: ", () => {
     let options = {
       region: "us-west-2",
     };
+    process.env.SOLUTION_ID = "SOxxx";
+    process.env.VERSION = "testVersion";
     options = utils.getOptions(options);
-    expect(options).toEqual({ region: "us-west-2" });
+    expect(options).toEqual({ region: "us-west-2", customUserAgent: "AwsSolution/SOxxx/testVersion" });
   });
 
   it("should return an empty object if no solution ID is an empty string", () => {
     process.env.SOLUTION_ID = " ";
-    process.env.SOLUTION_VERSION = "testVersion";
+    process.env.VERSION = "testVersion";
     let options = {};
     options = utils.getOptions(options);
     expect(options).toEqual({});
@@ -44,7 +48,7 @@ describe("#GET OPTIONS:: ", () => {
 
   it("should return an empty object if no version is provided", () => {
     process.env.SOLUTION_ID = "SOxxx";
-    process.env.SOLUTION_VERSION = " ";
+    process.env.VERSION = " ";
     let options = {};
     options = utils.getOptions(options);
     expect(options).toEqual({});
@@ -52,9 +56,8 @@ describe("#GET OPTIONS:: ", () => {
 
   it("should return an object with the custom agent user string set", () => {
     process.env.SOLUTION_ID = "SOxxx";
-    process.env.SOLUTION_VERSION = "testVersion";
-    let options = {};
-    options = utils.getOptions(options);
+    process.env.VERSION = "testVersion";
+    let options = utils.getOptions({});
     expect(options).toEqual({ customUserAgent: "AwsSolution/SOxxx/testVersion" });
   });
 });

@@ -25,26 +25,46 @@ trap 'sigterm_handler' SIGTERM
 echo "Download test scenario"
 aws s3 cp s3://$S3_BUCKET/test-scenarios/$TEST_ID-$AWS_REGION.json test.json --region $MAIN_STACK_REGION
 
+# Set the default log file values to jmeter
+LOG_FILE="jmeter.log"
+OUT_FILE="jmeter.out"
+ERR_FILE="jmeter.err"
+KPI_EXT="jtl"
+
 # download JMeter jmx file
 if [ "$TEST_TYPE" != "simple" ]; then
-  # Copy *.jar to JMeter library path. See the Taurus JMeter path: https://gettaurus.org/docs/JMeter/
-  JMETER_LIB_PATH=`find ~/.bzt/jmeter-taurus -type d -name "lib"`
-  echo "cp $PWD/*.jar $JMETER_LIB_PATH"
-  cp $PWD/*.jar $JMETER_LIB_PATH
+  # setting the log file values to the test type
+  LOG_FILE="${TEST_TYPE}.log"
+  OUT_FILE="${TEST_TYPE}.out"
+  ERR_FILE="${TEST_TYPE}.err"
+
+  # set variables based on TEST_TYPE
+  if [ "$TEST_TYPE" == "jmeter" ]; then
+    EXT="jmx"
+    TYPE_NAME="JMeter"
+    # Copy *.jar to JMeter library path. See the Taurus JMeter path: https://gettaurus.org/docs/JMeter/
+    JMETER_LIB_PATH=`find ~/.bzt/jmeter-taurus -type d -name "lib"`
+    echo "cp $PWD/*.jar $JMETER_LIB_PATH"
+    cp $PWD/*.jar $JMETER_LIB_PATH 
+
+  fi
 
   if [ "$FILE_TYPE" != "zip" ]; then
-    aws s3 cp s3://$S3_BUCKET/public/test-scenarios/$TEST_TYPE/$TEST_ID.jmx ./ --region $MAIN_STACK_REGION
+    aws s3 cp s3://$S3_BUCKET/public/test-scenarios/$TEST_TYPE/$TEST_ID.$EXT ./ --region $MAIN_STACK_REGION
   else
     aws s3 cp s3://$S3_BUCKET/public/test-scenarios/$TEST_TYPE/$TEST_ID.zip ./ --region $MAIN_STACK_REGION
     unzip $TEST_ID.zip
-    # only looks for the first jmx file.
-    JMETER_SCRIPT=`find . -name "*.jmx" | head -n 1`
-    if [ -z "$JMETER_SCRIPT" ]; then
-      echo "There is no JMeter script in the zip file."
+    echo "UNZIPPED"
+    ls -l
+    # only looks for the first test script file.
+    TEST_SCRIPT=`find . -name "*.${EXT}" | head -n 1`
+    echo $TEST_SCRIPT
+    if [ -z "$TEST_SCRIPT" ]; then
+      echo "There is no test script (.${EXT}) in the zip file."
       exit 1
     fi
 
-    sed -i -e "s|$TEST_ID.jmx|$JMETER_SCRIPT|g" test.json
+    sed -i -e "s|$TEST_ID.$EXT|$TEST_SCRIPT|g" test.json
 
     # copy bundled plugin jars to jmeter extension folder to make them available to jmeter
     BUNDLED_PLUGIN_DIR=`find $PWD -type d -name "plugins" | head -n 1`
@@ -75,6 +95,7 @@ else
 fi
 
 echo "Running test"
+
 stdbuf -i0 -o0 -e0 bzt test.json -o modules.console.disable=true | stdbuf -i0 -o0 -e0 tee -a result.tmp | sed -u -e "s|^|$TEST_ID $LIVE_DATA_ENABLED |"
 CALCULATED_DURATION=`cat result.tmp | grep -m1 "Test duration" | awk -F ' ' '{ print $5 }' | awk -F ':' '{ print ($1 * 3600) + ($2 * 60) + $3 }'`
 
@@ -82,27 +103,46 @@ CALCULATED_DURATION=`cat result.tmp | grep -m1 "Test duration" | awk -F ' ' '{ p
 # every file goes under $TEST_ID/$PREFIX/$UUID to distinguish the result correctly
 if [ "$TEST_TYPE" != "simple" ]; then
   if [ "$FILE_TYPE" != "zip" ]; then
-    cat $TEST_ID.jmx | grep filename > results.txt
+    cat $TEST_ID.$EXT | grep filename > results.txt
   else
-    cat $JMETER_SCRIPT | grep filename > results.txt
+    cat $TEST_SCRIPT | grep filename > results.txt
   fi
-  sed -i -e 's/<stringProp name="filename">//g' results.txt
-  sed -i -e 's/<\/stringProp>//g' results.txt
-  sed -i -e 's/ //g' results.txt
 
-  echo "Files to upload as results"
-  cat results.txt
-  
-  files=(`cat results.txt`)
-  for f in "${files[@]}"; do
-    p="s3://$S3_BUCKET/results/$TEST_ID/JMeter_Result/$PREFIX/$UUID/$f"
-    if [[ $f = /* ]]; then
-      p="s3://$S3_BUCKET/results/$TEST_ID/JMeter_Result/$PREFIX/$UUID$f"
+  if [ -f results.txt ]; then
+    sed -i -e 's/<stringProp name="filename">//g' results.txt
+    sed -i -e 's/<\/stringProp>//g' results.txt
+    sed -i -e 's/ //g' results.txt
+
+    echo "Files to upload as results"
+    cat results.txt
+    
+    files=(`cat results.txt`)
+    extensions=()
+    for f in "${files[@]}"; do
+      ext="${f##*.}"
+      if [[ ! " ${extensions[@]} " =~ " ${ext} " ]]; then
+        extensions+=("$ext")
+      fi
+    done
+
+    # Find all files in the current folder with the same extensions
+    all_files=()
+    for ext in "${extensions[@]}"; do
+      for f in *."$ext"; do
+        all_files+=("$f")
+      done
+    done
+
+    for f in "${all_files[@]}"; do
+      p="s3://$S3_BUCKET/results/$TEST_ID/${TYPE_NAME}_Result/$PREFIX/$UUID/$f"
+      if [[ $f = /* ]]; then
+        p="s3://$S3_BUCKET/results/$TEST_ID/${TYPE_NAME}_Result/$PREFIX/$UUID$f"
+      fi
+
+        echo "Uploading $p"
+        aws s3 cp $f $p --region $MAIN_STACK_REGION
+    done
     fi
-
-    echo "Uploading $p"
-    aws s3 cp $f $p --region $MAIN_STACK_REGION
-  done
 fi
 
 if [ -f /tmp/artifacts/results.xml ]; then
@@ -114,12 +154,18 @@ if [ -f /tmp/artifacts/results.xml ]; then
     xmlstarlet ed -L -u /FinalStatus/TestDuration -v $CALCULATED_DURATION /tmp/artifacts/results.xml
   fi
 
+  if [ "$TEST_TYPE" == "simple" ]; then
+    TEST_TYPE = "jmeter"
+  fi
+
   echo "Uploading results, bzt log, and JMeter log, out, and err files"
   aws s3 cp /tmp/artifacts/results.xml s3://$S3_BUCKET/results/${TEST_ID}/${PREFIX}-${UUID}-${AWS_REGION}.xml --region $MAIN_STACK_REGION
   aws s3 cp /tmp/artifacts/bzt.log s3://$S3_BUCKET/results/${TEST_ID}/bzt-${PREFIX}-${UUID}-${AWS_REGION}.log --region $MAIN_STACK_REGION
-  aws s3 cp /tmp/artifacts/jmeter.log s3://$S3_BUCKET/results/${TEST_ID}/jmeter-${PREFIX}-${UUID}-${AWS_REGION}.log --region $MAIN_STACK_REGION
-  aws s3 cp /tmp/artifacts/jmeter.out s3://$S3_BUCKET/results/${TEST_ID}/jmeter-${PREFIX}-${UUID}-${AWS_REGION}.out --region $MAIN_STACK_REGION
-  aws s3 cp /tmp/artifacts/jmeter.err s3://$S3_BUCKET/results/${TEST_ID}/jmeter-${PREFIX}-${UUID}-${AWS_REGION}.err --region $MAIN_STACK_REGION
+  aws s3 cp /tmp/artifacts/$LOG_FILE s3://$S3_BUCKET/results/${TEST_ID}/${TEST_TYPE}-${PREFIX}-${UUID}-${AWS_REGION}.log --region $MAIN_STACK_REGION
+  aws s3 cp /tmp/artifacts/$OUT_FILE s3://$S3_BUCKET/results/${TEST_ID}/${TEST_TYPE}-${PREFIX}-${UUID}-${AWS_REGION}.out --region $MAIN_STACK_REGION
+  aws s3 cp /tmp/artifacts/$ERR_FILE s3://$S3_BUCKET/results/${TEST_ID}/${TEST_TYPE}-${PREFIX}-${UUID}-${AWS_REGION}.err --region $MAIN_STACK_REGION
+  aws s3 cp /tmp/artifacts/kpi.${KPI_EXT} s3://$S3_BUCKET/results/${TEST_ID}/kpi-${PREFIX}-${UUID}-${AWS_REGION}.${KPI_EXT} --region $MAIN_STACK_REGION
+
 else
   echo "An error occurred while the test was running."
 fi

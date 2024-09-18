@@ -296,7 +296,26 @@ exports[`DLT Task Lambda Test 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
-    "TaskRunnerLambdaFunctionsResultsParserD7D42F22": {
+    "TaskRunnerLambdaFunctionsResultsParserLambdaLogGroup4DCE2769": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "TaskRunnerLambdaFunctionsResultsParserNew7FDE8076",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 731,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TaskRunnerLambdaFunctionsResultsParserNew7FDE8076": {
       "DependsOn": [
         "TaskRunnerLambdaFunctionsLambdaResultsRole1AF5AB18",
       ],
@@ -352,7 +371,33 @@ exports[`DLT Task Lambda Test 1`] = `
       },
       "Type": "AWS::Lambda::Function",
     },
-    "TaskRunnerLambdaFunctionsTaskCancelerDAA76ED9": {
+    "TaskRunnerLambdaFunctionsTaskCancelerInvokePolicyD51068E2": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "TaskRunnerLambdaFunctionsTaskCancelerNew4B46C8FD",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TaskRunnerLambdaFunctionsTaskCancelerInvokePolicyD51068E2",
+        "Roles": [
+          {
+            "Ref": "TaskRunnerLambdaFunctionsTaskStatusRole4B498DE5",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TaskRunnerLambdaFunctionsTaskCancelerNew4B46C8FD": {
       "DependsOn": [
         "TaskRunnerLambdaFunctionsLambdaTaskCancelerRoleEEC6795B",
       ],
@@ -402,33 +447,45 @@ exports[`DLT Task Lambda Test 1`] = `
       },
       "Type": "AWS::Lambda::Function",
     },
-    "TaskRunnerLambdaFunctionsTaskCancelerInvokePolicyD51068E2": {
+    "TaskRunnerLambdaFunctionsTaskCancellerLambdaLogGroup0546CAC3": {
+      "DeletionPolicy": "Retain",
       "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": "lambda:InvokeFunction",
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "TaskRunnerLambdaFunctionsTaskCancelerDAA76ED9",
-                  "Arn",
-                ],
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "TaskRunnerLambdaFunctionsTaskCancelerNew4B46C8FD",
               },
-            },
+            ],
           ],
-          "Version": "2012-10-17",
         },
-        "PolicyName": "TaskRunnerLambdaFunctionsTaskCancelerInvokePolicyD51068E2",
-        "Roles": [
-          {
-            "Ref": "TaskRunnerLambdaFunctionsTaskStatusRole4B498DE5",
-          },
-        ],
+        "RetentionInDays": 731,
       },
-      "Type": "AWS::IAM::Policy",
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
     },
-    "TaskRunnerLambdaFunctionsTaskRunner626792CE": {
+    "TaskRunnerLambdaFunctionsTaskRunnerLambdaLogGroup9B234D13": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "TaskRunnerLambdaFunctionsTaskRunnerNew217B84FB",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 731,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TaskRunnerLambdaFunctionsTaskRunnerNew217B84FB": {
       "DependsOn": [
         "TaskRunnerLambdaFunctionsDLTTestLambdaTaskRoleCB13DE78",
       ],
@@ -479,7 +536,7 @@ exports[`DLT Task Lambda Test 1`] = `
       },
       "Type": "AWS::Lambda::Function",
     },
-    "TaskRunnerLambdaFunctionsTaskStatusCheckerBA69E13B": {
+    "TaskRunnerLambdaFunctionsTaskStatusCheckerNew3A3CDDD2": {
       "DependsOn": [
         "TaskRunnerLambdaFunctionsTaskStatusRole4B498DE5",
       ],
@@ -515,7 +572,7 @@ exports[`DLT Task Lambda Test 1`] = `
             "SOLUTION_ID": "testId",
             "TASK_CANCELER_ARN": {
               "Fn::GetAtt": [
-                "TaskRunnerLambdaFunctionsTaskCancelerDAA76ED9",
+                "TaskRunnerLambdaFunctionsTaskCancelerNew4B46C8FD",
                 "Arn",
               ],
             },
@@ -599,6 +656,25 @@ exports[`DLT Task Lambda Test 1`] = `
         ],
       },
       "Type": "AWS::IAM::Role",
+    },
+    "TaskRunnerLambdaFunctionstaskStatusCheckerLambdaLogGroup7A24AD42": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "TaskRunnerLambdaFunctionsTaskStatusCheckerNew3A3CDDD2",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 731,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
     },
     "TestDynamoDBPolicy7AA7B6CD": {
       "Properties": {

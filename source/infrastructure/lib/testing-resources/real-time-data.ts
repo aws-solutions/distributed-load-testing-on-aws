@@ -5,7 +5,7 @@ import { ArnFormat, CfnResource, Duration, Stack } from "aws-cdk-lib";
 import { Code, Function as LambdaFunction, Runtime } from "aws-cdk-lib/aws-lambda";
 import { Effect, PolicyStatement, PolicyDocument, Role, ServicePrincipal, Policy } from "aws-cdk-lib/aws-iam";
 import { IBucket } from "aws-cdk-lib/aws-s3";
-import { LogGroup, FilterPattern } from "aws-cdk-lib/aws-logs";
+import { LogGroup, FilterPattern, ILogGroup } from "aws-cdk-lib/aws-logs";
 import { LambdaDestination } from "aws-cdk-lib/aws-logs-destinations";
 import { Construct } from "constructs";
 
@@ -25,6 +25,8 @@ export interface RealTimeDataConstructProps {
 }
 
 export class RealTimeDataConstruct extends Construct {
+  public realTimeDataPublisher: LambdaFunction;
+  public realTimeDataPublisherLogGroup: ILogGroup;
   constructor(scope: Construct, id: string, props: RealTimeDataConstructProps) {
     super(scope, id);
 
@@ -52,7 +54,7 @@ export class RealTimeDataConstruct extends Construct {
     });
     realTimeDataPublisherRole.attachInlinePolicy(props.cloudWatchLogsPolicy);
 
-    const realTimeDataPublisher = new LambdaFunction(this, "RealTimeDataPublisher", {
+    const realTimeDataPublisher = new LambdaFunction(this, "RealTimeDataPublisherNew", {
       description: "Real time data publisher",
       handler: "index.handler",
       role: realTimeDataPublisherRole,
@@ -66,6 +68,14 @@ export class RealTimeDataConstruct extends Construct {
         VERSION: props.solutionVersion,
       },
     });
+
+    const realTimeDataPublisherLogGroup = new LogGroup(this, "RealTimeDataPublisherLogGroup", {
+      logGroupName: `/aws/lambda/${realTimeDataPublisher.functionName}`,
+    });
+
+    this.realTimeDataPublisherLogGroup = realTimeDataPublisherLogGroup;
+
+    this.realTimeDataPublisher = realTimeDataPublisher;
 
     const realTimeDataPublisherResource = realTimeDataPublisher.node.defaultChild as CfnResource;
     realTimeDataPublisherResource.addMetadata("cfn_nag", {

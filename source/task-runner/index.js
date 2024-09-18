@@ -3,9 +3,7 @@
 
 const AWS = require("aws-sdk");
 const utils = require("solution-utils");
-let options = {};
-options = utils.getOptions(options);
-options.region = process.env.AWS_REGION;
+let options = utils.getOptions({ region: process.env.AWS_REGION });
 const dynamo = new AWS.DynamoDB.DocumentClient(options);
 
 const checkRunningTasks = async (ecs, runTaskCount, taskCount, taskCluster, testId) => {
@@ -154,7 +152,7 @@ const launchWorkers = async (runTaskWorkersCount, launchParams, ecs, taskIds, ta
 const createDashboard = async (testId, ecsCloudWatchLogGroup, taskCluster, region) => {
   //Create metric filters and dashboard
   const metrics = ["numVu", "numSucc", "numFail", "avgRt"];
-  const metricNames = ["Virtual Users", "Success", "Failures", "Average Response Time"];
+  const metricNames = ["Virtual Users Activities", "Success", "Failures", "Average Response Time"];
   const cloudwatch = new AWS.CloudWatch(options);
   const cloudwatchLogs = new AWS.CloudWatchLogs(options);
   let widgets = [];

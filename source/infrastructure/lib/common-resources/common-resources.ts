@@ -19,7 +19,6 @@ import {
   CfnAttributeGroup,
   CfnAttributeGroupAssociation,
 } from "aws-cdk-lib/aws-servicecatalogappregistry";
-
 export interface CommonResourcesConstructProps {
   readonly sourceCodeBucket: string;
 }

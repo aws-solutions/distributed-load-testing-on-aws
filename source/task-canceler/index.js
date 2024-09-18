@@ -4,9 +4,7 @@
 const AWS = require("aws-sdk");
 const utils = require("solution-utils");
 AWS.config.logger = console;
-let options = {};
-options = utils.getOptions(options);
-options.region = process.env.AWS_REGION;
+let options = utils.getOptions({ region: process.env.AWS_REGION });
 const dynamoDB = new AWS.DynamoDB.DocumentClient(options);
 
 //Function to list tasks belonging to test

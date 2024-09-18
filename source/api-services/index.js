@@ -48,13 +48,17 @@ class APIHandler {
           );
         }
         // Handle creating test
-        else data = await scenarios.createTest(config);
+        else data = await scenarios.createTest(config, functionName);
         if (process.env.SEND_METRIC === "Yes") {
           await utils.sendMetric({
             Type: "TaskCreate",
             TestType: config.testType,
             FileType: config.fileType || (config.testType === "simple" ? "none" : "script"),
             TaskCount: config.taskCount,
+            TestId: data.testId,
+            TestScheduleStep: config.scheduleStep,
+            CronValue: config.cronValue,
+            TestEventBridgeScheduled: config.eventBridge,
           });
         }
         return data;

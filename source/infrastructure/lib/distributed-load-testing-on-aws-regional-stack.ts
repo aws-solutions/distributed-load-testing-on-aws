@@ -14,7 +14,6 @@ import {
   IAspect,
   Stack,
   StackProps,
-  Tags,
 } from "aws-cdk-lib";
 import { Construct, IConstruct } from "constructs";
 import { CommonResourcesConstruct } from "./common-resources/common-resources";
@@ -24,6 +23,7 @@ import { CustomResourcesConstruct } from "./custom-resources/custom-resources";
 import { RegionalPermissionsConstruct } from "./testing-resources/regional-permissions";
 import { FargateVpcConstruct } from "./testing-resources/vpc";
 import { RealTimeDataConstruct } from "./testing-resources/real-time-data";
+import { SolutionsMetrics } from "../../metrics-utils";
 
 /**
  * CDK Aspect implementation to set up conditions to the entire Construct resources
@@ -196,9 +196,6 @@ export class RegionalInfrastructureDLTStack extends Stack {
     const taskStatusCheckerRoleName = solutionMapping.findInMap("Config", "TaskStatusCheckerRoleName");
     const uuid = solutionMapping.findInMap("Config", "Uuid");
 
-    // Stack level tags
-    Tags.of(this).add("SolutionId", solutionId);
-
     // CFN Conditions
     const sendAnonymizedUsageCondition = new CfnCondition(this, "SendAnonymizedUsage", {
       expression: Fn.conditionEquals(sendAnonymizedUsage, "Yes"),
@@ -312,6 +309,24 @@ export class RegionalInfrastructureDLTStack extends Stack {
       sendAnonymizedUsage,
       sendAnonymizedUsageCondition,
     });
+
+    // metrics
+
+    const solutionsMetrics = new SolutionsMetrics(this, "SolutionMetrics", {
+      uuid: uuid,
+      sourceCodeBucket: commonResources.sourceBucket,
+      sourceCodePrefix: sourceCodePrefix,
+    });
+    solutionsMetrics.addECSAverageCPUUtilization(
+      fargateResources.taskClusterName,
+      fargateResources.taskDefinitionFamily
+    );
+    solutionsMetrics.addECSAverageMemoryUtilization(
+      fargateResources.taskClusterName,
+      fargateResources.taskDefinitionFamily
+    );
+
+    Aspects.of(solutionsMetrics).add(new ConditionAspect(sendAnonymizedUsageCondition));
 
     commonResources.appRegistryApplication({
       description: props.description,

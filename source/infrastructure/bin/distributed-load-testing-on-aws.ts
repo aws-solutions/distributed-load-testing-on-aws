@@ -52,6 +52,7 @@ const getProps = (): DLTStackProps => {
 };
 
 const app = new App();
+
 new DLTStack(app, "DLTStack", {
   synthesizer: new DefaultStackSynthesizer({
     generateBootstrapVersionRule: false,

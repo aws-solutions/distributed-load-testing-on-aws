@@ -3,7 +3,26 @@
 exports[`DLT real time data resources Test 1`] = `
 {
   "Resources": {
-    "TestECSRealTimeDataPublisherF2114D5B": {
+    "TestECSRealTimeDataPublisherLogGroupC1EBECA4": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "TestECSRealTimeDataPublisherNewF74D2131",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 731,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TestECSRealTimeDataPublisherNewF74D2131": {
       "DependsOn": [
         "TestECSrealTimeDataPublisherRoleEFE9F1CD",
       ],
@@ -113,7 +132,7 @@ exports[`DLT real time data resources Test 1`] = `
       "Properties": {
         "DestinationArn": {
           "Fn::GetAtt": [
-            "TestECSRealTimeDataPublisherF2114D5B",
+            "TestECSRealTimeDataPublisherNewF74D2131",
             "Arn",
           ],
         },
@@ -129,7 +148,7 @@ exports[`DLT real time data resources Test 1`] = `
         "Action": "lambda:InvokeFunction",
         "FunctionName": {
           "Fn::GetAtt": [
-            "TestECSRealTimeDataPublisherF2114D5B",
+            "TestECSRealTimeDataPublisherNewF74D2131",
             "Arn",
           ],
         },

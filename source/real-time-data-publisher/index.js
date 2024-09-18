@@ -7,11 +7,10 @@ const unzip = util.promisify(zlib.gunzip);
 const AWS = require("aws-sdk");
 const solutionUtils = require("solution-utils");
 const { MAIN_REGION, IOT_ENDPOINT } = process.env;
-let options = {
+let options = solutionUtils.getOptions({
   region: MAIN_REGION,
   endpoint: IOT_ENDPOINT,
-};
-options = solutionUtils.getOptions(options);
+});
 const iot = new AWS.IotData(options);
 
 // Define a function to create the timeout promise

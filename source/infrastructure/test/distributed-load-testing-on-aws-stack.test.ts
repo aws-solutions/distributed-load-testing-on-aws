@@ -12,14 +12,20 @@ const props = {
     "Distributed Load Testing on AWS is a reference architecture to perform application load testing at scale.",
   publicECRRegistry: "testRegistry",
   publicECRTag: "testTag",
-  solutionId: "testId",
+  solutionId: "SO0062",
   solutionName: "distributed-load-testing-on-aws",
   stackType: "main",
   url: "http://testurl.com",
 };
 
 test("Distributed Load Testing stack test", () => {
-  const app = new App();
+  const app = new App({
+    context: {
+      codeVersion: "testversion",
+      solutionId: "SO0062",
+      solutionName: "distributed-load-testing-on-aws",
+    },
+  });
   const stack = new DLTStack(app, "DLTStack", {
     synthesizer: new DefaultStackSynthesizer({
       generateBootstrapVersionRule: false,

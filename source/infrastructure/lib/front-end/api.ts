@@ -4,7 +4,7 @@
 import { Code, Function as LambdaFunction, Runtime } from "aws-cdk-lib/aws-lambda";
 import { Aws, ArnFormat, CfnResource, Duration, RemovalPolicy, Stack } from "aws-cdk-lib";
 import { IBucket } from "aws-cdk-lib/aws-s3";
-import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
+import { ILogGroup, LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Effect, Policy, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import {
   AccessLogFormat,
@@ -74,6 +74,7 @@ export class DLTAPI extends Construct {
   apiId: string;
   apiEndpointPath: string;
   apiServicesLambdaRoleName: string;
+  apiLambdaLogGroup: ILogGroup;
 
   constructor(scope: Construct, id: string, props: DLTAPIProps) {
     super(scope, id);
@@ -190,7 +191,7 @@ export class DLTAPI extends Construct {
       ],
     });
 
-    const dltApiServicesLambda = new LambdaFunction(this, "DLTAPIServicesLambda", {
+    const dltApiServicesLambda = new LambdaFunction(this, "DLTAPIServicesLambdaNew", {
       description: "API microservices for creating, updating, listing and deleting test scenarios",
       code: Code.fromBucket(props.sourceCodeBucket, `${props.sourceCodePrefix}/api-services.zip`),
       runtime: Runtime.NODEJS_18_X,
@@ -228,6 +229,11 @@ export class DLTAPI extends Construct {
         },
       ],
     });
+
+    const dltApiServicesLambdaLogGroup = new LogGroup(this, "dltApiServicesLambdaLogGroup", {
+      logGroupName: `/aws/lambda/${dltApiServicesLambda.functionName}`,
+    });
+    this.apiLambdaLogGroup = dltApiServicesLambdaLogGroup;
 
     const lambdaApiPermissionPolicy = new Policy(this, "LambdaApiPermissionPolicy", {
       statements: [

@@ -1820,7 +1820,7 @@ describe("#SCENARIOS API:: ", () => {
         return Promise.resolve(updateData);
       },
     }));
-    const response = await lambda.createTest(config);
+    const response = await lambda.createTest(config, context.functionName);
     expect(response.testStatus).toEqual("running");
   });
 
@@ -1862,7 +1862,7 @@ describe("#SCENARIOS API:: ", () => {
         return Promise.resolve(updateData);
       },
     }));
-    const response = await lambda.createTest(config);
+    const response = await lambda.createTest(config, context.functionName);
     expect(response.testStatus).toEqual("running");
     expect(mockDynamoDB).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1915,7 +1915,7 @@ describe("#SCENARIOS API:: ", () => {
       },
     }));
 
-    const response = await lambda.createTest(config);
+    const response = await lambda.createTest(config, context.functionName);
     expect(response.testStatus).toEqual("running");
     expect(mockDynamoDB).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1967,9 +1967,56 @@ describe("#SCENARIOS API:: ", () => {
       },
     }));
 
-    const response = await lambda.createTest(config);
+    const response = await lambda.createTest(config, context.functionName);
     expect(response.testStatus).toEqual("running");
     delete config.eventBridge;
+  });
+
+  it("should return SUCCESS for eventBridge triggered test with cronValue", async () => {
+    config.eventBridge = "true";
+    config.cronValue = "0 0 * * *";
+
+    mockS3.mockImplementation(() => ({
+      promise() {
+        // putObject
+        return Promise.resolve();
+      },
+    }));
+    mockStepFunctions.mockImplementation(() => ({
+      promise() {
+        // startExecution
+        return Promise.resolve();
+      },
+    }));
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // update
+        return Promise.resolve(getRegionalConf);
+      },
+    }));
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // update
+        return Promise.resolve(getRegionalConf2);
+      },
+    }));
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // get
+        return Promise.resolve(getData);
+      },
+    }));
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
+        // update
+        return Promise.resolve(updateData);
+      },
+    }));
+
+    const response = await lambda.createTest(config, context.functionName);
+    expect(response.testStatus).toEqual("running");
+    delete config.eventBridge;
+    delete config.cronValue;
   });
 
   it('should record proper date when "CREATETEST" with weekly recurrence', async () => {
@@ -2011,7 +2058,7 @@ describe("#SCENARIOS API:: ", () => {
       },
     }));
 
-    const response = await lambda.createTest(config);
+    const response = await lambda.createTest(config, context.functionName);
     expect(response.testStatus).toEqual("running");
     expect(mockDynamoDB).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -2063,7 +2110,7 @@ describe("#SCENARIOS API:: ", () => {
       },
     }));
 
-    const response = await lambda.createTest(config);
+    const response = await lambda.createTest(config, context.functionName);
     expect(response.testStatus).toEqual("running");
     expect(mockDynamoDB).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -2114,7 +2161,7 @@ describe("#SCENARIOS API:: ", () => {
         return Promise.resolve(updateData);
       },
     }));
-    const response = await lambda.createTest(config);
+    const response = await lambda.createTest(config, context.functionName);
     expect(response.testStatus).toEqual("running");
     expect(mockDynamoDB).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -2209,6 +2256,60 @@ describe("#SCENARIOS API:: ", () => {
     //reset config
     delete config.recurrence;
     delete config.scheduleStep;
+  });
+
+  it('should return SUCCESS when "SCHEDULETEST" returns success and scheduleStep is "create" but with cronValue', async () => {
+    config.scheduleStep = "create";
+    config.recurrence = "";
+    config.scheduleDate = "";
+    config.scheduleTime = "";
+    config.cronValue = "0 0 * * *";
+    config.cronExpiryDate = "2017-12-31";
+
+    mockCloudWatchEvents.mockImplementationOnce(() => ({
+      promise() {
+        //listRule
+        return Promise.resolve({ Rules: [] });
+      },
+    }));
+    mockCloudWatchEvents.mockImplementationOnce(() => ({
+      promise() {
+        //putRule
+        return Promise.resolve(rulesResponse);
+      },
+    }));
+    mockLambda.mockImplementationOnce(() => ({
+      promise() {
+        //putPermission
+        return Promise.resolve();
+      },
+    }));
+    mockCloudWatchEvents.mockImplementationOnce(() => ({
+      promise() {
+        //putTargets
+        return Promise.resolve();
+      },
+    }));
+    mockDynamoDB.mockImplementation(() => {
+      let scheduleData = updateData;
+      scheduleData.Attributes.testStatus = "scheduled";
+      return {
+        promise() {
+          // update
+          return Promise.resolve(scheduleData);
+        },
+      };
+    });
+
+    const response = await lambda.scheduleTest(eventInput(), context);
+    expect(response.testStatus).toEqual("scheduled");
+
+    //reset config
+    delete config.scheduleStep;
+    delete config.recurrence;
+    delete config.cronValue;
+    config.scheduleDate = "2018-02-28";
+    config.scheduleTime = "12:30";
   });
 
   it('should return SUCCESS and record proper next daily run when "SCHEDULETEST" returns success when scheduleStep is start and recurrence exists', async () => {
@@ -2365,6 +2466,95 @@ describe("#SCENARIOS API:: ", () => {
     //reset config
     delete config.recurrence;
     delete config.scheduleStep;
+  });
+
+  it('should return SUCCESS and record proper next weekly run when "SCHEDULETEST" returns success with scheduleStep is start and cronValue exists', async () => {
+    config.scheduleStep = "start";
+    config.recurrence = "";
+    config.cronValue = "0 0 * * *";
+
+    mockCloudWatchEvents.mockImplementationOnce(() => ({
+      promise() {
+        //listRule
+        return Promise.resolve(rulesResponse);
+      },
+    }));
+    mockCloudWatchEvents.mockImplementationOnce(() => ({
+      promise() {
+        //delete target
+        return Promise.resolve();
+      },
+    }));
+    mockLambda.mockImplementationOnce(() => ({
+      promise() {
+        //delete permission
+        return Promise.resolve();
+      },
+    }));
+    mockCloudWatchEvents.mockImplementationOnce(() => ({
+      promise() {
+        //delete rule
+        return Promise.resolve();
+      },
+    }));
+    mockCloudWatchEvents.mockImplementationOnce(() => ({
+      promise() {
+        //putRule
+        return Promise.resolve({ RuleArn: "arn:of:rule/123" });
+      },
+    }));
+    mockLambda.mockImplementationOnce(() => ({
+      promise() {
+        //putPermission
+        return Promise.resolve();
+      },
+    }));
+    mockCloudWatchEvents.mockImplementationOnce(() => ({
+      promise() {
+        //putTargets
+        return Promise.resolve();
+      },
+    }));
+    mockCloudWatchEvents.mockImplementationOnce(() => ({
+      promise() {
+        //removeTargets
+        return Promise.resolve();
+      },
+    }));
+    mockLambda.mockImplementationOnce(() => ({
+      promise() {
+        //removePermission
+        return Promise.resolve();
+      },
+    }));
+    mockCloudWatchEvents.mockImplementationOnce(() => ({
+      promise() {
+        //removeRule
+        return Promise.resolve();
+      },
+    }));
+    mockDynamoDB.mockImplementation(() => {
+      let scheduleData = updateData;
+      scheduleData.Attributes.testStatus = "scheduled";
+      return {
+        promise() {
+          // update
+          return Promise.resolve(scheduleData);
+        },
+      };
+    });
+
+    await lambda.scheduleTest(eventInput(), context);
+    expect(mockCloudWatchEvents).toHaveBeenNthCalledWith(
+      4,
+      expect.objectContaining({
+        ScheduleExpression: "cron(0 0 * * ? 2017)",
+      })
+    );
+    //reset config
+    delete config.scheduleStep;
+    delete config.recurrence;
+    delete config.cronValue;
   });
 
   it('should return SUCCESS and record proper next biweekly run when "SCHEDULETEST" returns success withe scheduleStep is start and recurrence exists', async () => {
@@ -2825,7 +3015,7 @@ describe("#SCENARIOS API:: ", () => {
       },
     }));
     try {
-      await lambda.createTest(config);
+      await lambda.createTest(config, context.functionName);
     } catch (error) {
       expect(error).toEqual("STEP FUNCTIONS ERROR");
     }
@@ -2852,7 +3042,7 @@ describe("#SCENARIOS API:: ", () => {
     }));
 
     try {
-      await lambda.createTest(config);
+      await lambda.createTest(config, context.functionName);
     } catch (error) {
       expect(error).toEqual("DB ERROR");
     }
@@ -2867,7 +3057,7 @@ describe("#SCENARIOS API:: ", () => {
       },
     }));
     try {
-      await lambda.createTest(config);
+      await lambda.createTest(config, context.functionName);
     } catch (error) {
       expect(error.code).toEqual("InvalidParameter");
     }
@@ -2887,7 +3077,7 @@ describe("#SCENARIOS API:: ", () => {
       },
     }));
     try {
-      await lambda.createTest(config);
+      await lambda.createTest(config, context.functionName);
     } catch (error) {
       errorThrown = true;
       expect(error.code).toEqual("InvalidParameter");
@@ -2909,7 +3099,7 @@ describe("#SCENARIOS API:: ", () => {
       },
     }));
     try {
-      await lambda.createTest(config);
+      await lambda.createTest(config, context.functionName);
     } catch (error) {
       errorThrown = true;
       expect(error.code).toEqual("InvalidParameter");
@@ -2929,7 +3119,7 @@ describe("#SCENARIOS API:: ", () => {
       },
     }));
     try {
-      await lambda.createTest(config);
+      await lambda.createTest(config, context.functionName);
     } catch (error) {
       expect(error.code).toEqual("InvalidParameter");
     }
@@ -2946,7 +3136,7 @@ describe("#SCENARIOS API:: ", () => {
       },
     }));
     try {
-      await lambda.createTest(config);
+      await lambda.createTest(config, context.functionName);
     } catch (error) {
       expect(error.code).toEqual("InvalidParameter");
     }
@@ -2963,7 +3153,7 @@ describe("#SCENARIOS API:: ", () => {
       },
     }));
     try {
-      await lambda.createTest(config);
+      await lambda.createTest(config, context.functionName);
     } catch (error) {
       expect(error.code).toEqual("InvalidParameter");
     }
@@ -2981,7 +3171,7 @@ describe("#SCENARIOS API:: ", () => {
       },
     }));
     try {
-      await lambda.createTest(config);
+      await lambda.createTest(config, context.functionName);
     } catch (error) {
       expect(error.code).toEqual("InvalidParameter");
     }
@@ -2999,7 +3189,7 @@ describe("#SCENARIOS API:: ", () => {
       },
     }));
     try {
-      await lambda.createTest(config);
+      await lambda.createTest(config, context.functionName);
     } catch (error) {
       expect(error.code).toEqual("InvalidParameter");
     }
@@ -3017,7 +3207,7 @@ describe("#SCENARIOS API:: ", () => {
       },
     }));
     try {
-      await lambda.createTest(config);
+      await lambda.createTest(config, context.functionName);
     } catch (error) {
       expect(error.code).toEqual("InvalidParameter");
     }
@@ -3062,7 +3252,7 @@ describe("#SCENARIOS API:: ", () => {
         return Promise.resolve(notRegionalConf);
       },
     }));
-    await lambda.createTest(config).catch((err) => {
+    await lambda.createTest(config, context.functionName).catch((err) => {
       expect(err.message.toString()).toEqual(
         "The region requested does not have a stored infrastructure configuration."
       );
@@ -3433,7 +3623,7 @@ it('should return "S3 ERROR" when "PUTOBJECT" fails', async () => {
   }));
 
   try {
-    await lambda.createTest(config);
+    await lambda.createTest(config, context.functionName);
   } catch (error) {
     expect(error).toEqual("S3 ERROR");
   }

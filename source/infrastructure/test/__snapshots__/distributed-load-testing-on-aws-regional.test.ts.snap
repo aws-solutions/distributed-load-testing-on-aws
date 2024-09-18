@@ -191,13 +191,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
           ],
         },
         "Tags": {
-          "SolutionId": {
-            "Fn::FindInMap": [
-              "Solution",
-              "Config",
-              "SolutionId",
-            ],
-          },
           "Solutions:ApplicationType": "AWS-Solutions",
           "Solutions:SolutionID": {
             "Fn::FindInMap": [
@@ -312,7 +305,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
             "Uuid",
           ],
         },
-        "VERSION": {
+        "Version": {
           "Fn::FindInMap": [
             "Solution",
             "Config",
@@ -429,18 +422,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       },
       "Properties": {
         "RetentionInDays": 365,
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
@@ -452,7 +433,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       "Properties": {
         "DestinationArn": {
           "Fn::GetAtt": [
-            "RealTimeDataRealTimeDataPublisher7E8F8F6C",
+            "RealTimeDataRealTimeDataPublisherNew82D06000",
             "Arn",
           ],
         },
@@ -468,7 +449,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         "Action": "lambda:InvokeFunction",
         "FunctionName": {
           "Fn::GetAtt": [
-            "RealTimeDataRealTimeDataPublisher7E8F8F6C",
+            "RealTimeDataRealTimeDataPublisherNew82D06000",
             "Arn",
           ],
         },
@@ -527,18 +508,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       },
       "Properties": {
         "GroupDescription": "DLTS Tasks Security Group",
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "VpcId": {
           "Fn::If": [
             "CreateFargateVPCResources",
@@ -626,22 +595,21 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
             "Arn",
           ],
         },
+        "Family": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-task-family",
+            ],
+          ],
+        },
         "Memory": "4096",
         "NetworkMode": "awsvpc",
         "RequiresCompatibilities": [
           "FARGATE",
-        ],
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
         ],
         "TaskRoleArn": {
           "Fn::GetAtt": [
@@ -740,54 +708,16 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
             "PolicyName": "ScenariosS3Policy",
           },
         ],
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::IAM::Role",
     },
     "DLTRegionalVpcDLTFargateIGE3847EB3": {
       "Condition": "CreateFargateVPCResources",
-      "Properties": {
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
-      },
       "Type": "AWS::EC2::InternetGateway",
     },
     "DLTRegionalVpcDLTFargateRT243A2CBC": {
       "Condition": "CreateFargateVPCResources",
       "Properties": {
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "VpcId": {
           "Ref": "DLTRegionalVpcDLTFargateVpc27038C26",
         },
@@ -817,16 +747,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
             "Key": "Name",
             "Value": {
               "Ref": "AWS::StackName",
-            },
-          },
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
             },
           },
         ],
@@ -899,18 +819,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         "CidrBlock": {
           "Ref": "SubnetACidrBlock",
         },
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "VpcId": {
           "Ref": "DLTRegionalVpcDLTFargateVpc27038C26",
         },
@@ -931,18 +839,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         "CidrBlock": {
           "Ref": "SubnetBCidrBlock",
         },
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "VpcId": {
           "Ref": "DLTRegionalVpcDLTFargateVpc27038C26",
         },
@@ -992,19 +888,29 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         "Name": {
           "Ref": "AWS::StackName",
         },
-        "Tags": {
-          "SolutionId": {
-            "Fn::FindInMap": [
-              "Solution",
-              "Config",
-              "SolutionId",
-            ],
-          },
-        },
       },
       "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroup",
     },
-    "RealTimeDataRealTimeDataPublisher7E8F8F6C": {
+    "RealTimeDataRealTimeDataPublisherLogGroup3FE55F9A": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "RealTimeDataRealTimeDataPublisherNew82D06000",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 731,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "RealTimeDataRealTimeDataPublisherNew82D06000": {
       "DependsOn": [
         "RealTimeDatarealTimeDataPublisherRoleA8976D01",
       ],
@@ -1101,18 +1007,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
           ],
         },
         "Runtime": "nodejs18.x",
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "Timeout": 180,
       },
       "Type": "AWS::Lambda::Function",
@@ -1167,18 +1061,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
               "Version": "2012-10-17",
             },
             "PolicyName": "IoTPolicy",
-          },
-        ],
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
           },
         ],
       },
@@ -1296,18 +1178,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
           ],
         },
         "Runtime": "nodejs18.x",
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
         "Timeout": 120,
       },
       "Type": "AWS::Lambda::Function",
@@ -1475,18 +1345,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
               "Version": "2012-10-17",
             },
             "PolicyName": "CustomResourcePolicy",
-          },
-        ],
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
           },
         ],
       },
@@ -1821,6 +1679,372 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         ],
       },
       "Type": "AWS::IAM::Policy",
+    },
+    "SolutionMetricsEventbridgeRuleToLambdaEventsRule3849A6EF": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "ScheduleExpression": "cron(0 23 ? * MON *)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "SolutionMetricsMetricsLambdaBD5829C7",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+            "InputTransformer": {
+              "InputPathsMap": {
+                "detail-type": "$.detail-type",
+                "time": "$.time",
+              },
+              "InputTemplate": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "{"detail-type": <detail-type>, "time": <time>, "metrics-data-query": [{"MetricStat":{"Metric":{"Namespace":"ECS/ContainerInsights","Dimensions":[{"Name":"ClusterName","Value":"",
+                    {
+                      "Ref": "DLTRegionalFargateDLTEcsCluster1D89D366",
+                    },
+                    ""},{"Name":"TaskDefinitionFamily","Value":"",
+                    {
+                      "Ref": "AWS::StackName",
+                    },
+                    "-task-family"}],"MetricName":"CpuUtilized"},"Stat":"Average","Period":300},"Id":"id_",
+                    {
+                      "Fn::Join": [
+                        "_",
+                        {
+                          "Fn::Split": [
+                            "-",
+                            {
+                              "Ref": "AWS::StackName",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    "_0"},{"MetricStat":{"Metric":{"Namespace":"ECS/ContainerInsights","Dimensions":[{"Name":"ClusterName","Value":"",
+                    {
+                      "Ref": "DLTRegionalFargateDLTEcsCluster1D89D366",
+                    },
+                    ""},{"Name":"TaskDefinitionFamily","Value":"",
+                    {
+                      "Ref": "AWS::StackName",
+                    },
+                    "-task-family"}],"MetricName":"MemoryUtilized"},"Stat":"Average","Period":300},"Id":"id_",
+                    {
+                      "Fn::Join": [
+                        "_",
+                        {
+                          "Fn::Split": [
+                            "-",
+                            {
+                              "Ref": "AWS::StackName",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    "_1"}]}",
+                  ],
+                ],
+              },
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2": {
+      "Condition": "SendAnonymizedUsage",
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "DelaySeconds": 900,
+        "KmsMasterKeyId": "alias/aws/sqs",
+        "MaximumMessageSize": 1024,
+        "MessageRetentionPeriod": 86400,
+        "ReceiveMessageWaitTimeSeconds": 20,
+        "VisibilityTimeout": 1020,
+      },
+      "Type": "AWS::SQS::Queue",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueuePolicy30A8FD64": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "sqs:DeleteMessage",
+                "sqs:ReceiveMessage",
+                "sqs:SendMessage",
+                "sqs:GetQueueAttributes",
+                "sqs:RemovePermission",
+                "sqs:AddPermission",
+                "sqs:SetQueueAttributes",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":root",
+                    ],
+                  ],
+                },
+              },
+              "Resource": {
+                "Fn::GetAtt": [
+                  "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+                  "Arn",
+                ],
+              },
+              "Sid": "QueueOwnerOnlyAccess",
+            },
+            {
+              "Action": "SQS:*",
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false",
+                },
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": {
+                "Fn::GetAtt": [
+                  "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+                  "Arn",
+                ],
+              },
+              "Sid": "HttpsOnly",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Queues": [
+          {
+            "Ref": "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+          },
+        ],
+      },
+      "Type": "AWS::SQS::QueuePolicy",
+    },
+    "SolutionMetricsMetricsLambdaAwsEventsLambdaInvokePermission175518221": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "SolutionMetricsMetricsLambdaBD5829C7",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "SolutionMetricsEventbridgeRuleToLambdaEventsRule3849A6EF",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "SolutionMetricsMetricsLambdaBD5829C7": {
+      "Condition": "SendAnonymizedUsage",
+      "DependsOn": [
+        "SolutionMetricsMetricsLambdaServiceRoleDefaultPolicyE7D305A3",
+        "SolutionMetricsMetricsLambdaServiceRole662035AC",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Join": [
+              "-",
+              [
+                {
+                  "Fn::FindInMap": [
+                    "Solution",
+                    "Config",
+                    "S3Bucket",
+                  ],
+                },
+                {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": {
+            "Fn::Join": [
+              "",
+              [
+                {
+                  "Fn::FindInMap": [
+                    "Solution",
+                    "Config",
+                    "KeyPrefix",
+                  ],
+                },
+                "/metrics-utils.zip",
+              ],
+            ],
+          },
+        },
+        "Description": "Metrics util",
+        "Environment": {
+          "Variables": {
+            "EXECUTION_DAY": "MON",
+            "QUERY_PREFIX": {
+              "Fn::Join": [
+                "",
+                [
+                  {
+                    "Ref": "AWS::StackName",
+                  },
+                  "-",
+                ],
+              ],
+            },
+            "SOLUTION_ID": "SO0062",
+            "SOLUTION_NAME": "distributed-load-testing-on-aws",
+            "SOLUTION_VERSION": "testversion",
+            "SQS_QUEUE_URL": {
+              "Ref": "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+            },
+            "UUID": {
+              "Fn::FindInMap": [
+                "Solution",
+                "Config",
+                "Uuid",
+              ],
+            },
+          },
+        },
+        "Handler": "index.handler",
+        "MemorySize": 128,
+        "Role": {
+          "Fn::GetAtt": [
+            "SolutionMetricsMetricsLambdaServiceRole662035AC",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs18.x",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "SolutionMetricsMetricsLambdaServiceRole662035AC": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "SolutionMetricsMetricsLambdaServiceRoleDefaultPolicyE7D305A3": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "sqs:SendMessage",
+                "sqs:GetQueueAttributes",
+                "sqs:GetQueueUrl",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "sqs:ReceiveMessage",
+                "sqs:ChangeMessageVisibility",
+                "sqs:GetQueueUrl",
+                "sqs:DeleteMessage",
+                "sqs:GetQueueAttributes",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": "cloudwatch:GetMetricData",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SolutionMetricsMetricsLambdaServiceRoleDefaultPolicyE7D305A3",
+        "Roles": [
+          {
+            "Ref": "SolutionMetricsMetricsLambdaServiceRole662035AC",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "SolutionMetricsMetricsLambdaSqsEventSourceTestDLTRegionalStackSolutionMetricsLambdaToSqsToLambdalambdatosqsqueue96EA5F4433908714": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "EventSourceArn": {
+          "Fn::GetAtt": [
+            "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+            "Arn",
+          ],
+        },
+        "FunctionName": {
+          "Ref": "SolutionMetricsMetricsLambdaBD5829C7",
+        },
+      },
+      "Type": "AWS::Lambda::EventSourceMapping",
     },
   },
   "Rules": {

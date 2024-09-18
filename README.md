@@ -15,7 +15,7 @@ The Distributed Load Testing Solution leverages managed, highly available and hi
 
 ## Deployment
 
-The solution is deployed using a CloudFormation template with a lambda backed custom resource. To simulate users from regions other than the region the solution is initially deployed in, a regional template must be deployed within the other desired regions. For details on deploying the solution please see the details on the solution implementation guide: [Distributed Load Testing](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/deployment.html)
+The solution is deployed using a CloudFormation template with a lambda backed custom resource. To simulate users from regions other than the region the solution is initially deployed in, a regional template must be deployed within the other desired regions. For details on deploying the solution please see the details on the solution implementation guide: [Distributed Load Testing](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/deployment.html).
 
 ## Source Code
 

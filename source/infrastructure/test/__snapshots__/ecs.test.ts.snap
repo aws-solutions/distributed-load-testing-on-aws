@@ -129,6 +129,17 @@ exports[`DLT ECS Test 1`] = `
             "Arn",
           ],
         },
+        "Family": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-task-family",
+            ],
+          ],
+        },
         "Memory": "4096",
         "NetworkMode": "awsvpc",
         "RequiresCompatibilities": [
