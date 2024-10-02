@@ -8,12 +8,12 @@ import { setupAxiosInterceptors, teardownAxiosInterceptors, ErrorResponse, valid
 
 const config = load();
 const POST_TEST_ID = "POST-TEST-ID-001";
-
+const REGION = config.region;
 const defaultRequest: ScenarioRequest = {
   testId: POST_TEST_ID,
   testName: "POST Scenario Test",
   testDescription: "",
-  testTaskConfigs: [{ concurrency: "1", taskCount: "1", region: "us-east-1" }],
+  testTaskConfigs: [{ concurrency: "1", taskCount: "1", region: REGION }],
   testScenario: {
     execution: [{ "ramp-up": "1m", "hold-for": "1m", scenario: "Some Test" }],
     scenarios: {},
@@ -22,7 +22,7 @@ const defaultRequest: ScenarioRequest = {
   testType: "simple",
   fileType: "",
   regionalTaskDetails: {
-    "us-east-1": { vCPULimit: 4000, vCPUsPerTask: 2, vCPUsInUse: 0, dltTaskLimit: 2000, dltAvailableTasks: 2000 },
+    [REGION]: { vCPULimit: 4000, vCPUsPerTask: 2, vCPUsInUse: 0, dltTaskLimit: 2000, dltAvailableTasks: 2000 },
   },
 };
 
@@ -44,7 +44,7 @@ describe("/scenarios/{testId}", () => {
 
     afterAll(async () => {
       const result = await axios.delete(`${config.apiUrl}/scenarios/${POST_TEST_ID}`);
-      if (result.status !== 200) {
+      if (result.status !== 404 && result.status !== 200) {
         throw new Error(`Cleanup failed during deleting test data with status code: ${result.status}`);
       }
     });
@@ -55,8 +55,7 @@ describe("/scenarios/{testId}", () => {
       expect(result.data).toBe("test cancelling");
     });
 
-    // TODO - appropriate status, code and message should be returned.
-    xit("Invalid ID", async () => {
+    it("Invalid ID", async () => {
       const result: ErrorResponse = await axios.post(`${config.apiUrl}/scenarios/INVALID_TEST_ID`);
       expect(result.status).toBe(404);
       expect(result.code).toBe("NOT_FOUND");
@@ -66,13 +65,15 @@ describe("/scenarios/{testId}", () => {
     it("Missing ID", async () => {
       const result: ErrorResponse = await axios.post(`${config.apiUrl}/scenarios/`);
       expect(result.status).toBe(400);
-      expect(result.code).toBe("ERR_BAD_REQUEST");
+      expect(result.code).toBe("BAD_REQUEST");
     });
 
     it("Invalid Method", async () => {
       const result: ErrorResponse = await axios.put(`${config.apiUrl}/scenarios/${POST_TEST_ID}`);
-      expect(result.status).toBe(400); // TODO - this should be 405 (Method Not Allowed)
-      expect(result.data).toContain("Error: Method: PUT not supported for this resource: /scenarios/{testId}");
+      expect(result.status).toBe(405);
+      expect(result.data).toContain(
+        "METHOD_NOT_ALLOWED: Method: PUT not supported for this resource: /scenarios/{testId}"
+      );
     });
   });
 
@@ -89,14 +90,12 @@ describe("/scenarios/{testId}", () => {
       expect(result.status).toBe(200);
       expect(result.data).toBe("success");
 
-      await axios.get(`${config.apiUrl}/scenarios/${POST_TEST_ID}`);
-      // TODO - appropriate status and code should be returned.
-      // expect(errorResult.status).toBe(404);
-      // expect(errorResult.code).toBe("NOT_FOUND");
+      const errorResult: ErrorResponse = await axios.get(`${config.apiUrl}/scenarios/${POST_TEST_ID}`);
+      expect(errorResult.status).toBe(404);
+      expect(errorResult.code).toBe("NOT_FOUND");
     });
 
-    // TODO - appropriate status, code and message should be returned.
-    xit("Invalid ID", async () => {
+    it("Invalid ID", async () => {
       const result: ErrorResponse = await axios.post(`${config.apiUrl}/scenarios/INVALID_TEST_ID`);
       expect(result.status).toBe(404);
       expect(result.code).toBe("NOT_FOUND");
@@ -106,7 +105,7 @@ describe("/scenarios/{testId}", () => {
     it("Missing ID", async () => {
       const result: ErrorResponse = await axios.post(`${config.apiUrl}/scenarios/`);
       expect(result.status).toBe(400);
-      expect(result.code).toBe("ERR_BAD_REQUEST");
+      expect(result.code).toBe("BAD_REQUEST");
     });
   });
 
@@ -119,7 +118,7 @@ describe("/scenarios/{testId}", () => {
     });
     afterAll(async () => {
       const result = await axios.delete(`${config.apiUrl}/scenarios/${POST_TEST_ID}`);
-      if (result.status !== 200) {
+      if (result.status !== 404 && result.status !== 200) {
         throw new Error(`Cleanup failed during deleting test data with status code: ${result.status}`);
       }
     });
@@ -130,8 +129,7 @@ describe("/scenarios/{testId}", () => {
       expect(validateScenario(result.data)).toBe(true);
     });
 
-    // TODO - appropriate status, code and message should be returned.
-    xit("Invalid ID", async () => {
+    it("Invalid ID", async () => {
       const result: ErrorResponse = await axios.get(`${config.apiUrl}/scenarios/INVALID_TEST_ID`);
       expect(result.status).toBe(404);
       expect(result.code).toBe("NOT_FOUND");

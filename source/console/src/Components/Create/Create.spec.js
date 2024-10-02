@@ -150,7 +150,7 @@ describe("Functions Testing", () => {
       let createInstance = new Create(commonProps);
       createInstance.state = { file: { type: initialFileType === "zip" ? "application/zip" : "text/plain" } };
       await createInstance.uploadFileToScenarioBucket("test");
-      expect(uploadData).toHaveBeenCalledTimes(1);
+      expect(uploadData).toHaveBeenCalledTimes(1); // NOSONAR
     });
   });
 });

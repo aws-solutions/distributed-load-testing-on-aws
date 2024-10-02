@@ -6,6 +6,7 @@ import Ajv from "ajv";
 import axios, { AxiosError, AxiosResponse } from "axios";
 import { load } from "../api.config";
 import { ScenarioResponse } from "./scenario";
+
 const config = load();
 
 export interface ErrorResponse {
@@ -17,7 +18,7 @@ export interface ErrorResponse {
 const setupAxiosInterceptors = () => {
   const interceptor = aws4Interceptor({
     options: {
-      region: "us-east-1",
+      region: config.region,
       service: "execute-api",
     },
     credentials: {
@@ -32,7 +33,7 @@ const setupAxiosInterceptors = () => {
     (response: AxiosResponse): AxiosResponse => response,
     (error: AxiosError): ErrorResponse => ({
       status: error.response.status,
-      code: error.code,
+      code: error.response.statusText.toUpperCase().replace(/ /g, "_"),
       data: <string>error.response.data,
     })
   );

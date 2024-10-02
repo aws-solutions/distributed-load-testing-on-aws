@@ -31,9 +31,6 @@ import {
   NavLink,
   TabContent,
   TabPane,
-  Modal,
-  ModalBody,
-  ModalFooter,
 } from "reactstrap";
 import "brace/theme/github";
 import { generateUniqueId } from "solution-utils";
@@ -335,7 +332,7 @@ class Create extends React.Component {
     }
     try {
       this.setState({ isUploading: true });
-      await uploadData({ key: `test-scenarios/${testType}/${filename}`, data: file }).result;
+      await uploadData({ path: `public/test-scenarios/${testType}/${filename}`, data: file }).result;
       console.log("Script uploaded successfully");
     } catch (error) {
       console.error("Error", error);
@@ -766,9 +763,7 @@ class Create extends React.Component {
 
     const nextSixRuns = this.nextSixRuns();
     let fields = JSON.parse(JSON.stringify(interval.fields));
-    if (fields.minute.length !== 1 && nextSixRuns && nextSixRuns.length > 1) return true;
-
-    return false;
+    return fields.minute.length !== 1 && nextSixRuns && nextSixRuns.length > 1;
   };
 
   checkEnoughIntervalDiff = () => {

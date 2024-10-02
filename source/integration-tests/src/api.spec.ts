@@ -85,18 +85,16 @@ describe("Authenticated API", () => {
   });
 
   describe("/scenarios/{testId}", () => {
-    // TODO: Invalid test ID should throw explicit error
-    xit("GET /scenarios/{testId}", async () => {
+    it("GET /scenarios/{testId}", async () => {
       const result: ErrorResponse = await axios.get(`${config.apiUrl}/scenarios/INVALID_TEST_ID`);
-      expect(result.status).toBe(400); // TODO - this should be 404
-      expect(result.code).toBe("ERR_BAD_REQUEST"); // TODO - this should be "NOT_FOUND"
-      expect(result.data).toStrictEqual({
-        message: "testId 'INVALID_TEST_ID' not found",
-      });
-    }); // TODO - this is failing, error message needs to be fixed
-    xit("POST scenarios/{testId}", async () => {
+      expect(result.status).toBe(404);
+      expect(result.code).toBe("NOT_FOUND");
+      expect(result.data).toEqual("TEST_NOT_FOUND: testId 'INVALID_TEST_ID' not found");
+    });
+    it("POST scenarios/{testId}", async () => {
       const result = await axios.post(`${config.apiUrl}/scenarios/INVALID_TEST_ID`);
-      expect(result.status).toBe(200);
+      expect(result.status).toBe(404);
+      expect(result.data).toEqual("TEST_NOT_FOUND: testId 'INVALID_TEST_ID' not found");
     });
     xit("DELETE scenarios/{testId}", async () => {
       const result = await axios.delete(`${config.apiUrl}/scenarios/INVALID_TEST_ID`);

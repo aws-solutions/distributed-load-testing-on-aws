@@ -17,22 +17,33 @@ This software includes third party software subject to the following copyrights:
 @aws-amplify/ui-react under the Apache License 2.0
 @aws-cdk/assert under the Apache License 2.0
 @aws-solutions-constructs/aws-cloudfront-s3 under the Apache License 2.0
+@aws-solutions-constructs/aws-eventbridge-lambda under the Apache License 2.0
+@aws-solutions-constructs/aws-lambda-sqs-lambda under the Apache License 2.0
+@aws-sdk/client-s3 under the Apache License 2.0
+@aws-sdk/client-cloudwatch under the Apache License 2.0
+@aws-sdk/client-cloudwatch-logs under the Apache License 2.0
+@aws-sdk/client-sqs under the Apache License 2.0
 @types/jest under the Massachusetts Institute of Technology (MIT) License
 @types/node under the Massachusetts Institute of Technology (MIT) License
+@types/aws-lambda under the Massachusetts Institute of Technology (MIT) License
 @typescript-eslint/eslint-plugin under the Massachusetts Institute of Technology (MIT) license
 @typescript-eslint/parser under the BSD 2-Clause license
 aws-amplify under the Apache License Version 2.0
 aws-cdk under the Apache License Version 2.0
 aws-cdk-lib under the Apache License 2.0
 aws-sdk under the Apache License Version 2.0
+aws4-axios under the Massachusetts Institute of Technology (MIT) license
 axios under the Massachusetts Institute of Technology (MIT) license
 axios-mock-adapter under the Massachusetts Institute of Technology (MIT) license
+ajv under the Massachusetts Institute of Technology (MIT) license
 bootstrap under the Massachusetts Institute of Technology (MIT) license
 bootstrap-icons under the Massachusetts Institute of Technology (MIT) license
 brace under the Massachusetts Institute of Technology (MIT) license
 chart.js under the Massachusetts Institute of Technology (MIT) license
 chartjs-adapter-date-fns under the Massachusetts Institute of Technology (MIT) license
 constructs under the Apache License 2.0
+cypress under the Massachusetts Institute of Technology (MIT) license
+esbuild under the Massachusetts Institute of Technology (MIT) license
 eslint under the Massachusetts Institute of Technology (MIT) license
 eslint-config-prettier under the Massachusetts Institute of Technology (MIT) license
 eslint-config-standard under the Massachusetts Institute of Technology (MIT) license

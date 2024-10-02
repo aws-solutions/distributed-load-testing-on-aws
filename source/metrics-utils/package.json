@@ -1,7 +1,13 @@
 {
   "name": "metrics-utils",
-  "version": "0.1.0",
+  "version": "3.3.1",
   "main": "index.ts",
+  "license": "Apache-2.0",
+  "description": "Distributed Load Testing on AWS Ops Metrics",
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions"
+  },
   "scripts": {
     "cleanup": "tsc --build ./ --clean && rm -rf node_modules",
     "cleanup:tsc": "tsc --build ./ --clean",

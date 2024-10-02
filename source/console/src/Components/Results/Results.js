@@ -101,7 +101,7 @@ class Results extends React.Component {
    */
   retrieveImage = async (metricS3ImageLocation) => {
     try {
-      const { body } = await downloadData({ key: metricS3ImageLocation }).result;
+      const { body } = await downloadData({ path: `public/${metricS3ImageLocation}` }).result;
       const imageBodyText = await body.text();
       this.setState({ metricImage: imageBodyText });
     } catch (error) {

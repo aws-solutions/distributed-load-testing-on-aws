@@ -5,15 +5,21 @@ import axios from "axios";
 import { load } from "../api.config";
 import { ScenarioRequest, ScenarioResponse } from "./scenario";
 import { setupAxiosInterceptors, teardownAxiosInterceptors, validateScenario } from "./utils";
+import { S3Client, PutObjectCommand, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 
 const config = load();
-const POST_TEST_ID = "POST-TEST-ID-001";
 
+const POST_TEST_ID = "POST-TEST-ID-001";
+const POST_TEST_JMX_ID = "POST-TEST-JMX-ID-001";
+const POST_TEST_ZIP_ID = "POST-TEST-ZIP-ID-001";
+
+const REGION = config.region;
+const s3Client = new S3Client({ region: REGION });
 const defaultRequest: ScenarioRequest = {
   testId: POST_TEST_ID,
   testName: "POST Scenario Test",
   testDescription: "",
-  testTaskConfigs: [{ concurrency: "1", taskCount: "1", region: "us-east-1" }],
+  testTaskConfigs: [{ concurrency: "1", taskCount: "1", region: REGION }],
   testScenario: {
     execution: [{ "ramp-up": "1m", "hold-for": "1m", scenario: "Some Test" }],
     scenarios: {},
@@ -22,8 +28,39 @@ const defaultRequest: ScenarioRequest = {
   testType: "simple",
   fileType: "",
   regionalTaskDetails: {
-    "us-east-1": { vCPULimit: 4000, vCPUsPerTask: 2, vCPUsInUse: 0, dltTaskLimit: 2000, dltAvailableTasks: 2000 },
+    [REGION]: { vCPULimit: 4000, vCPUsPerTask: 2, vCPUsInUse: 0, dltTaskLimit: 2000, dltAvailableTasks: 2000 },
   },
+};
+
+const putObject = async (srcKey: string, destKey: string) => {
+  try {
+    const command = new PutObjectCommand({
+      Body: `${srcKey}`,
+      Bucket: config.s3ScenarioBucket,
+      Key: `public/test-scenarios/jmeter/${destKey}`,
+    });
+    const response = await s3Client.send(command);
+    return response;
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
+};
+
+const removeObjects = async (keys: string[]) => {
+  try {
+    const command = new DeleteObjectsCommand({
+      Bucket: config.s3ScenarioBucket,
+      Delete: { Objects: keys.map((key) => ({ Key: `public/test-scenarios/jmeter/${key}` })) },
+    });
+
+    const response = await s3Client.send(command);
+    console.log(`Successfully deleted ${response.Deleted?.length} objects from bucket ${config.s3ScenarioBucket}`);
+    return response;
+  } catch (err) {
+    console.error(`Error deleting objects from bucket ${config.s3ScenarioBucket}:`, err);
+    throw err;
+  }
 };
 
 describe("/scenarios", () => {
@@ -36,9 +73,11 @@ describe("/scenarios", () => {
 
   describe("Post - Basic input parameters", () => {
     afterEach(async () => {
-      const result = await axios.delete(`${config.apiUrl}/scenarios/${POST_TEST_ID}`);
-      if (result.status !== 200) {
-        throw new Error(`Cleanup failed during deleting test data with status code: ${result.status}`);
+      for (const testId of [POST_TEST_ID, POST_TEST_JMX_ID, POST_TEST_ZIP_ID]) {
+        const result = await axios.delete(`${config.apiUrl}/scenarios/${testId}`);
+        if (result.status !== 404 && result.status !== 200) {
+          throw new Error(`Cleanup failed during deleting test with ${testId} data with status code: ${result.status}`);
+        }
       }
     });
     const requiredParameters = [
@@ -54,6 +93,90 @@ describe("/scenarios", () => {
     it("Successful creation", async () => {
       const result = await axios.post(`${config.apiUrl}/scenarios`, defaultRequest);
       expect(result.status).toBe(200);
+    });
+
+    it("Successful creation, jmeter test", async () => {
+      await putObject("./assets/jmeter.jmx", `${POST_TEST_JMX_ID}.jmx`);
+      const tmp = defaultRequest.testId;
+      const result: ScenarioResponse = await axios.post(`${config.apiUrl}/scenarios`, {
+        ...defaultRequest,
+        testScenario: {
+          execution: [{ "ramp-up": "1m", "hold-for": "1m", scenario: "Some Test" }],
+          scenarios: { "Some Test": { script: `${POST_TEST_JMX_ID}.jmx` } },
+        },
+        testId: POST_TEST_JMX_ID,
+        testType: "jmeter",
+        fileType: "jmeter",
+      });
+      expect(result.status).toBe(200);
+      defaultRequest.testScenario.scenarios = {};
+      removeObjects([`${POST_TEST_JMX_ID}.jmx`]);
+      defaultRequest.testId = tmp;
+      defaultRequest.fileType = "";
+      defaultRequest.testType = "simple";
+    });
+
+    it("Successful creation, zip test", async () => {
+      await putObject("./assets/ziptest.zip", `${POST_TEST_ZIP_ID}.zip`);
+      const tmp = defaultRequest.testId;
+      const result: ScenarioResponse = await axios.post(`${config.apiUrl}/scenarios`, {
+        ...defaultRequest,
+        testScenario: {
+          execution: [{ "ramp-up": "1m", "hold-for": "1m", scenario: "Some Test" }],
+          scenarios: { "Some Test": { script: `${POST_TEST_ZIP_ID}.zip` } },
+        },
+        testId: POST_TEST_JMX_ID,
+        testType: "jmeter",
+        fileType: "jmeter",
+      });
+      expect(result.status).toBe(200);
+      defaultRequest.testScenario.scenarios = {};
+      await removeObjects([`${POST_TEST_ZIP_ID}.zip`]);
+      defaultRequest.testId = tmp;
+      defaultRequest.fileType = "";
+      defaultRequest.testType = "simple";
+    });
+
+    xit("Failed creation, jmeter test wrong extension", async () => {
+      await putObject("./assets/jmeter.jmx", `${POST_TEST_JMX_ID}.jmx`);
+      const tmp = defaultRequest.testId;
+      const result: ScenarioResponse = await axios.post(`${config.apiUrl}/scenarios`, {
+        ...defaultRequest,
+        testScenario: {
+          execution: [{ "ramp-up": "1m", "hold-for": "1m", scenario: "Some Test" }],
+          scenarios: { "Some Test": { script: `${POST_TEST_JMX_ID}.jx` } },
+        },
+        testId: POST_TEST_JMX_ID,
+        testType: "jmeter",
+        fileType: "jmeter",
+      });
+      expect(result.status).toBe(400);
+      // test the response message
+      defaultRequest.testScenario.scenarios = {};
+      removeObjects([`${POST_TEST_JMX_ID}.jmx`]);
+      defaultRequest.testId = tmp;
+      defaultRequest.fileType = "";
+      defaultRequest.testType = "simple";
+    });
+
+    xit("Failed creation, jmeter test file not exist", async () => {
+      const tmp = defaultRequest.testId;
+      const result: ScenarioResponse = await axios.post(`${config.apiUrl}/scenarios`, {
+        ...defaultRequest,
+        testScenario: {
+          execution: [{ "ramp-up": "1m", "hold-for": "1m", scenario: "Some Test" }],
+          scenarios: { "Some Test": { script: `${POST_TEST_JMX_ID}.jmx` } },
+        },
+        testId: POST_TEST_JMX_ID,
+        testType: "jmeter",
+        fileType: "jmeter",
+      });
+      expect(result.status).toBe(400);
+      // test the response message
+      defaultRequest.testScenario.scenarios = {};
+      defaultRequest.testId = tmp;
+      defaultRequest.fileType = "";
+      defaultRequest.testType = "simple";
     });
 
     it("Required parameters behavior", async () => {
@@ -81,22 +204,21 @@ describe("/scenarios", () => {
 
   describe("Post - Scheduled test request", () => {
     afterEach(async () => {
-      await axios.delete(`${config.apiUrl}/scenarios/${POST_TEST_ID}`);
-      // TODO: uncomment after making DELETE API returns 404 when test not found
-      // if (result.status !== 200 && result.status !== 404) {
-      //   throw new Error(`DELETE request failed with status code: ${result.status}`);
-      // }
+      const result = await axios.delete(`${config.apiUrl}/scenarios/${POST_TEST_ID}`);
+      if (result.status !== 200 && result.status !== 404) {
+        throw new Error(`DELETE request failed with status code: ${result.status}`);
+      }
     });
 
+    const now = new Date();
     const defaultScheduleRequest = {
       ...defaultRequest,
       recurrence: "weekly",
-      scheduleDate: "2023-01-01",
+      scheduleDate: now.toISOString().split("T")[0],
       scheduleStep: "create",
       scheduleTime: "14:15",
     };
 
-    const now = new Date();
     const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60000);
 
     const minute = fiveMinutesFromNow.getUTCMinutes();
@@ -127,9 +249,12 @@ describe("/scenarios", () => {
     });
 
     it("Successful creation, cron schedule", async () => {
-      const result: ScenarioResponse = await axios.post(`${config.apiUrl}/scenarios`, defaultCronScheduleRequest);
+      const result: ScenarioResponse = await axios.post(`${config.apiUrl}/scenarios`, {
+        ...defaultCronScheduleRequest,
+        cronExpiryDate: "2099-01-01",
+      });
       expect(result.status).toBe(200);
-    });
+    }, 20000);
 
     it("Successful creation, cron schedule with expiry date", async () => {
       const today = new Date();
@@ -170,7 +295,7 @@ describe("/scenarios", () => {
         ...defaultCronScheduleRequest,
       });
       expect(result.status).toBe(400);
-      expect(result.data).toBe("Invalid Linux cron expression: Expected format: * * * * *");
+      expect(result.data).toBe("Invalid Linux cron expression: Expected format: 0 * * * *");
       defaultCronScheduleRequest.cronValue = temp;
     });
 
@@ -181,7 +306,7 @@ describe("/scenarios", () => {
         ...defaultCronScheduleRequest,
       });
       expect(result.status).toBe(400);
-      expect(result.data).toBe("Invalid Linux cron expression: Expected format: * * * * *");
+      expect(result.data).toBe("Invalid Linux cron expression: Expected format: 0 * * * *");
       defaultCronScheduleRequest.cronValue = temp;
     });
 
@@ -201,28 +326,26 @@ describe("/scenarios", () => {
         ...defaultCronScheduleRequest,
       });
       expect(result.status).toBe(400);
-      expect(result.data).toBe("Invalid Linux cron expression: Expected format: * * * * *");
+      expect(result.data).toBe("Invalid Linux cron expression: Expected format: 0 * * * *");
       defaultCronScheduleRequest.cronValue = temp;
     });
 
-    // TODO: Dates in the past should not be accepted, appropriate message should be returned.
-    xit("Invalid date", async () => {
+    it("Invalid date", async () => {
       const result: ScenarioResponse = await axios.post(`${config.apiUrl}/scenarios`, {
         ...defaultScheduleRequest,
         scheduleDate: "2000-01-01",
       });
       expect(result.status).toBe(400);
-      expect(result.data).toBe("Date must be in the future.");
+      expect(result.data).toContain("Date cannot be in the past");
     });
 
-    // TODO: Invalid times should not be accepted, appropriate message should be returned.
-    xit("Invalid time", async () => {
+    it("Invalid time", async () => {
       const result: ScenarioResponse = await axios.post(`${config.apiUrl}/scenarios`, {
         ...defaultScheduleRequest,
         scheduleTime: "25:15",
       });
       expect(result.status).toBe(400);
-      expect(result.data).toBe("Time must be valid.");
+      expect(result.data).toContain("Invalid time format");
     });
 
     it("Invalid time format", async () => {
@@ -231,17 +354,16 @@ describe("/scenarios", () => {
         scheduleTime: "2:15PM",
       });
       expect(result.status).toBe(400);
-      expect(result.data).toBe("ValidationException: Parameter ScheduleExpression is not valid.");
+      expect(result.data).toContain("Invalid time format. Expected format: HH:MM");
     });
 
-    // TODO: Invalid formats should not be accepted, appropriate message should be returned.
-    xit("Invalid date format", async () => {
+    it("Invalid date format", async () => {
       const result: ScenarioResponse = await axios.post(`${config.apiUrl}/scenarios`, {
         ...defaultScheduleRequest,
         scheduleDate: "01-01-3024",
       });
       expect(result.status).toBe(400);
-      expect(result.data).toBe("Invalid date format.");
+      expect(result.data).toContain("Invalid date format");
     });
 
     it("Invalid date type", async () => {
@@ -261,9 +383,9 @@ describe("/scenarios", () => {
         throw new Error(`Setup function failed in creating test data status code: ${result.status}`);
       }
     });
-    afterAll(async () => {
+    afterEach(async () => {
       const result = await axios.delete(`${config.apiUrl}/scenarios/${POST_TEST_ID}`);
-      if (result.status !== 200) {
+      if (result.status !== 404 && result.status !== 200) {
         throw new Error(`Cleanup failed during deleting test data with status code: ${result.status}`);
       }
     });

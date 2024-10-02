@@ -26,7 +26,8 @@ interface TestScenario {
   execution: ExecutionStep[];
   scenarios: {
     [key: string]: {
-      requests: Request[];
+      requests?: Request[];
+      script?: string;
     };
   };
 }

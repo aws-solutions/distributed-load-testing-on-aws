@@ -74,9 +74,7 @@ export class MetricsHelper {
         failedQueries.push(body.queryIds[index]);
         return;
       }
-      if (data.field && data.value) {
-        metricsData[data.field!] = parseInt(data.value!, 10);
-      }
+      metricsData[data.field!] = parseInt(data.value!, 10);
     });
     console.debug("Query data: ", JSON.stringify(metricsData, null, 2));
 

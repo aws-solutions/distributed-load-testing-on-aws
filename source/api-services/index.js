@@ -11,7 +11,11 @@ class APIHandler {
   constructor(resource, method) {
     this.resource = resource;
     this.method = method;
-    this.errorMsg = `Method: ${method} not supported for this resource: ${resource} `;
+    this.errorMsg = new scenarios.ErrorException(
+      "METHOD_NOT_ALLOWED",
+      `Method: ${method} not supported for this resource: ${resource}`,
+      scenarios.StatusCodes.NOT_ALLOWED
+    );
   }
   async getRegions() {
     let data = { regions: await scenarios.getAllRegionConfigs() };
@@ -21,7 +25,7 @@ class APIHandler {
   // Handle the /regions endpoint
   async handleRegions() {
     if (this.method === "GET") return this.getRegions();
-    throw new Error(this.errorMsg);
+    throw this.errorMsg;
   }
 
   // Handle the /scenarios endpoint
@@ -63,7 +67,7 @@ class APIHandler {
         }
         return data;
       default:
-        throw new Error(this.errorMsg);
+        throw this.errorMsg;
     }
   }
 
@@ -77,22 +81,23 @@ class APIHandler {
       case "DELETE":
         return scenarios.deleteTest(testId, functionName);
       default:
-        throw new Error(this.errorMsg);
+        throw this.errorMsg;
     }
   }
 
   // Handle the /tasks endpoint
   async handleTasks() {
     if (this.method === "GET") return scenarios.listTasks();
-    throw new Error(this.errorMsg);
+    throw this.errorMsg;
   }
 
   // Handle the /vCPUDetails endpoint
   async handleVCPUDetails() {
     if (this.method === "GET") return scenarios.getAccountFargatevCPUDetails();
-    throw new Error(this.errMsg);
+    throw this.errorMsg;
   }
 }
+
 // Helper function to handle API response
 const createResponse = (data, statusCode) => ({
   headers: {
@@ -138,13 +143,13 @@ exports.handler = async (event, context) => {
         data = await apiHandler.handleVCPUDetails();
         break;
       default:
-        throw new Error(apiHandler.errorMsg);
+        throw apiHandler.errorMsg;
     }
 
     response = createResponse(data, 200);
   } catch (err) {
     console.error(err);
-    response = createResponse(err.toString(), 400);
+    response = createResponse(err.toString(), err.statusCode || scenarios.StatusCodes.BAD_REQUEST);
   }
 
   console.log(response);

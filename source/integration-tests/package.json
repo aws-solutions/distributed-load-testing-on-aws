@@ -2,7 +2,10 @@
   "name": "integration-tests",
   "version": "0.1.0",
   "description": "Amazon Web Services - Distributed Load Testing Integration Tests",
-  "author": "WWSO Solutions Engineering",
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions"
+  },
   "scripts": {
     "format": "npx prettier --write \"src/**/*.ts\"",
     "lint": "npx eslint \"src/**/*.ts\" --quiet",
@@ -10,6 +13,7 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.658.1",
     "ajv": "^8.16.0",
     "aws4-axios": "^3.3.0",
     "axios": "^1.5.0",

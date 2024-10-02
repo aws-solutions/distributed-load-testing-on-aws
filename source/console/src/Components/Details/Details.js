@@ -145,7 +145,7 @@ class Details extends React.Component {
       const extension = scriptExtensions[testType];
 
       let filename = this.state.data.fileType === "zip" ? `${testId}.zip` : `${testId}.${extension}`;
-      const url = await getUrl({ key: `test-scenarios/${testType}/${filename}` });
+      const url = await getUrl({ path: `public/test-scenarios/${testType}/${filename}` });
       window.open(url.url, "_blank");
     } catch (error) {
       console.error("Error", error);
