@@ -6,6 +6,8 @@ export interface ApiConfig {
   readonly accessKeyId: string;
   readonly secretAccessKey: string;
   readonly sessionToken: string;
+  readonly region: string;
+  readonly s3ScenarioBucket: string;
 }
 
 /**
@@ -19,5 +21,7 @@ export function load(): ApiConfig {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     sessionToken: process.env.AWS_SESSION_TOKEN,
+    region: process.env.AWS_REGION,
+    s3ScenarioBucket: process.env.S3_SCENARIO_BUCKET,
   };
 }

@@ -24,7 +24,6 @@ export async function handler(event: EventBridgeQueryEvent | SQSEvent, _context:
   console.log("Event: ", JSON.stringify(event, null, 2));
   const { EXECUTION_DAY } = process.env;
   if (isEventBridgeQueryEvent(event)) {
-    event = event as EventBridgeQueryEvent;
     console.info("Processing EventBridge event.");
 
     const endTime = new Date(event.time);
@@ -37,7 +36,6 @@ export async function handler(event: EventBridgeQueryEvent | SQSEvent, _context:
     );
     await metricsHelper.startQueries(event);
   } else if (isSQSEvent(event)) {
-    event = event as SQSEvent;
     console.info("Processing SQS event.");
     const body: SQSEventBody = JSON.parse(event.Records[0].body);
     const resolvedQueries = await metricsHelper.resolveQueries(event);

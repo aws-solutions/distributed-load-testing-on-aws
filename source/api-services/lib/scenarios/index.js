@@ -16,16 +16,28 @@ const stepFunctions = new AWS.StepFunctions(options);
 const cloudwatchevents = new AWS.CloudWatchEvents(options);
 const cloudformation = new AWS.CloudFormation(options);
 
+const StatusCodes = {
+  OK: 200,
+  BAD_REQUEST: 400,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  NOT_ALLOWED: 405,
+  REQUEST_TOO_LONG: 413,
+  INTERNAL_SERVER_ERROR: 500,
+  TIMEOUT: 503,
+};
+
 /**
  * Class to throw errors
  * @param {string} code
  * @param {string} errMsg
  */
 class ErrorException extends Error {
-  constructor(code, errMsg) {
-    super(errMsg);
+  constructor(code, errMsg, statusCode = StatusCodes.BAD_REQUEST) {
+    super(statusCode, code, errMsg);
     this.code = code;
     this.message = errMsg;
+    this.statusCode = statusCode;
   }
   toString() {
     return `${this.code}: ${this.message}`;
@@ -143,6 +155,7 @@ const getRegionInfraConfigs = async (testRegion) => {
 const getTestAndRegionConfigs = async (testId) => {
   try {
     const testEntry = await getTestEntry(testId);
+    if (!testEntry) throw new ErrorException("TEST_NOT_FOUND", `testId '${testId}' not found`, StatusCodes.NOT_FOUND);
     if (testEntry.testTaskConfigs) {
       for (let testRegionSettings of testEntry.testTaskConfigs) {
         const regionInfraConfig = await getRegionInfraConfigs(testRegionSettings.region);
@@ -272,6 +285,8 @@ const convertLinuxCronToAwsCron = (linuxCron, cronExpiryDate) => {
 const checkEnoughIntervalDiff = (cronValue, cronExpiryDate, holdFor, rampUp, testTaskConfigs) => {
   if (!holdFor || !rampUp) return "";
   let cronExpiry = new Date(cronExpiryDate);
+  const parts = cronValue.trim().split(" ");
+  if (parts.length !== 5) throw new ErrorException("Invalid Linux cron expression", "Expected format: 0 * * * *");
 
   let cronInterval;
   try {
@@ -396,6 +411,26 @@ const removeRules = async (testId, functionName, recurrence) => {
   }
 };
 
+const isValidTimeString = (timeString) => {
+  const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+  if (!timeRegex.test(timeString))
+    throw new ErrorException("InvalidParameter", "Invalid time format. Expected format: HH:MM");
+};
+
+const isValidDateString = (dateString) => {
+  // Check if the dateString is in the format YYYY-MM-DD
+  const dateRegex = /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+
+  if (!dateRegex.test(dateString))
+    throw new ErrorException("InvalidParameter", "Invalid date format. Expected format: YYYY-MM-DD");
+};
+
+const isValidDate = (date) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (date < today) throw new ErrorException("InvalidParameter", "Date cannot be in the past");
+};
 /**
  * Schedules test and returns a consolidated list of test scenarios
  * @param {object} event test event information
@@ -459,7 +494,10 @@ const scheduleTest = async (event, context) => {
         config.scheduleTime = scheduleTime;
         config.scheduleDate = scheduleDate;
       } else {
+        isValidTimeString(scheduleTime);
+        isValidDateString(scheduleDate);
         createRun = new Date(year, parseInt(month, 10) - 1, day, hour, minute);
+        isValidDate(createRun);
       } // Schedule for 1 min prior to account for time it takes to create rule
       // getMonth() returns Jan with index Zero that is why months need a +1
       // refrence https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/getMonth
@@ -1377,6 +1415,15 @@ const cancelTest = async (testId) => {
 
   try {
     // Get test and regional infrastructure configuration
+    const listTestsRes = await listTests();
+    const allTests = listTestsRes.Items;
+
+    // Check if the testId exists in the list of tests
+    const testExists = allTests.some((test) => test.testId === testId);
+    if (!testExists) {
+      throw new ErrorException("TEST_NOT_FOUND", `testId '${testId}' not found`, StatusCodes.NOT_FOUND);
+    }
+
     const testAndRegionalInfraConfigs = await getTestAndRegionConfigs(testId);
     if (testAndRegionalInfraConfigs.testTaskConfigs) {
       for (const regionalConfig of testAndRegionalInfraConfigs.testTaskConfigs) {
@@ -1689,4 +1736,6 @@ module.exports = {
   getCFUrl: getCFUrl,
   getAccountFargatevCPUDetails: getAccountFargatevCPUDetails,
   getTestDurationSeconds: getTestDurationSeconds,
+  ErrorException: ErrorException,
+  StatusCodes: StatusCodes,
 };

@@ -2177,6 +2177,12 @@ describe("#SCENARIOS API:: ", () => {
   it('should return SUCCESS when "CANCELTEST" finds running tasks and returns success', async () => {
     mockDynamoDB.mockImplementationOnce(() => ({
       promise() {
+        // scan
+        return Promise.resolve(listData);
+      },
+    }));
+    mockDynamoDB.mockImplementationOnce(() => ({
+      promise() {
         // get
         return Promise.resolve(getData);
       },
