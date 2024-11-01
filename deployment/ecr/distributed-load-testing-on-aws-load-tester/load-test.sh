@@ -155,7 +155,7 @@ if [ -f /tmp/artifacts/results.xml ]; then
   fi
 
   if [ "$TEST_TYPE" == "simple" ]; then
-    TEST_TYPE = "jmeter"
+    TEST_TYPE="jmeter"
   fi
 
   echo "Uploading results, bzt log, and JMeter log, out, and err files"

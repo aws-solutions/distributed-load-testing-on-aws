@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.2] - 2024-11-01
+
+### Security
+
+- `http-proxy-middleware` to mitigate [CVE-2024-21536]
+- Bumping cryptography to v43.0.1 in docker image to mitigate (https://github.com/advisories/GHSA-h4gh-qq45-vh27)
+- Bumping setuptool to 65.5.1 in docker image to mitigate [CVE-2022-40897]
+
+### Fixed
+
+- Fixed bug pertain to start button not working properly (https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/218)
+
 ## [3.3.1] - 2024-10-02
 
 ### Security

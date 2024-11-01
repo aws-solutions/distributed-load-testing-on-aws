@@ -37,9 +37,14 @@ RUN rm -rf /root/.bzt/python-packages/3.10.12/werkzeug*
 RUN cp -r /usr/local/lib/python3.10/dist-packages/werkzeug* /root/.bzt/python-packages/3.10.12/
 
 # Replacing cryptography with more stable version to resolve vulnerabilities
-RUN pip install cryptography==42.0.6
+RUN pip install cryptography==43.0.1
 RUN rm -rf /root/.bzt/python-packages/3.10.12/cryptography*
 RUN cp -r /usr/local/lib/python3.10/dist-packages/cryptography* /root/.bzt/python-packages/3.10.12/
+
+# Replacing setuptools with more stable version to resolve vulnerabilities
+RUN pip install setuptools==65.5.1
+RUN rm -rf /root/.bzt/python-packages/3.10.12/setuptools*
+RUN cp -r /usr/local/lib/python3.10/dist-packages/setuptools* /root/.bzt/python-packages/3.10.12/
 
 # Removing dotnet dependencies as NUnit and Xunit is not supported in DLT
 RUN rm -rf /usr/share/dotnet
@@ -48,7 +53,7 @@ RUN rm -rf /usr/share/dotnet
 RUN rm -rf /usr/local/lib/python3.10/dist-packages/aiohttp* 
 RUN  pip install --upgrade aiohttp
 
-# Replacing idna and Flas_Cors with more stable version to resolve CVE-2024-3651 and  CVE-2024-6221
+# Replacing idna and Flask_Cors with more stable version to resolve CVE-2024-3651 and  CVE-2024-6221
 RUN pip install --upgrade idna Flask_Cors
 RUN rm -rf /root/.bzt/python-packages/3.10.12/idna* /root/.bzt/python-packages/3.10.12/Flask_Cors*
 RUN cp -r /usr/local/lib/python3.10/dist-packages/idna* /usr/local/lib/python3.10/dist-packages/Flask_Cors* /root/.bzt/python-packages/3.10.12/
