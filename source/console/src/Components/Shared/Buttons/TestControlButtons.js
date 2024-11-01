@@ -82,7 +82,7 @@ class TestControlButtons extends React.Component {
       },
     };
     payload.testScenario.scenarios[data.testName] = obj[data.testType];
-
+    if (data.testType !== "simple") payload.fileType = data.fileType;
     return payload;
   }
 
