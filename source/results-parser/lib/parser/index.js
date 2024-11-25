@@ -101,10 +101,15 @@ function results(content, testId) {
       }
     }
     result.testDuration = jsonData.TestDuration._text;
+
     return {
       stats: result,
       labels,
       duration: jsonData.TestDuration._text,
+      taskId: jsonData.TaskId._text,
+      taskCPU: jsonData.TaskCPU._text,
+      taskMemory: jsonData.TaskMemory._text,
+      ecsDuration: jsonData.ECSDuration._text,
     };
   } catch (error) {
     console.error("results function error", error);

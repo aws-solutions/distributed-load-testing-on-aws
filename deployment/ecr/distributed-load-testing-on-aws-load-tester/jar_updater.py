@@ -17,7 +17,7 @@ Affected Jmeter jars:
     * batik-transcoder v1.14 will be replaced with v1.17
     * lets-plot-batik v2.2.1 will be replaced with 4.2.0
     * commons-net v3.8.0 will be replaced with v3.9.0
-    * tika-core v1.28.3 will be replaced with v2.9.2
+    * tika-core v1.28.3 will be replaced with v3.0.0
     * json-path v2.7.0 will be replaced with v2.9.0
     * dnsjava v2.1.9 will be replaced with v3.6.1
 
@@ -35,7 +35,7 @@ JMETER_COMPONENTS = {
     "batik-transcoder": "org/apache/xmlgraphics/batik-transcoder/1.17/batik-transcoder-1.17.jar",
     "lets-plot-batik":  "org/jetbrains/lets-plot/lets-plot-batik/4.2.0/lets-plot-batik-4.2.0.jar",
     "commons-net": "commons-net/commons-net/3.9.0/commons-net-3.9.0.jar",
-    "tika-core": "org/apache/tika/tika-core/2.9.2/tika-core-2.9.2.jar",
+    "tika-core": "org/apache/tika/tika-core/3.0.0/tika-core-3.0.0.jar",
     "json-path": "com/jayway/jsonpath/json-path/2.9.0/json-path-2.9.0.jar",
     "dnsjava": "dnsjava/dnsjava/3.6.1/dnsjava-3.6.1.jar"
 }

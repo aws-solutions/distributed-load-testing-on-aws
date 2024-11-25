@@ -4600,7 +4600,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"Done":{"Type":"Succeed"}}}",
+              "","Payload":{"testTaskConfig.$":"$.testTaskConfig","testId.$":"$.testId","testType.$":"$.testType","fileType.$":"$.fileType","showLive.$":"$.showLive","testDuration.$":"$.testDuration","prefix.$":"$.prefix","executionStart.$":"$$.Execution.StartTime"}}},"Done":{"Type":"Succeed"}}}",
             ],
           ],
         },

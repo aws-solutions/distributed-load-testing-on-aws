@@ -97,11 +97,18 @@ describe("Handler", () => {
     await handler(mockResultParserEvent);
 
     // Assert
-    expect(mockSolutionUtils.sendMetric.mock.calls).toHaveLength(1);
+    expect(mockSolutionUtils.sendMetric.mock.calls).toHaveLength(2);
+
     expect(mockSolutionUtils.sendMetric.mock.calls[0][0]).toHaveProperty("Type", "TaskCompletion");
-    expect(mockSolutionUtils.sendMetric.mock.calls[0][0]).toHaveProperty("FileType");
-    expect(mockSolutionUtils.sendMetric.mock.calls[0][0]).toHaveProperty("TestType");
-    expect(mockSolutionUtils.sendMetric.mock.calls[0][0]).toHaveProperty("Duration");
-    expect(mockSolutionUtils.sendMetric.mock.calls[0][0]).toHaveProperty("TestResult");
+    expect(mockSolutionUtils.sendMetric.mock.calls[0][0]).toHaveProperty("TaskVCPU");
+    expect(mockSolutionUtils.sendMetric.mock.calls[0][0]).toHaveProperty("TaskMemory");
+    expect(mockSolutionUtils.sendMetric.mock.calls[0][0]).toHaveProperty("ECSCalculatedDuration");
+    expect(mockSolutionUtils.sendMetric.mock.calls[0][0]).toHaveProperty("TaskId");
+
+    expect(mockSolutionUtils.sendMetric.mock.calls[1][0]).toHaveProperty("Type", "TestCompletion");
+    expect(mockSolutionUtils.sendMetric.mock.calls[1][0]).toHaveProperty("FileType");
+    expect(mockSolutionUtils.sendMetric.mock.calls[1][0]).toHaveProperty("TestType");
+    expect(mockSolutionUtils.sendMetric.mock.calls[1][0]).toHaveProperty("Duration");
+    expect(mockSolutionUtils.sendMetric.mock.calls[1][0]).toHaveProperty("TestResult");
   });
 });

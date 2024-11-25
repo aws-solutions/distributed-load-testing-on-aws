@@ -1,6 +1,6 @@
 {
   "name": "custom-resource",
-  "version": "3.3.2",
+  "version": "3.3.3",
   "description": "cfn custom resources for distributed load testing on AWS workflow",
   "repository": {
     "type": "git",

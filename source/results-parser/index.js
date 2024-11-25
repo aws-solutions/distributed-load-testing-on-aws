@@ -6,6 +6,7 @@ const AWS = require("aws-sdk");
 const utils = require("solution-utils");
 let options = utils.getOptions({});
 const s3 = new AWS.S3(options);
+
 const dynamoDb = new AWS.DynamoDB.DocumentClient(options);
 
 const parseResults = async (eventConfigs, testId, endTime, startTime, totalDuration, resultList) => {
@@ -26,6 +27,17 @@ const parseResults = async (eventConfigs, testId, endTime, startTime, totalDurat
       let duration = parseInt(parsedResult.duration);
       totalDuration += isNaN(duration) ? 0 : duration;
       data.push(parsedResult);
+
+      // Send anonymized metrics
+      if (process.env.SEND_METRIC === "Yes")
+        await utils.sendMetric({
+          Type: "TaskCompletion",
+          TaskVCPU: parsedResult.taskCPU,
+          TaskMemory: parsedResult.taskMemory,
+          ECSCalculatedDuration: parsedResult.ecsDuration,
+          TaskId: parsedResult.taskId,
+          TestId: testId,
+        });
     }
 
     //record regional data
@@ -191,7 +203,7 @@ const getFilesByRegion = async (resultList) => {
 
 exports.handler = async (event) => {
   console.log(JSON.stringify(event, null, 2));
-  const { testId, fileType, prefix, testTaskConfig: eventConfigs } = event;
+  const { testId, fileType, prefix, testTaskConfig: eventConfigs, executionStart: testStartTime } = event;
   const endTime = new Date()
     .toISOString()
     .replace("T", " ")
@@ -225,15 +237,20 @@ exports.handler = async (event) => {
     }
 
     // Send anonymized metrics
-    if (process.env.SEND_METRIC === "Yes")
+    if (process.env.SEND_METRIC === "Yes") {
+      const currentTime = new Date();
+      const durationMilliseconds = currentTime - new Date(testStartTime);
+      const durationSeconds = durationMilliseconds / 1000;
+
       await utils.sendMetric({
-        Type: "TaskCompletion",
+        Type: "TestCompletion",
         TestType: testType,
         FileType: fileType || (testType === "simple" ? "none" : "script"),
         TestResult: testResult,
-        Duration: totalDuration,
+        Duration: durationSeconds,
         TestId: testId,
       });
+    }
     return "success";
   } catch (error) {
     console.error(error);
