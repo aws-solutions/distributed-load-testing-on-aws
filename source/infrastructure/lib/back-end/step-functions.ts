@@ -15,6 +15,7 @@ import {
   WaitTime,
   JsonPath,
   DefinitionBody,
+  TaskInput,
 } from "aws-cdk-lib/aws-stepfunctions";
 import { LambdaInvoke } from "aws-cdk-lib/aws-stepfunctions-tasks";
 import { Aws, CfnResource, Duration } from "aws-cdk-lib";
@@ -61,6 +62,16 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
     const mapEnd = new Pass(this, "Map End");
     const parseResult = new LambdaInvoke(this, "Parse result", {
       lambdaFunction: props.resultsParser,
+      payload: TaskInput.fromObject({
+        "testTaskConfig.$": "$.testTaskConfig",
+        "testId.$": "$.testId",
+        "testType.$": "$.testType",
+        "fileType.$": "$.fileType",
+        "showLive.$": "$.showLive",
+        "testDuration.$": "$.testDuration",
+        "prefix.$": "$.prefix",
+        "executionStart.$": "$$.Execution.StartTime",
+      }),
     });
     parseResult.next(done);
 

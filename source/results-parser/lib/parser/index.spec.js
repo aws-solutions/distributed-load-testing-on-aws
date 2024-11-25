@@ -40,6 +40,18 @@ describe("#RESULTS PARSER::", () => {
       TestDuration: {
         _text: 123,
       },
+      TaskId: {
+        _text: "abcd",
+      },
+      TaskCPU: {
+        _text: "2",
+      },
+      TaskMemory: {
+        _text: "2048",
+      },
+      ECSDuration: {
+        _text: 123,
+      },
       Group: [
         {
           _attributes: {
@@ -132,6 +144,18 @@ describe("#RESULTS PARSER::", () => {
     FinalStatus: {
       TestDuration: {
         _text: 120,
+      },
+      TaskId: {
+        _text: "abcd",
+      },
+      TaskCPU: {
+        _text: "2",
+      },
+      TaskMemory: {
+        _text: "2048",
+      },
+      ECSDuration: {
+        _text: 123,
       },
       Group: [
         {

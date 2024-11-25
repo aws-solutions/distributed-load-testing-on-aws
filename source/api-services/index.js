@@ -28,6 +28,26 @@ class APIHandler {
     throw this.errorMsg;
   }
 
+  async sendMetrics(config, data) {
+    if (process.env.SEND_METRIC === "Yes") {
+      let taskCountObj = {};
+      for (const testTaskConfig of config.testTaskConfigs) {
+        taskCountObj[testTaskConfig.region] = testTaskConfig.taskCount;
+      }
+      await utils.sendMetric({
+        Type: "TestCreate",
+        TestType: config.testType,
+        FileType: config.fileType || (config.testType === "simple" ? "none" : "script"),
+        TaskCountPerRegion: taskCountObj,
+        TestId: data.testId,
+        TestScheduleStep: config.scheduleStep,
+        HoldFor: config.testScenario.execution[0]["hold-for"],
+        RampUp: config.testScenario.execution[0]["ramp-up"],
+        CronValue: config.cronValue,
+        TestEventBridgeScheduled: config.eventBridge,
+      });
+    }
+  }
   // Handle the /scenarios endpoint
   async handleScenarios(config, queryParams, body, functionName, functionArn) {
     let data;
@@ -53,18 +73,7 @@ class APIHandler {
         }
         // Handle creating test
         else data = await scenarios.createTest(config, functionName);
-        if (process.env.SEND_METRIC === "Yes") {
-          await utils.sendMetric({
-            Type: "TaskCreate",
-            TestType: config.testType,
-            FileType: config.fileType || (config.testType === "simple" ? "none" : "script"),
-            TaskCount: config.taskCount,
-            TestId: data.testId,
-            TestScheduleStep: config.scheduleStep,
-            CronValue: config.cronValue,
-            TestEventBridgeScheduled: config.eventBridge,
-          });
-        }
+        await this.sendMetrics(config, data);
         return data;
       default:
         throw this.errorMsg;

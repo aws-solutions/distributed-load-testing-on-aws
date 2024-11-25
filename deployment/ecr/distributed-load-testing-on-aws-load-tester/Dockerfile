@@ -2,7 +2,7 @@ FROM blazemeter/taurus:1.16.34
 # taurus includes python and pip
 RUN /usr/bin/python3 -m pip install --upgrade pip
 RUN pip install --no-cache-dir awscli
-RUN apt-get -y install --no-install-recommends xmlstarlet bc procps
+RUN apt-get -y install --no-install-recommends xmlstarlet bc procps jq
 
 # Removing selenium and gatling from our image as they are not supported in DLT
 RUN rm -rf /root/.bzt/selenium-taurus
@@ -32,7 +32,7 @@ RUN rm -rf /root/.bzt/python-packages/3.10.12/urllib3*
 RUN cp -r /usr/local/lib/python3.10/dist-packages/urllib3* /root/.bzt/python-packages/3.10.12/
 
 # Replacing Werkzeug with more stable version to resolve vulnerabilities
-RUN pip install Werkzeug==3.0.3
+RUN pip install Werkzeug==3.0.6
 RUN rm -rf /root/.bzt/python-packages/3.10.12/werkzeug*
 RUN cp -r /usr/local/lib/python3.10/dist-packages/werkzeug* /root/.bzt/python-packages/3.10.12/
 

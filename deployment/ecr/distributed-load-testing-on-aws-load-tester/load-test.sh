@@ -12,6 +12,10 @@ echo "UUID:: ${UUID}"
 echo "LIVE_DATA_ENABLED:: ${LIVE_DATA_ENABLED}"
 echo "MAIN_STACK_REGION:: ${MAIN_STACK_REGION}"
 
+cat /proc/self/cgroup
+TASK_ID=$(cat /proc/self/cgroup | grep -oE '[a-f0-9]{32}' | head -n 1)
+echo $TASK_ID
+
 sigterm_handler() {
   if [ $pypid -ne 0 ]; then
     echo "container received SIGTERM."
@@ -146,6 +150,23 @@ if [ "$TEST_TYPE" != "simple" ]; then
 fi
 
 if [ -f /tmp/artifacts/results.xml ]; then
+
+  # Insert the Task ID at the same level as <FinalStatus>
+  curl -s $ECS_CONTAINER_METADATA_URI_V4/task
+  Task_CPU=$(curl -s $ECS_CONTAINER_METADATA_URI_V4/task | jq '.Limits.CPU')
+  Task_Memory=$(curl -s $ECS_CONTAINER_METADATA_URI_V4/task | jq '.Limits.Memory')
+  START_TIME=$(curl -s "$ECS_CONTAINER_METADATA_URI_V4/task" | jq -r '.Containers[0].StartedAt')
+  # Convert start time to seconds since epoch
+  START_TIME_EPOCH=$(date -d "$START_TIME" +%s)
+  # Calculate elapsed time in seconds
+  CURRENT_TIME_EPOCH=$(date +%s)
+  ECS_DURATION=$((CURRENT_TIME_EPOCH - START_TIME_EPOCH))
+
+  xmlstarlet ed -P -L -s "/FinalStatus" -t elem -n "TaskId" -v "$TASK_ID" /tmp/artifacts/results.xml
+  xmlstarlet ed -P -L -s "/FinalStatus" -t elem -n "TaskCPU" -v "$Task_CPU" /tmp/artifacts/results.xml
+  xmlstarlet ed -P -L -s "/FinalStatus" -t elem -n "TaskMemory" -v "$Task_Memory" /tmp/artifacts/results.xml
+  xmlstarlet ed -P -L -s "/FinalStatus" -t elem -n "ECSDuration" -v "$ECS_DURATION" /tmp/artifacts/results.xml
+  
   echo "Validating Test Duration"
   TEST_DURATION=`xmlstarlet sel -t -v "/FinalStatus/TestDuration" /tmp/artifacts/results.xml`
 
