@@ -33,6 +33,8 @@ export interface TestRunnerLambdasConstructProps {
   readonly subnetB: string;
   // Test scenarios bucket
   readonly scenariosBucket: string;
+  // Test scenarios bucket ARN
+  readonly scenariosBucketArn: string;
   // Test scenarios table
   readonly scenariosTable: Table;
   // Scenario DynamoDB table policy
@@ -178,6 +180,11 @@ export class TestRunnerLambdasConstruct extends Construct {
               effect: Effect.ALLOW,
               actions: ["ecs:RunTask", "ecs:DescribeTasks", "ecs:TagResource"],
               resources: [taskArn, taskDefArn],
+            }),
+            new PolicyStatement({
+              effect: Effect.ALLOW,
+              actions: ["s3:putObject"],
+              resources: [`${props.scenariosBucketArn}/*`],
             }),
             new PolicyStatement({
               effect: Effect.ALLOW,

@@ -365,6 +365,7 @@ export class DLTStack extends Stack {
       sourceCodeBucket: commonResources.sourceBucket,
       sourceCodePrefix,
       scenariosBucket: dltStorage.scenariosBucket.bucketName,
+      scenariosBucketArn: dltStorage.scenariosBucket.bucketArn,
       scenariosTable: dltStorage.scenariosTable,
       uuid,
       mainStackRegion,

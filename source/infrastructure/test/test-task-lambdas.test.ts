@@ -76,11 +76,11 @@ test("DLT Task Lambda Test", () => {
     sourceCodeBucket: testBucket,
     sourceCodePrefix: "testPrefix",
     scenariosBucket: "testBucket",
+    scenariosBucketArn: "testBucketArn",
     scenariosTable: testTable,
     uuid: "testId",
     mainStackRegion: "us-east-1",
   });
-
   expect(Template.fromStack(stack)).toMatchSnapshot();
 
   Template.fromStack(stack).hasResourceProperties("AWS::IAM::Policy", {

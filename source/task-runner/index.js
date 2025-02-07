@@ -5,6 +5,7 @@ const AWS = require("aws-sdk");
 const utils = require("solution-utils");
 let options = utils.getOptions({ region: process.env.AWS_REGION });
 const dynamo = new AWS.DynamoDB.DocumentClient(options);
+const s3 = new AWS.S3();
 
 const checkRunningTasks = async (ecs, runTaskCount, taskCount, taskCluster, testId) => {
   let desiredWorkers = taskCount - 1;
@@ -67,7 +68,7 @@ const multipleTasks = async (props) => {
   return isRunning;
 };
 
-const singleTask = async (params, taskIds, taskCluster, ecs, runTaskCount) => {
+const singleTask = async (params, taskIds, taskCluster, ecs, runTaskCount, testId, region) => {
   if (taskIds) {
     //Get IP Addresses of worker nodes
     let ipAddresses = [];
@@ -89,6 +90,16 @@ const singleTask = async (params, taskIds, taskCluster, ecs, runTaskCount) => {
       ipNetworkPortion = ipNetworkPortion || ipAddress.split(".", 2).join(".");
     }
 
+    const s3Params = {
+      Bucket: process.env.SCENARIOS_BUCKET,
+      Key: `Container_IPs/${testId}_IPHOSTS_${region}.txt`, // File path in the bucket, e.g.
+      Body: ipAddresses.toString(),
+      ContentType: "text/plain",
+    };
+
+    //Storing the IPHOSTS in the s3 bucket.
+    await s3.putObject(s3Params).promise();
+
     //copy needed for testing in jest, use shallow copy for less resource utilization
     let leaderParams = Object.assign({}, params);
     leaderParams.count = runTaskCount;
@@ -96,10 +107,6 @@ const singleTask = async (params, taskIds, taskCluster, ecs, runTaskCount) => {
     leaderParams.overrides.containerOverrides[0].environment.push({
       name: "IPNETWORK",
       value: ipNetworkPortion.toString(),
-    });
-    leaderParams.overrides.containerOverrides[0].environment.push({
-      name: "IPHOSTS",
-      value: ipAddresses.toString(),
     });
     leaderParams.overrides.containerOverrides[0].environment.forEach((item) => {
       if (item.name === "SCRIPT") item.value = "ecscontroller.py";
@@ -296,7 +303,7 @@ exports.handler = async (event, context) => {
     //if only running a single task
     if (runTaskCount === 1) {
       //if leader task
-      await singleTask(params, event.taskIds, taskCluster, ecs, runTaskCount);
+      await singleTask(params, event.taskIds, taskCluster, ecs, runTaskCount, testId, region);
     } else {
       //if multiple tasks
       const multipleTasksProps = {

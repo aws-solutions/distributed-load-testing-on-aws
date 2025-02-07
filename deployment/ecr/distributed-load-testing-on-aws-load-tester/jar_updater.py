@@ -5,7 +5,6 @@ import requests
 
 from bzt.modules.jmeter import JarCleaner
 
-
 """
 jar_updater.py updates following jar files to address CVEs on the taurus image. this is not DLT application code. 
 the script may be removed once taurus updates the libraries on the image.
@@ -17,10 +16,9 @@ Affected Jmeter jars:
     * batik-transcoder v1.14 will be replaced with v1.17
     * lets-plot-batik v2.2.1 will be replaced with 4.2.0
     * commons-net v3.8.0 will be replaced with v3.9.0
-    * tika-core v1.28.3 will be replaced with v3.0.0
+    * tika-core v1.28.3 will be replaced with v1.28.4
     * json-path v2.7.0 will be replaced with v2.9.0
     * dnsjava v2.1.9 will be replaced with v3.6.1
-
 Also jmeter plugins manager will be updated to v1.10 to address CVEs and cmdrunner will be updated to v2.3 to accomodate with plugins manager.
 """
 
@@ -35,7 +33,7 @@ JMETER_COMPONENTS = {
     "batik-transcoder": "org/apache/xmlgraphics/batik-transcoder/1.17/batik-transcoder-1.17.jar",
     "lets-plot-batik":  "org/jetbrains/lets-plot/lets-plot-batik/4.2.0/lets-plot-batik-4.2.0.jar",
     "commons-net": "commons-net/commons-net/3.9.0/commons-net-3.9.0.jar",
-    "tika-core": "org/apache/tika/tika-core/3.0.0/tika-core-3.0.0.jar",
+    "tika-core": "org/apache/tika/tika-core/1.28.4/tika-core-1.28.4.jar",
     "json-path": "com/jayway/jsonpath/json-path/2.9.0/json-path-2.9.0.jar",
     "dnsjava": "dnsjava/dnsjava/3.6.1/dnsjava-3.6.1.jar"
 }

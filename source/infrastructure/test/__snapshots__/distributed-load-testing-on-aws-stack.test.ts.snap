@@ -3683,6 +3683,24 @@ exports[`Distributed Load Testing stack test 1`] = `
                   ],
                 },
                 {
+                  "Action": "s3:putObject",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        {
+                          "Fn::GetAtt": [
+                            "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+                            "Arn",
+                          ],
+                        },
+                        "/*",
+                      ],
+                    ],
+                  },
+                },
+                {
                   "Action": "iam:PassRole",
                   "Effect": "Allow",
                   "Resource": {
