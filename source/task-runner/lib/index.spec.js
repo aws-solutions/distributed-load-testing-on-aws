@@ -3,6 +3,7 @@
 
 // Mock AWS SDK
 const mockAWS = require("aws-sdk");
+
 const mockDynamoDb = {
   update: jest.fn(),
   get: jest.fn(),
@@ -18,6 +19,9 @@ const mockCloudWatch = {
 };
 const mockCloudWatchLogs = {
   putMetricFilter: jest.fn(),
+};
+const mockS3 = {
+  putObject: jest.fn(),
 };
 
 mockAWS.ECS = jest.fn(() => ({
@@ -35,6 +39,10 @@ mockAWS.CloudWatch = jest.fn(() => ({
 }));
 mockAWS.CloudWatchLogs = jest.fn(() => ({
   putMetricFilter: mockCloudWatchLogs.putMetricFilter,
+}));
+
+mockAWS.S3 = jest.fn(() => ({
+  putObject: mockS3.putObject,
 }));
 
 // Mock Date
@@ -128,7 +136,6 @@ let describeTasksReturn = (numTasks) => {
   }
 
   modifyContainerOverrides("IPNETWORK", ipNetwork.toString());
-  modifyContainerOverrides("IPHOSTS", ipHosts.toString());
   return taskList;
 };
 let getTaskIds = (numTasks) => {
@@ -350,7 +357,6 @@ describe("#TASK RUNNER:: ", () => {
   it("should return when launching leader task is successful", async () => {
     mockParam.overrides.containerOverrides[0].environment[8].value = "ecscontroller.py";
     mockParam.overrides.containerOverrides[0].environment.push({ name: "IPNETWORK", value: "" });
-    mockParam.overrides.containerOverrides[0].environment.push({ name: "IPHOSTS", value: "" });
     let taskIds = getTaskIds(5);
     event.taskIds = taskIds;
     let taskList = describeTasksReturn(4);
@@ -374,6 +380,12 @@ describe("#TASK RUNNER:: ", () => {
     });
 
     mockEcs.listTasks.mockImplementationOnce(() => ({
+      promise() {
+        return Promise.resolve();
+      },
+    }));
+
+    mockS3.putObject.mockImplementationOnce(() => ({
       promise() {
         return Promise.resolve();
       },
@@ -435,13 +447,18 @@ describe("#TASK RUNNER:: ", () => {
       },
     }));
 
+    mockS3.putObject.mockImplementationOnce(() => ({
+      promise() {
+        return Promise.resolve();
+      },
+    }));
+
     try {
       await lambda.handler(event);
     } catch (error) {
       expect(mockEcs.runTask).toHaveBeenCalledWith({ ...mockParam, count: 1 });
       expect(error).toEqual(["Task failure"]);
     }
-    mockParam.overrides.containerOverrides[0].environment.pop();
     mockParam.overrides.containerOverrides[0].environment.pop();
     mockParam.overrides.containerOverrides[0].environment.pop();
   });
@@ -510,6 +527,11 @@ describe("#TASK RUNNER:: ", () => {
     mockDynamoDb.update.mockImplementationOnce(() => ({
       promise() {
         return Promise.reject("DynamoDB.DocumentClient.update failed");
+      },
+    }));
+    mockS3.putObject.mockImplementationOnce(() => ({
+      promise() {
+        return Promise.resolve();
       },
     }));
 

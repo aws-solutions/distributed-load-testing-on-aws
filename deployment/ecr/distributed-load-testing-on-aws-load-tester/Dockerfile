@@ -1,4 +1,4 @@
-FROM blazemeter/taurus:1.16.34
+FROM blazemeter/taurus:1.16.38
 # taurus includes python and pip
 RUN /usr/bin/python3 -m pip install --upgrade pip
 RUN pip install --no-cache-dir awscli
@@ -57,6 +57,12 @@ RUN  pip install --upgrade aiohttp
 RUN pip install --upgrade idna Flask_Cors
 RUN rm -rf /root/.bzt/python-packages/3.10.12/idna* /root/.bzt/python-packages/3.10.12/Flask_Cors*
 RUN cp -r /usr/local/lib/python3.10/dist-packages/idna* /usr/local/lib/python3.10/dist-packages/Flask_Cors* /root/.bzt/python-packages/3.10.12/
+
+# Bumping the version of NPM to remove possible vulnerabilities
+RUN npm install -g npm
+
+# Remove unused poetry.lock file to resolve multiple CVEs
+RUN rm -f /root/.bzt/python-packages/3.10.12/poetry.lock
 
 WORKDIR /bzt-configs/
 ENTRYPOINT ["./load-test.sh"]

@@ -84,7 +84,7 @@ describe("Functions Testing", () => {
     const props = {
       testType: "simple",
       testName: "testName",
-      endpoint: "http://example.com",
+      endpoint: "endpoint",
       method: "GET",
       headers: "{}",
       body: "{}",
@@ -100,7 +100,7 @@ describe("Functions Testing", () => {
           testName: {
             requests: [
               {
-                url: "http://example.com",
+                url: "endpoint",
                 method: "GET",
                 body: {},
                 headers: {},
@@ -122,7 +122,7 @@ describe("Functions Testing", () => {
     const props = {
       testType: "jmeter",
       testName: "testName",
-      endpoint: "http://example.com",
+      endpoint: "endpoint",
       method: "GET",
       headers: "{}",
       body: "{}",

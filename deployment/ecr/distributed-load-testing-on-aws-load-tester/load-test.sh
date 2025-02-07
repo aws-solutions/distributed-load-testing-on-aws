@@ -95,6 +95,8 @@ if [ -z "$IPNETWORK" ]; then
     wait $pypid
     pypid=0
 else 
+    aws s3 cp s3://$S3_BUCKET/Container_IPs/${TEST_ID}_IPHOSTS_${AWS_REGION}.txt ./ --region $MAIN_STACK_REGION
+    export IPHOSTS=$(cat ${TEST_ID}_IPHOSTS_${AWS_REGION}.txt)
     python3 -u $SCRIPT $IPNETWORK $IPHOSTS
 fi
 

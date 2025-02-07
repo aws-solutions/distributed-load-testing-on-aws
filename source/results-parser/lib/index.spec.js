@@ -14,6 +14,7 @@ process.env = {
   RUNNING_UNIT_TESTS: "True",
   SCENARIOS_BUCKET: "MyBucket",
   SCENARIOS_TABLE: "MyTable",
+  AWS_REGION: "none",
 };
 
 const { handler, _getFilesByRegion } = require("../index.js");

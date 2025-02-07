@@ -87,6 +87,11 @@ exports[`DLT Task Lambda Test 1`] = `
                   ],
                 },
                 {
+                  "Action": "s3:putObject",
+                  "Effect": "Allow",
+                  "Resource": "testBucketArn/*",
+                },
+                {
                   "Action": "iam:PassRole",
                   "Effect": "Allow",
                   "Resource": "arn:aws:iam:us-east-1:111122223333:roleArn",
