@@ -1,4 +1,5 @@
 node_modules/
+cdk.out
 coverage
 build/
 dev/
@@ -7,9 +8,9 @@ regional-s3-assets/
 open-source/
 console_new/
 **/aws_config.js
-deployment/ecr/*.jar
-test/
+deployment/ecr/**/*.jar
 .idea
+source/test/
 
 .pnp
 .pnp.js
@@ -24,3 +25,14 @@ yarn-debug.log*
 yarn-error.log*
 yarm-lock.json
 
+# cypress
+screenshots
+videos
+
+# solution metrics utils.
+source/metrics-utils/*.js
+!source/metrics-utils/jest.config.js
+source/metrics-utils/*.d.ts
+source/metrics-utils/**/*.d.ts
+source/metrics-utils/**/*.js
+source/metrics-utils/dist/
