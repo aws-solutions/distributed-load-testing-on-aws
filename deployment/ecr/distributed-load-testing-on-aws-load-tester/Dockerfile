@@ -54,7 +54,7 @@ RUN rm -rf /usr/local/lib/python3.10/dist-packages/aiohttp*
 RUN  pip install --upgrade aiohttp
 
 # Replacing idna and Flask_Cors with more stable version to resolve CVE-2024-3651 and  CVE-2024-6221
-RUN pip install --upgrade idna Flask_Cors
+RUN pip install --upgrade idna Flask_Cors==5.0.0
 RUN rm -rf /root/.bzt/python-packages/3.10.12/idna* /root/.bzt/python-packages/3.10.12/Flask_Cors*
 RUN cp -r /usr/local/lib/python3.10/dist-packages/idna* /usr/local/lib/python3.10/dist-packages/Flask_Cors* /root/.bzt/python-packages/3.10.12/
 
