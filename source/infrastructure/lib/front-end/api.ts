@@ -194,7 +194,7 @@ export class DLTAPI extends Construct {
     const dltApiServicesLambda = new LambdaFunction(this, "DLTAPIServicesLambdaNew", {
       description: "API microservices for creating, updating, listing and deleting test scenarios",
       code: Code.fromBucket(props.sourceCodeBucket, `${props.sourceCodePrefix}/api-services.zip`),
-      runtime: Runtime.NODEJS_18_X,
+      runtime: Runtime.NODEJS_20_X,
       handler: "index.handler",
       timeout: Duration.seconds(120),
       environment: {

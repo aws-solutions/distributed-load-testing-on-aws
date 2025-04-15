@@ -61,7 +61,7 @@ test("DLT API Test", () => {
     Role: {
       "Fn::GetAtt": ["TestCustomResourceInfraCustomResourceLambdaRole03671AE8", "Arn"],
     },
-    Runtime: "nodejs18.x",
+    Runtime: "nodejs20.x",
     Timeout: 120,
   });
 });

@@ -34,7 +34,7 @@ export class SolutionsMetrics extends Construct {
       description: "Metrics util",
       code: Code.fromBucket(props.sourceCodeBucket, `${props.sourceCodePrefix}/metrics-utils.zip`),
       handler: "index.handler",
-      runtime: Runtime.NODEJS_18_X,
+      runtime: Runtime.NODEJS_20_X,
       timeout: Duration.seconds(60),
       memorySize: 128,
       environment: {

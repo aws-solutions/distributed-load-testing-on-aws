@@ -90,14 +90,14 @@ fi
 
 #Download python script
 if [ -z "$IPNETWORK" ]; then
-    python3 -u $SCRIPT $TIMEOUT &
+    python3.11 -u $SCRIPT  $TIMEOUT &
     pypid=$!
     wait $pypid
     pypid=0
 else 
     aws s3 cp s3://$S3_BUCKET/Container_IPs/${TEST_ID}_IPHOSTS_${AWS_REGION}.txt ./ --region $MAIN_STACK_REGION
     export IPHOSTS=$(cat ${TEST_ID}_IPHOSTS_${AWS_REGION}.txt)
-    python3 -u $SCRIPT $IPNETWORK $IPHOSTS
+    python3.11 -u $SCRIPT $IPNETWORK $IPHOSTS
 fi
 
 echo "Running test"
@@ -164,17 +164,18 @@ if [ -f /tmp/artifacts/results.xml ]; then
   CURRENT_TIME_EPOCH=$(date +%s)
   ECS_DURATION=$((CURRENT_TIME_EPOCH - START_TIME_EPOCH))
 
-  xmlstarlet ed -P -L -s "/FinalStatus" -t elem -n "TaskId" -v "$TASK_ID" /tmp/artifacts/results.xml
-  xmlstarlet ed -P -L -s "/FinalStatus" -t elem -n "TaskCPU" -v "$Task_CPU" /tmp/artifacts/results.xml
-  xmlstarlet ed -P -L -s "/FinalStatus" -t elem -n "TaskMemory" -v "$Task_Memory" /tmp/artifacts/results.xml
-  xmlstarlet ed -P -L -s "/FinalStatus" -t elem -n "ECSDuration" -v "$ECS_DURATION" /tmp/artifacts/results.xml
+
+  sed -i.bak 's/<\/FinalStatus>/<TaskId>'"$TASK_ID"'<\/TaskId><\/FinalStatus>/' /tmp/artifacts/results.xml
+  sed -i 's/<\/FinalStatus>/<TaskCPU>'"$Task_CPU"'<\/TaskCPU><\/FinalStatus>/' /tmp/artifacts/results.xml
+  sed -i 's/<\/FinalStatus>/<TaskMemory>'"$Task_Memory"'<\/TaskMemory><\/FinalStatus>/' /tmp/artifacts/results.xml
+  sed -i 's/<\/FinalStatus>/<ECSDuration>'"$ECS_DURATION"'<\/ECSDuration><\/FinalStatus>/' /tmp/artifacts/results.xml
   
   echo "Validating Test Duration"
-  TEST_DURATION=`xmlstarlet sel -t -v "/FinalStatus/TestDuration" /tmp/artifacts/results.xml`
+  TEST_DURATION=$(grep -E '<TestDuration>[0-9]+.[0-9]+</TestDuration>' /tmp/artifacts/results.xml | sed -e 's/<TestDuration>//' | sed -e 's/<\/TestDuration>//')
 
   if (( $(echo "$TEST_DURATION > $CALCULATED_DURATION" | bc -l) )); then
     echo "Updating test duration: $CALCULATED_DURATION s"
-    xmlstarlet ed -L -u /FinalStatus/TestDuration -v $CALCULATED_DURATION /tmp/artifacts/results.xml
+    sed -i.bak.td 's/<TestDuration>[0-9]*\.[0-9]*<\/TestDuration>/<TestDuration>'"$CALCULATED_DURATION"'<\/TestDuration>/' /tmp/artifacts/results.xml
   fi
 
   if [ "$TEST_TYPE" == "simple" ]; then
