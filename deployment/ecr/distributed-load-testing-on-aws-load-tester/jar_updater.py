@@ -35,7 +35,8 @@ JMETER_COMPONENTS = {
     "commons-net": "commons-net/commons-net/3.9.0/commons-net-3.9.0.jar",
     "tika-core": "org/apache/tika/tika-core/1.28.4/tika-core-1.28.4.jar",
     "json-path": "com/jayway/jsonpath/json-path/2.9.0/json-path-2.9.0.jar",
-    "dnsjava": "dnsjava/dnsjava/3.6.1/dnsjava-3.6.1.jar"
+    "dnsjava": "dnsjava/dnsjava/3.6.1/dnsjava-3.6.1.jar",
+    "xstream":"com/thoughtworks/xstream/xstream/1.4.21/xstream-1.4.21.jar"
 }
 JMETER_VERSION = "5.5"
 JMETER_PLUGINS_MANAGER_VERSION = "1.10"

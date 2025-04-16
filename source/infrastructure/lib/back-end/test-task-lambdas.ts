@@ -120,7 +120,7 @@ export class TestRunnerLambdasConstruct extends Construct {
       handler: "index.handler",
       role: lambdaResultsRole,
       code: Code.fromBucket(props.sourceCodeBucket, `${props.sourceCodePrefix}/results-parser.zip`),
-      runtime: Runtime.NODEJS_18_X,
+      runtime: Runtime.NODEJS_20_X,
       timeout: Duration.seconds(120),
       environment: {
         HISTORY_TABLE: props.historyTable.tableName,
@@ -230,7 +230,7 @@ export class TestRunnerLambdasConstruct extends Construct {
         VERSION: props.solutionVersion,
         MAIN_STACK_REGION: props.mainStackRegion,
       },
-      runtime: Runtime.NODEJS_18_X,
+      runtime: Runtime.NODEJS_20_X,
       timeout: Duration.seconds(900),
     });
 
@@ -299,7 +299,7 @@ export class TestRunnerLambdasConstruct extends Construct {
       handler: "index.handler",
       role: taskCancelerRole,
       code: Code.fromBucket(props.sourceCodeBucket, `${props.sourceCodePrefix}/task-canceler.zip`),
-      runtime: Runtime.NODEJS_18_X,
+      runtime: Runtime.NODEJS_20_X,
       timeout: Duration.seconds(300),
       environment: {
         METRIC_URL: props.metricsUrl,
@@ -380,7 +380,7 @@ export class TestRunnerLambdasConstruct extends Construct {
       handler: "index.handler",
       role: taskStatusCheckerRole,
       code: Code.fromBucket(props.sourceCodeBucket, `${props.sourceCodePrefix}/task-status-checker.zip`),
-      runtime: Runtime.NODEJS_18_X,
+      runtime: Runtime.NODEJS_20_X,
       timeout: Duration.seconds(180),
       environment: {
         SCENARIOS_TABLE: props.scenariosTable.tableName,

@@ -34,7 +34,7 @@ test("DLT API Test", () => {
   const testLambda = new LambdaFunction(stack, "TestFunction", {
     code: Code.fromBucket(Bucket.fromBucketName(stack, "SourceCodeBucket", "testbucket"), "custom-resource.zip"),
     handler: "index.handler",
-    runtime: Runtime.NODEJS_18_X,
+    runtime: Runtime.NODEJS_20_X,
     role: testRole,
   });
 

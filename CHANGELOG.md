@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [3.3.6] - 2025-04-16
+
+### Security
+
+- Change Dockerfile base image reference from blazemeter/taurus:1.16.38 to amazonlinux:2023-minimal to resolve vulnerabilities.
+- Update aws-cdk-lib to 2.189.0 to fix [CVE](https://github.com/aws/aws-cdk/security/advisories/GHSA-qq4x-c6h6-rfxh)
+
+### Changes
+
+- Updating lambda runtimes to use node-20
+
 ## [3.3.5] - 2025-03-17
 
 ### Security

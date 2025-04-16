@@ -59,7 +59,7 @@ export class RealTimeDataConstruct extends Construct {
       handler: "index.handler",
       role: realTimeDataPublisherRole,
       code: Code.fromBucket(props.sourceCodeBucket, `${props.sourceCodePrefix}/real-time-data-publisher.zip`),
-      runtime: Runtime.NODEJS_18_X,
+      runtime: Runtime.NODEJS_20_X,
       timeout: Duration.seconds(180),
       environment: {
         MAIN_REGION: props.mainRegion,
