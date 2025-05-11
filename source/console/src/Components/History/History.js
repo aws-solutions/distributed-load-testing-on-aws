@@ -57,7 +57,7 @@ class History extends React.Component {
           <Table borderless responsive>
             <thead>
               <tr>
-                <th>Run Time</th>
+                <th>Started at</th>
                 <th>Total Task Count</th>
                 <th>Total Concurrency</th>
                 <th>Average Response Time</th>
@@ -78,7 +78,7 @@ class History extends React.Component {
                     key={i.testRunId}
                     className={this.state.rowIsActive === index ? "rowActive" : ""}
                   >
-                    <td id={`endTime-${index}`}>{i.endTime}</td>
+                    <td id={`startTime-${index}`}>{i.startTime}</td>
                     <td id={`taskCount-${index}`}>{loadInfo.taskCount}</td>
                     <td id={`concurrency-${index}`}>{loadInfo.concurrency}</td>
                     <td id={`avgResponseTime-${index}`}>{i.results.total?.avg_rt}s</td>
@@ -101,7 +101,7 @@ class History extends React.Component {
                             this.setState({ rowIsActive: -1 });
                           }}
                         >
-                          <h2>Test run from {i.endTime}</h2>
+                          <h2>Test run from {testRun.startTime} to {testRun.endTime}</h2>
                         </ModalHeader>
                         <ModalBody>
                           <DetailsTable
