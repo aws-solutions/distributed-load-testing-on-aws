@@ -56,7 +56,7 @@ class History extends React.Component {
       const loadInfo = testRun.testTaskConfigs.reduce((previous, current) => ({
         taskCount: previous.taskCount + current.taskCount,
         concurrency: previous.concurrency + current.concurrency,
-      }));
+      }), { taskCount: 0, concurrency: 0 });
       const data = this.getHistoricalTest(testRun);
       return {
         testRun,
