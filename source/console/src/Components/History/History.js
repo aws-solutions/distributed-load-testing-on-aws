@@ -53,10 +53,13 @@ class History extends React.Component {
 
     // Enrich the history with more data, and sort by start time.
     const resultsHistory = history.map((testRun) => {
-      const loadInfo = testRun.testTaskConfigs.reduce((previous, current) => ({
-        taskCount: previous.taskCount + current.taskCount,
-        concurrency: previous.concurrency + current.concurrency,
-      }), { taskCount: 0, concurrency: 0 });
+      const loadInfo = testRun.testTaskConfigs.reduce(
+        (previous, current) => ({
+          taskCount: previous.taskCount + current.taskCount,
+          concurrency: previous.concurrency + current.concurrency,
+        }),
+        { taskCount: 0, concurrency: 0 }
+      );
       const data = this.getHistoricalTest(testRun);
       return {
         testRun,
@@ -81,7 +84,7 @@ class History extends React.Component {
               </tr>
             </thead>
             <tbody>
-              {resultsHistory.map(({testRun, data, loadInfo}, index) => {
+              {resultsHistory.map(({ testRun, data, loadInfo }, index) => {
                 return (
                   <tr
                     id={`historyRow-${index}`}
@@ -111,7 +114,9 @@ class History extends React.Component {
                             this.setState({ rowIsActive: -1 });
                           }}
                         >
-                          <h2>Test run from {testRun.startTime} to {testRun.endTime}</h2>
+                          <h2>
+                            Test run from {testRun.startTime} to {testRun.endTime}
+                          </h2>
                         </ModalHeader>
                         <ModalBody>
                           <DetailsTable
