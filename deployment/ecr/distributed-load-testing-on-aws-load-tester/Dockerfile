@@ -8,7 +8,7 @@ ENV PIP_INSTALL="pip3.11 install --no-cache-dir"
 
 
 # install bzt
-RUN $PIP_INSTALL --upgrade bzt awscli setuptools==70.0.0
+RUN $PIP_INSTALL --upgrade bzt awscli setuptools==70.0.0 h11
 
 # install bzt tools
 RUN bzt -install-tools -o modules.install-checker.exclude=selenium,gatling,tsung,siege,ab,k6,external-results-loader,locust,junit,testng,rspec,mocha,nunit,xunit,wdio

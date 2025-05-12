@@ -12,6 +12,9 @@ deployment/ecr/**/*.jar
 .idea
 source/test/
 
+# IDE
+.vscode
+
 .pnp
 .pnp.js
 aws_exports.js

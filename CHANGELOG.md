@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [3.3.7] - 2025-05-12
+
+### Security
+
+- Update h11 to 0.16.0 to fix [CVE](https://nvd.nist.gov/vuln/detail/CVE-2025-43859)
+
 ## [3.3.6] - 2025-04-16
 
 ### Security
@@ -15,7 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changes
 
-- Updating lambda runtimes to use node-20
+- Updating lambda runtimes to use node-20.
+- Updated Dockerfile results in an [image of size 424 MB instead of the earlier 2.2 GB](https://gallery.ecr.aws/aws-solutions/distributed-load-testing-on-aws-load-tester), this results in improved test start times, depending on the task count, a 500 task count tests starts 40% faster than the previous version of the solution.
 
 ## [3.3.5] - 2025-03-17
 
@@ -26,8 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.3.4] - 2025-02-06
  
 ### Security
-- `path-to-regexp` to mitigate [CVE-2024-52798]
-- `nanoid` to mitigate [CVE-2024-55565]
+- `path-to-regexp` to mitigate [CVE-2024-52798](https://nvd.nist.gov/vuln/detail/CVE-2024-52798)
+- `nanoid` to mitigate [CVE-2024-55565](https://nvd.nist.gov/vuln/detail/CVE-2024-55565)
 
 ### Fixed
 
@@ -37,12 +44,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- Update `cross-spawn` to mitigate [CVE-2024-21538]
-- Update `Werzeug` to mitigate [CVE-2024-49767]
+- Update `cross-spawn` to mitigate [CVE-2024-21538](https://nvd.nist.gov/vuln/detail/CVE-2024-21538)
+- Update `Werzeug` to mitigate [CVE-2024-49767](https://nvd.nist.gov/vuln/detail/CVE-2024-49767)
 
 ### Fixed
 
-- Update tika-core to v3.0.0 to resolve [https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/214]
+- Update tika-core to v3.0.0 to resolve [#214](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/214)
 
 ### Updated
 
@@ -52,19 +59,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- `http-proxy-middleware` to mitigate [CVE-2024-21536]
-- Bumping cryptography to v43.0.1 in docker image to mitigate (https://github.com/advisories/GHSA-h4gh-qq45-vh27)
-- Bumping setuptool to 65.5.1 in docker image to mitigate [CVE-2022-40897]
+- `http-proxy-middleware` to mitigate [CVE-2024-21536](https://nvd.nist.gov/vuln/detail/CVE-2024-21536)
+- Bumping cryptography to v43.0.1 in docker image to mitigate [pyca/cryptography has a vulnerable OpenSSL included in cryptography wheels](https://github.com/advisories/GHSA-h4gh-qq45-vh27)
+- Bumping setuptool to 65.5.1 in docker image to mitigate [CVE-2022-40897](https://nvd.nist.gov/vuln/detail/CVE-2022-40897)
 
 ### Fixed
 
-- Fixed bug pertain to start button not working properly (https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/218)
+- Fixed bug pertain to start button not working properly [#218](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/218)
 
 ## [3.3.1] - 2024-10-02
 
 ### Security
 
-- `rollup` to mitigate [CVE-2024-4067](https://github.com/advisories/GHSA-952p-6rrq-rcjv) 
+- `rollup` to mitigate [CVE-2024-4067](https://github.com/advisories/GHSA-952p-6rrq-rcjv)
 
 ### Fixed
 
@@ -74,18 +81,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added cron scheduling (https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/84)
-- Added jtl report to s3 bucket logs (https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/150)
-- Added enhanced mechanism to collect Anonymized Metrics Feature 
+- Added cron scheduling [#84](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/84)
+- Added jtl report to s3 bucket logs [#150](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/150)
+- Added enhanced mechanism to collect Anonymized Metrics Feature
 - Added new integration tests
 
 ### Fixed
 
-- Fixed issues pertaining to (https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/193)
+- Fixed issues pertaining to [#193](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/193)
 
 ### Security
 
-- `micromatch` to mitigate [CVE-2024-4067](https://github.com/advisories/GHSA-952p-6rrq-rcjv) 
+- `micromatch` to mitigate [CVE-2024-4067](https://github.com/advisories/GHSA-952p-6rrq-rcjv)
 - `webpack` to mitigate [CVE-2024-43788](https://github.com/advisories/GHSA-4vvj-4cpr-p986)
 - `path-to-regexp` to mitigate [CVE-2024-45296](https://github.com/advisories/GHSA-9wv6-86v2-598j)
 - `serve-static` to mitigate [CVE-2024-43800](https://github.com/advisories/GHSA-cm22-4g7w-348p)
@@ -135,15 +142,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Updated
 
-- Updated webpack-dev-middleware from 5.3.3 to 5.3.4 to resolve security vulnerability [CVE-2024-29180]
-- Updated express from 4.18.1 to 4.19.2 to resolve security vulnerability [CVE-2024-29041]
-- Updated follow-redirects from 1.15.4 to 1.15.6 to resolve security vulnerability [CVE-2024-28849]
+- Updated webpack-dev-middleware from 5.3.3 to 5.3.4 to resolve security vulnerability [CVE-2024-29180](https://nvd.nist.gov/vuln/detail/CVE-2024-29180)
+- Updated express from 4.18.1 to 4.19.2 to resolve security vulnerability [CVE-2024-29041](https://nvd.nist.gov/vuln/detail/CVE-2024-29041)
+- Updated follow-redirects from 1.15.4 to 1.15.6 to resolve security vulnerability [CVE-2024-28849](https://nvd.nist.gov/vuln/detail/CVE-2024-28849)
 - Updated docker image to resolve security vulnerabilities
 
 ### Fixed
 
-- Fixed issues pertaining to [https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/170] 
-- Fixed issues pertaining the update stack problem from versions before DLT v3.2.6 to DLT versions after 3.2.6 
+- Fixed issues pertaining to [#170](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/170)
+- Fixed issues pertaining the update stack problem from versions before DLT v3.2.6 to DLT versions after 3.2.6.
 
 ## [3.2.7] - 2024-03-11
 
