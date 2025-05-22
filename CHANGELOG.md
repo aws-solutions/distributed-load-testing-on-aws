@@ -6,7 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [3.3.7] - 2025-05-12
+## [3.3.8] - 2025-05-22
+
+### Security
+
+- Update sqllite-libs to fix [CVE](https://alas.aws.amazon.com/cve/json/v1/CVE-2022-46908.json)
+- Update setuptools to fix [CVE](https://www.cve.org/CVERecord?id=CVE-2025-47273)
+
+## [3.3.7] - 2025-05-06
 
 ### Security
 
