@@ -8,10 +8,11 @@ ENV PIP_INSTALL="pip3.11 install --no-cache-dir"
 
 
 # install bzt
-RUN $PIP_INSTALL --upgrade bzt awscli setuptools==70.0.0 h11
+RUN $PIP_INSTALL --upgrade bzt awscli setuptools==78.1.1 h11 && \
+    $PIP_INSTALL --upgrade bzt
 
 # install bzt tools
-RUN bzt -install-tools -o modules.install-checker.exclude=selenium,gatling,tsung,siege,ab,k6,external-results-loader,locust,junit,testng,rspec,mocha,nunit,xunit,wdio
+RUN bzt -install-tools -o modules.install-checker.exclude=selenium,gatling,tsung,siege,ab,k6,external-results-loader,locust,junit,testng,rspec,mocha,nunit,xunit,wdio,robot,newman
 RUN rm -rf /root/.bzt/selenium-taurus
 RUN mkdir /bzt-configs /tmp/artifacts
 ADD ./load-test.sh /bzt-configs/
