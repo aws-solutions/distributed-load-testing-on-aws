@@ -1,6 +1,6 @@
 # Distributed Load Testing on AWS
 
-The Distributed Load Testing Solution leverages managed, highly available and highly scalable AWS services to effortlessly create and simulate thousands of connected users generating a selected amount of transactions per second, originating from up to 5 simultaneous AWS regions. As a result, developers can understand the behavior of their applications at scale and at load to identify any bottleneck problems before they deploy to Production.
+The Distributed Load Testing Solution leverages managed, highly available and highly scalable AWS services to effortlessly create and simulate thousands of connected users generating a selected amount of transactions per second, originating from up to 5 simultaneous AWS regions. As a result, developers can understand the behavior of their applications at scale and at load to identify any bottleneck problems before they deploy to Production. [Launch in the AWS Console](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?&templateURL=https://solutions-reference.s3.amazonaws.com/distributed-load-testing-on-aws/latest/distributed-load-testing-on-aws.template&redirectId=GitHub)
 
 ## On this Page
 
@@ -12,6 +12,36 @@ The Distributed Load Testing Solution leverages managed, highly available and hi
 ## Architecture Overview
 
 ![Architecture](architecture.png)
+
+The high-level process flow for the solution components deployed with the AWS CloudFormation template is as follows:  
+
+1. A distributed load tester API, which leverages [Amazon API Gateway](https://aws.amazon.com/api-gateway) to invoke the solution's microservices ([AWS Lambda](https://aws.amazon.com/lambda) functions).
+
+2. The microservices provide the business logic to manage test data and run the tests.
+
+3. These microservices interact with [Amazon Simple Storage Service](https://aws.amazon.com/s3) (Amazon S3), [Amazon DynamoDB](https://aws.amazon.com/dynamodb), and [AWS Step Functions](https://aws.amazon.com/step-functions) to provide storage for the test scenario details and results and run test scenarios.
+
+4. An [Amazon Virtual Private Cloud](https://aws.amazon.com/vpc) (Amazon VPC) network topology is deployed containing the solution\'s [Amazon Elastic Container Service](https://aws.amazon.com/ecs) (Amazon ECS) containers running on [AWS Fargate](https://aws.amazon.com/fargate).
+
+5. The containers include the [AmazonLinux](https://aws.amazon.com/linux/amazon-linux-2023/) (with blazemeter load testing framework installed) [Open Container Initiative](https://opencontainers.org/) (OCI) compliant container image, which is used to generate load for testing your application\'s performance. Taurus/Blazemeter is an open-source test automation framework. The container image is hosted by AWS in an [Amazon Elastic Container Registry](https://aws.amazon.com/ecr) (Amazon ECR) public repository. For more information about the ECR image repository, refer to [Container image customization](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/container-image.html).
+
+6. A web console powered by [AWS Amplify](https://aws.amazon.com/amplify) is deployed it into an Amazon S3 bucket configured for static web hosting.
+
+7. [Amazon CloudFront](https://aws.amazon.com/cloudfront) provides secure, public access to the solution\'s website bucket contents.
+
+8. During initial configuration, this solution also creates a default solution administrator role (IAM role) and sends an access invite to a customer-specified user email address.
+
+9. An [Amazon Cognito](https://aws.amazon.com/cognito) user pool manages user access to the console and the distributed load tester API.
+
+10. After you deploy this solution, you can use the web console to create a test scenario that defines a series of tasks.
+
+11. The microservices use this test scenario to run Amazon ECS on AWS Fargate tasks in the Regions specified.
+
+12. In addition to storing the results in Amazon S3 and DynamoDB, once the test is complete the output is logged in [Amazon CloudWatch](https://aws.amazon.com/cloudwatch).
+
+13. If you select the live data option, the solution sends the Amazon CloudWatch logs for the AWS Fargate tasks to a Lambda function during the test, for each Region in which the test was run.
+
+14. The Lambda function then publishes the data to the corresponding topic in [AWS IoT Core](https://aws.amazon.com/iot-core) in the Region where the main stack was deployed. The web console subscribes to the topic, and you can see the data while the test runs in the web console.
 
 ## Deployment
 
