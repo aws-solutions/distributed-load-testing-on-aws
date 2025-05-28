@@ -41,7 +41,7 @@ import RefreshButtons from "../Shared/Buttons/RefreshButtons";
 const FILE_SIZE_LIMIT = 50 * 1024 * 1024;
 
 // Allowed file extensions
-const SCRIPT_FILE_EXTENSIONS = { jmeter: "jmx" };
+const SCRIPT_FILE_EXTENSIONS = { jmeter: "jmx", k6: "js" };
 
 class Create extends React.Component {
   constructor(props) {
@@ -548,7 +548,7 @@ class Create extends React.Component {
   };
 
   uploadFileDescription = () => {
-    if (!["jmeter"].includes(this.state.formValues.testType)) {
+    if (["simple"].includes(this.state.formValues.testType)) {
       return null;
     }
     const ext = SCRIPT_FILE_EXTENSIONS[this.state.formValues.testType];
@@ -1367,6 +1367,7 @@ class Create extends React.Component {
                 >
                   <option value="simple">Single HTTP Endpoint</option>
                   <option value="jmeter">JMeter</option>
+                  <option value="k6">K6</option>
                 </Input>
               </FormGroup>
               {this.state.formValues.testType === "simple" && (

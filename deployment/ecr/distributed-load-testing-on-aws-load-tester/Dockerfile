@@ -1,7 +1,9 @@
 FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal
 
 RUN dnf update -y && \
-    dnf install -y python3.11 python3.11-pip java-21-amazon-corretto bc procps jq findutils unzip && \
+    curl -sL --retry 3 "https://dl.k6.io/rpm/repo.rpm" -o /tmp/repo.rpm && \
+    rpm -i /tmp/repo.rpm && rm -f /tmp/repo.rpm && \
+    dnf install -y python3.11 python3.11-pip java-21-amazon-corretto bc procps jq findutils unzip k6 && \
     dnf clean all
 
 ENV PIP_INSTALL="pip3.11 install --no-cache-dir"
