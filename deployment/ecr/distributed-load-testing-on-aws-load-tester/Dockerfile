@@ -1,7 +1,7 @@
 FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal
 
 RUN dnf update -y && \
-    dnf install -y python3.11 python3.11-pip java-21-amazon-corretto bc procps jq findutils unzip && \
+    dnf install -y python3.11 python3.11-pip java-11-amazon-corretto bc procps jq findutils unzip && \
     dnf clean all
 
 ENV PIP_INSTALL="pip3.11 install --no-cache-dir"
@@ -26,7 +26,8 @@ RUN chmod 755 /bzt-configs/jar_updater.py
 RUN python3.11 /bzt-configs/jar_updater.py
 
 # Remove jar files from /tmp
-RUN rm -rf /tmp/jmeter-plugins-manager-1.7*
+RUN rm -rf /tmp/jmeter-plugins-manager-1* && \
+    rm -rf /usr/local/lib/python3.11/site-packages/setuptools-65.5.0.dist-info
 
 # Add settings file to capture the output logs from bzt cli
 RUN mkdir -p /etc/bzt.d && echo '{"settings": {"artifacts-dir": "/tmp/artifacts"}}' > /etc/bzt.d/90-artifacts-dir.json
