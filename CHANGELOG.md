@@ -35,7 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changes
 
-- Updating lambda runtimes to use node-20
+- Updating lambda runtimes to use node-20.
+- Updated Dockerfile results in an [image of size 424 MB instead of the earlier 2.2 GB](https://gallery.ecr.aws/aws-solutions/distributed-load-testing-on-aws-load-tester), this results in improved test start times, depending on the task count, a 500 task count tests starts 40% faster than the previous version of the solution.
 
 ## [3.3.5] - 2025-03-17
 
