@@ -3,9 +3,9 @@ name: distributed-load-testing-on-aws
 version: 3.3.9
 cloudformation_templates:
   - template: distributed-load-testing-on-aws.template
-    main_template: true # true/false
+    main_template: true
   - template: distributed-load-testing-on-aws-regional.template
-    main_template: false #true/false
+    main_template: false
 build_environment:
     build_image: 'aws/codebuild/standard:7.0'
 container_images:
