@@ -1,0 +1,31 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+modules:
+  jmeter:
+    path: ~/.bzt/jmeter-taurus/{version}/bin/jmeter
+    download-link: https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-{version}.zip
+    version: 5.6.3
+    force-ctg: true
+    detect-plugins: true
+    fix-jars: true
+    plugins:
+    - jpgc-json
+    - jmeter-ftp
+    - jpgc-casutg
+    - jpgc-dummy
+    - jpgc-ffw
+    - jpgc-fifo
+    - jpgc-functions
+    - jpgc-perfmon
+    - jpgc-prmctl
+    - jpgc-tst
+    - jpgc-udp
+    - bzm-http2
+    - bzm-random-csv
+    plugins-manager:
+      download-link: https://search.maven.org/remotecontent?filepath=kg/apc/jmeter-plugins-manager/{version}/jmeter-plugins-manager-{version}.jar
+      version: '1.11'
+    command-runner:
+      download-link: https://search.maven.org/remotecontent?filepath=kg/apc/cmdrunner/{version}/cmdrunner-{version}.jar
+      version: 2.3

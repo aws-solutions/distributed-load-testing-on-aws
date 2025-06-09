@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [3.3.9] - 2025-06-09
+
+### Security
+
+- Update Jmeter to 5.6.3 to resolve issue with groovy scripts.
+- Update Jmeter-plugin-manager to 1.11 to resolve [CVE](https://nvd.nist.gov/vuln/detail/CVE-2025-48734)
+- Remove setuptools older distributions in the ECR Image.
+
 ## [3.3.8] - 2025-05-22
 
 ### Security
@@ -28,8 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changes
 
-- Updating lambda runtimes to use node-20.
 - Updated Dockerfile results in an [image of size 424 MB instead of the earlier 2.2 GB](https://gallery.ecr.aws/aws-solutions/distributed-load-testing-on-aws-load-tester), this results in improved test start times, depending on the task count, a 500 task count tests starts 40% faster than the previous version of the solution.
+- Updating lambda runtimes to use node-20
 
 ## [3.3.5] - 2025-03-17
 
