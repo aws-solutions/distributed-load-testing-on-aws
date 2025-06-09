@@ -12,7 +12,7 @@ from bzt.modules.jmeter import JarCleaner
 jar_updater.py updates following jar files to address CVEs on the taurus image. this is not DLT application code. 
 the script may be removed once taurus updates the libraries on the image.
 Affected Jmeter jars:
-    * json-smart v2.4.8 will be replaced with v2.4.10
+    * json-smart v2.5.0 will be replaced with v2.5.2
     * neo4j-java-driver v4.12.0 will be replaced with v5.14.0
     * batik-script v1.14 will be replaced with v1.17
     * batik-bridge v1.14 will be replaced with v1.17
@@ -29,7 +29,7 @@ Also jmeter plugins manager will be updated to v1.10 to address CVEs and cmdrunn
 # component name and download link in https://repo1.maven.org/maven2/
 # These are Components with regards to JMETER
 JMETER_COMPONENTS = {
-    "json-smart": "net/minidev/json-smart/2.4.10/json-smart-2.4.10.jar",
+    "json-smart": "net/minidev/json-smart/2.5.2/json-smart-2.5.2.jar",
     "neo4j-java-driver": "org/neo4j/driver/neo4j-java-driver/5.14.0/neo4j-java-driver-5.14.0.jar",
     "batik-script": "org/apache/xmlgraphics/batik-script/1.17/batik-script-1.17.jar",
     "batik-bridge": "org/apache/xmlgraphics/batik-bridge/1.17/batik-bridge-1.17.jar",
@@ -39,10 +39,14 @@ JMETER_COMPONENTS = {
     "tika-core": "org/apache/tika/tika-core/1.28.4/tika-core-1.28.4.jar",
     "json-path": "com/jayway/jsonpath/json-path/2.9.0/json-path-2.9.0.jar",
     "dnsjava": "dnsjava/dnsjava/3.6.1/dnsjava-3.6.1.jar",
-    "xstream":"com/thoughtworks/xstream/xstream/1.4.21/xstream-1.4.21.jar"
+    "xstream":"com/thoughtworks/xstream/xstream/1.4.21/xstream-1.4.21.jar",
+    "http2-hpack": "org/eclipse/jetty/http2/http2-hpack/11.0.16/http2-hpack-11.0.16.jar",
+    "jetty-http": "org/eclipse/jetty/jetty-http/12.0.12/jetty-http-12.0.12.jar",
+    "http2-common": "org/eclipse/jetty/http2/http2-common/11.0.20/http2-common-11.0.20.jar",
+    "kotlin-stdlib": "org/jetbrains/kotlin/kotlin-stdlib/2.1.0/kotlin-stdlib-2.1.0.jar",
 }
-JMETER_VERSION = "5.5"
-JMETER_PLUGINS_MANAGER_VERSION = "1.10"
+JMETER_VERSION = "5.6.3"
+JMETER_PLUGINS_MANAGER_VERSION = "1.11"
 CMD_RUNNER_VERSION = "2.3"
 # To add other platform, and what to update, add affected components and version HERE
 
