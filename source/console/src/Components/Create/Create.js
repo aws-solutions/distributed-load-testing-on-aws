@@ -41,7 +41,7 @@ import RefreshButtons from "../Shared/Buttons/RefreshButtons";
 const FILE_SIZE_LIMIT = 50 * 1024 * 1024;
 
 // Allowed file extensions
-const SCRIPT_FILE_EXTENSIONS = { jmeter: "jmx", k6: "js" };
+const SCRIPT_FILE_EXTENSIONS = { jmeter: "jmx", k6: "ts" };
 
 class Create extends React.Component {
   constructor(props) {

@@ -53,8 +53,9 @@ if [ "$TEST_TYPE" != "simple" ]; then
   fi
 
   if [ "$TEST_TYPE" == "k6" ]; then
-    EXT="js"
+    EXT="ts"
     TYPE_NAME="K6"
+    KPI_EXT="csv"
   fi
 
   if [ "$FILE_TYPE" != "zip" ]; then
