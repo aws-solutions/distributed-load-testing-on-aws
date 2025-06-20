@@ -101,6 +101,7 @@ describe("Functions Testing", () => {
       testScenario: {
         scenarios: {
           testName: {
+            "retrieve-resources": true,
             requests: [
               {
                 url: "endpoint",

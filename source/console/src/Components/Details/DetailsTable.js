@@ -64,6 +64,11 @@ class DetailsTable extends React.Component {
                   </Col>
                   <Col id="testEndpoint" sm="9">
                     {data.endpoint}
+                    <div className="mt-1">
+                      {Object.values(data.testScenario.scenarios)[0]["retrieve-resources"] === false
+                        ? "Without retrieving embedded resources"
+                        : "Including embedded resources"}
+                    </div>
                   </Col>
                 </Row>
                 <Row className="detail">
