@@ -228,6 +228,7 @@ class Create extends React.Component {
       endpoint,
       method,
       onSchedule,
+      retrieveEmbeddedResources,
     } = this.state.formValues;
 
     if (!this.form.current.reportValidity()) {
@@ -261,7 +262,17 @@ class Create extends React.Component {
     console.log("Payload", payload);
     if (!!parseInt(onSchedule)) payload = this.onSchedulePayloadUpdate(payload);
 
-    await this.setPayloadTestScenario({ testType, testName, endpoint, method, headers, body, payload, testId });
+    await this.setPayloadTestScenario({
+        testType,
+        testName,
+        endpoint,
+        method,
+        headers,
+        body,
+        payload,
+        retrieveEmbeddedResources,
+        testId,
+      });
 
     this.alertsForBadCronInputs();
     this.setState({ isLoading: true });
@@ -284,7 +295,7 @@ class Create extends React.Component {
   };
 
   async setPayloadTestScenario(props) {
-    let { testType, testName, endpoint, method, headers, body, payload, testId } = props;
+    let { testType, testName, endpoint, method, headers, body, payload, retrieveEmbeddedResources, testId } = props;
     if (testType === "simple") {
       headers = headers || "{}";
       body = body || "{}";
@@ -297,6 +308,7 @@ class Create extends React.Component {
       }
 
       payload.testScenario.scenarios[testName] = {
+        "retrieve-resources": retrieveEmbeddedResources ?? true,
         requests: [
           {
             url: endpoint,
@@ -361,7 +373,9 @@ class Create extends React.Component {
   handleInputChange(event) {
     this.setState({ submitFailure: false });
 
-    const value = event.target.name === "showLive" ? event.target.checked : event.target.value;
+    const value = ["showLive", "retrieveEmbeddedResources"].includes(event.target.name)
+      ? event.target.checked
+      : event.target.value;
     const name = event.target.name;
     const id = event.target.id;
 
@@ -1331,13 +1345,6 @@ class Create extends React.Component {
               </Collapse>
               {this.state.activeTab === "3" && this.schedulingErrors()}
               <FormGroup check>
-                <Input
-                  name="showLive"
-                  id="showLive"
-                  type="checkbox"
-                  checked={this.state.formValues.showLive}
-                  onChange={this.handleInputChange}
-                />
                 <Label check>
                   <Input
                     name="showLive"
@@ -1384,6 +1391,16 @@ class Create extends React.Component {
                     <FormText color="muted">
                       Target URL to run tests against, supports http and https. i.e. https://example.com:8080.
                     </FormText>
+                    <div className="mt-2">
+                      <Input
+                        name="retrieveEmbeddedResources"
+                        id="retrieveEmbeddedResources"
+                        type="checkbox"
+                        onChange={this.handleInputChange}
+                        defaultChecked={true}
+                      />{" "}
+                      <Label for="retrieveEmbeddedResources">Retrieve embedded resources</Label>
+                    </div>
                   </FormGroup>
                   <FormGroup>
                     <Label for="method">HTTP Method</Label>
