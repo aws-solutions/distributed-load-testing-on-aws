@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [3.3.10] - 2025-07-01
+
+### Security
+
+- Update python-setuptools to resolve [CVE](https://alas.aws.amazon.com/cve/json/v1/CVE-2025-47273.json)
+- Update glibc to resolve [CVE](https://alas.aws.amazon.com/cve/json/v1/CVE-2025-4802.json)
+- Updated webpack-dev-server for [CVE](https://nvd.nist.gov/vuln/detail/CVE-2025-30360)
+- Updated http-proxy-middleware for [CVE](https://nvd.nist.gov/vuln/detail/CVE-2025-32996)
+- Updated esbuild for [CVE](https://github.com/advisories/GHSA-67mh-4wv8-2f99)
+
 ## [3.3.9] - 2025-06-09
 
 ### Security
