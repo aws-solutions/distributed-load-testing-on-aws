@@ -1,6 +1,6 @@
 FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal
 
-RUN dnf update -y && \
+RUN dnf upgrade -y && \
     dnf install -y python3.11 python3.11-pip java-21-amazon-corretto bc procps jq findutils unzip && \
     dnf clean all
 

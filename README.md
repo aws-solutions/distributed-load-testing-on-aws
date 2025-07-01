@@ -121,7 +121,7 @@ export BUCKET_NAME=$BUCKET_PREFIX-$REGION # full bucket name where the code will
 export SOLUTION_NAME=my-solution-name
 export VERSION=my-version # version number for the customized code
 export PUBLIC_ECR_REGISTRY=public.ecr.aws/aws-solutions # replace with the container registry and image if you want to use a different container image
-export PUBLIC_ECR_TAG=v3.3.8 # replace with the container image tag if you want to use a different container image
+export PUBLIC_ECR_TAG=v3.3.10 # replace with the container image tag if you want to use a different container image
 ```
 
 - Build the distributable.
