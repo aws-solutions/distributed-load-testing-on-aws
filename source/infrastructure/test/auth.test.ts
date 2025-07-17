@@ -1,10 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Template } from "aws-cdk-lib/assertions";
-import { App, DefaultStackSynthesizer, Stack } from "aws-cdk-lib";
+import { App, DefaultStackSynthesizer, Stack, CfnCondition, Aws, Fn } from "aws-cdk-lib";
 
 import { CognitoAuthConstruct } from "../lib/front-end/auth";
+import { createTemplateWithoutS3Key } from "./snapshot_helpers";
 
 test("DLT API Test", () => {
   const app = new App();
@@ -15,14 +15,14 @@ test("DLT API Test", () => {
   });
 
   const auth = new CognitoAuthConstruct(stack, "TestAuth", {
-    adminEmail: "test@test.com",
+    adminEmail: "email",
     adminName: "testname",
     apiId: "apiId12345",
-    cloudFrontDomainName: "test.com",
+    webAppURL: "test.com",
     scenariosBucketArn: "arn:aws:s3:::DOC-EXAMPLE-BUCKET",
   });
 
-  expect(Template.fromStack(stack)).toMatchSnapshot();
+  expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();
   expect(auth.cognitoIdentityPoolId).toBeDefined();
   expect(auth.cognitoUserPoolClientId).toBeDefined();
   expect(auth.cognitoUserPoolId).toBeDefined();

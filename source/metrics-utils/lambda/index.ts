@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // eslint-disable-next-line import/no-unresolved
-import { SQSEvent } from "aws-lambda";
+import { SQSEvent, Context } from "aws-lambda";
 import { MetricsHelper } from "./helpers/metrics-helper";
 import {
   EventBridgeQueryEvent,
@@ -15,11 +15,12 @@ import {
 
 /**
  * Metrics collector Lambda handler.
- * @param event The EventBridge or SQS request event.
- * @param _context The request context
- * @returns Processed request response.
+ *
+ * @param {EventBridgeQueryEvent | SQSEvent} event The EventBridge or SQS request event.
+ * @param {Context}_context The request context
+ * @returns {any}  Processed request response.
  */
-export async function handler(event: EventBridgeQueryEvent | SQSEvent, _context: any) {
+export async function handler(event: EventBridgeQueryEvent | SQSEvent, _context: Context) {
   const metricsHelper = new MetricsHelper();
   console.log("Event: ", JSON.stringify(event, null, 2));
   const { EXECUTION_DAY } = process.env;

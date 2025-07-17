@@ -2,28 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  ArnFormat,
   Aspects,
-  Aws,
   CfnCondition,
-  CfnMapping,
   CfnOutput,
   CfnParameter,
   CfnResource,
+  CfnMapping,
   CfnRule,
   Fn,
   IAspect,
   Stack,
   StackProps,
+  Aws,
 } from "aws-cdk-lib";
 import { Construct, IConstruct } from "constructs";
-import { CommonResourcesConstruct } from "./common-resources/common-resources";
 import { ECSResourcesConstruct } from "./testing-resources/ecs";
-import { CustomResourceInfraConstruct } from "./custom-resources/custom-resources-infra";
-import { CustomResourcesConstruct } from "./custom-resources/custom-resources";
-import { RegionalPermissionsConstruct } from "./testing-resources/regional-permissions";
+import { CustomResourcesConstruct } from "./common-resources/custom-resources";
 import { FargateVpcConstruct } from "./testing-resources/vpc";
 import { RealTimeDataConstruct } from "./testing-resources/real-time-data";
+import { Solution } from "../bin/solution";
+import { CommonResources } from "./common-resources/common-resources";
+import { Bucket } from "aws-cdk-lib/aws-s3";
+import { Table } from "aws-cdk-lib/aws-dynamodb";
 import { SolutionsMetrics } from "../../metrics-utils";
+import { Policy, Role, PolicyStatement, Effect } from "aws-cdk-lib/aws-iam";
 
 /**
  * CDK Aspect implementation to set up conditions to the entire Construct resources
@@ -54,90 +57,101 @@ class ConditionAspect implements IAspect {
  * @interface RegionalInfrastructureDLTStackProps
  */
 export interface RegionalInfrastructureDLTStackProps extends StackProps {
-  readonly codeBucket: string;
-  readonly codeVersion: string;
-  readonly description: string;
-  readonly publicECRRegistry: string;
-  readonly publicECRTag: string;
-  readonly stackType: string;
-  readonly solutionId: string;
-  readonly solutionName: string;
-  readonly url: string;
+  solution: Solution;
+  stackType: string;
 }
 
 /**
  * Distributed Load Testing on AWS regional infrastructure deployment
  */
 export class RegionalInfrastructureDLTStack extends Stack {
-  // VPC ID
-  private fargateVpcId: string;
-  // Subnets for Fargate tasks
-  private fargateSubnetA: string;
-  private fargateSubnetB: string;
-
   constructor(scope: Construct, id: string, props: RegionalInfrastructureDLTStackProps) {
     super(scope, id, props);
+
+    this.templateOptions.description = props.solution.description;
 
     // Existing VPC ID
     const existingVpcId = new CfnParameter(this, "ExistingVPCId", {
       type: "String",
-      description: "Existing VPC ID",
-      allowedPattern: "(?:^$|^vpc-[a-zA-Z0-9-]+)",
+      allowedPattern: "(^$|^vpc-[a-zA-Z0-9-]+)",
+      default: "",
     });
 
     const existingSubnetA = new CfnParameter(this, "ExistingSubnetA", {
       type: "String",
-      description: "First existing subnet",
-      allowedPattern: "(?:^$|^subnet-[a-zA-Z0-9-]+)",
+      allowedPattern: "(^$|^subnet-[a-zA-Z0-9-]+)",
+      default: "",
     });
 
     const existingSubnetB = new CfnParameter(this, "ExistingSubnetB", {
       type: "String",
-      description: "Second existing subnet",
-      allowedPattern: "(?:^$|^subnet-[a-zA-Z0-9-]+)",
+      allowedPattern: "(^$|^subnet-[a-zA-Z0-9-]+)",
+      default: "",
     });
 
     // VPC CIDR Block
     const vpcCidrBlock = new CfnParameter(this, "VpcCidrBlock", {
       type: "String",
       default: "192.168.0.0/16",
-      description: "CIDR block of the new VPC where AWS Fargate will be placed",
-      allowedPattern: "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
+      description: "You may leave this parameter blank if you are using existing VPC",
+      allowedPattern: "(^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
       constraintDescription: "The VPC CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
       minLength: 9,
       maxLength: 18,
-    });
-
-    // Subnet A CIDR Block
-    const subnetACidrBlock = new CfnParameter(this, "SubnetACidrBlock", {
-      type: "String",
-      default: "192.168.0.0/20",
-      description: "CIDR block for subnet A of the AWS Fargate VPC",
-      allowedPattern: "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
-      constraintDescription: "The subnet CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
-      minLength: 9,
-      maxLength: 18,
-    });
-
-    // Subnet B CIDR Block
-    const subnetBCidrBlock = new CfnParameter(this, "SubnetBCidrBlock", {
-      type: "String",
-      default: "192.168.16.0/20",
-      description: "CIDR block for subnet B of the AWS Fargate VPC",
-      allowedPattern: "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
-      constraintDescription: "The subnet CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
     });
 
     // Egress CIDR Block
     const egressCidrBlock = new CfnParameter(this, "EgressCidr", {
       type: "String",
       default: "0.0.0.0/0",
-      description: "CIDR Block to restrict the Fargate container outbound access",
       minLength: 9,
       maxLength: 18,
-      allowedPattern: "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
+      allowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
       constraintDescription: "The Egress CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
     });
+
+    // CFN Mappings
+    const solutionMapping = new CfnMapping(this, "Solution", {
+      mapping: {
+        Config: {
+          MainRegionLambdaTaskRoleArn: "Main_Region_Lambda_Task_Role_Arn",
+          MainRegionStack: "Main_Region_Stack",
+          ScenariosBucket: "Scenarios_Bucket",
+          ScenariosTable: "Scenarios_Table",
+          SendAnonymizedUsage: "Yes",
+        },
+      },
+    });
+    const mainRegionLambdaTaskRoleArn = solutionMapping.findInMap("Config", "MainRegionLambdaTaskRoleArn");
+    const mainStackRegion = solutionMapping.findInMap("Config", "MainRegionStack");
+    const scenariosBucket = solutionMapping.findInMap("Config", "ScenariosBucket");
+    const scenariosTable = solutionMapping.findInMap("Config", "ScenariosTable");
+    const sendAnonymizedUsage = solutionMapping.findInMap("Config", "SendAnonymizedUsage");
+
+    // CloudFormation metadata
+    this.templateOptions.metadata = {
+      "AWS::CloudFormation::Interface": {
+        ParameterGroups: [
+          {
+            Label: { default: "Network configurations for running distributed load test Fargate tasks" },
+            Parameters: [
+              existingVpcId.logicalId,
+              existingSubnetA.logicalId,
+              existingSubnetB.logicalId,
+              vpcCidrBlock.logicalId,
+              egressCidrBlock.logicalId,
+            ],
+          },
+        ],
+        ParameterLabels: {
+          [existingVpcId.logicalId]: { default: "Select an existing VPC in the region" },
+          [existingSubnetA.logicalId]: { default: "Select first subnet from the existing VPC" },
+          [existingSubnetB.logicalId]: { default: "Select second subnet from the existing VPC" },
+          [vpcCidrBlock.logicalId]: { default: "Provide valid CIDR block for the solution to create VPC" },
+          [egressCidrBlock.logicalId]: { default: "Provide CIDR block for allowing outbound traffic of Fargate tasks" },
+        },
+      },
+    };
 
     new CfnRule(this, "ExistingVPCRule", {
       ruleCondition: Fn.conditionNot(Fn.conditionEquals(existingVpcId.value, "")),
@@ -155,48 +169,6 @@ export class RegionalInfrastructureDLTStack extends Stack {
       ],
     });
 
-    // CFN Mappings
-    const solutionMapping = new CfnMapping(this, "Solution", {
-      mapping: {
-        Config: {
-          APIServicesLambdaRoleName: "API_SERVICES_ROLE",
-          CodeVersion: props.codeVersion,
-          ContainerImage: `${props.publicECRRegistry}/distributed-load-testing-on-aws-load-tester:${props.publicECRTag}`,
-          KeyPrefix: `${props.solutionName}/${props.codeVersion}`,
-          MainStackRegion: "MAIN_STACK_REGION",
-          ResultsParserRoleName: "RESULTS_PARSER_ROLE",
-          S3Bucket: props.codeBucket,
-          ScenariosS3Bucket: "SCENARIOS_BUCKET",
-          ScenariosTable: "SCENARIOS_DDB_TABLE",
-          SendAnonymizedUsage: "Yes",
-          SolutionId: props.solutionId,
-          stackType: props.stackType,
-          TaskRunnerRoleName: "TASK_RUNNER_ROLE",
-          TaskCancelerRoleName: "TASK_CANCELER_ROLE",
-          TaskStatusCheckerRoleName: "TASK_STATUS_ROLE",
-          URL: props.url,
-          Uuid: "STACK_UUID",
-        },
-      },
-    });
-    const apiServicesLambdaRoleName = solutionMapping.findInMap("Config", "APIServicesLambdaRoleName");
-    const containerImage = solutionMapping.findInMap("Config", "ContainerImage");
-    const mainStackRegion = solutionMapping.findInMap("Config", "MainStackRegion");
-    const metricsUrl = solutionMapping.findInMap("Config", "URL");
-    const resultsParserRoleName = solutionMapping.findInMap("Config", "ResultsParserRoleName");
-    const scenariosS3Bucket = solutionMapping.findInMap("Config", "ScenariosS3Bucket");
-    const scenariosTable = solutionMapping.findInMap("Config", "ScenariosTable");
-    const sendAnonymizedUsage = solutionMapping.findInMap("Config", "SendAnonymizedUsage");
-    const solutionId = solutionMapping.findInMap("Config", "SolutionId");
-    const solutionVersion = solutionMapping.findInMap("Config", "CodeVersion");
-    const sourceCodeBucket = Fn.join("-", [solutionMapping.findInMap("Config", "S3Bucket"), Aws.REGION]);
-    const sourceCodePrefix = solutionMapping.findInMap("Config", "KeyPrefix");
-    const taskRunnerRoleName = solutionMapping.findInMap("Config", "TaskRunnerRoleName");
-    const taskCancelerRoleName = solutionMapping.findInMap("Config", "TaskCancelerRoleName");
-    const taskStatusCheckerRoleName = solutionMapping.findInMap("Config", "TaskStatusCheckerRoleName");
-    const uuid = solutionMapping.findInMap("Config", "Uuid");
-
-    // CFN Conditions
     const sendAnonymizedUsageCondition = new CfnCondition(this, "SendAnonymizedUsage", {
       expression: Fn.conditionEquals(sendAnonymizedUsage, "Yes"),
     });
@@ -205,78 +177,81 @@ export class RegionalInfrastructureDLTStack extends Stack {
       expression: Fn.conditionEquals(existingVpcId.valueAsString, ""),
     });
 
-    const usingExistingVpc = new CfnCondition(this, "BoolExistingVPC", {
-      expression: Fn.conditionNot(Fn.conditionEquals(existingVpcId.valueAsString, "")),
+    const commonResources = new CommonResources(this, "CommonResources", props.solution);
+    commonResources.customResourceLambda.addEnvironmentVariables({
+      MAIN_REGION: mainStackRegion.toString(),
+      S3_BUCKET: scenariosBucket.toString(),
+      DDB_TABLE: scenariosTable.toString(),
     });
 
-    const commonResources = new CommonResourcesConstruct(this, "CommonResources", {
-      sourceCodeBucket,
-    });
+    // add permission on primary scenarios table and bucket for custom resource backed lambda deployed in regional stack
+    const _scenariosBucket = Bucket.fromBucketName(this, "PrimaryScenariosBucket", scenariosBucket.toString());
+    _scenariosBucket.grantWrite(commonResources.customResourceLambda.nodejsLambda);
+    const _scenariosTable = Table.fromTableArn(
+      this,
+      "PrimaryScenariosTable",
+      Stack.of(this).formatArn({
+        service: "dynamodb",
+        resource: "table",
+        resourceName: scenariosTable.toString(),
+        region: mainStackRegion.toString(),
+        arnFormat: ArnFormat.SLASH_RESOURCE_NAME,
+      })
+    );
+    _scenariosTable.grantReadWriteData(commonResources.customResourceLambda.nodejsLambda);
+
+    (commonResources.customResourceLambda.nodejsLambda.node.defaultChild as CfnResource).overrideLogicalId(
+      "RegionalCustomResourceInfraCustomResourceLambda86A7E873"
+    );
 
     // Fargate VPC resources
-    const fargateVpc = new FargateVpcConstruct(this, "DLTRegionalVpc", {
-      solutionId,
-      subnetACidrBlock: subnetACidrBlock.valueAsString,
-      subnetBCidrBlock: subnetBCidrBlock.valueAsString,
-      vpcCidrBlock: vpcCidrBlock.valueAsString,
-    });
+    const fargateVpc = new FargateVpcConstruct(this, "DLTRegionalVpc", vpcCidrBlock.valueAsString);
     Aspects.of(fargateVpc).add(new ConditionAspect(createFargateVpcResourcesCondition));
-    this.fargateVpcId = Fn.conditionIf(
-      createFargateVpcResourcesCondition.logicalId,
-      fargateVpc.vpcId,
-      existingVpcId.valueAsString
-    ).toString();
 
-    this.fargateSubnetA = Fn.conditionIf(
+    const fargateSubnetA = Fn.conditionIf(
       createFargateVpcResourcesCondition.logicalId,
-      fargateVpc.subnetA,
+      fargateVpc.vpc.publicSubnets[0].subnetId,
       existingSubnetA.valueAsString
     ).toString();
 
-    this.fargateSubnetB = Fn.conditionIf(
+    const fargateSubnetB = Fn.conditionIf(
       createFargateVpcResourcesCondition.logicalId,
-      fargateVpc.subnetB,
+      fargateVpc.vpc.publicSubnets[1].subnetId,
       existingSubnetB.valueAsString
     ).toString();
 
-    const existingVpc = Fn.conditionIf(usingExistingVpc.logicalId, true, false).toString();
-
     // ECS Fargate resources
     const fargateResources = new ECSResourcesConstruct(this, "DLTRegionalFargate", {
-      cloudWatchLogsPolicy: commonResources.cloudWatchLogsPolicy,
-      containerImage,
-      fargateVpcId: this.fargateVpcId,
-      scenariosS3Bucket,
+      fargateVpc: fargateVpc.vpc,
       securityGroupEgress: egressCidrBlock.valueAsString,
-      solutionId,
+      scenariosS3Bucket: scenariosBucket.toString(),
+      solutionId: props.solution.id,
     });
 
-    const customResourceInfra = new CustomResourceInfraConstruct(this, "RegionalCustomResourceInfra", {
-      cloudWatchPolicy: commonResources.cloudWatchLogsPolicy,
-      mainStackRegion,
-      metricsUrl,
-      scenariosS3Bucket,
-      scenariosTable,
-      solutionId,
-      solutionVersion,
-      sourceCodeBucket: commonResources.sourceBucket,
-      sourceCodePrefix,
-      stackType: props.stackType,
-    });
+    const ecsPolicyName = `RegionalECRPerms-${Aws.STACK_NAME}-${Aws.REGION}`;
+    const lambdaTaskRole = Role.fromRoleArn(
+      this,
+      "RegionalPermissionsForTaskRole",
+      mainRegionLambdaTaskRoleArn.toString()
+    );
+    lambdaTaskRole.attachInlinePolicy(
+      new Policy(this, "RegionalECRPerms", {
+        policyName: ecsPolicyName,
+        statements: [
+          new PolicyStatement({
+            effect: Effect.ALLOW,
+            actions: ["iam:PassRole"],
+            resources: [fargateResources.taskExecutionRoleArn],
+          }),
+        ],
+      })
+    );
 
-    new RegionalPermissionsConstruct(this, "RegionalPermissionsForTaskLambdas", {
-      apiServicesLambdaRoleName,
-      ecsCloudWatchLogGroupArn: fargateResources.ecsCloudWatchLogGroup.logGroupArn,
-      resultsParserRoleName,
-      taskExecutionRoleArn: fargateResources.taskExecutionRoleArn,
-      taskRunnerRoleName,
-      taskCancelerRoleName,
-      taskStatusCheckerRoleName,
-    });
-
-    const customResources = new CustomResourcesConstruct(this, "DLTCustomResources", {
-      customResourceLambdaArn: customResourceInfra.customResourceArn,
-    });
+    const customResources = new CustomResourcesConstruct(
+      this,
+      "DLTCustomResources",
+      commonResources.customResourceLambda.nodejsLambda
+    );
 
     const iotEndpoint = customResources.getIotEndpoint();
 
@@ -284,11 +259,8 @@ export class RegionalInfrastructureDLTStack extends Stack {
       cloudWatchLogsPolicy: commonResources.cloudWatchLogsPolicy,
       ecsCloudWatchLogGroup: fargateResources.ecsCloudWatchLogGroup,
       iotEndpoint,
-      mainRegion: mainStackRegion,
-      solutionId,
-      solutionVersion,
-      sourceCodeBucket: commonResources.sourceBucket,
-      sourceCodePrefix,
+      mainRegion: mainStackRegion.toString(),
+      solution: props.solution,
     });
 
     customResources.testingResourcesConfigCR({
@@ -296,70 +268,34 @@ export class RegionalInfrastructureDLTStack extends Stack {
       ecsCloudWatchLogGroup: fargateResources.ecsCloudWatchLogGroup.logGroupName,
       taskSecurityGroup: fargateResources.ecsSecurityGroupId,
       taskDefinition: fargateResources.taskDefinitionArn,
-      subnetA: this.fargateSubnetA,
-      subnetB: this.fargateSubnetB,
+      subnetA: fargateSubnetA,
+      subnetB: fargateSubnetB,
+    });
+
+    const { uuid } = customResources.uuidGenerator();
+
+    const solutionsMetrics = new SolutionsMetrics(this, "SolutionMetricsNew", {
       uuid,
     });
-
-    customResources.sendAnonymizedMetricsCR({
-      existingVpc,
-      solutionId,
-      uuid,
-      solutionVersion,
-      sendAnonymizedUsage,
-      sendAnonymizedUsageCondition,
+    solutionsMetrics.addECSAverageCPUUtilization({
+      clusterName: fargateResources.taskClusterName,
+      taskDefinitionFamily: fargateResources.taskDefinitionFamily,
     });
-
-    // metrics
-
-    const solutionsMetrics = new SolutionsMetrics(this, "SolutionMetrics", {
-      uuid: uuid,
-      sourceCodeBucket: commonResources.sourceBucket,
-      sourceCodePrefix: sourceCodePrefix,
+    solutionsMetrics.addECSAverageMemoryUtilization({
+      clusterName: fargateResources.taskClusterName,
+      taskDefinitionFamily: fargateResources.taskDefinitionFamily,
     });
-    solutionsMetrics.addECSAverageCPUUtilization(
-      fargateResources.taskClusterName,
-      fargateResources.taskDefinitionFamily
-    );
-    solutionsMetrics.addECSAverageMemoryUtilization(
-      fargateResources.taskClusterName,
-      fargateResources.taskDefinitionFamily
-    );
 
     Aspects.of(solutionsMetrics).add(new ConditionAspect(sendAnonymizedUsageCondition));
-
-    commonResources.appRegistryApplication({
-      description: props.description,
-      solutionVersion,
-      stackType: props.stackType,
-      solutionId,
-      applicationName: props.solutionName,
-    });
 
     // Outputs
     new CfnOutput(this, "ECSCloudWatchLogGroup", {
       description: "The CloudWatch log group for ECS",
       value: fargateResources.ecsCloudWatchLogGroup.logGroupName,
     });
-    new CfnOutput(this, "SubnetA", {
-      description: "Subnet A used by the Fargate tasks",
-      value: this.fargateSubnetA,
-    });
-    new CfnOutput(this, "SubnetB", {
-      description: "Subnet B used by the Fargate tasks",
-      value: this.fargateSubnetB,
-    });
     new CfnOutput(this, "TaskCluster", {
       description: "Fargate task cluster",
       value: fargateResources.taskClusterName,
-    });
-    new CfnOutput(this, "TaskDefinition", {
-      description: "The Fargate task definition",
-      value: fargateResources.taskDefinitionArn,
-    });
-    new CfnOutput(this, "TaskSecurityGroup", {
-      description: "Security Group used by the Fargate taks",
-      value: fargateResources.ecsSecurityGroupId,
     });
   }
 }

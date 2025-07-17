@@ -1,31 +1,26 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import * as path from "path";
 import { ArnFormat, CfnResource, Duration, Stack } from "aws-cdk-lib";
-import { Code, Function as LambdaFunction, Runtime } from "aws-cdk-lib/aws-lambda";
+import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { Effect, PolicyStatement, PolicyDocument, Role, ServicePrincipal, Policy } from "aws-cdk-lib/aws-iam";
-import { IBucket } from "aws-cdk-lib/aws-s3";
 import { LogGroup, FilterPattern, ILogGroup } from "aws-cdk-lib/aws-logs";
 import { LambdaDestination } from "aws-cdk-lib/aws-logs-destinations";
 import { Construct } from "constructs";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import { Solution } from "../../bin/solution";
 
 export interface RealTimeDataConstructProps {
   readonly cloudWatchLogsPolicy: Policy;
   readonly ecsCloudWatchLogGroup: LogGroup;
   readonly iotEndpoint: string;
   readonly mainRegion: string;
-  /**
-   * Solution config properties.
-   * solution ID, version, source code bucket, and source code prefix
-   */
-  readonly solutionId: string;
-  readonly solutionVersion: string;
-  readonly sourceCodeBucket: IBucket;
-  readonly sourceCodePrefix: string;
+  readonly solution: Solution;
 }
 
 export class RealTimeDataConstruct extends Construct {
-  public realTimeDataPublisher: LambdaFunction;
+  public realTimeDataPublisher: NodejsFunction;
   public realTimeDataPublisherLogGroup: ILogGroup;
   constructor(scope: Construct, id: string, props: RealTimeDataConstructProps) {
     super(scope, id);
@@ -54,18 +49,18 @@ export class RealTimeDataConstruct extends Construct {
     });
     realTimeDataPublisherRole.attachInlinePolicy(props.cloudWatchLogsPolicy);
 
-    const realTimeDataPublisher = new LambdaFunction(this, "RealTimeDataPublisherNew", {
+    const realTimeDataPublisher = new NodejsFunction(this, "RealTimeDataPublisherNew", {
       description: "Real time data publisher",
       handler: "index.handler",
       role: realTimeDataPublisherRole,
-      code: Code.fromBucket(props.sourceCodeBucket, `${props.sourceCodePrefix}/real-time-data-publisher.zip`),
+      entry: path.join(__dirname, "../../../real-time-data-publisher/index.js"),
       runtime: Runtime.NODEJS_20_X,
       timeout: Duration.seconds(180),
       environment: {
         MAIN_REGION: props.mainRegion,
-        IOT_ENDPOINT: props.iotEndpoint,
-        SOLUTION_ID: props.solutionId,
-        VERSION: props.solutionVersion,
+        IOT_ENDPOINT: `https://${props.iotEndpoint}`,
+        SOLUTION_ID: props.solution.id,
+        VERSION: props.solution.version,
       },
     });
 

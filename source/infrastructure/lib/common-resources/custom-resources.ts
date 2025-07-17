@@ -3,25 +3,19 @@
 
 import { Aws, CfnCondition, CfnCustomResource, CustomResource } from "aws-cdk-lib";
 import { Construct } from "constructs";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import { Effect, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { IBucket } from "aws-cdk-lib/aws-s3";
 
 export interface ConsoleConfigProps {
   readonly apiEndpoint: string;
   readonly cognitoIdentityPool: string;
   readonly cognitoUserPool: string;
   readonly cognitoUserPoolClient: string;
-  readonly consoleBucketName: string;
+  readonly consoleBucket: IBucket;
   readonly scenariosBucket: string;
-  readonly sourceCodeBucketName: string;
-  readonly sourceCodePrefix: string;
   readonly iotEndpoint: string;
   readonly iotPolicy: string;
-}
-
-export interface CopyConsoleFilesProps {
-  readonly consoleBucketName: string;
-  readonly scenariosBucket: string;
-  readonly sourceCodeBucketName: string;
-  readonly sourceCodePrefix: string;
 }
 
 export interface SendAnonymizedMetricsCRProps {
@@ -40,29 +34,18 @@ export interface TestingResourcesConfigCRProps {
   readonly taskDefinition: string;
   readonly subnetA: string;
   readonly subnetB: string;
-  readonly uuid: string;
 }
 
 export interface PutRegionalTemplateProps {
   readonly sourceCodeBucketName: string;
   readonly regionalTemplatePrefix: string;
   readonly mainStackRegion: string;
-  readonly apiServicesLambdaRoleName: string;
-  readonly resultsParserRoleName: string;
-  readonly scenariosBucket: string;
   readonly scenariosTable: string;
-  readonly taskRunnerRoleName: string;
-  readonly taskCancelerRoleName: string;
-  readonly taskStatusCheckerRoleName: string;
-  readonly uuid: string;
+  readonly lambdaTaskRoleArn: string;
+  readonly scenariosBucket: string;
 }
-
 export interface DetachIotPrincipalPolicyProps {
   readonly iotPolicyName: string;
-}
-
-export interface CustomResourcesConstructProps {
-  readonly customResourceLambdaArn: string;
 }
 
 /**
@@ -70,62 +53,47 @@ export interface CustomResourcesConstructProps {
  * It creates a custom resource Lambda function, a solution UUID, and a custom resource to send anonymized usage.
  */
 export class CustomResourcesConstruct extends Construct {
-  private customResourceLambdaArn: string;
+  private readonly customResourceLambda: NodejsFunction;
 
-  constructor(scope: Construct, id: string, props: CustomResourcesConstructProps) {
+  constructor(scope: Construct, id: string, customResourceLambda: NodejsFunction) {
     super(scope, id);
-    this.customResourceLambdaArn = props.customResourceLambdaArn;
+    this.customResourceLambda = customResourceLambda;
   }
 
   private createCustomResource(
     id: string,
-    customResourceFunctionArn: string,
+    customResourceFunction: NodejsFunction,
     props?: Record<string, unknown>
   ): CustomResource {
     return new CustomResource(this, id, {
-      serviceToken: customResourceFunctionArn,
+      serviceToken: customResourceFunction.functionArn,
       properties: props,
     });
   }
 
   public getIotEndpoint() {
-    const iotEndpoint = this.createCustomResource("GetIotEndpoint", this.customResourceLambdaArn, {
+    const iotEndpoint = this.createCustomResource("GetIotEndpoint", this.customResourceLambda, {
       Resource: "GetIotEndpoint",
     });
     return iotEndpoint.getAtt("IOT_ENDPOINT").toString();
   }
 
   public detachIotPrincipalPolicy(props: DetachIotPrincipalPolicyProps) {
-    this.createCustomResource("DetachIotPrincipalPolicy", this.customResourceLambdaArn, {
+    this.createCustomResource("DetachIotPrincipalPolicy", this.customResourceLambda, {
       Resource: "DetachIotPolicy",
       IotPolicyName: props.iotPolicyName,
     });
   }
 
   public putRegionalTemplate(props: PutRegionalTemplateProps) {
-    this.createCustomResource("PutRegionalTemplate", this.customResourceLambdaArn, {
+    this.createCustomResource("PutRegionalTemplate", this.customResourceLambda, {
       Resource: "PutRegionalTemplate",
       SrcBucket: props.sourceCodeBucketName,
       SrcPath: props.regionalTemplatePrefix,
       DestBucket: props.scenariosBucket,
-      APIServicesLambdaRoleName: props.apiServicesLambdaRoleName,
-      MainStackRegion: props.mainStackRegion,
-      ResultsParserRoleName: props.resultsParserRoleName,
+      MainRegionLambdaTaskRoleArn: props.lambdaTaskRoleArn,
       ScenariosTable: props.scenariosTable,
-      TaskRunnerRoleName: props.taskRunnerRoleName,
-      TaskCancelerRoleName: props.taskCancelerRoleName,
-      TaskStatusCheckerRoleName: props.taskStatusCheckerRoleName,
-      Uuid: props.uuid,
-    });
-  }
-
-  public copyConsoleFiles(props: CopyConsoleFilesProps) {
-    this.createCustomResource("CopyConsoleFiles", this.customResourceLambdaArn, {
-      DestBucket: props.consoleBucketName,
-      ManifestFile: "console-manifest.json",
-      Resource: "CopyAssets",
-      SrcBucket: props.sourceCodeBucketName,
-      SrcPath: `${props.sourceCodePrefix}/console`,
+      MainRegionStack: props.mainStackRegion,
     });
   }
 
@@ -151,15 +119,22 @@ export class CustomResourcesConstruct extends Construct {
       aws_user_files_s3_bucket: '${props.scenariosBucket}',
       aws_user_files_s3_bucket_region: '${Aws.REGION}',
   }`;
-    this.createCustomResource("ConsoleConfig", this.customResourceLambdaArn, {
+    this.customResourceLambda.role?.addToPrincipalPolicy(
+      new PolicyStatement({
+        actions: ["s3:PutObject"],
+        resources: [`${props.consoleBucket.bucketArn}/*`],
+        effect: Effect.ALLOW,
+      })
+    ); // need put permission to upload config with deployment specific values
+    this.createCustomResource("ConsoleConfig", this.customResourceLambda, {
       AwsExports: awsExports,
-      DestBucket: props.consoleBucketName,
+      DestBucket: props.consoleBucket.bucketName,
       Resource: "ConfigFile",
     });
   }
 
   public uuidGenerator() {
-    const uuid = this.createCustomResource("CustomResourceUuid", this.customResourceLambdaArn, {
+    const uuid = this.createCustomResource("CustomResourceUuid", this.customResourceLambda, {
       Resource: "UUID",
     });
     return {
@@ -169,7 +144,7 @@ export class CustomResourcesConstruct extends Construct {
   }
 
   public sendAnonymizedMetricsCR(props: SendAnonymizedMetricsCRProps) {
-    const sendAnonymizedMetrics = this.createCustomResource("AnonymizedMetric", this.customResourceLambdaArn, {
+    const sendAnonymizedMetrics = this.createCustomResource("AnonymizedMetric", this.customResourceLambda, {
       existingVPC: props.existingVpc,
       Region: Aws.REGION,
       Resource: "AnonymizedMetric",
@@ -192,10 +167,9 @@ export class CustomResourcesConstruct extends Construct {
       taskImage: `${Aws.STACK_NAME}-load-tester`,
       taskCluster: props.taskCluster,
     };
-    this.createCustomResource("TestingResourcesConfig", this.customResourceLambdaArn, {
+    this.createCustomResource("TestingResourcesConfig", this.customResourceLambda, {
       TestingResourcesConfig: testingResourcesConfig,
       Resource: "TestingResourcesConfigFile",
-      Uuid: props.uuid,
     });
   }
 }

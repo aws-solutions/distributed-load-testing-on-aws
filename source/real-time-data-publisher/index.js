@@ -4,14 +4,14 @@
 const zlib = require("zlib");
 const util = require("util");
 const unzip = util.promisify(zlib.gunzip);
-const AWS = require("aws-sdk");
+const { IoTDataPlane } = require("@aws-sdk/client-iot-data-plane");
 const solutionUtils = require("solution-utils");
 const { MAIN_REGION, IOT_ENDPOINT } = process.env;
 let options = solutionUtils.getOptions({
   region: MAIN_REGION,
   endpoint: IOT_ENDPOINT,
 });
-const iot = new AWS.IotData(options);
+const iot = new IoTDataPlane(options);
 
 // Define a function to create the timeout promise
 function createTimeoutPromise(timeout) {
@@ -101,7 +101,7 @@ exports.handler = async function (event) {
     payload: JSON.stringify(aggregatedTestResultData),
   };
   try {
-    await iot.publish(params).promise();
+    await iot.publish(params);
     console.log(`Successfully sent data to topic dlt/${testId}`);
   } catch (error) {
     console.error("Error publishing to IoT Topic: ", error);

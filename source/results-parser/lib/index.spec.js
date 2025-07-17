@@ -29,11 +29,7 @@ describe("Test getFilesByRegion()", () => {
     const validRegion = "us-east-2";
     const validBucketObjectKey = `114.44:25:71T20-20-4202-a3677174-a062-4a50-bbe2-50b995a536b5-${validRegion}.xml`;
     const invalidBucketObjectKey = "114.44:25:71T20-20-4202-a3677174-a062-4a50-bbe2-50b995a536b5-my-test-region.xml";
-    mockS3.getObject.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve("");
-      },
-    }));
+    mockS3.getObject.mockImplementation(() => Promise.resolve(""));
 
     // Act & Assert
     const successResult = await _getFilesByRegion([{ Key: validBucketObjectKey }]);
@@ -52,26 +48,16 @@ describe("Handler", () => {
     mockS3.getObject.mockReset();
   });
   const successfulMocks = () => {
-    mockDDBDocumentClient.update.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve("");
-      },
-    }));
-    mockDDBDocumentClient.get.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve({ Item: {} });
-      },
-    }));
-    mockS3.listObjectsV2.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve(mockS3ListObjectResponse);
-      },
-    }));
-    mockS3.getObject.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve({ Body: "STREAMING_BLOB_VALUE" });
-      },
-    }));
+    mockDDBDocumentClient.update.mockImplementation(() => Promise.resolve(""));
+    mockDDBDocumentClient.get.mockImplementation(() => Promise.resolve({ Item: {} }));
+    mockS3.listObjectsV2.mockImplementation(() => Promise.resolve(mockS3ListObjectResponse));
+    mockS3.getObject.mockImplementation(() =>
+      Promise.resolve({
+        Body: {
+          transformToString: () => Promise.resolve("STREAMING_BLOB_VALUE"),
+        },
+      })
+    );
     mockParser.results.mockReturnValue({});
     mockParser.finalResults.mockReturnValue({ metricLocation: "" });
     mockParser.createWidget.mockReturnValue({});

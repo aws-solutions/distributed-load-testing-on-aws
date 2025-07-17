@@ -24,12 +24,6 @@ exports[`Distributed Load Testing stack test 1`] = `
         "",
       ],
     },
-    "DLTCommonResourcesAppRegistryConditionCCEF54F8": {
-      "Fn::Equals": [
-        "true",
-        "true",
-      ],
-    },
     "SendAnonymizedUsage": {
       "Fn::Equals": [
         {
@@ -43,17 +37,13 @@ exports[`Distributed Load Testing stack test 1`] = `
       ],
     },
   },
-  "Description": "Distributed Load Testing on AWS is a reference architecture to perform application load testing at scale.",
+  "Description": "mainStackDescription",
   "Mappings": {
     "Solution": {
       "Config": {
-        "CodeVersion": "testversion",
-        "ContainerImage": "testRegistry/distributed-load-testing-on-aws-load-tester:testTag",
-        "KeyPrefix": "distributed-load-testing-on-aws/testversion",
-        "S3Bucket": "testbucket",
+        "CodeVersion": "testVersion",
         "SendAnonymizedUsage": "Yes",
-        "SolutionId": "SO0062",
-        "URL": "http://testurl.com",
+        "SolutionId": "testId",
       },
     },
   },
@@ -71,64 +61,57 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
         {
           "Label": {
-            "default": "Enter values here to use your own existing VPC",
+            "default": "Network configurations for running distributed load test Fargate tasks",
           },
           "Parameters": [
             "ExistingVPCId",
             "ExistingSubnetA",
             "ExistingSubnetB",
-          ],
-        },
-        {
-          "Label": {
-            "default": "Or have the solution create a new AWS Fargate VPC",
-          },
-          "Parameters": [
             "VpcCidrBlock",
-            "SubnetACidrBlock",
-            "SubnetBCidrBlock",
             "EgressCidr",
           ],
         },
       ],
       "ParameterLabels": {
         "AdminEmail": {
-          "default": "* Console Administrator Email",
+          "default": "* Administrator Email",
         },
         "AdminName": {
-          "default": "* Console Administrator Name",
+          "default": "* Administrator Name",
         },
         "EgressCidr": {
-          "default": "AWS Fargate SecurityGroup CIDR Block",
+          "default": "Provide CIDR block for allowing outbound traffic of AWS Fargate tasks",
         },
         "ExistingSubnetA": {
-          "default": "The ID of a subnet within the existing VPC. Ex: \`subnet-7h8i9j0k\`",
+          "default": "Select first subnet from the existing VPC",
         },
         "ExistingSubnetB": {
-          "default": "The ID of a subnet within the existing VPC. Ex: \`subnet-1x2y3z\`",
+          "default": "Select second subnet from the existing VPC",
         },
         "ExistingVPCId": {
-          "default": "The ID of an existing VPC in this region. Ex: \`vpc-1a2b3c4d5e6f\`",
-        },
-        "SubnetACidrBlock": {
-          "default": "AWS Fargate Subnet A CIDR Block",
-        },
-        "SubnetBCidrBlock": {
-          "default": "AWS Fargate Subnet A CIDR Block",
+          "default": "Select an existing VPC in the region",
         },
         "VpcCidrBlock": {
-          "default": "AWS Fargate VPC CIDR Block",
+          "default": "Provide valid CIDR block for the solution to create VPC",
         },
       },
     },
   },
   "Outputs": {
-    "Console": {
-      "Description": "Console URL",
+    "ConsoleURL": {
+      "Description": "Web portal for DLT",
       "Value": {
-        "Fn::GetAtt": [
-          "DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistribution3EF384B4",
-          "DomainName",
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Fn::GetAtt": [
+                "DLTConsoleResourcesDLTDashboardS3CloudFrontDistribution1F11B8BB",
+                "DomainName",
+              ],
+            },
+          ],
         ],
       },
     },
@@ -184,8 +167,20 @@ exports[`Distributed Load Testing stack test 1`] = `
         ],
       },
     },
+    "ScenariosBucket": {
+      "Description": "Common storage bucket for test scenarios",
+      "Value": {
+        "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+      },
+    },
+    "ScenariosTable": {
+      "Description": "Common table for storing load test details",
+      "Value": {
+        "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+      },
+    },
     "SolutionUUID": {
-      "Description": "Solution UUID",
+      "Description": "Unique ID for deployment",
       "Value": {
         "Fn::GetAtt": [
           "DLTCustomResourcesCustomResourceUuidD1C03F15",
@@ -198,141 +193,216 @@ exports[`Distributed Load Testing stack test 1`] = `
     "AdminEmail": {
       "AllowedPattern": "^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$",
       "ConstraintDescription": "Admin email must be a valid email address",
-      "Description": "Admin user email address to access the Distributed Load Testing Console",
       "MinLength": 5,
       "Type": "String",
     },
     "AdminName": {
       "AllowedPattern": "[a-zA-Z0-9-]+",
       "ConstraintDescription": "Admin username must be a minimum of 4 characters and cannot include spaces",
-      "Description": "Admin user name to access the Distributed Load Testing console",
       "MaxLength": 20,
       "MinLength": 4,
       "Type": "String",
     },
     "EgressCidr": {
-      "AllowedPattern": "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
+      "AllowedPattern": "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
       "ConstraintDescription": "The Egress CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
       "Default": "0.0.0.0/0",
-      "Description": "CIDR Block to restrict the ECS container outbound access",
+      "Description": "CIDR Block to restrict the Amazon ECS container outbound access",
       "MaxLength": 18,
       "MinLength": 9,
       "Type": "String",
     },
     "ExistingSubnetA": {
       "AllowedPattern": "(?:^$|^subnet-[a-zA-Z0-9-]+)",
+      "Default": "",
       "Description": "First existing subnet",
       "Type": "String",
     },
     "ExistingSubnetB": {
       "AllowedPattern": "(?:^$|^subnet-[a-zA-Z0-9-]+)",
+      "Default": "",
       "Description": "Second existing subnet",
       "Type": "String",
     },
     "ExistingVPCId": {
       "AllowedPattern": "(?:^$|^vpc-[a-zA-Z0-9-]+)",
+      "Default": "",
       "Description": "Existing VPC ID",
       "Type": "String",
     },
-    "SubnetACidrBlock": {
-      "AllowedPattern": "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
-      "ConstraintDescription": "The subnet CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
-      "Default": "192.168.0.0/20",
-      "Description": "CIDR block for subnet A of the AWS Fargate VPC",
-      "MaxLength": 18,
-      "MinLength": 9,
-      "Type": "String",
-    },
-    "SubnetBCidrBlock": {
-      "AllowedPattern": "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
-      "ConstraintDescription": "The subnet CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
-      "Default": "192.168.16.0/20",
-      "Description": "CIDR block for subnet B of the AWS Fargate VPC",
-      "Type": "String",
-    },
     "VpcCidrBlock": {
-      "AllowedPattern": "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
+      "AllowedPattern": "(^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
       "ConstraintDescription": "The VPC CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
       "Default": "192.168.0.0/16",
-      "Description": "CIDR block of the new VPC where AWS Fargate will be placed",
+      "Description": "You may leave the parameter blank if you are using existing VPC",
       "MaxLength": 18,
       "MinLength": 9,
       "Type": "String",
     },
   },
   "Resources": {
-    "AppRegistry968496A3": {
-      "Condition": "DLTCommonResourcesAppRegistryConditionCCEF54F8",
+    "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536": {
+      "DependsOn": [
+        "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF",
+        "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265",
+      ],
       "Properties": {
-        "Description": "Service Catalog application to track and manage all your resources for the solution Distributed Load Testing",
-        "Name": {
-          "Fn::Join": [
-            "-",
-            [
-              "distributed-load-testing-on-aws",
-              {
-                "Ref": "AWS::Region",
-              },
-              {
-                "Ref": "AWS::AccountId",
-              },
-            ],
-          ],
-        },
-        "Tags": {
-          "Solutions:ApplicationType": "AWS-Solutions",
-          "Solutions:SolutionID": {
-            "Fn::FindInMap": [
-              "Solution",
-              "Config",
-              "SolutionId",
-            ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "Solutions:SolutionName": "Distributed Load Testing",
-          "Solutions:SolutionVersion": {
-            "Fn::FindInMap": [
-              "Solution",
-              "Config",
-              "CodeVersion",
-            ],
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Environment": {
+          "Variables": {
+            "AWS_CA_BUNDLE": "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
           },
         },
-      },
-      "Type": "AWS::ServiceCatalogAppRegistry::Application",
-    },
-    "AppRegistryAssociation": {
-      "Condition": "DLTCommonResourcesAppRegistryConditionCCEF54F8",
-      "Properties": {
-        "Application": {
+        "Handler": "index.handler",
+        "Layers": [
+          {
+            "Ref": "DLTConsoleResourcesDeployWebsiteAwsCliLayer18BDB5D9",
+          },
+        ],
+        "Role": {
           "Fn::GetAtt": [
-            "AppRegistry968496A3",
-            "Id",
+            "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265",
+            "Arn",
           ],
         },
-        "Resource": {
-          "Ref": "AWS::StackId",
-        },
-        "ResourceType": "CFN_STACK",
+        "Runtime": "python3.11",
+        "Timeout": 900,
       },
-      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+      "Type": "AWS::Lambda::Function",
+    },
+    "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::",
+                      {
+                        "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+                      },
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::",
+                      {
+                        "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:DeleteObject*",
+                "s3:PutObject",
+                "s3:PutObjectLegalHold",
+                "s3:PutObjectRetention",
+                "s3:PutObjectTagging",
+                "s3:PutObjectVersionTagging",
+                "s3:Abort*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "DLTConsoleResourcesDLTDashboardS3S3Bucket8E2568BB",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "DLTConsoleResourcesDLTDashboardS3S3Bucket8E2568BB",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF",
+        "Roles": [
+          {
+            "Ref": "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
     "DLTApi0C903EB5": {
       "Properties": {
-        "Description": {
-          "Fn::Join": [
-            "",
-            [
-              "Distributed Load Testing API - version ",
-              {
-                "Fn::FindInMap": [
-                  "Solution",
-                  "Config",
-                  "CodeVersion",
-                ],
-              },
-            ],
-          ],
-        },
+        "Description": "Distributed Load Testing API - version testVersion",
         "EndpointConfiguration": {
           "Types": [
             "EDGE",
@@ -554,37 +624,9 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": {
-            "Fn::Join": [
-              "-",
-              [
-                {
-                  "Fn::FindInMap": [
-                    "Solution",
-                    "Config",
-                    "S3Bucket",
-                  ],
-                },
-                {
-                  "Ref": "AWS::Region",
-                },
-              ],
-            ],
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": {
-            "Fn::Join": [
-              "",
-              [
-                {
-                  "Fn::FindInMap": [
-                    "Solution",
-                    "Config",
-                    "KeyPrefix",
-                  ],
-                },
-                "/api-services.zip",
-              ],
-            ],
-          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
         },
         "Description": "API microservices for creating, updating, listing and deleting test scenarios",
         "Environment": {
@@ -592,13 +634,7 @@ exports[`Distributed Load Testing stack test 1`] = `
             "HISTORY_TABLE": {
               "Ref": "DLTTestRunnerStorageDLTHistoryTable46D850CC",
             },
-            "METRIC_URL": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "URL",
-              ],
-            },
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
             "SCENARIOS_BUCKET": {
               "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
             },
@@ -612,13 +648,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                 "SendAnonymizedUsage",
               ],
             },
-            "SOLUTION_ID": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
+            "SOLUTION_ID": "testId",
             "STACK_ID": {
               "Ref": "AWS::StackId",
             },
@@ -637,13 +667,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                 "UUID",
               ],
             },
-            "VERSION": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "CodeVersion",
-              ],
-            },
+            "VERSION": "testVersion",
           },
         },
         "Handler": "index.handler",
@@ -687,59 +711,20 @@ exports[`Distributed Load Testing stack test 1`] = `
             "PolicyDocument": {
               "Statement": [
                 {
-                  "Action": "ecs:ListTasks",
-                  "Effect": "Allow",
-                  "Resource": "*",
-                },
-                {
                   "Action": [
+                    "ecs:ListTasks",
                     "ecs:RunTask",
                     "ecs:DescribeTasks",
                     "ecs:TagResource",
+                    "logs:DeleteMetricFilter",
                   ],
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:ResourceTag/SolutionId": "testId",
+                    },
+                  },
                   "Effect": "Allow",
-                  "Resource": [
-                    {
-                      "Fn::Join": [
-                        "",
-                        [
-                          "arn:",
-                          {
-                            "Ref": "AWS::Partition",
-                          },
-                          ":ecs:",
-                          {
-                            "Ref": "AWS::Region",
-                          },
-                          ":",
-                          {
-                            "Ref": "AWS::AccountId",
-                          },
-                          ":task/*",
-                        ],
-                      ],
-                    },
-                    {
-                      "Fn::Join": [
-                        "",
-                        [
-                          "arn:",
-                          {
-                            "Ref": "AWS::Partition",
-                          },
-                          ":ecs:",
-                          {
-                            "Ref": "AWS::Region",
-                          },
-                          ":",
-                          {
-                            "Ref": "AWS::AccountId",
-                          },
-                          ":task-definition/",
-                        ],
-                      ],
-                    },
-                  ],
+                  "Resource": "*",
                 },
                 {
                   "Action": "iam:PassRole",
@@ -756,16 +741,6 @@ exports[`Distributed Load Testing stack test 1`] = `
                   "Effect": "Allow",
                   "Resource": {
                     "Ref": "DLTStepFunctionTaskRunnerStepFunctionsC295A535",
-                  },
-                },
-                {
-                  "Action": "logs:DeleteMetricFilter",
-                  "Effect": "Allow",
-                  "Resource": {
-                    "Fn::GetAtt": [
-                      "DLTEcsDLTCloudWatchLogsGroupFE9EC144",
-                      "Arn",
-                    ],
                   },
                 },
                 {
@@ -818,7 +793,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
-    "DLTApiDeployment098FF8887a092ac50519ad658ef9afd5b40df777": {
+    "DLTApiDeployment098FF888bcdf5ae58de75ad661a515efc510f579": {
       "DependsOn": [
         "DLTApiAPIAllRequestValidator02C9D47F",
         "DLTApiOPTIONS823B5F09",
@@ -839,6 +814,7 @@ exports[`Distributed Load Testing stack test 1`] = `
         "DLTApivCPUDetailsABB0980D",
       ],
       "Metadata": {
+        "aws:cdk:do-not-refactor": true,
         "cfn_nag": {
           "rules_to_suppress": [
             {
@@ -849,21 +825,7 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
       },
       "Properties": {
-        "Description": {
-          "Fn::Join": [
-            "",
-            [
-              "Distributed Load Testing API - version ",
-              {
-                "Fn::FindInMap": [
-                  "Solution",
-                  "Config",
-                  "CodeVersion",
-                ],
-              },
-            ],
-          ],
-        },
+        "Description": "Distributed Load Testing API - version testVersion",
         "RestApiId": {
           "Ref": "DLTApi0C903EB5",
         },
@@ -895,7 +857,7 @@ exports[`Distributed Load Testing stack test 1`] = `
           "Format": "{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","user":"$context.identity.user","caller":"$context.identity.caller","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.resourcePath","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength"}",
         },
         "DeploymentId": {
-          "Ref": "DLTApiDeployment098FF8887a092ac50519ad658ef9afd5b40df777",
+          "Ref": "DLTApiDeployment098FF888bcdf5ae58de75ad661a515efc510f579",
         },
         "MethodSettings": [
           {
@@ -2049,7 +2011,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                     Console: <strong>https://",
                   {
                     "Fn::GetAtt": [
-                      "DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistribution3EF384B4",
+                      "DLTConsoleResourcesDLTDashboardS3CloudFrontDistribution1F11B8BB",
                       "DomainName",
                     ],
                   },
@@ -2242,10 +2204,7 @@ exports[`Distributed Load Testing stack test 1`] = `
         "PolicyName": "DLTCommonResourcesCloudWatchLogsPolicyB29337B0",
         "Roles": [
           {
-            "Ref": "DLTCustomResourceInfraCustomResourceLambdaRoleCC09066C",
-          },
-          {
-            "Ref": "DLTEcsDLTTaskExecutionRoleDE668717",
+            "Ref": "DLTCommonResourcesCustomResourceCustomResourceLambdaRole248397C4",
           },
           {
             "Ref": "RealTimeDatarealTimeDataPublisherRoleA8976D01",
@@ -2264,6 +2223,235 @@ exports[`Distributed Load Testing stack test 1`] = `
           },
           {
             "Ref": "DLTApiDLTAPIServicesLambdaRole4465EAA4",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "DLTCommonResourcesCustomResourceCustomResourceLambdaRole248397C4": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W11",
+              "reason": "iot:DescribeEndpoint and iot:DetachPrincipalPolicy cannot specify the resource.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "iot:DescribeEndpoint",
+                    "iot:DetachPrincipalPolicy",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                {
+                  "Action": "iot:ListTargetsForPolicy",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iot:",
+                        {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":policy/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "CustomResourcePolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "DLTCommonResourcesCustomResourceCustomResourceLambdaRoleDefaultPolicy315DBE14": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:DeleteObject*",
+                "s3:PutObject",
+                "s3:PutObjectLegalHold",
+                "s3:PutObjectRetention",
+                "s3:PutObjectTagging",
+                "s3:PutObjectVersionTagging",
+                "s3:Abort*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Ref": "AWS::NoValue",
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:DeleteObject*",
+                "s3:PutObject",
+                "s3:PutObjectLegalHold",
+                "s3:PutObjectRetention",
+                "s3:PutObjectTagging",
+                "s3:PutObjectVersionTagging",
+                "s3:Abort*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::",
+                      {
+                        "Fn::Join": [
+                          "-",
+                          [
+                            "codeBucket",
+                            {
+                              "Ref": "AWS::Region",
+                            },
+                          ],
+                        ],
+                      },
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::",
+                      {
+                        "Fn::Join": [
+                          "-",
+                          [
+                            "codeBucket",
+                            {
+                              "Ref": "AWS::Region",
+                            },
+                          ],
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "s3:PutObject",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    {
+                      "Fn::GetAtt": [
+                        "DLTConsoleResourcesDLTDashboardS3S3Bucket8E2568BB",
+                        "Arn",
+                      ],
+                    },
+                    "/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "DLTCommonResourcesCustomResourceCustomResourceLambdaRoleDefaultPolicy315DBE14",
+        "Roles": [
+          {
+            "Ref": "DLTCommonResourcesCustomResourceCustomResourceLambdaRole248397C4",
           },
         ],
       },
@@ -2363,7 +2551,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::S3::BucketPolicy",
     },
-    "DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistribution3EF384B4": {
+    "DLTConsoleResourcesDLTDashboardS3CloudFrontDistribution1F11B8BB": {
       "Metadata": {
         "cfn_nag": {
           "rules_to_suppress": [
@@ -2392,7 +2580,7 @@ exports[`Distributed Load Testing stack test 1`] = `
           "DefaultCacheBehavior": {
             "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
             "Compress": true,
-            "TargetOriginId": "DLTStackDLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1022BE4E8",
+            "TargetOriginId": "TestDLTStackDLTConsoleResourcesDLTDashboardS3CloudFrontDistributionOrigin1034987F4",
             "ViewerProtocolPolicy": "redirect-to-https",
           },
           "DefaultRootObject": "index.html",
@@ -2412,25 +2600,27 @@ exports[`Distributed Load Testing stack test 1`] = `
             {
               "DomainName": {
                 "Fn::GetAtt": [
-                  "DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63",
+                  "DLTConsoleResourcesDLTDashboardS3S3Bucket8E2568BB",
                   "RegionalDomainName",
                 ],
               },
-              "Id": "DLTStackDLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1022BE4E8",
+              "Id": "TestDLTStackDLTConsoleResourcesDLTDashboardS3CloudFrontDistributionOrigin1034987F4",
               "OriginAccessControlId": {
                 "Fn::GetAtt": [
-                  "DLTConsoleResourcesDLTCloudFrontToS3CloudFrontOac3AF5A4EE",
+                  "DLTConsoleResourcesDLTDashboardS3CloudFrontOacE80000C5",
                   "Id",
                 ],
               },
-              "S3OriginConfig": {},
+              "S3OriginConfig": {
+                "OriginAccessIdentity": "",
+              },
             },
           ],
         },
       },
       "Type": "AWS::CloudFront::Distribution",
     },
-    "DLTConsoleResourcesDLTCloudFrontToS3CloudFrontOac3AF5A4EE": {
+    "DLTConsoleResourcesDLTDashboardS3CloudFrontOacE80000C5": {
       "Properties": {
         "OriginAccessControlConfig": {
           "Description": "Origin access control provisioned by aws-cloudfront-s3",
@@ -2438,7 +2628,7 @@ exports[`Distributed Load Testing stack test 1`] = `
             "Fn::Join": [
               "",
               [
-                "aws-cloudfront-s3-DLTCtToS3-",
+                "aws-cloudfront-s3-DLTDardS3-",
                 {
                   "Fn::Select": [
                     2,
@@ -2462,7 +2652,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::CloudFront::OriginAccessControl",
     },
-    "DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63": {
+    "DLTConsoleResourcesDLTDashboardS3S3Bucket8E2568BB": {
       "DeletionPolicy": "Retain",
       "Properties": {
         "BucketEncryption": {
@@ -2499,6 +2689,12 @@ exports[`Distributed Load Testing stack test 1`] = `
           "IgnorePublicAcls": true,
           "RestrictPublicBuckets": true,
         },
+        "Tags": [
+          {
+            "Key": "aws-cdk:cr-owned:0fca5d83",
+            "Value": "true",
+          },
+        ],
         "VersioningConfiguration": {
           "Status": "Enabled",
         },
@@ -2506,7 +2702,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Type": "AWS::S3::Bucket",
       "UpdateReplacePolicy": "Retain",
     },
-    "DLTConsoleResourcesDLTCloudFrontToS3S3BucketPolicyF90397AC": {
+    "DLTConsoleResourcesDLTDashboardS3S3BucketPolicy85582FEA": {
       "Metadata": {
         "cfn_nag": {
           "rules_to_suppress": [
@@ -2519,7 +2715,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Properties": {
         "Bucket": {
-          "Ref": "DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63",
+          "Ref": "DLTConsoleResourcesDLTDashboardS3S3Bucket8E2568BB",
         },
         "PolicyDocument": {
           "Statement": [
@@ -2537,7 +2733,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Resource": [
                 {
                   "Fn::GetAtt": [
-                    "DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63",
+                    "DLTConsoleResourcesDLTDashboardS3S3Bucket8E2568BB",
                     "Arn",
                   ],
                 },
@@ -2547,7 +2743,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                     [
                       {
                         "Fn::GetAtt": [
-                          "DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63",
+                          "DLTConsoleResourcesDLTDashboardS3S3Bucket8E2568BB",
                           "Arn",
                         ],
                       },
@@ -2565,13 +2761,17 @@ exports[`Distributed Load Testing stack test 1`] = `
                     "Fn::Join": [
                       "",
                       [
-                        "arn:aws:cloudfront::",
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":cloudfront::",
                         {
                           "Ref": "AWS::AccountId",
                         },
                         ":distribution/",
                         {
-                          "Ref": "DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistribution3EF384B4",
+                          "Ref": "DLTConsoleResourcesDLTDashboardS3CloudFrontDistribution1F11B8BB",
                         },
                       ],
                     ],
@@ -2588,7 +2788,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                   [
                     {
                       "Fn::GetAtt": [
-                        "DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63",
+                        "DLTConsoleResourcesDLTDashboardS3S3Bucket8E2568BB",
                         "Arn",
                       ],
                     },
@@ -2603,10 +2803,51 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::S3::BucketPolicy",
     },
+    "DLTConsoleResourcesDeployWebsiteAwsCliLayer18BDB5D9": {
+      "Properties": {
+        "Content": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "/opt/awscli/aws",
+      },
+      "Type": "AWS::Lambda::LayerVersion",
+    },
+    "DLTConsoleResourcesDeployWebsiteCustomResource031F1BF7": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "DestinationBucketName": {
+          "Ref": "DLTConsoleResourcesDLTDashboardS3S3Bucket8E2568BB",
+        },
+        "Exclude": [
+          "assets/aws_config.js",
+        ],
+        "OutputObjectKeys": true,
+        "Prune": true,
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536",
+            "Arn",
+          ],
+        },
+        "SourceBucketNames": [
+          {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+        ],
+        "SourceObjectKeys": [
+          "Omitted to remove snapshot dependency on demo ui module hash",
+        ],
+      },
+      "Type": "Custom::CDKBucketDeployment",
+      "UpdateReplacePolicy": "Delete",
+    },
     "DLTCustomResourceInfraCustomResourceLambdaA4053269": {
       "DependsOn": [
-        "DLTCustomResourceInfraCustomResourceLambdaRoleDefaultPolicyE011C696",
-        "DLTCustomResourceInfraCustomResourceLambdaRoleCC09066C",
+        "DLTCommonResourcesCustomResourceCustomResourceLambdaRoleDefaultPolicy315DBE14",
+        "DLTCommonResourcesCustomResourceCustomResourceLambdaRole248397C4",
       ],
       "Metadata": {
         "cfn_nag": {
@@ -2629,37 +2870,9 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": {
-            "Fn::Join": [
-              "-",
-              [
-                {
-                  "Fn::FindInMap": [
-                    "Solution",
-                    "Config",
-                    "S3Bucket",
-                  ],
-                },
-                {
-                  "Ref": "AWS::Region",
-                },
-              ],
-            ],
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": {
-            "Fn::Join": [
-              "",
-              [
-                {
-                  "Fn::FindInMap": [
-                    "Solution",
-                    "Config",
-                    "KeyPrefix",
-                  ],
-                },
-                "/main-custom-resource.zip",
-              ],
-            ],
-          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
         },
         "Description": "CFN Lambda backed custom resource to deploy assets to s3",
         "Environment": {
@@ -2670,36 +2883,18 @@ exports[`Distributed Load Testing stack test 1`] = `
             "MAIN_REGION": {
               "Ref": "AWS::Region",
             },
-            "METRIC_URL": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "URL",
-              ],
-            },
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
             "S3_BUCKET": {
               "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
             },
-            "SOLUTION_ID": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-            "VERSION": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "CodeVersion",
-              ],
-            },
+            "SOLUTION_ID": "testId",
+            "VERSION": "testVersion",
           },
         },
         "Handler": "index.handler",
         "Role": {
           "Fn::GetAtt": [
-            "DLTCustomResourceInfraCustomResourceLambdaRoleCC09066C",
+            "DLTCommonResourcesCustomResourceCustomResourceLambdaRole248397C4",
             "Arn",
           ],
         },
@@ -2707,204 +2902,6 @@ exports[`Distributed Load Testing stack test 1`] = `
         "Timeout": 120,
       },
       "Type": "AWS::Lambda::Function",
-    },
-    "DLTCustomResourceInfraCustomResourceLambdaRoleCC09066C": {
-      "Metadata": {
-        "cfn_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "W11",
-              "reason": "iot:DescribeEndpoint and iot:DetachPrincipalPolicy cannot specify the resource.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "Policies": [
-          {
-            "PolicyDocument": {
-              "Statement": [
-                {
-                  "Action": "s3:GetObject",
-                  "Effect": "Allow",
-                  "Resource": {
-                    "Fn::Join": [
-                      "",
-                      [
-                        "arn:",
-                        {
-                          "Ref": "AWS::Partition",
-                        },
-                        ":s3:::",
-                        {
-                          "Fn::Join": [
-                            "-",
-                            [
-                              {
-                                "Fn::FindInMap": [
-                                  "Solution",
-                                  "Config",
-                                  "S3Bucket",
-                                ],
-                              },
-                              {
-                                "Ref": "AWS::Region",
-                              },
-                            ],
-                          ],
-                        },
-                        "/*",
-                      ],
-                    ],
-                  },
-                },
-                {
-                  "Action": [
-                    "s3:PutObject",
-                    "s3:DeleteObject",
-                  ],
-                  "Effect": "Allow",
-                  "Resource": {
-                    "Fn::Join": [
-                      "",
-                      [
-                        "arn:",
-                        {
-                          "Ref": "AWS::Partition",
-                        },
-                        ":s3:::",
-                        {
-                          "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
-                        },
-                        "/*",
-                      ],
-                    ],
-                  },
-                },
-                {
-                  "Action": [
-                    "dynamodb:PutItem",
-                    "dynamodb:DeleteItem",
-                  ],
-                  "Effect": "Allow",
-                  "Resource": {
-                    "Fn::Join": [
-                      "",
-                      [
-                        "arn:",
-                        {
-                          "Ref": "AWS::Partition",
-                        },
-                        ":dynamodb:",
-                        {
-                          "Ref": "AWS::Region",
-                        },
-                        ":",
-                        {
-                          "Ref": "AWS::AccountId",
-                        },
-                        ":table/",
-                        {
-                          "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
-                        },
-                      ],
-                    ],
-                  },
-                },
-                {
-                  "Action": [
-                    "iot:DescribeEndpoint",
-                    "iot:DetachPrincipalPolicy",
-                  ],
-                  "Effect": "Allow",
-                  "Resource": "*",
-                },
-                {
-                  "Action": "iot:ListTargetsForPolicy",
-                  "Effect": "Allow",
-                  "Resource": {
-                    "Fn::Join": [
-                      "",
-                      [
-                        "arn:",
-                        {
-                          "Ref": "AWS::Partition",
-                        },
-                        ":iot:",
-                        {
-                          "Ref": "AWS::Region",
-                        },
-                        ":",
-                        {
-                          "Ref": "AWS::AccountId",
-                        },
-                        ":policy/*",
-                      ],
-                    ],
-                  },
-                },
-              ],
-              "Version": "2012-10-17",
-            },
-            "PolicyName": "CustomResourcePolicy",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "DLTCustomResourceInfraCustomResourceLambdaRoleDefaultPolicyE011C696": {
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": "s3:PutObject",
-              "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      {
-                        "Fn::GetAtt": [
-                          "DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63",
-                          "Arn",
-                        ],
-                      },
-                      "/*",
-                    ],
-                  ],
-                },
-              ],
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "DLTCustomResourceInfraCustomResourceLambdaRoleDefaultPolicyE011C696",
-        "Roles": [
-          {
-            "Ref": "DLTCustomResourceInfraCustomResourceLambdaRoleCC09066C",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
     },
     "DLTCustomResourcesAnonymizedMetric901872DA": {
       "Condition": "SendAnonymizedUsage",
@@ -3058,63 +3055,13 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
         },
         "DestBucket": {
-          "Ref": "DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63",
+          "Ref": "DLTConsoleResourcesDLTDashboardS3S3Bucket8E2568BB",
         },
         "Resource": "ConfigFile",
         "ServiceToken": {
           "Fn::GetAtt": [
             "DLTCustomResourceInfraCustomResourceLambdaA4053269",
             "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::CloudFormation::CustomResource",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "DLTCustomResourcesCopyConsoleFiles2EBD447E": {
-      "DeletionPolicy": "Delete",
-      "Properties": {
-        "DestBucket": {
-          "Ref": "DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63",
-        },
-        "ManifestFile": "console-manifest.json",
-        "Resource": "CopyAssets",
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
-            "Arn",
-          ],
-        },
-        "SrcBucket": {
-          "Fn::Join": [
-            "-",
-            [
-              {
-                "Fn::FindInMap": [
-                  "Solution",
-                  "Config",
-                  "S3Bucket",
-                ],
-              },
-              {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-        "SrcPath": {
-          "Fn::Join": [
-            "",
-            [
-              {
-                "Fn::FindInMap": [
-                  "Solution",
-                  "Config",
-                  "KeyPrefix",
-                ],
-              },
-              "/console",
-            ],
           ],
         },
       },
@@ -3169,19 +3116,19 @@ exports[`Distributed Load Testing stack test 1`] = `
     "DLTCustomResourcesPutRegionalTemplate5479575B": {
       "DeletionPolicy": "Delete",
       "Properties": {
-        "APIServicesLambdaRoleName": {
-          "Ref": "DLTApiDLTAPIServicesLambdaRole4465EAA4",
-        },
         "DestBucket": {
           "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
         },
-        "MainStackRegion": {
+        "MainRegionLambdaTaskRoleArn": {
+          "Fn::GetAtt": [
+            "DLTLambdaFunctionDLTTestLambdaTaskRole1FDBCEDD",
+            "Arn",
+          ],
+        },
+        "MainRegionStack": {
           "Ref": "AWS::Region",
         },
         "Resource": "PutRegionalTemplate",
-        "ResultsParserRoleName": {
-          "Ref": "DLTLambdaFunctionLambdaResultsRole2CF2D707",
-        },
         "ScenariosTable": {
           "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
         },
@@ -3195,41 +3142,14 @@ exports[`Distributed Load Testing stack test 1`] = `
           "Fn::Join": [
             "-",
             [
-              {
-                "Fn::FindInMap": [
-                  "Solution",
-                  "Config",
-                  "S3Bucket",
-                ],
-              },
+              "codeBucket",
               {
                 "Ref": "AWS::Region",
               },
             ],
           ],
         },
-        "SrcPath": {
-          "Fn::FindInMap": [
-            "Solution",
-            "Config",
-            "KeyPrefix",
-          ],
-        },
-        "TaskCancelerRoleName": {
-          "Ref": "DLTLambdaFunctionLambdaTaskCancelerRoleAE2C84CF",
-        },
-        "TaskRunnerRoleName": {
-          "Ref": "DLTLambdaFunctionDLTTestLambdaTaskRole1FDBCEDD",
-        },
-        "TaskStatusCheckerRoleName": {
-          "Ref": "DLTLambdaFunctionTaskStatusRole9288E645",
-        },
-        "Uuid": {
-          "Fn::GetAtt": [
-            "DLTCustomResourcesCustomResourceUuidD1C03F15",
-            "UUID",
-          ],
-        },
+        "SrcPath": "DLT/Version",
       },
       "Type": "AWS::CloudFormation::CustomResource",
       "UpdateReplacePolicy": "Delete",
@@ -3255,7 +3175,7 @@ exports[`Distributed Load Testing stack test 1`] = `
             "Fn::If": [
               "CreateFargateVPCResources",
               {
-                "Ref": "DLTVpcDLTSubnetAAE7DDEE8",
+                "Ref": "DLTVpcDLTFargateVpcDLTSubnetASubnet1Subnet7282B4E5",
               },
               {
                 "Ref": "ExistingSubnetA",
@@ -3266,7 +3186,7 @@ exports[`Distributed Load Testing stack test 1`] = `
             "Fn::If": [
               "CreateFargateVPCResources",
               {
-                "Ref": "DLTVpcDLTSubnetB294F4ED2",
+                "Ref": "DLTVpcDLTFargateVpcDLTSubnetASubnet2Subnet5951C451",
               },
               {
                 "Ref": "ExistingSubnetB",
@@ -3274,10 +3194,10 @@ exports[`Distributed Load Testing stack test 1`] = `
             ],
           },
           "taskCluster": {
-            "Ref": "DLTEcsDLTEcsClusterBC5CE23B",
+            "Ref": "DLTEcsDLTEcsClusterE4DA6545",
           },
           "taskDefinition": {
-            "Ref": "DLTEcsDLTTaskDefinition6BFC2400",
+            "Ref": "DLTEcsDLTTaskDefinitionFB4E5564",
           },
           "taskImage": {
             "Fn::Join": [
@@ -3291,14 +3211,11 @@ exports[`Distributed Load Testing stack test 1`] = `
             ],
           },
           "taskSecurityGroup": {
-            "Ref": "DLTEcsDLTEcsSecurityGroup69E6743C",
+            "Fn::GetAtt": [
+              "DLTEcsDLTEcsSecurityGroupA9C72F93",
+              "GroupId",
+            ],
           },
-        },
-        "Uuid": {
-          "Fn::GetAtt": [
-            "DLTCustomResourcesCustomResourceUuidD1C03F15",
-            "UUID",
-          ],
         },
       },
       "Type": "AWS::CloudFormation::CustomResource",
@@ -3355,14 +3272,28 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Properties": {
         "RetentionInDays": 365,
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "testId",
+          },
+        ],
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
     },
-    "DLTEcsDLTEcsClusterBC5CE23B": {
+    "DLTEcsDLTEcsClusterE4DA6545": {
       "Properties": {
         "ClusterName": {
-          "Ref": "AWS::StackName",
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "Cluster",
+            ],
+          ],
         },
         "ClusterSettings": [
           {
@@ -3370,94 +3301,52 @@ exports[`Distributed Load Testing stack test 1`] = `
             "Value": "enabled",
           },
         ],
-        "Tags": [
-          {
-            "Key": "CloudFormation Stack",
-            "Value": {
-              "Ref": "AWS::StackName",
-            },
-          },
-          {
-            "Key": "SolutionId",
-            "Value": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-          },
-        ],
       },
       "Type": "AWS::ECS::Cluster",
     },
-    "DLTEcsDLTEcsSecurityGroup69E6743C": {
-      "Metadata": {
-        "cfn_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "W40",
-              "reason": "IpProtocol set to -1 (any) as ports are not known prior to running tests",
-            },
-          ],
-        },
-      },
+    "DLTEcsDLTEcsSecurityGroupA9C72F93": {
       "Properties": {
-        "GroupDescription": "DLTS Tasks Security Group",
+        "GroupDescription": "DLT Tasks Security Group",
+        "SecurityGroupEgress": [
+          {
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allow all outbound traffic by default",
+            "IpProtocol": "-1",
+          },
+        ],
         "VpcId": {
-          "Fn::If": [
-            "CreateFargateVPCResources",
-            {
-              "Ref": "DLTVpcDLTFargateVpc0E6FEAB7",
-            },
-            {
-              "Ref": "ExistingVPCId",
-            },
-          ],
+          "Ref": "DLTVpcDLTFargateVpcD33ADC64",
         },
       },
       "Type": "AWS::EC2::SecurityGroup",
     },
-    "DLTEcsDLTSecGroupEgressE1DA93E8": {
-      "Properties": {
-        "CidrIp": {
-          "Ref": "EgressCidr",
-        },
-        "Description": "Allow tasks to call out to external resources",
-        "GroupId": {
-          "Ref": "DLTEcsDLTEcsSecurityGroup69E6743C",
-        },
-        "IpProtocol": "-1",
-      },
-      "Type": "AWS::EC2::SecurityGroupEgress",
-    },
-    "DLTEcsDLTSecGroupIngressFA958E66": {
+    "DLTEcsDLTEcsSecurityGroupfromTestDLTStackDLTEcsDLTEcsSecurityGroupB8AF914950000BF80A987": {
       "Properties": {
         "Description": "Allow tasks to communicate",
         "FromPort": 50000,
         "GroupId": {
-          "Ref": "DLTEcsDLTEcsSecurityGroup69E6743C",
+          "Fn::GetAtt": [
+            "DLTEcsDLTEcsSecurityGroupA9C72F93",
+            "GroupId",
+          ],
         },
         "IpProtocol": "tcp",
         "SourceSecurityGroupId": {
-          "Ref": "DLTEcsDLTEcsSecurityGroup69E6743C",
+          "Fn::GetAtt": [
+            "DLTEcsDLTEcsSecurityGroupA9C72F93",
+            "GroupId",
+          ],
         },
         "ToPort": 50000,
       },
       "Type": "AWS::EC2::SecurityGroupIngress",
     },
-    "DLTEcsDLTTaskDefinition6BFC2400": {
+    "DLTEcsDLTTaskDefinitionFB4E5564": {
       "Properties": {
         "ContainerDefinitions": [
           {
             "Essential": true,
-            "Image": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "ContainerImage",
-              ],
-            },
+            "Image": "registry/distributed-load-testing-on-aws-load-tester:tag",
             "LogConfiguration": {
               "LogDriver": "awslogs",
               "Options": {
@@ -3491,21 +3380,17 @@ exports[`Distributed Load Testing stack test 1`] = `
             "Arn",
           ],
         },
-        "Family": {
-          "Fn::Join": [
-            "",
-            [
-              {
-                "Ref": "AWS::StackName",
-              },
-              "-task-family",
-            ],
-          ],
-        },
+        "Family": "TestDLTStackDLTEcsDLTTaskDefinition098110F2",
         "Memory": "4096",
         "NetworkMode": "awsvpc",
         "RequiresCompatibilities": [
           "FARGATE",
+        ],
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "testId",
+          },
         ],
         "TaskRoleArn": {
           "Fn::GetAtt": [
@@ -3530,21 +3415,27 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
           "Version": "2012-10-17",
         },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition",
-                },
-                ":iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
-              ],
-            ],
-          },
-        ],
         "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "ecr:GetAuthorizationToken",
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:BatchGetImage",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "ECSTaskExecutionPolicy",
+          },
           {
             "PolicyDocument": {
               "Statement": [
@@ -3599,6 +3490,35 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
+    "DLTEcsDLTTaskExecutionRoleDefaultPolicy3A93A204": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTEcsDLTCloudWatchLogsGroupFE9EC144",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "DLTEcsDLTTaskExecutionRoleDefaultPolicy3A93A204",
+        "Roles": [
+          {
+            "Ref": "DLTEcsDLTTaskExecutionRoleDE668717",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
     "DLTLambdaFunctionDLTTestLambdaTaskRole1FDBCEDD": {
       "Metadata": {
         "cfn_nag": {
@@ -3637,50 +3557,15 @@ exports[`Distributed Load Testing stack test 1`] = `
                     "ecs:RunTask",
                     "ecs:DescribeTasks",
                     "ecs:TagResource",
+                    "logs:PutMetricFilter",
                   ],
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:ResourceTag/SolutionId": "testId",
+                    },
+                  },
                   "Effect": "Allow",
-                  "Resource": [
-                    {
-                      "Fn::Join": [
-                        "",
-                        [
-                          "arn:",
-                          {
-                            "Ref": "AWS::Partition",
-                          },
-                          ":ecs:",
-                          {
-                            "Ref": "AWS::Region",
-                          },
-                          ":",
-                          {
-                            "Ref": "AWS::AccountId",
-                          },
-                          ":task/*",
-                        ],
-                      ],
-                    },
-                    {
-                      "Fn::Join": [
-                        "",
-                        [
-                          "arn:",
-                          {
-                            "Ref": "AWS::Partition",
-                          },
-                          ":ecs:",
-                          {
-                            "Ref": "AWS::Region",
-                          },
-                          ":",
-                          {
-                            "Ref": "AWS::AccountId",
-                          },
-                          ":task-definition/*:*",
-                        ],
-                      ],
-                    },
-                  ],
+                  "Resource": "*",
                 },
                 {
                   "Action": "s3:putObject",
@@ -3706,16 +3591,6 @@ exports[`Distributed Load Testing stack test 1`] = `
                   "Resource": {
                     "Fn::GetAtt": [
                       "DLTEcsDLTTaskExecutionRoleDE668717",
-                      "Arn",
-                    ],
-                  },
-                },
-                {
-                  "Action": "logs:PutMetricFilter",
-                  "Effect": "Allow",
-                  "Resource": {
-                    "Fn::GetAtt": [
-                      "DLTEcsDLTCloudWatchLogsGroupFE9EC144",
                       "Arn",
                     ],
                   },
@@ -3770,13 +3645,13 @@ exports[`Distributed Load Testing stack test 1`] = `
             },
             {
               "Action": "logs:DeleteMetricFilter",
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "DLTEcsDLTCloudWatchLogsGroupFE9EC144",
-                  "Arn",
-                ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:ResourceTag/SolutionId": "testId",
+                },
               },
+              "Effect": "Allow",
+              "Resource": "*",
             },
           ],
           "Version": "2012-10-17",
@@ -3846,55 +3721,19 @@ exports[`Distributed Load Testing stack test 1`] = `
             "PolicyDocument": {
               "Statement": [
                 {
-                  "Action": "ecs:ListTasks",
+                  "Action": "ecs:StopTask",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:ResourceTag/SolutionId": "testId",
+                    },
+                  },
                   "Effect": "Allow",
                   "Resource": "*",
                 },
                 {
-                  "Action": "ecs:StopTask",
+                  "Action": "ecs:ListTasks",
                   "Effect": "Allow",
-                  "Resource": [
-                    {
-                      "Fn::Join": [
-                        "",
-                        [
-                          "arn:",
-                          {
-                            "Ref": "AWS::Partition",
-                          },
-                          ":ecs:",
-                          {
-                            "Ref": "AWS::Region",
-                          },
-                          ":",
-                          {
-                            "Ref": "AWS::AccountId",
-                          },
-                          ":task/*",
-                        ],
-                      ],
-                    },
-                    {
-                      "Fn::Join": [
-                        "",
-                        [
-                          "arn:",
-                          {
-                            "Ref": "AWS::Partition",
-                          },
-                          ":ecs:",
-                          {
-                            "Ref": "AWS::Region",
-                          },
-                          ":",
-                          {
-                            "Ref": "AWS::AccountId",
-                          },
-                          ":task-definition/*:*",
-                        ],
-                      ],
-                    },
-                  ],
+                  "Resource": "*",
                 },
                 {
                   "Action": "dynamodb:UpdateItem",
@@ -3959,37 +3798,9 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": {
-            "Fn::Join": [
-              "-",
-              [
-                {
-                  "Fn::FindInMap": [
-                    "Solution",
-                    "Config",
-                    "S3Bucket",
-                  ],
-                },
-                {
-                  "Ref": "AWS::Region",
-                },
-              ],
-            ],
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": {
-            "Fn::Join": [
-              "",
-              [
-                {
-                  "Fn::FindInMap": [
-                    "Solution",
-                    "Config",
-                    "KeyPrefix",
-                  ],
-                },
-                "/results-parser.zip",
-              ],
-            ],
-          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
         },
         "Description": "Result parser for indexing xml test results to DynamoDB",
         "Environment": {
@@ -3997,13 +3808,7 @@ exports[`Distributed Load Testing stack test 1`] = `
             "HISTORY_TABLE": {
               "Ref": "DLTTestRunnerStorageDLTHistoryTable46D850CC",
             },
-            "METRIC_URL": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "URL",
-              ],
-            },
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
             "SCENARIOS_BUCKET": {
               "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
             },
@@ -4017,26 +3822,14 @@ exports[`Distributed Load Testing stack test 1`] = `
                 "SendAnonymizedUsage",
               ],
             },
-            "SOLUTION_ID": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
+            "SOLUTION_ID": "testId",
             "UUID": {
               "Fn::GetAtt": [
                 "DLTCustomResourcesCustomResourceUuidD1C03F15",
                 "UUID",
               ],
             },
-            "VERSION": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "CodeVersion",
-              ],
-            },
+            "VERSION": "testVersion",
           },
         },
         "Handler": "index.handler",
@@ -4105,65 +3898,19 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": {
-            "Fn::Join": [
-              "-",
-              [
-                {
-                  "Fn::FindInMap": [
-                    "Solution",
-                    "Config",
-                    "S3Bucket",
-                  ],
-                },
-                {
-                  "Ref": "AWS::Region",
-                },
-              ],
-            ],
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": {
-            "Fn::Join": [
-              "",
-              [
-                {
-                  "Fn::FindInMap": [
-                    "Solution",
-                    "Config",
-                    "KeyPrefix",
-                  ],
-                },
-                "/task-canceler.zip",
-              ],
-            ],
-          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
         },
         "Description": "Stops ECS task",
         "Environment": {
           "Variables": {
-            "METRIC_URL": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "URL",
-              ],
-            },
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
             "SCENARIOS_TABLE": {
               "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
             },
-            "SOLUTION_ID": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-            "VERSION": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "CodeVersion",
-              ],
-            },
+            "SOLUTION_ID": "testId",
+            "VERSION": "testVersion",
           },
         },
         "Handler": "index.handler",
@@ -4241,37 +3988,9 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": {
-            "Fn::Join": [
-              "-",
-              [
-                {
-                  "Fn::FindInMap": [
-                    "Solution",
-                    "Config",
-                    "S3Bucket",
-                  ],
-                },
-                {
-                  "Ref": "AWS::Region",
-                },
-              ],
-            ],
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": {
-            "Fn::Join": [
-              "",
-              [
-                {
-                  "Fn::FindInMap": [
-                    "Solution",
-                    "Config",
-                    "KeyPrefix",
-                  ],
-                },
-                "/task-runner.zip",
-              ],
-            ],
-          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
         },
         "Description": "Task runner for ECS task definitions",
         "Environment": {
@@ -4285,20 +4004,8 @@ exports[`Distributed Load Testing stack test 1`] = `
             "SCENARIOS_TABLE": {
               "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
             },
-            "SOLUTION_ID": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-            "VERSION": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "CodeVersion",
-              ],
-            },
+            "SOLUTION_ID": "testId",
+            "VERSION": "testVersion",
           },
         },
         "Handler": "index.handler",
@@ -4338,37 +4045,9 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": {
-            "Fn::Join": [
-              "-",
-              [
-                {
-                  "Fn::FindInMap": [
-                    "Solution",
-                    "Config",
-                    "S3Bucket",
-                  ],
-                },
-                {
-                  "Ref": "AWS::Region",
-                },
-              ],
-            ],
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": {
-            "Fn::Join": [
-              "",
-              [
-                {
-                  "Fn::FindInMap": [
-                    "Solution",
-                    "Config",
-                    "KeyPrefix",
-                  ],
-                },
-                "/task-status-checker.zip",
-              ],
-            ],
-          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
         },
         "Description": "Task status checker",
         "Environment": {
@@ -4376,26 +4055,14 @@ exports[`Distributed Load Testing stack test 1`] = `
             "SCENARIOS_TABLE": {
               "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
             },
-            "SOLUTION_ID": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
+            "SOLUTION_ID": "testId",
             "TASK_CANCELER_ARN": {
               "Fn::GetAtt": [
                 "DLTLambdaFunctionTaskCancelerNewA6986F4A",
                 "Arn",
               ],
             },
-            "VERSION": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "CodeVersion",
-              ],
-            },
+            "VERSION": "testVersion",
           },
         },
         "Handler": "index.handler",
@@ -4439,33 +4106,12 @@ exports[`Distributed Load Testing stack test 1`] = `
             "PolicyDocument": {
               "Statement": [
                 {
-                  "Action": "ecs:ListTasks",
+                  "Action": [
+                    "ecs:DescribeTasks",
+                    "ecs:ListTasks",
+                  ],
                   "Effect": "Allow",
                   "Resource": "*",
-                },
-                {
-                  "Action": "ecs:DescribeTasks",
-                  "Effect": "Allow",
-                  "Resource": {
-                    "Fn::Join": [
-                      "",
-                      [
-                        "arn:",
-                        {
-                          "Ref": "AWS::Partition",
-                        },
-                        ":ecs:",
-                        {
-                          "Ref": "AWS::Region",
-                        },
-                        ":",
-                        {
-                          "Ref": "AWS::AccountId",
-                        },
-                        ":task/*",
-                      ],
-                    ],
-                  },
                 },
               ],
               "Version": "2012-10-17",
@@ -4892,7 +4538,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                       "https://",
                       {
                         "Fn::GetAtt": [
-                          "DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistribution3EF384B4",
+                          "DLTConsoleResourcesDLTDashboardS3CloudFrontDistribution1F11B8BB",
                           "DomainName",
                         ],
                       },
@@ -5156,37 +4802,13 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::IAM::Policy",
     },
-    "DLTVpcDLTFargateIG0E71BA5C": {
-      "Condition": "CreateFargateVPCResources",
-      "Type": "AWS::EC2::InternetGateway",
-    },
-    "DLTVpcDLTFargateRT86406464": {
+    "DLTVpcDLTFargateVpcD33ADC64": {
       "Condition": "CreateFargateVPCResources",
       "Properties": {
-        "VpcId": {
-          "Ref": "DLTVpcDLTFargateVpc0E6FEAB7",
-        },
-      },
-      "Type": "AWS::EC2::RouteTable",
-    },
-    "DLTVpcDLTFargateVpc0E6FEAB7": {
-      "Condition": "CreateFargateVPCResources",
-      "Metadata": {
-        "cfn_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "W60",
-              "reason": "This VPC is used for the test runner Fargate tasks only, it does not require VPC flow logs.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "CidrBlock": {
-          "Ref": "VpcCidrBlock",
-        },
+        "CidrBlock": "192.168.0.0/16",
         "EnableDnsHostnames": true,
         "EnableDnsSupport": true,
+        "InstanceTenancy": "default",
         "Tags": [
           {
             "Key": "Name",
@@ -5198,59 +4820,50 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::EC2::VPC",
     },
-    "DLTVpcDLTGatewayattachment220D400F": {
-      "Condition": "CreateFargateVPCResources",
-      "Properties": {
-        "InternetGatewayId": {
-          "Ref": "DLTVpcDLTFargateIG0E71BA5C",
-        },
-        "VpcId": {
-          "Ref": "DLTVpcDLTFargateVpc0E6FEAB7",
-        },
-      },
-      "Type": "AWS::EC2::VPCGatewayAttachment",
-    },
-    "DLTVpcDLTRouteF8F2A836": {
+    "DLTVpcDLTFargateVpcDLTSubnetASubnet1DefaultRoute7A2EEAEE": {
       "Condition": "CreateFargateVPCResources",
       "DependsOn": [
-        "DLTVpcDLTGatewayattachment220D400F",
+        "DLTVpcDLTFargateVpcVPCGWCCFDEC4D",
       ],
       "Properties": {
         "DestinationCidrBlock": "0.0.0.0/0",
         "GatewayId": {
-          "Ref": "DLTVpcDLTFargateIG0E71BA5C",
+          "Ref": "DLTVpcDLTFargateVpcIGW9D1C7FCD",
         },
         "RouteTableId": {
-          "Ref": "DLTVpcDLTFargateRT86406464",
+          "Ref": "DLTVpcDLTFargateVpcDLTSubnetASubnet1RouteTableC4B333E0",
         },
       },
       "Type": "AWS::EC2::Route",
     },
-    "DLTVpcDLTRouteTableAssociationAE94A08EA": {
+    "DLTVpcDLTFargateVpcDLTSubnetASubnet1RouteTableAssociationC7832DF5": {
       "Condition": "CreateFargateVPCResources",
       "Properties": {
         "RouteTableId": {
-          "Ref": "DLTVpcDLTFargateRT86406464",
+          "Ref": "DLTVpcDLTFargateVpcDLTSubnetASubnet1RouteTableC4B333E0",
         },
         "SubnetId": {
-          "Ref": "DLTVpcDLTSubnetAAE7DDEE8",
+          "Ref": "DLTVpcDLTFargateVpcDLTSubnetASubnet1Subnet7282B4E5",
         },
       },
       "Type": "AWS::EC2::SubnetRouteTableAssociation",
     },
-    "DLTVpcDLTRouteTableAssociationBBED3E4B3": {
+    "DLTVpcDLTFargateVpcDLTSubnetASubnet1RouteTableC4B333E0": {
       "Condition": "CreateFargateVPCResources",
       "Properties": {
-        "RouteTableId": {
-          "Ref": "DLTVpcDLTFargateRT86406464",
-        },
-        "SubnetId": {
-          "Ref": "DLTVpcDLTSubnetB294F4ED2",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "TestDLTStack/DLTVpc/DLTFargateVpc/DLTSubnetASubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "DLTVpcDLTFargateVpcD33ADC64",
         },
       },
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Type": "AWS::EC2::RouteTable",
     },
-    "DLTVpcDLTSubnetAAE7DDEE8": {
+    "DLTVpcDLTFargateVpcDLTSubnetASubnet1Subnet7282B4E5": {
       "Condition": "CreateFargateVPCResources",
       "Properties": {
         "AvailabilityZone": {
@@ -5261,16 +4874,72 @@ exports[`Distributed Load Testing stack test 1`] = `
             },
           ],
         },
-        "CidrBlock": {
-          "Ref": "SubnetACidrBlock",
-        },
+        "CidrBlock": "192.168.0.0/20",
+        "MapPublicIpOnLaunch": true,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "DLTSubnetA",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Public",
+          },
+          {
+            "Key": "Name",
+            "Value": "TestDLTStack/DLTVpc/DLTFargateVpc/DLTSubnetASubnet1",
+          },
+        ],
         "VpcId": {
-          "Ref": "DLTVpcDLTFargateVpc0E6FEAB7",
+          "Ref": "DLTVpcDLTFargateVpcD33ADC64",
         },
       },
       "Type": "AWS::EC2::Subnet",
     },
-    "DLTVpcDLTSubnetB294F4ED2": {
+    "DLTVpcDLTFargateVpcDLTSubnetASubnet2DefaultRoute8C6620F6": {
+      "Condition": "CreateFargateVPCResources",
+      "DependsOn": [
+        "DLTVpcDLTFargateVpcVPCGWCCFDEC4D",
+      ],
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "DLTVpcDLTFargateVpcIGW9D1C7FCD",
+        },
+        "RouteTableId": {
+          "Ref": "DLTVpcDLTFargateVpcDLTSubnetASubnet2RouteTable8830659A",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "DLTVpcDLTFargateVpcDLTSubnetASubnet2RouteTable8830659A": {
+      "Condition": "CreateFargateVPCResources",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "TestDLTStack/DLTVpc/DLTFargateVpc/DLTSubnetASubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "DLTVpcDLTFargateVpcD33ADC64",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "DLTVpcDLTFargateVpcDLTSubnetASubnet2RouteTableAssociation653ED62D": {
+      "Condition": "CreateFargateVPCResources",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "DLTVpcDLTFargateVpcDLTSubnetASubnet2RouteTable8830659A",
+        },
+        "SubnetId": {
+          "Ref": "DLTVpcDLTFargateVpcDLTSubnetASubnet2Subnet5951C451",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "DLTVpcDLTFargateVpcDLTSubnetASubnet2Subnet5951C451": {
       "Condition": "CreateFargateVPCResources",
       "Properties": {
         "AvailabilityZone": {
@@ -5281,60 +4950,205 @@ exports[`Distributed Load Testing stack test 1`] = `
             },
           ],
         },
-        "CidrBlock": {
-          "Ref": "SubnetBCidrBlock",
-        },
+        "CidrBlock": "192.168.16.0/20",
+        "MapPublicIpOnLaunch": true,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "DLTSubnetA",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Public",
+          },
+          {
+            "Key": "Name",
+            "Value": "TestDLTStack/DLTVpc/DLTFargateVpc/DLTSubnetASubnet2",
+          },
+        ],
         "VpcId": {
-          "Ref": "DLTVpcDLTFargateVpc0E6FEAB7",
+          "Ref": "DLTVpcDLTFargateVpcD33ADC64",
         },
       },
       "Type": "AWS::EC2::Subnet",
     },
-    "DefaultApplicationAttributesApplicationAttributeGroupAssociation137261565f10E63E4638": {
-      "Condition": "DLTCommonResourcesAppRegistryConditionCCEF54F8",
+    "DLTVpcDLTFargateVpcDLTSubnetBSubnet1DefaultRoute6279831B": {
+      "Condition": "CreateFargateVPCResources",
+      "DependsOn": [
+        "DLTVpcDLTFargateVpcVPCGWCCFDEC4D",
+      ],
       "Properties": {
-        "Application": {
-          "Fn::GetAtt": [
-            "AppRegistry968496A3",
-            "Id",
-          ],
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "DLTVpcDLTFargateVpcIGW9D1C7FCD",
         },
-        "AttributeGroup": {
-          "Fn::GetAtt": [
-            "DefaultApplicationAttributesFC1CC26B",
-            "Id",
-          ],
+        "RouteTableId": {
+          "Ref": "DLTVpcDLTFargateVpcDLTSubnetBSubnet1RouteTable9AEB7FB4",
         },
       },
-      "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation",
+      "Type": "AWS::EC2::Route",
     },
-    "DefaultApplicationAttributesFC1CC26B": {
-      "Condition": "DLTCommonResourcesAppRegistryConditionCCEF54F8",
+    "DLTVpcDLTFargateVpcDLTSubnetBSubnet1RouteTable9AEB7FB4": {
+      "Condition": "CreateFargateVPCResources",
       "Properties": {
-        "Attributes": {
-          "applicationType": "AWS-Solutions",
-          "solutionID": {
-            "Fn::FindInMap": [
-              "Solution",
-              "Config",
-              "SolutionId",
-            ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "TestDLTStack/DLTVpc/DLTFargateVpc/DLTSubnetBSubnet1",
           },
-          "solutionName": "Distributed Load Testing",
-          "version": {
-            "Fn::FindInMap": [
-              "Solution",
-              "Config",
-              "CodeVersion",
-            ],
-          },
-        },
-        "Description": "Attribute group for solution information",
-        "Name": {
-          "Ref": "AWS::StackName",
+        ],
+        "VpcId": {
+          "Ref": "DLTVpcDLTFargateVpcD33ADC64",
         },
       },
-      "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroup",
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "DLTVpcDLTFargateVpcDLTSubnetBSubnet1RouteTableAssociation8EF4B2AD": {
+      "Condition": "CreateFargateVPCResources",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "DLTVpcDLTFargateVpcDLTSubnetBSubnet1RouteTable9AEB7FB4",
+        },
+        "SubnetId": {
+          "Ref": "DLTVpcDLTFargateVpcDLTSubnetBSubnet1Subnet9DF134C3",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "DLTVpcDLTFargateVpcDLTSubnetBSubnet1Subnet9DF134C3": {
+      "Condition": "CreateFargateVPCResources",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "192.168.32.0/20",
+        "MapPublicIpOnLaunch": true,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "DLTSubnetB",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Public",
+          },
+          {
+            "Key": "Name",
+            "Value": "TestDLTStack/DLTVpc/DLTFargateVpc/DLTSubnetBSubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "DLTVpcDLTFargateVpcD33ADC64",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "DLTVpcDLTFargateVpcDLTSubnetBSubnet2DefaultRoute774A1496": {
+      "Condition": "CreateFargateVPCResources",
+      "DependsOn": [
+        "DLTVpcDLTFargateVpcVPCGWCCFDEC4D",
+      ],
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "DLTVpcDLTFargateVpcIGW9D1C7FCD",
+        },
+        "RouteTableId": {
+          "Ref": "DLTVpcDLTFargateVpcDLTSubnetBSubnet2RouteTable02F73F84",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "DLTVpcDLTFargateVpcDLTSubnetBSubnet2RouteTable02F73F84": {
+      "Condition": "CreateFargateVPCResources",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "TestDLTStack/DLTVpc/DLTFargateVpc/DLTSubnetBSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "DLTVpcDLTFargateVpcD33ADC64",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "DLTVpcDLTFargateVpcDLTSubnetBSubnet2RouteTableAssociationFCB585CD": {
+      "Condition": "CreateFargateVPCResources",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "DLTVpcDLTFargateVpcDLTSubnetBSubnet2RouteTable02F73F84",
+        },
+        "SubnetId": {
+          "Ref": "DLTVpcDLTFargateVpcDLTSubnetBSubnet2Subnet4EFCB4FE",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "DLTVpcDLTFargateVpcDLTSubnetBSubnet2Subnet4EFCB4FE": {
+      "Condition": "CreateFargateVPCResources",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "192.168.48.0/20",
+        "MapPublicIpOnLaunch": true,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "DLTSubnetB",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Public",
+          },
+          {
+            "Key": "Name",
+            "Value": "TestDLTStack/DLTVpc/DLTFargateVpc/DLTSubnetBSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "DLTVpcDLTFargateVpcD33ADC64",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "DLTVpcDLTFargateVpcIGW9D1C7FCD": {
+      "Condition": "CreateFargateVPCResources",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Ref": "AWS::StackName",
+            },
+          },
+        ],
+      },
+      "Type": "AWS::EC2::InternetGateway",
+    },
+    "DLTVpcDLTFargateVpcVPCGWCCFDEC4D": {
+      "Condition": "CreateFargateVPCResources",
+      "Properties": {
+        "InternetGatewayId": {
+          "Ref": "DLTVpcDLTFargateVpcIGW9D1C7FCD",
+        },
+        "VpcId": {
+          "Ref": "DLTVpcDLTFargateVpcD33ADC64",
+        },
+      },
+      "Type": "AWS::EC2::VPCGatewayAttachment",
     },
     "RealTimeDataRealTimeDataPublisherLogGroup3FE55F9A": {
       "DeletionPolicy": "Retain",
@@ -5380,64 +5194,32 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": {
-            "Fn::Join": [
-              "-",
-              [
-                {
-                  "Fn::FindInMap": [
-                    "Solution",
-                    "Config",
-                    "S3Bucket",
-                  ],
-                },
-                {
-                  "Ref": "AWS::Region",
-                },
-              ],
-            ],
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": {
-            "Fn::Join": [
-              "",
-              [
-                {
-                  "Fn::FindInMap": [
-                    "Solution",
-                    "Config",
-                    "KeyPrefix",
-                  ],
-                },
-                "/real-time-data-publisher.zip",
-              ],
-            ],
-          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
         },
         "Description": "Real time data publisher",
         "Environment": {
           "Variables": {
             "IOT_ENDPOINT": {
-              "Fn::GetAtt": [
-                "DLTCustomResourcesGetIotEndpoint700ABCC8",
-                "IOT_ENDPOINT",
+              "Fn::Join": [
+                "",
+                [
+                  "https://",
+                  {
+                    "Fn::GetAtt": [
+                      "DLTCustomResourcesGetIotEndpoint700ABCC8",
+                      "IOT_ENDPOINT",
+                    ],
+                  },
+                ],
               ],
             },
             "MAIN_REGION": {
               "Ref": "AWS::Region",
             },
-            "SOLUTION_ID": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "SolutionId",
-              ],
-            },
-            "VERSION": {
-              "Fn::FindInMap": [
-                "Solution",
-                "Config",
-                "CodeVersion",
-              ],
-            },
+            "SOLUTION_ID": "testId",
+            "VERSION": "testVersion",
           },
         },
         "Handler": "index.handler",
@@ -5503,25 +5285,10 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
-    "SolutionMetricsBilledDurationQueryFC2D10CF": {
+    "SolutionMetricsNewBilledDurationMemorySizeQueryApiLambdaF458D542": {
       "Condition": "SendAnonymizedUsage",
       "Properties": {
         "LogGroupNames": [
-          {
-            "Ref": "DLTLambdaFunctionTaskRunnerLambdaLogGroupF801BE82",
-          },
-          {
-            "Ref": "RealTimeDataRealTimeDataPublisherLogGroup3FE55F9A",
-          },
-          {
-            "Ref": "DLTLambdaFunctionResultsParserLambdaLogGroupADF0ADEA",
-          },
-          {
-            "Ref": "DLTLambdaFunctionTaskCancellerLambdaLogGroupBD1D284E",
-          },
-          {
-            "Ref": "DLTLambdaFunctiontaskStatusCheckerLambdaLogGroup1988969D",
-          },
           {
             "Ref": "DLTApidltApiServicesLambdaLogGroup54338B12",
           },
@@ -5533,15 +5300,130 @@ exports[`Distributed Load Testing stack test 1`] = `
               {
                 "Ref": "AWS::StackName",
               },
-              "-BilledDurationQuery",
+              "-BilledDurationMemorySizeQueryApiLambda",
             ],
           ],
         },
-        "QueryString": "stats sum(@billedDuration) as AWSLambdaBilledDuration, max(@memorySize) as AWSLambdaMemorySize",
+        "QueryString": "stats sum(@billedDuration) as AWSLambdaBilledDurationApiLambda, max(@memorySize) as AWSLambdaMemorySizeApiLambda",
       },
       "Type": "AWS::Logs::QueryDefinition",
     },
-    "SolutionMetricsEventbridgeRuleToLambdaEventsRule3849A6EF": {
+    "SolutionMetricsNewBilledDurationMemorySizeQueryRealTimeDataPublisher21A4FF87": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "LogGroupNames": [
+          {
+            "Ref": "RealTimeDataRealTimeDataPublisherLogGroup3FE55F9A",
+          },
+        ],
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-BilledDurationMemorySizeQueryRealTimeDataPublisher",
+            ],
+          ],
+        },
+        "QueryString": "stats sum(@billedDuration) as AWSLambdaBilledDurationRealTimeDataPublisher, max(@memorySize) as AWSLambdaMemorySizeRealTimeDataPublisher",
+      },
+      "Type": "AWS::Logs::QueryDefinition",
+    },
+    "SolutionMetricsNewBilledDurationMemorySizeQueryResultsParser6748969C": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "LogGroupNames": [
+          {
+            "Ref": "DLTLambdaFunctionResultsParserLambdaLogGroupADF0ADEA",
+          },
+        ],
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-BilledDurationMemorySizeQueryResultsParser",
+            ],
+          ],
+        },
+        "QueryString": "stats sum(@billedDuration) as AWSLambdaBilledDurationResultsParser, max(@memorySize) as AWSLambdaMemorySizeResultsParser",
+      },
+      "Type": "AWS::Logs::QueryDefinition",
+    },
+    "SolutionMetricsNewBilledDurationMemorySizeQueryTaskCancelerFF6661A9": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "LogGroupNames": [
+          {
+            "Ref": "DLTLambdaFunctionTaskCancellerLambdaLogGroupBD1D284E",
+          },
+        ],
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-BilledDurationMemorySizeQueryTaskCanceler",
+            ],
+          ],
+        },
+        "QueryString": "stats sum(@billedDuration) as AWSLambdaBilledDurationTaskCanceler, max(@memorySize) as AWSLambdaMemorySizeTaskCanceler",
+      },
+      "Type": "AWS::Logs::QueryDefinition",
+    },
+    "SolutionMetricsNewBilledDurationMemorySizeQueryTaskRunner05326AF3": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "LogGroupNames": [
+          {
+            "Ref": "DLTLambdaFunctionTaskRunnerLambdaLogGroupF801BE82",
+          },
+        ],
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-BilledDurationMemorySizeQueryTaskRunner",
+            ],
+          ],
+        },
+        "QueryString": "stats sum(@billedDuration) as AWSLambdaBilledDurationTaskRunner, max(@memorySize) as AWSLambdaMemorySizeTaskRunner",
+      },
+      "Type": "AWS::Logs::QueryDefinition",
+    },
+    "SolutionMetricsNewBilledDurationMemorySizeQueryTaskStatusChecker7F1AFE94": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "LogGroupNames": [
+          {
+            "Ref": "DLTLambdaFunctiontaskStatusCheckerLambdaLogGroup1988969D",
+          },
+        ],
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-BilledDurationMemorySizeQueryTaskStatusChecker",
+            ],
+          ],
+        },
+        "QueryString": "stats sum(@billedDuration) as AWSLambdaBilledDurationTaskStatusChecker, max(@memorySize) as AWSLambdaMemorySizeTaskStatusChecker",
+      },
+      "Type": "AWS::Logs::QueryDefinition",
+    },
+    "SolutionMetricsNewEventbridgeRuleToLambdaEventsRuleBB9E5FFD": {
       "Condition": "SendAnonymizedUsage",
       "Properties": {
         "ScheduleExpression": "cron(0 23 ? * MON *)",
@@ -5550,7 +5432,7 @@ exports[`Distributed Load Testing stack test 1`] = `
           {
             "Arn": {
               "Fn::GetAtt": [
-                "SolutionMetricsMetricsLambdaBD5829C7",
+                "SolutionMetricsNewMetricsLambda2B1B8902",
                 "Arn",
               ],
             },
@@ -5568,227 +5450,51 @@ exports[`Distributed Load Testing stack test 1`] = `
                     {
                       "Ref": "DLTLambdaFunctionTaskRunnerNew5AE1A3C2",
                     },
-                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"Id":"id_",
-                    {
-                      "Fn::Join": [
-                        "_",
-                        {
-                          "Fn::Split": [
-                            "-",
-                            {
-                              "Ref": "AWS::StackName",
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                    "_0"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"identifier":"TaskRunner","Id":"id_AWS_Lambda_Invocations_TaskRunner"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
                     {
                       "Ref": "RealTimeDataRealTimeDataPublisherNew82D06000",
                     },
-                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"Id":"id_",
-                    {
-                      "Fn::Join": [
-                        "_",
-                        {
-                          "Fn::Split": [
-                            "-",
-                            {
-                              "Ref": "AWS::StackName",
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                    "_1"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"identifier":"RealTimeDataPublisher","Id":"id_AWS_Lambda_Invocations_RealTimeDataPublisher"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
                     {
                       "Ref": "DLTLambdaFunctionResultsParserNew4A490450",
                     },
-                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"Id":"id_",
-                    {
-                      "Fn::Join": [
-                        "_",
-                        {
-                          "Fn::Split": [
-                            "-",
-                            {
-                              "Ref": "AWS::StackName",
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                    "_2"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"identifier":"ResultsParser","Id":"id_AWS_Lambda_Invocations_ResultsParser"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
                     {
                       "Ref": "DLTLambdaFunctionTaskCancelerNewA6986F4A",
                     },
-                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"Id":"id_",
-                    {
-                      "Fn::Join": [
-                        "_",
-                        {
-                          "Fn::Split": [
-                            "-",
-                            {
-                              "Ref": "AWS::StackName",
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                    "_3"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"identifier":"TaskCanceler","Id":"id_AWS_Lambda_Invocations_TaskCanceler"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
                     {
                       "Ref": "DLTLambdaFunctionTaskStatusCheckerNew00D99653",
                     },
-                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"Id":"id_",
-                    {
-                      "Fn::Join": [
-                        "_",
-                        {
-                          "Fn::Split": [
-                            "-",
-                            {
-                              "Ref": "AWS::StackName",
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                    "_4"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"identifier":"TaskStatusChecker","Id":"id_AWS_Lambda_Invocations_TaskStatusChecker"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
                     {
                       "Ref": "DLTCustomResourceInfraCustomResourceLambdaA4053269",
                     },
-                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"Id":"id_",
-                    {
-                      "Fn::Join": [
-                        "_",
-                        {
-                          "Fn::Split": [
-                            "-",
-                            {
-                              "Ref": "AWS::StackName",
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                    "_5"},{"MetricStat":{"Metric":{"Namespace":"AWS/DynamoDB","Dimensions":[{"Name":"TableName","Value":"",
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"identifier":"CustomResourceLambda","Id":"id_AWS_Lambda_Invocations_CustomResourceLambda"},{"MetricStat":{"Metric":{"Namespace":"AWS/DynamoDB","Dimensions":[{"Name":"TableName","Value":"",
                     {
                       "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
                     },
-                    ""}],"MetricName":"ConsumedReadCapacityUnits"},"Stat":"Sum","Period":604800},"Id":"id_",
-                    {
-                      "Fn::Join": [
-                        "_",
-                        {
-                          "Fn::Split": [
-                            "-",
-                            {
-                              "Ref": "AWS::StackName",
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                    "_6"},{"MetricStat":{"Metric":{"Namespace":"AWS/DynamoDB","Dimensions":[{"Name":"TableName","Value":"",
+                    ""}],"MetricName":"ConsumedReadCapacityUnits"},"Stat":"Sum","Period":604800},"identifier":"ScenariosTable","Id":"id_AWS_DynamoDB_ConsumedReadCapacityUnits_ScenariosTable"},{"MetricStat":{"Metric":{"Namespace":"AWS/DynamoDB","Dimensions":[{"Name":"TableName","Value":"",
                     {
                       "Ref": "DLTTestRunnerStorageDLTHistoryTable46D850CC",
                     },
-                    ""}],"MetricName":"ConsumedReadCapacityUnits"},"Stat":"Sum","Period":604800},"Id":"id_",
-                    {
-                      "Fn::Join": [
-                        "_",
-                        {
-                          "Fn::Split": [
-                            "-",
-                            {
-                              "Ref": "AWS::StackName",
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                    "_7"},{"MetricStat":{"Metric":{"Namespace":"AWS/DynamoDB","Dimensions":[{"Name":"TableName","Value":"",
+                    ""}],"MetricName":"ConsumedReadCapacityUnits"},"Stat":"Sum","Period":604800},"identifier":"HistoryTable","Id":"id_AWS_DynamoDB_ConsumedReadCapacityUnits_HistoryTable"},{"MetricStat":{"Metric":{"Namespace":"AWS/DynamoDB","Dimensions":[{"Name":"TableName","Value":"",
                     {
                       "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
                     },
-                    ""}],"MetricName":"ConsumedWriteCapacityUnits"},"Stat":"Sum","Period":604800},"Id":"id_",
-                    {
-                      "Fn::Join": [
-                        "_",
-                        {
-                          "Fn::Split": [
-                            "-",
-                            {
-                              "Ref": "AWS::StackName",
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                    "_8"},{"MetricStat":{"Metric":{"Namespace":"AWS/DynamoDB","Dimensions":[{"Name":"TableName","Value":"",
+                    ""}],"MetricName":"ConsumedWriteCapacityUnits"},"Stat":"Sum","Period":604800},"identifier":"ScenariosTable","Id":"id_AWS_DynamoDB_ConsumedWriteCapacityUnits_ScenariosTable"},{"MetricStat":{"Metric":{"Namespace":"AWS/DynamoDB","Dimensions":[{"Name":"TableName","Value":"",
                     {
                       "Ref": "DLTTestRunnerStorageDLTHistoryTable46D850CC",
                     },
-                    ""}],"MetricName":"ConsumedWriteCapacityUnits"},"Stat":"Sum","Period":604800},"Id":"id_",
+                    ""}],"MetricName":"ConsumedWriteCapacityUnits"},"Stat":"Sum","Period":604800},"identifier":"HistoryTable","Id":"id_AWS_DynamoDB_ConsumedWriteCapacityUnits_HistoryTable"},{"MetricStat":{"Metric":{"Namespace":"ECS/ContainerInsights","Dimensions":[{"Name":"ClusterName","Value":"",
                     {
-                      "Fn::Join": [
-                        "_",
-                        {
-                          "Fn::Split": [
-                            "-",
-                            {
-                              "Ref": "AWS::StackName",
-                            },
-                          ],
-                        },
-                      ],
+                      "Ref": "DLTEcsDLTEcsClusterE4DA6545",
                     },
-                    "_9"},{"MetricStat":{"Metric":{"Namespace":"ECS/ContainerInsights","Dimensions":[{"Name":"ClusterName","Value":"",
+                    ""},{"Name":"TaskDefinitionFamily","Value":"TestDLTStackDLTEcsDLTTaskDefinition098110F2"}],"MetricName":"CpuUtilized"},"Stat":"Average","Period":604800},"Id":"id_ECS_ContainerInsights_CpuUtilized"},{"MetricStat":{"Metric":{"Namespace":"ECS/ContainerInsights","Dimensions":[{"Name":"ClusterName","Value":"",
                     {
-                      "Ref": "DLTEcsDLTEcsClusterBC5CE23B",
+                      "Ref": "DLTEcsDLTEcsClusterE4DA6545",
                     },
-                    ""},{"Name":"TaskDefinitionFamily","Value":"",
-                    {
-                      "Ref": "AWS::StackName",
-                    },
-                    "-task-family"}],"MetricName":"CpuUtilized"},"Stat":"Average","Period":300},"Id":"id_",
-                    {
-                      "Fn::Join": [
-                        "_",
-                        {
-                          "Fn::Split": [
-                            "-",
-                            {
-                              "Ref": "AWS::StackName",
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                    "_10"},{"MetricStat":{"Metric":{"Namespace":"ECS/ContainerInsights","Dimensions":[{"Name":"ClusterName","Value":"",
-                    {
-                      "Ref": "DLTEcsDLTEcsClusterBC5CE23B",
-                    },
-                    ""},{"Name":"TaskDefinitionFamily","Value":"",
-                    {
-                      "Ref": "AWS::StackName",
-                    },
-                    "-task-family"}],"MetricName":"MemoryUtilized"},"Stat":"Average","Period":300},"Id":"id_",
-                    {
-                      "Fn::Join": [
-                        "_",
-                        {
-                          "Fn::Split": [
-                            "-",
-                            {
-                              "Ref": "AWS::StackName",
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                    "_11"}]}",
+                    ""},{"Name":"TaskDefinitionFamily","Value":"TestDLTStackDLTEcsDLTTaskDefinition098110F2"}],"MetricName":"MemoryUtilized"},"Stat":"Average","Period":604800},"Id":"id_ECS_ContainerInsights_MemoryUtilized"}]}",
                   ],
                 ],
               },
@@ -5798,7 +5504,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::Events::Rule",
     },
-    "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2": {
+    "SolutionMetricsNewLambdaToSqsToLambdalambdatosqsqueue2170C89E": {
       "Condition": "SendAnonymizedUsage",
       "DeletionPolicy": "Delete",
       "Properties": {
@@ -5812,7 +5518,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Type": "AWS::SQS::Queue",
       "UpdateReplacePolicy": "Delete",
     },
-    "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueuePolicy30A8FD64": {
+    "SolutionMetricsNewLambdaToSqsToLambdalambdatosqsqueuePolicyBC7BA156": {
       "Condition": "SendAnonymizedUsage",
       "Properties": {
         "PolicyDocument": {
@@ -5848,7 +5554,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               },
               "Resource": {
                 "Fn::GetAtt": [
-                  "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+                  "SolutionMetricsNewLambdaToSqsToLambdalambdatosqsqueue2170C89E",
                   "Arn",
                 ],
               },
@@ -5867,7 +5573,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               },
               "Resource": {
                 "Fn::GetAtt": [
-                  "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+                  "SolutionMetricsNewLambdaToSqsToLambdalambdatosqsqueue2170C89E",
                   "Arn",
                 ],
               },
@@ -5878,72 +5584,24 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
         "Queues": [
           {
-            "Ref": "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+            "Ref": "SolutionMetricsNewLambdaToSqsToLambdalambdatosqsqueue2170C89E",
           },
         ],
       },
       "Type": "AWS::SQS::QueuePolicy",
     },
-    "SolutionMetricsMetricsLambdaAwsEventsLambdaInvokePermission175518221": {
-      "Condition": "SendAnonymizedUsage",
-      "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Fn::GetAtt": [
-            "SolutionMetricsMetricsLambdaBD5829C7",
-            "Arn",
-          ],
-        },
-        "Principal": "events.amazonaws.com",
-        "SourceArn": {
-          "Fn::GetAtt": [
-            "SolutionMetricsEventbridgeRuleToLambdaEventsRule3849A6EF",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Permission",
-    },
-    "SolutionMetricsMetricsLambdaBD5829C7": {
+    "SolutionMetricsNewMetricsLambda2B1B8902": {
       "Condition": "SendAnonymizedUsage",
       "DependsOn": [
-        "SolutionMetricsMetricsLambdaServiceRoleDefaultPolicyE7D305A3",
-        "SolutionMetricsMetricsLambdaServiceRole662035AC",
+        "SolutionMetricsNewMetricsLambdaServiceRoleDefaultPolicy3AE130AC",
+        "SolutionMetricsNewMetricsLambdaServiceRole3196BDF4",
       ],
       "Properties": {
         "Code": {
           "S3Bucket": {
-            "Fn::Join": [
-              "-",
-              [
-                {
-                  "Fn::FindInMap": [
-                    "Solution",
-                    "Config",
-                    "S3Bucket",
-                  ],
-                },
-                {
-                  "Ref": "AWS::Region",
-                },
-              ],
-            ],
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": {
-            "Fn::Join": [
-              "",
-              [
-                {
-                  "Fn::FindInMap": [
-                    "Solution",
-                    "Config",
-                    "KeyPrefix",
-                  ],
-                },
-                "/metrics-utils.zip",
-              ],
-            ],
-          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
         },
         "Description": "Metrics util",
         "Environment": {
@@ -5960,11 +5618,8 @@ exports[`Distributed Load Testing stack test 1`] = `
                 ],
               ],
             },
-            "SOLUTION_ID": "SO0062",
-            "SOLUTION_NAME": "distributed-load-testing-on-aws",
-            "SOLUTION_VERSION": "testversion",
             "SQS_QUEUE_URL": {
-              "Ref": "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+              "Ref": "SolutionMetricsNewLambdaToSqsToLambdalambdatosqsqueue2170C89E",
             },
             "UUID": {
               "Fn::GetAtt": [
@@ -5978,7 +5633,7 @@ exports[`Distributed Load Testing stack test 1`] = `
         "MemorySize": 128,
         "Role": {
           "Fn::GetAtt": [
-            "SolutionMetricsMetricsLambdaServiceRole662035AC",
+            "SolutionMetricsNewMetricsLambdaServiceRole3196BDF4",
             "Arn",
           ],
         },
@@ -5987,7 +5642,27 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::Lambda::Function",
     },
-    "SolutionMetricsMetricsLambdaServiceRole662035AC": {
+    "SolutionMetricsNewMetricsLambdaAwsEventsLambdaInvokePermission1458D855B": {
+      "Condition": "SendAnonymizedUsage",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "SolutionMetricsNewMetricsLambda2B1B8902",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "SolutionMetricsNewEventbridgeRuleToLambdaEventsRuleBB9E5FFD",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "SolutionMetricsNewMetricsLambdaServiceRole3196BDF4": {
       "Condition": "SendAnonymizedUsage",
       "Properties": {
         "AssumeRolePolicyDocument": {
@@ -6019,7 +5694,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
-    "SolutionMetricsMetricsLambdaServiceRoleDefaultPolicyE7D305A3": {
+    "SolutionMetricsNewMetricsLambdaServiceRoleDefaultPolicy3AE130AC": {
       "Condition": "SendAnonymizedUsage",
       "Properties": {
         "PolicyDocument": {
@@ -6033,7 +5708,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Effect": "Allow",
               "Resource": {
                 "Fn::GetAtt": [
-                  "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+                  "SolutionMetricsNewLambdaToSqsToLambdalambdatosqsqueue2170C89E",
                   "Arn",
                 ],
               },
@@ -6049,7 +5724,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Effect": "Allow",
               "Resource": {
                 "Fn::GetAtt": [
-                  "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+                  "SolutionMetricsNewLambdaToSqsToLambdalambdatosqsqueue2170C89E",
                   "Arn",
                 ],
               },
@@ -6071,6 +5746,11 @@ exports[`Distributed Load Testing stack test 1`] = `
                   "Arn",
                 ],
               },
+            },
+            {
+              "Action": "logs:DescribeQueryDefinitions",
+              "Effect": "Allow",
+              "Resource": "*",
             },
             {
               "Action": [
@@ -6137,34 +5817,29 @@ exports[`Distributed Load Testing stack test 1`] = `
                 ],
               },
             },
-            {
-              "Action": "logs:DescribeQueryDefinitions",
-              "Effect": "Allow",
-              "Resource": "*",
-            },
           ],
           "Version": "2012-10-17",
         },
-        "PolicyName": "SolutionMetricsMetricsLambdaServiceRoleDefaultPolicyE7D305A3",
+        "PolicyName": "SolutionMetricsNewMetricsLambdaServiceRoleDefaultPolicy3AE130AC",
         "Roles": [
           {
-            "Ref": "SolutionMetricsMetricsLambdaServiceRole662035AC",
+            "Ref": "SolutionMetricsNewMetricsLambdaServiceRole3196BDF4",
           },
         ],
       },
       "Type": "AWS::IAM::Policy",
     },
-    "SolutionMetricsMetricsLambdaSqsEventSourceDLTStackSolutionMetricsLambdaToSqsToLambdalambdatosqsqueue58E53CDD28E90BDF": {
+    "SolutionMetricsNewMetricsLambdaSqsEventSourceTestDLTStackSolutionMetricsNewLambdaToSqsToLambdalambdatosqsqueue6808CC43843ABCC5": {
       "Condition": "SendAnonymizedUsage",
       "Properties": {
         "EventSourceArn": {
           "Fn::GetAtt": [
-            "SolutionMetricsLambdaToSqsToLambdalambdatosqsqueue926664A2",
+            "SolutionMetricsNewLambdaToSqsToLambdalambdatosqsqueue2170C89E",
             "Arn",
           ],
         },
         "FunctionName": {
-          "Ref": "SolutionMetricsMetricsLambdaBD5829C7",
+          "Ref": "SolutionMetricsNewMetricsLambda2B1B8902",
         },
       },
       "Type": "AWS::Lambda::EventSourceMapping",

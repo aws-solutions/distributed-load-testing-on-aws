@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Template } from "aws-cdk-lib/assertions";
-import { App, DefaultStackSynthesizer, Stack } from "aws-cdk-lib";
+import { App, DefaultStackSynthesizer, Stack, CfnCondition, Fn, Aws } from "aws-cdk-lib";
 import { LogGroup } from "aws-cdk-lib/aws-logs";
 import { DLTAPI } from "../lib/front-end/api";
 import { Bucket } from "aws-cdk-lib/aws-s3";
 import { Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { Solution } from "../bin/solution";
+import { createTemplateWithoutS3Key } from "./snapshot_helpers";
 
 test("DLT API Test", () => {
   const app = new App();
@@ -15,6 +17,7 @@ test("DLT API Test", () => {
       generateBootstrapVersionRule: false,
     }),
   });
+  const solution = new Solution("testId", "DLT", "testVersion", "mainStackDescription");
   const testLog = new LogGroup(stack, "TestLogGroup");
   const testPolicy = new Policy(stack, "TestPolicy", {
     statements: [
@@ -25,6 +28,7 @@ test("DLT API Test", () => {
     ],
   });
   const testSourceBucket = Bucket.fromBucketName(stack, "SourceCodeBucket", "test-bucket-region");
+
   const api = new DLTAPI(stack, "TestAPI", {
     cloudWatchLogsPolicy: testPolicy,
     ecsCloudWatchLogGroup: testLog,
@@ -38,15 +42,12 @@ test("DLT API Test", () => {
     ecsTaskExecutionRoleArn: "arn:aws:iam::1234567890:role/MyRole-AJJHDSKSDF",
     taskRunnerStepFunctionsArn: "arn:aws:states:us-east-1:111122223333:stateMachine:HelloWorld-StateMachine",
     taskCancelerArn: "arn:aws:lambda:us-east-1:111122223333:function:HelloFunction",
-    metricsUrl: "http://testurl.com",
     sendAnonymizedUsage: "Yes",
-    solutionId: "testId",
-    solutionVersion: "testVersion",
-    sourceCodeBucket: testSourceBucket,
-    sourceCodePrefix: "testPrefix/",
     uuid: "abc123",
+    solution,
   });
-  expect(Template.fromStack(stack)).toMatchSnapshot();
+
+  expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();
   expect(api.apiId).toBeDefined();
   expect(api.apiEndpointPath).toBeDefined();
   Template.fromStack(stack).hasResourceProperties("AWS::Lambda::Function", {
@@ -59,11 +60,10 @@ test("DLT API Test", () => {
         SCENARIOS_BUCKET: "testScenarioBucketName",
         SCENARIOS_TABLE: "testDDBTable",
         STATE_MACHINE_ARN: "arn:aws:states:us-east-1:111122223333:stateMachine:HelloWorld-StateMachine",
-        SOLUTION_ID: "testId",
+        SOLUTION_ID: solution.id,
         UUID: "abc123",
-        VERSION: "testVersion",
+        VERSION: solution.version,
         SEND_METRIC: "Yes",
-        METRIC_URL: "http://testurl.com",
         TASK_CANCELER_ARN: "arn:aws:lambda:us-east-1:111122223333:function:HelloFunction",
         STACK_ID: {
           Ref: "AWS::StackId",

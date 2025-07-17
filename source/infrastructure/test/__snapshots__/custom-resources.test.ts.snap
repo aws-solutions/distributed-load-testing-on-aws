@@ -12,6 +12,56 @@ exports[`DLT API Test 1`] = `
     },
   },
   "Resources": {
+    "DLTCustomResourceInfraCustomResourceLambdaA4053269": {
+      "DependsOn": [
+        "TestCustomResourceInfraCustomResourceLambdaRoleDefaultPolicy46B2072F",
+        "TestCustomResourceInfraCustomResourceLambdaRole03671AE8",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "VPC not needed for lambda",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "CFN Lambda backed custom resource to deploy assets to s3",
+        "Environment": {
+          "Variables": {
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
+            "SOLUTION_ID": "testId",
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "TestCustomResourceInfraCustomResourceLambdaRole03671AE8",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs20.x",
+        "Timeout": 120,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
     "DLTCustomResourcesAnonymizedMetric901872DA": {
       "Condition": "condition",
       "DeletionPolicy": "Delete",
@@ -22,7 +72,7 @@ exports[`DLT API Test 1`] = `
         "Resource": "AnonymizedMetric",
         "ServiceToken": {
           "Fn::GetAtt": [
-            "TestCustomResourceInfraCustomResourceLambda92E822A7",
+            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
             "Arn",
           ],
         },
@@ -97,32 +147,16 @@ exports[`DLT API Test 1`] = `
             ],
           ],
         },
-        "DestBucket": "testconsolebucket",
+        "DestBucket": {
+          "Ref": "testConsoleBucketC1925855",
+        },
         "Resource": "ConfigFile",
         "ServiceToken": {
           "Fn::GetAtt": [
-            "TestCustomResourceInfraCustomResourceLambda92E822A7",
+            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
             "Arn",
           ],
         },
-      },
-      "Type": "AWS::CloudFormation::CustomResource",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "DLTCustomResourcesCopyConsoleFiles2EBD447E": {
-      "DeletionPolicy": "Delete",
-      "Properties": {
-        "DestBucket": "testconsolebucket",
-        "ManifestFile": "console-manifest.json",
-        "Resource": "CopyAssets",
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "TestCustomResourceInfraCustomResourceLambda92E822A7",
-            "Arn",
-          ],
-        },
-        "SrcBucket": "testcodebucket",
-        "SrcPath": "testCodePrefix//console",
       },
       "Type": "AWS::CloudFormation::CustomResource",
       "UpdateReplacePolicy": "Delete",
@@ -133,7 +167,7 @@ exports[`DLT API Test 1`] = `
         "Resource": "TestingResourcesConfigFile",
         "ServiceToken": {
           "Fn::GetAtt": [
-            "TestCustomResourceInfraCustomResourceLambda92E822A7",
+            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
             "Arn",
           ],
         },
@@ -159,63 +193,9 @@ exports[`DLT API Test 1`] = `
           },
           "taskSecurityGroup": "sg-test123",
         },
-        "Uuid": "abc-123-def-456",
       },
       "Type": "AWS::CloudFormation::CustomResource",
       "UpdateReplacePolicy": "Delete",
-    },
-    "TestCustomResourceInfraCustomResourceLambda92E822A7": {
-      "DependsOn": [
-        "TestCustomResourceInfraCustomResourceLambdaRoleDefaultPolicy46B2072F",
-        "TestCustomResourceInfraCustomResourceLambdaRole03671AE8",
-      ],
-      "Metadata": {
-        "cfn_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "W58",
-              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
-            },
-            {
-              "id": "W89",
-              "reason": "VPC not needed for lambda",
-            },
-            {
-              "id": "W92",
-              "reason": "Does not run concurrent executions",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "Code": {
-          "S3Bucket": {
-            "Ref": "testSourceCodeBucketC577B176",
-          },
-          "S3Key": "test/source/prefix/main-custom-resource.zip",
-        },
-        "Description": "CFN Lambda backed custom resource to deploy assets to s3",
-        "Environment": {
-          "Variables": {
-            "DDB_TABLE": "scenarioTestTable",
-            "MAIN_REGION": "test-region-1",
-            "METRIC_URL": "http://testurl.com",
-            "S3_BUCKET": "scenariotestbucket",
-            "SOLUTION_ID": "S0XXX",
-            "VERSION": "testVersion",
-          },
-        },
-        "Handler": "index.handler",
-        "Role": {
-          "Fn::GetAtt": [
-            "TestCustomResourceInfraCustomResourceLambdaRole03671AE8",
-            "Arn",
-          ],
-        },
-        "Runtime": "nodejs20.x",
-        "Timeout": 120,
-      },
-      "Type": "AWS::Lambda::Function",
     },
     "TestCustomResourceInfraCustomResourceLambdaRole03671AE8": {
       "Metadata": {
@@ -245,66 +225,6 @@ exports[`DLT API Test 1`] = `
           {
             "PolicyDocument": {
               "Statement": [
-                {
-                  "Action": "s3:GetObject",
-                  "Effect": "Allow",
-                  "Resource": {
-                    "Fn::Join": [
-                      "",
-                      [
-                        {
-                          "Fn::GetAtt": [
-                            "testSourceCodeBucketC577B176",
-                            "Arn",
-                          ],
-                        },
-                        "/*",
-                      ],
-                    ],
-                  },
-                },
-                {
-                  "Action": [
-                    "s3:PutObject",
-                    "s3:DeleteObject",
-                  ],
-                  "Effect": "Allow",
-                  "Resource": {
-                    "Fn::Join": [
-                      "",
-                      [
-                        "arn:",
-                        {
-                          "Ref": "AWS::Partition",
-                        },
-                        ":s3:::scenariotestbucket/*",
-                      ],
-                    ],
-                  },
-                },
-                {
-                  "Action": [
-                    "dynamodb:PutItem",
-                    "dynamodb:DeleteItem",
-                  ],
-                  "Effect": "Allow",
-                  "Resource": {
-                    "Fn::Join": [
-                      "",
-                      [
-                        "arn:",
-                        {
-                          "Ref": "AWS::Partition",
-                        },
-                        ":dynamodb:test-region-1:",
-                        {
-                          "Ref": "AWS::AccountId",
-                        },
-                        ":table/scenarioTestTable",
-                      ],
-                    ],
-                  },
-                },
                 {
                   "Action": [
                     "iot:DescribeEndpoint",
@@ -353,10 +273,20 @@ exports[`DLT API Test 1`] = `
             {
               "Action": "s3:PutObject",
               "Effect": "Allow",
-              "Resource": [
-                "test:console:bucket:arn",
-                "test:console:bucket:arn/*",
-              ],
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    {
+                      "Fn::GetAtt": [
+                        "testConsoleBucketC1925855",
+                        "Arn",
+                      ],
+                    },
+                    "/*",
+                  ],
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -370,28 +300,7 @@ exports[`DLT API Test 1`] = `
       },
       "Type": "AWS::IAM::Policy",
     },
-    "TestPolicyCC05E598": {
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": "cloudwatch:Get*",
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "TestPolicyCC05E598",
-        "Roles": [
-          {
-            "Ref": "TestCustomResourceInfraCustomResourceLambdaRole03671AE8",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "testSourceCodeBucketC577B176": {
+    "testConsoleBucketC1925855": {
       "DeletionPolicy": "Retain",
       "Type": "AWS::S3::Bucket",
       "UpdateReplacePolicy": "Retain",

@@ -4,32 +4,24 @@
 import { CloudFrontToS3 } from "@aws-solutions-constructs/aws-cloudfront-s3";
 import { Bucket, IBucket } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
+import { BucketDeployment, Source as S3Source } from "aws-cdk-lib/aws-s3-deployment";
+import * as path from "path";
 
-/**
- * @interface DLTConsoleConstructProps
- * DLTConsoleConstruct props
- */
 export interface DLTConsoleConstructProps {
-  // S3 Logs Bucket
   readonly s3LogsBucket: Bucket;
-  // Solution ID
   readonly solutionId: string;
 }
 
-/**
- * Distributed Load Testing on AWS console construct
- * This creates the S3 bucket and CloudFront distribution
- * and Cognito resources for the web front end.
- */
 export class DLTConsoleConstruct extends Construct {
-  public cloudFrontDomainName: string;
+  public webAppURL: string;
   public consoleBucketArn: string;
   public consoleBucket: IBucket;
 
   constructor(scope: Construct, id: string, props: DLTConsoleConstructProps) {
     super(scope, id);
 
-    const dltS3CloudFrontDist = new CloudFrontToS3(this, "DLTCloudFrontToS3", {
+    // Create the standard region CloudFront distribution
+    const dltS3CloudFrontDist = new CloudFrontToS3(this, "DLTDashboardS3", {
       bucketProps: {
         serverAccessLogsBucket: props.s3LogsBucket,
         serverAccessLogsPrefix: "console-bucket-access/",
@@ -48,9 +40,14 @@ export class DLTConsoleConstruct extends Construct {
       insertHttpSecurityHeaders: false,
     });
 
-    this.cloudFrontDomainName = dltS3CloudFrontDist.cloudFrontWebDistribution.domainName;
     this.consoleBucket = dltS3CloudFrontDist.s3BucketInterface;
-
+    this.webAppURL = `https://${dltS3CloudFrontDist.cloudFrontWebDistribution.domainName}`;
     this.consoleBucketArn = dltS3CloudFrontDist.s3BucketInterface.bucketArn;
+
+    new BucketDeployment(this, "DeployWebsite", {
+      sources: [S3Source.asset(path.join(__dirname, "../../../console/build"))], // build react app before cdk deploy
+      destinationBucket: this.consoleBucket,
+      exclude: ["assets/aws_config.js"],
+    });
   }
 }

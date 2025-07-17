@@ -144,6 +144,20 @@ describe("Functions Testing", () => {
         },
       },
     });
+
+    props.testType = "k6";
+
+    await createInstance.setPayloadTestScenario(props);
+
+    expect(payload).toEqual({
+      testScenario: {
+        scenarios: {
+          testName: {
+            script: "123.js",
+          },
+        },
+      },
+    });
   });
   describe("uploadFileToScenarioBucket", () => {
     test.each([
@@ -154,6 +168,109 @@ describe("Functions Testing", () => {
       createInstance.state = { file: { type: initialFileType === "zip" ? "application/zip" : "text/plain" } };
       await createInstance.uploadFileToScenarioBucket("test");
       expect(uploadData).toHaveBeenCalledTimes(1); // NOSONAR
+    });
+  });
+
+  describe("handleInputChange", () => {
+    test("updates form value for regular input", () => {
+      const createInstance = new Create(commonProps);
+      createInstance.setFormValue = jest.fn();
+      const event = { target: { name: "testName", value: "New Test", id: "testName" } };
+
+      createInstance.handleInputChange(event);
+
+      expect(createInstance.setFormValue).toHaveBeenCalledWith("testName", "New Test", "testName");
+    });
+
+    test("handles checkbox input for showLive", () => {
+      const createInstance = new Create(commonProps);
+      createInstance.setFormValue = jest.fn();
+      const event = { target: { name: "showLive", checked: true, id: "showLive" } };
+
+      createInstance.handleInputChange(event);
+
+      expect(createInstance.setFormValue).toHaveBeenCalledWith("showLive", true, "showLive");
+    });
+
+    test("resets file when testType changes to k6", () => {
+      const createInstance = new Create(commonProps);
+      createInstance.setFormValue = jest.fn();
+      createInstance.setState = jest.fn();
+      const event = { target: { name: "testType", value: "k6", id: "testType" } };
+
+      createInstance.handleInputChange(event);
+
+      expect(createInstance.setState).toHaveBeenCalledWith({ file: null });
+      expect(createInstance.setState).toHaveBeenCalledWith({ showModal: true });
+    });
+
+    test("shows modal when testType is k6 and not acknowledged", () => {
+      const createInstance = new Create(commonProps);
+      createInstance.state = { isAcknowledged: false, formValues: { onSchedule: "0" } };
+      createInstance.setFormValue = jest.fn();
+      createInstance.setState = jest.fn();
+      const event = { target: { name: "testType", value: "k6", id: "testType" } };
+
+      createInstance.handleInputChange(event);
+
+      expect(createInstance.setState).toHaveBeenCalledWith({ showModal: true });
+      expect(createInstance.setFormValue).toHaveBeenCalledWith("k6Acknowledged", false);
+    });
+
+    test("does not show modal when testType is k6 but already acknowledged", () => {
+      const createInstance = new Create(commonProps);
+      createInstance.state = { isAcknowledged: true, formValues: { onSchedule: "0" } };
+      createInstance.setFormValue = jest.fn();
+      createInstance.setState = jest.fn();
+      const event = { target: { name: "testType", value: "k6", id: "testType" } };
+
+      createInstance.handleInputChange(event);
+
+      expect(createInstance.setState).not.toHaveBeenCalledWith({ showModal: true });
+    });
+
+    test("updates submit label when onSchedule changes", () => {
+      const createInstance = new Create(commonProps);
+      createInstance.setFormValue = jest.fn();
+      createInstance.setState = jest.fn();
+      const event = { target: { name: "onSchedule", value: "1", id: "onSchedule" } };
+
+      createInstance.handleInputChange(event);
+
+      expect(createInstance.setState).toHaveBeenCalledWith({ submitLabel: "Schedule" });
+    });
+
+    test("updates submit label when onSchedule changes", () => {
+      const createInstance = new Create(commonProps);
+      createInstance.setFormValue = jest.fn();
+      createInstance.setState = jest.fn();
+      const event = { target: { name: "onSchedule", value: "0", id: "onSchedule" } };
+
+      createInstance.handleInputChange(event);
+
+      expect(createInstance.setState).toHaveBeenCalledWith({ submitLabel: "Run Now" });
+    });
+
+    test("calls checkForTaskCountWarning for testTaskConfigs", () => {
+      const createInstance = new Create(commonProps);
+      createInstance.setFormValue = jest.fn();
+      createInstance.checkForTaskCountWarning = jest.fn();
+      const event = { target: { name: "testTaskConfigs", value: "5", id: "taskCount-0" } };
+
+      createInstance.handleInputChange(event);
+
+      expect(createInstance.checkForTaskCountWarning).toHaveBeenCalledWith("5", "taskCount-0");
+    });
+
+    test("handles cronExpiryDate validation", () => {
+      const createInstance = new Create(commonProps);
+      createInstance.setFormValue = jest.fn();
+      createInstance.setState = jest.fn();
+      const event = { target: { name: "cronExpiryDate", value: "2023-01-01", id: "cronExpiryDate" } };
+
+      createInstance.handleInputChange(event);
+
+      expect(createInstance.setState).toHaveBeenCalledWith({ cronDateError: true });
     });
   });
 });

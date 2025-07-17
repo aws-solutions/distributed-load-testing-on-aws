@@ -61,7 +61,7 @@ exports[`DLT API Test 1`] = `
                 "PUT",
               ],
               "AllowedOrigins": [
-                "https://test.exampledomain.com",
+                "test.exampledomain.com",
               ],
               "ExposedHeaders": [
                 "ETag",

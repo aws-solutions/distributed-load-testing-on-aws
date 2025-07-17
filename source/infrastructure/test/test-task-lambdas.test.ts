@@ -4,10 +4,12 @@
 import { Template } from "aws-cdk-lib/assertions";
 import { App, DefaultStackSynthesizer, Stack } from "aws-cdk-lib";
 import { TestRunnerLambdasConstruct } from "../lib/back-end/test-task-lambdas";
-import { Bucket } from "aws-cdk-lib/aws-s3";
 import { Effect, Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { LogGroup } from "aws-cdk-lib/aws-logs";
 import { AttributeType, Table } from "aws-cdk-lib/aws-dynamodb";
+import { Solution, SOLUTIONS_METRICS_ENDPOINT } from "../bin/solution";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import { createTemplateWithoutS3Key } from "./snapshot_helpers";
 
 test("DLT Task Lambda Test", () => {
   const app = new App();
@@ -48,19 +50,17 @@ test("DLT Task Lambda Test", () => {
 
   const testLogGroup = new LogGroup(stack, "TestLogsGroup");
 
-  const testBucket = Bucket.fromBucketName(stack, "SourceCodeBucket", "testbucket");
   const testTable = new Table(stack, "TestTable", {
     partitionKey: {
       name: "id",
       type: AttributeType.STRING,
     },
   });
-
+  const solution = new Solution("testId", "DLT", "testVersion", "mainStackDescription");
   const testFunctions = new TestRunnerLambdasConstruct(stack, "TaskRunnerLambdaFunctions", {
     cloudWatchLogsPolicy: testPolicy,
     scenariosDynamoDbPolicy: testDBPolicy,
     ecsTaskExecutionRoleArn: "arn:aws:iam:us-east-1:111122223333:roleArn",
-    ecsCloudWatchLogGroup: testLogGroup,
     ecsCluster: "testCluster",
     ecsTaskDefinition: "testTaskDefinition",
     ecsTaskSecurityGroup: "testSecurityGroup",
@@ -69,19 +69,15 @@ test("DLT Task Lambda Test", () => {
     scenariosS3Policy: testS3Policy,
     subnetA: "testSubnetA",
     subnetB: "testSubnetB",
-    metricsUrl: "test.example.net",
     sendAnonymizedUsage: "No",
-    solutionId: "testId",
-    solutionVersion: "testVersion",
-    sourceCodeBucket: testBucket,
-    sourceCodePrefix: "testPrefix",
+    solution,
     scenariosBucket: "testBucket",
     scenariosBucketArn: "testBucketArn",
     scenariosTable: testTable,
     uuid: "testId",
     mainStackRegion: "us-east-1",
   });
-  expect(Template.fromStack(stack)).toMatchSnapshot();
+  expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();
 
   Template.fromStack(stack).hasResourceProperties("AWS::IAM::Policy", {
     PolicyDocument: testPolicy.document.toJSON(),
@@ -102,21 +98,17 @@ test("DLT Task Lambda Test", () => {
   });
 
   Template.fromStack(stack).hasResourceProperties("AWS::Lambda::Function", {
-    Code: {
-      S3Bucket: "testbucket",
-      S3Key: "testPrefix/results-parser.zip",
-    },
     Environment: {
       Variables: {
-        METRIC_URL: "test.example.net",
+        METRIC_URL: SOLUTIONS_METRICS_ENDPOINT,
         SCENARIOS_BUCKET: "testBucket",
         SCENARIOS_TABLE: {
           Ref: "TestTable5769773A",
         },
         SEND_METRIC: "No",
-        SOLUTION_ID: "testId",
+        SOLUTION_ID: solution.id,
         UUID: "testId",
-        VERSION: "testVersion",
+        VERSION: solution.version,
       },
     },
     Handler: "index.handler",
@@ -151,51 +143,9 @@ test("DLT Task Lambda Test", () => {
     ],
   });
 
-  Template.fromStack(stack).hasResourceProperties("AWS::IAM::Role", {
-    Policies: [
-      {
-        PolicyDocument: {
-          Statement: [
-            {
-              Action: "ecs:ListTasks",
-              Effect: "Allow",
-              Resource: "*",
-            },
-            {
-              Action: "ecs:DescribeTasks",
-              Effect: "Allow",
-              Resource: {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:",
-                    {
-                      Ref: "AWS::Partition",
-                    },
-                    ":ecs:",
-                    {
-                      Ref: "AWS::Region",
-                    },
-                    ":",
-                    {
-                      Ref: "AWS::AccountId",
-                    },
-                    ":task/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          Version: "2012-10-17",
-        },
-        PolicyName: "TaskStatusPolicy",
-      },
-    ],
-  });
-
-  expect(testFunctions.resultsParser).toBeDefined();
-  expect(testFunctions.taskRunner).toBeDefined();
-  expect(testFunctions.taskCanceler).toBeDefined();
-  expect(testFunctions.taskCancelerInvokePolicy).toBeDefined();
-  expect(testFunctions.taskStatusChecker).toBeDefined();
+  expect(testFunctions.resultsParser).toBeInstanceOf(NodejsFunction);
+  expect(testFunctions.taskRunner).toBeInstanceOf(NodejsFunction);
+  expect(testFunctions.taskCanceler).toBeInstanceOf(NodejsFunction);
+  expect(testFunctions.taskCancelerInvokePolicy).toBeInstanceOf(Policy);
+  expect(testFunctions.taskStatusChecker).toBeInstanceOf(NodejsFunction);
 });

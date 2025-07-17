@@ -50,6 +50,17 @@ if [ "$TEST_TYPE" != "simple" ]; then
     JMETER_LIB_PATH=`find ~/.bzt/jmeter-taurus -type d -name "lib"`
     echo "cp $PWD/*.jar $JMETER_LIB_PATH"
     cp $PWD/*.jar $JMETER_LIB_PATH 
+  elif [ "$TEST_TYPE" == "k6" ]; then
+    curl --output /tmp/artifacts/k6.rpm https://dl.k6.io/rpm/x86_64/k6-v0.58.0-amd64.rpm
+    rpm -ivh /tmp/artifacts/k6.rpm
+    dnf install -y k6
+    rm -rf /tmp/artifacts/k6.rpm
+    EXT="js"
+    KPI_EXT="csv"
+    TYPE_NAME="K6"
+  elif [ "$TEST_TYPE" == "locust" ]; then
+    EXT="py"
+    TYPE_NAME="Locust"
 
   fi
 
@@ -60,6 +71,13 @@ if [ "$TEST_TYPE" != "simple" ]; then
     unzip $TEST_ID.zip
     echo "UNZIPPED"
     ls -l
+
+    # If zip and locust, make sure to pick locustfile
+    if [ "$TEST_TYPE" != "locust" ]; then
+      TEST_SCRIPT=$(find . -name "*.${EXT}" | head -n 1)
+    else 
+      TEST_SCRIPT=$(find . -name "locustfile.py" | head -n 1)
+    fi
     # only looks for the first test script file.
     TEST_SCRIPT=`find . -name "*.${EXT}" | head -n 1`
     echo $TEST_SCRIPT

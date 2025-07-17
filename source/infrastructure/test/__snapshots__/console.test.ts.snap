@@ -3,7 +3,166 @@
 exports[`DLT API Test 1`] = `
 {
   "Resources": {
-    "TestConsoleResourcesDLTCloudFrontToS3CloudFrontDistribution4534927E": {
+    "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536": {
+      "DependsOn": [
+        "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF",
+        "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Environment": {
+          "Variables": {
+            "AWS_CA_BUNDLE": "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
+          },
+        },
+        "Handler": "index.handler",
+        "Layers": [
+          {
+            "Ref": "TestConsoleResourcesDeployWebsiteAwsCliLayer05FE2CFC",
+          },
+        ],
+        "Role": {
+          "Fn::GetAtt": [
+            "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.11",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::",
+                      {
+                        "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+                      },
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::",
+                      {
+                        "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:DeleteObject*",
+                "s3:PutObject",
+                "s3:PutObjectLegalHold",
+                "s3:PutObjectRetention",
+                "s3:PutObjectTagging",
+                "s3:PutObjectVersionTagging",
+                "s3:Abort*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "TestConsoleResourcesDLTDashboardS3S3BucketBAD21F2D",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "TestConsoleResourcesDLTDashboardS3S3BucketBAD21F2D",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF",
+        "Roles": [
+          {
+            "Ref": "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestConsoleResourcesDLTDashboardS3CloudFrontDistribution46BCE0E5": {
       "Metadata": {
         "cfn_nag": {
           "rules_to_suppress": [
@@ -32,7 +191,7 @@ exports[`DLT API Test 1`] = `
           "DefaultCacheBehavior": {
             "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
             "Compress": true,
-            "TargetOriginId": "DLTStackTestConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1AA2FCD06",
+            "TargetOriginId": "DLTStackTestConsoleResourcesDLTDashboardS3CloudFrontDistributionOrigin172E05260",
             "ViewerProtocolPolicy": "redirect-to-https",
           },
           "DefaultRootObject": "index.html",
@@ -52,25 +211,27 @@ exports[`DLT API Test 1`] = `
             {
               "DomainName": {
                 "Fn::GetAtt": [
-                  "TestConsoleResourcesDLTCloudFrontToS3S3BucketAC4D9E17",
+                  "TestConsoleResourcesDLTDashboardS3S3BucketBAD21F2D",
                   "RegionalDomainName",
                 ],
               },
-              "Id": "DLTStackTestConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1AA2FCD06",
+              "Id": "DLTStackTestConsoleResourcesDLTDashboardS3CloudFrontDistributionOrigin172E05260",
               "OriginAccessControlId": {
                 "Fn::GetAtt": [
-                  "TestConsoleResourcesDLTCloudFrontToS3CloudFrontOac32BD357B",
+                  "TestConsoleResourcesDLTDashboardS3CloudFrontOac26646AB3",
                   "Id",
                 ],
               },
-              "S3OriginConfig": {},
+              "S3OriginConfig": {
+                "OriginAccessIdentity": "",
+              },
             },
           ],
         },
       },
       "Type": "AWS::CloudFront::Distribution",
     },
-    "TestConsoleResourcesDLTCloudFrontToS3CloudFrontOac32BD357B": {
+    "TestConsoleResourcesDLTDashboardS3CloudFrontOac26646AB3": {
       "Properties": {
         "OriginAccessControlConfig": {
           "Description": "Origin access control provisioned by aws-cloudfront-s3",
@@ -78,7 +239,7 @@ exports[`DLT API Test 1`] = `
             "Fn::Join": [
               "",
               [
-                "aws-cloudfront-s3-DLTCtToS3-",
+                "aws-cloudfront-s3-DLTDardS3-",
                 {
                   "Fn::Select": [
                     2,
@@ -102,7 +263,7 @@ exports[`DLT API Test 1`] = `
       },
       "Type": "AWS::CloudFront::OriginAccessControl",
     },
-    "TestConsoleResourcesDLTCloudFrontToS3S3BucketAC4D9E17": {
+    "TestConsoleResourcesDLTDashboardS3S3BucketBAD21F2D": {
       "DeletionPolicy": "Retain",
       "Properties": {
         "BucketEncryption": {
@@ -139,6 +300,12 @@ exports[`DLT API Test 1`] = `
           "IgnorePublicAcls": true,
           "RestrictPublicBuckets": true,
         },
+        "Tags": [
+          {
+            "Key": "aws-cdk:cr-owned:23e34e18",
+            "Value": "true",
+          },
+        ],
         "VersioningConfiguration": {
           "Status": "Enabled",
         },
@@ -146,7 +313,7 @@ exports[`DLT API Test 1`] = `
       "Type": "AWS::S3::Bucket",
       "UpdateReplacePolicy": "Retain",
     },
-    "TestConsoleResourcesDLTCloudFrontToS3S3BucketPolicy2004C0F3": {
+    "TestConsoleResourcesDLTDashboardS3S3BucketPolicy0744226D": {
       "Metadata": {
         "cfn_nag": {
           "rules_to_suppress": [
@@ -159,7 +326,7 @@ exports[`DLT API Test 1`] = `
       },
       "Properties": {
         "Bucket": {
-          "Ref": "TestConsoleResourcesDLTCloudFrontToS3S3BucketAC4D9E17",
+          "Ref": "TestConsoleResourcesDLTDashboardS3S3BucketBAD21F2D",
         },
         "PolicyDocument": {
           "Statement": [
@@ -177,7 +344,7 @@ exports[`DLT API Test 1`] = `
               "Resource": [
                 {
                   "Fn::GetAtt": [
-                    "TestConsoleResourcesDLTCloudFrontToS3S3BucketAC4D9E17",
+                    "TestConsoleResourcesDLTDashboardS3S3BucketBAD21F2D",
                     "Arn",
                   ],
                 },
@@ -187,7 +354,7 @@ exports[`DLT API Test 1`] = `
                     [
                       {
                         "Fn::GetAtt": [
-                          "TestConsoleResourcesDLTCloudFrontToS3S3BucketAC4D9E17",
+                          "TestConsoleResourcesDLTDashboardS3S3BucketBAD21F2D",
                           "Arn",
                         ],
                       },
@@ -205,13 +372,17 @@ exports[`DLT API Test 1`] = `
                     "Fn::Join": [
                       "",
                       [
-                        "arn:aws:cloudfront::",
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":cloudfront::",
                         {
                           "Ref": "AWS::AccountId",
                         },
                         ":distribution/",
                         {
-                          "Ref": "TestConsoleResourcesDLTCloudFrontToS3CloudFrontDistribution4534927E",
+                          "Ref": "TestConsoleResourcesDLTDashboardS3CloudFrontDistribution46BCE0E5",
                         },
                       ],
                     ],
@@ -228,7 +399,7 @@ exports[`DLT API Test 1`] = `
                   [
                     {
                       "Fn::GetAtt": [
-                        "TestConsoleResourcesDLTCloudFrontToS3S3BucketAC4D9E17",
+                        "TestConsoleResourcesDLTDashboardS3S3BucketBAD21F2D",
                         "Arn",
                       ],
                     },
@@ -242,6 +413,47 @@ exports[`DLT API Test 1`] = `
         },
       },
       "Type": "AWS::S3::BucketPolicy",
+    },
+    "TestConsoleResourcesDeployWebsiteAwsCliLayer05FE2CFC": {
+      "Properties": {
+        "Content": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "/opt/awscli/aws",
+      },
+      "Type": "AWS::Lambda::LayerVersion",
+    },
+    "TestConsoleResourcesDeployWebsiteCustomResource859CA807": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "DestinationBucketName": {
+          "Ref": "TestConsoleResourcesDLTDashboardS3S3BucketBAD21F2D",
+        },
+        "Exclude": [
+          "assets/aws_config.js",
+        ],
+        "OutputObjectKeys": true,
+        "Prune": true,
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536",
+            "Arn",
+          ],
+        },
+        "SourceBucketNames": [
+          {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+        ],
+        "SourceObjectKeys": [
+          "Omitted to remove snapshot dependency on demo ui module hash",
+        ],
+      },
+      "Type": "Custom::CDKBucketDeployment",
+      "UpdateReplacePolicy": "Delete",
     },
     "testSourceCodeBucketC577B176": {
       "DeletionPolicy": "Retain",

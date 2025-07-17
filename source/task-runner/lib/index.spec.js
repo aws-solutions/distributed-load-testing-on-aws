@@ -1,48 +1,64 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-// Mock AWS SDK
-const mockAWS = require("aws-sdk");
-
 const mockDynamoDb = {
   update: jest.fn(),
   get: jest.fn(),
 };
+
 const mockEcs = {
   runTask: jest.fn(),
   listTasks: jest.fn(),
   describeTasks: jest.fn(),
 };
+
 const mockCloudWatch = {
   putDashboard: jest.fn(),
   getDashboard: jest.fn(),
 };
+
 const mockCloudWatchLogs = {
   putMetricFilter: jest.fn(),
 };
+
 const mockS3 = {
   putObject: jest.fn(),
 };
 
-mockAWS.ECS = jest.fn(() => ({
-  runTask: mockEcs.runTask,
-  listTasks: mockEcs.listTasks,
-  describeTasks: mockEcs.describeTasks,
-}));
-mockAWS.DynamoDB.DocumentClient = jest.fn(() => ({
-  update: mockDynamoDb.update,
-  get: mockDynamoDb.get,
-}));
-mockAWS.CloudWatch = jest.fn(() => ({
-  putDashboard: mockCloudWatch.putDashboard,
-  getDashboard: mockCloudWatch.getDashboard,
-}));
-mockAWS.CloudWatchLogs = jest.fn(() => ({
-  putMetricFilter: mockCloudWatchLogs.putMetricFilter,
+jest.mock("@aws-sdk/lib-dynamodb", () => ({
+  DynamoDBDocument: {
+    from: jest.fn(() => ({
+      update: mockDynamoDb.update,
+      get: mockDynamoDb.get,
+    })),
+  },
 }));
 
-mockAWS.S3 = jest.fn(() => ({
-  putObject: mockS3.putObject,
+jest.mock("@aws-sdk/client-ecs", () => ({
+  ECS: jest.fn(() => ({
+    runTask: mockEcs.runTask,
+    listTasks: mockEcs.listTasks,
+    describeTasks: mockEcs.describeTasks,
+  })),
+}));
+
+jest.mock("@aws-sdk/client-cloudwatch", () => ({
+  CloudWatch: jest.fn(() => ({
+    putDashboard: mockCloudWatch.putDashboard,
+    getDashboard: mockCloudWatch.getDashboard,
+  })),
+}));
+
+jest.mock("@aws-sdk/client-cloudwatch-logs", () => ({
+  CloudWatchLogs: jest.fn(() => ({
+    putMetricFilter: mockCloudWatchLogs.putMetricFilter,
+  })),
+}));
+
+jest.mock("@aws-sdk/client-s3", () => ({
+  S3: jest.fn(() => ({
+    putObject: mockS3.putObject,
+  })),
 }));
 
 // Mock Date
@@ -76,7 +92,7 @@ let event = {
   fileType: "none",
   showLive: true,
   isRunning: false,
-  prefix: now.toISOString().replace("Z", "").split("").reverse().join(""),
+  prefix: now.toISOString().replace("Z", ""),
 };
 const origEvent = event;
 
@@ -173,43 +189,22 @@ describe("#TASK RUNNER:: ", () => {
   });
 
   it("should return scenario and prefix when running ECS worker tasks succeeds", async () => {
-    mockCloudWatchLogs.putMetricFilter.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
-    mockCloudWatch.putDashboard.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
+    mockCloudWatchLogs.putMetricFilter.mockResolvedValue({});
+    mockCloudWatch.putDashboard.mockResolvedValue({});
 
     // Checking for worker tasks - so it's total tasks - 1
-    mockEcs.runTask.mockImplementationOnce(() => {
-      let taskList = runTaskReturn(4);
-      return {
-        promise() {
-          return Promise.resolve({
-            tasks: taskList,
-            failures: [],
-          });
-        },
-      };
+    mockEcs.runTask.mockResolvedValueOnce({
+      tasks: runTaskReturn(4),
+      failures: [],
     });
 
-    mockDynamoDb.get.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve({
-          Item: { status: "running" },
-        });
-      },
-    }));
+    mockDynamoDb.get.mockResolvedValueOnce({
+      Item: { status: "running" },
+    });
 
-    mockEcs.listTasks.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve({ taskArns: [1, 2, 3, 4] });
-      },
-    }));
+    mockEcs.listTasks.mockResolvedValueOnce({
+      taskArns: [1, 2, 3, 4],
+    });
 
     const response = await lambda.handler(event, mockContext);
     let expectedResponse = {
@@ -220,53 +215,22 @@ describe("#TASK RUNNER:: ", () => {
       testId: "testId",
       taskIds: ["a/0", "a/1", "a/2", "a/3"],
     };
-    const test = {
-      concurrency: 3,
-      ecsCloudWatchLogGroup: "testEcsCloudWatchLogGroup",
-      taskDefinition: "arn:aws:ecs:us-west-2:123456789012:task-definition/testTaskDefinition:1",
-      subnetB: "subnet-1111aaaa",
-      taskImage: "test-load-tester",
-      subnetA: "subnet-2222bbbb",
-      taskSecurityGroup: "sg-abcd1234",
-      testType: "simple",
-      taskCluster: "testTaskCluster",
-      region: "us-west-2",
-      taskCount: 5,
-    };
     expect(mockEcs.runTask).toHaveBeenCalledTimes(1);
     expect(mockEcs.runTask).toHaveBeenCalledWith({ ...mockParam, count: 4 });
     expect(response).toEqual(expect.objectContaining(expectedResponse));
   });
   it('isRunning should be false if DDB returns "status !== running', async () => {
-    mockCloudWatchLogs.putMetricFilter.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
-    mockCloudWatch.putDashboard.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
-    mockEcs.runTask.mockImplementationOnce(() => {
-      let taskList = runTaskReturn(4);
-      return {
-        promise() {
-          return Promise.resolve({
-            tasks: taskList,
-            failures: [],
-          });
-        },
-      };
+    mockCloudWatchLogs.putMetricFilter.mockResolvedValue({});
+    mockCloudWatch.putDashboard.mockResolvedValue({});
+
+    mockEcs.runTask.mockResolvedValueOnce({
+      tasks: runTaskReturn(4),
+      failures: [],
     });
 
-    mockDynamoDb.get.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve({
-          Item: { status: "stopped" },
-        });
-      },
-    }));
+    mockDynamoDb.get.mockResolvedValueOnce({
+      Item: { status: "stopped" },
+    });
     const response = await lambda.handler(event, mockContext);
     expect(response.isRunning).toEqual(false);
   });
@@ -282,45 +246,23 @@ describe("#TASK RUNNER:: ", () => {
       },
     }));
     mockEcs.runTask
-      .mockImplementationOnce(() => {
-        let taskList = runTaskReturn(10);
-        return {
-          promise() {
-            return Promise.resolve({
-              tasks: taskList,
-              failures: [],
-            });
-          },
-        };
+      .mockResolvedValueOnce({
+        tasks: runTaskReturn(10),
+        failures: [],
       })
-      .mockImplementationOnce(() => {
-        let taskList = runTaskReturn(9);
-        return {
-          promise() {
-            return Promise.resolve({
-              tasks: taskList,
-              failures: [],
-            });
-          },
-        };
+      .mockResolvedValueOnce({
+        tasks: runTaskReturn(9),
+        failures: [],
       });
 
-    mockDynamoDb.get.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve({
-          Item: { status: "running" },
-        });
-      },
-    }));
+    mockDynamoDb.get.mockResolvedValueOnce({
+      Item: { status: "running" },
+    });
 
-    mockEcs.listTasks.mockImplementationOnce(() => {
-      let taskList = runTaskReturn(10);
-      taskList = taskList.concat(runTaskReturn(9));
-      return {
-        promise() {
-          return Promise.resolve({ taskArns: taskList });
-        },
-      };
+    let taskList = runTaskReturn(10);
+    taskList = taskList.concat(runTaskReturn(9));
+    mockEcs.listTasks.mockResolvedValueOnce({
+      taskArns: taskList,
     });
 
     event.testTaskConfig.taskCount = 20;
@@ -361,35 +303,18 @@ describe("#TASK RUNNER:: ", () => {
     event.taskIds = taskIds;
     let taskList = describeTasksReturn(4);
 
-    mockEcs.describeTasks.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve({ tasks: taskList });
-      },
-    }));
-
-    mockEcs.runTask.mockImplementation(() => {
-      let leadTask = runTaskReturn(1);
-      return {
-        promise() {
-          return Promise.resolve({
-            tasks: leadTask,
-            failures: [],
-          });
-        },
-      };
+    mockEcs.describeTasks.mockResolvedValueOnce({
+      tasks: taskList,
     });
 
-    mockEcs.listTasks.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
+    mockEcs.runTask.mockResolvedValue({
+      tasks: runTaskReturn(1),
+      failures: [],
+    });
 
-    mockS3.putObject.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
+    mockEcs.listTasks.mockResolvedValueOnce({});
+
+    mockS3.putObject.mockResolvedValueOnce({});
 
     let expectedResponse = {
       fileType: "none",
@@ -421,37 +346,18 @@ describe("#TASK RUNNER:: ", () => {
     event.taskIds = taskIds;
     let taskList = describeTasksReturn(4);
 
-    mockEcs.describeTasks.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve({ tasks: taskList });
-      },
-    }));
+    mockEcs.describeTasks.mockResolvedValueOnce({
+      tasks: taskList,
+    });
 
-    mockEcs.runTask.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve({
-          tasks: [],
-          failures: ["Task failure"],
-        });
-      },
-    }));
+    mockEcs.runTask.mockResolvedValue({
+      tasks: [],
+      failures: ["Task failure"],
+    });
 
-    mockEcs.listTasks.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
-    mockDynamoDb.update.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
-
-    mockS3.putObject.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
+    mockEcs.listTasks.mockResolvedValueOnce({});
+    mockDynamoDb.update.mockResolvedValueOnce({});
+    mockS3.putObject.mockResolvedValueOnce({});
 
     try {
       await lambda.handler(event);
@@ -463,26 +369,10 @@ describe("#TASK RUNNER:: ", () => {
     mockParam.overrides.containerOverrides[0].environment.pop();
   });
   it('should throw "ECS ERROR" when ECS.runTask fails', async () => {
-    mockCloudWatchLogs.putMetricFilter.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
-    mockCloudWatch.putDashboard.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
-    mockEcs.runTask.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.reject("ECS ERROR");
-      },
-    }));
-    mockDynamoDb.update.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
+    mockCloudWatchLogs.putMetricFilter.mockResolvedValue({});
+    mockCloudWatch.putDashboard.mockResolvedValue({});
+    mockEcs.runTask.mockRejectedValueOnce("ECS ERROR");
+    mockDynamoDb.update.mockResolvedValueOnce({});
 
     try {
       event.testTaskConfig.taskCount = 1;
@@ -509,31 +399,11 @@ describe("#TASK RUNNER:: ", () => {
     }
   });
   it("should throw an error when DynamoDB.DocumentClient.update fails and not update the DynamoDB", async () => {
-    mockCloudWatchLogs.putMetricFilter.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
-    mockCloudWatch.putDashboard.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
-    mockEcs.runTask.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.reject("ECS ERROR");
-      },
-    }));
-    mockDynamoDb.update.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.reject("DynamoDB.DocumentClient.update failed");
-      },
-    }));
-    mockS3.putObject.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
+    mockCloudWatchLogs.putMetricFilter.mockResolvedValue({});
+    mockCloudWatch.putDashboard.mockResolvedValue({});
+    mockEcs.runTask.mockRejectedValueOnce("ECS ERROR");
+    mockDynamoDb.update.mockRejectedValueOnce("DynamoDB.DocumentClient.update failed");
+    mockS3.putObject.mockResolvedValueOnce({});
 
     try {
       event.taskCount = 1;

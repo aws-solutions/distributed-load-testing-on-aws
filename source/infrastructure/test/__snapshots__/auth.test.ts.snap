@@ -34,7 +34,7 @@ exports[`DLT API Test 1`] = `
         "UserAttributes": [
           {
             "Name": "email",
-            "Value": "test@test.com",
+            "Value": "email",
           },
           {
             "Name": "nickname",
@@ -305,7 +305,7 @@ exports[`DLT API Test 1`] = `
                     Password: <strong>{####}</strong>
                 </p>
                 <p>
-                    Console: <strong>https://test.com/</strong>
+                    Console: <strong>test.com/</strong>
                 </p>
               ",
             "EmailSubject": "Welcome to Distributed Load Testing",

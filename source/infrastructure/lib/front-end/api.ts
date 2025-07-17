@@ -1,9 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Code, Function as LambdaFunction, Runtime } from "aws-cdk-lib/aws-lambda";
+import * as path from "path";
+import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { Aws, ArnFormat, CfnResource, Duration, RemovalPolicy, Stack } from "aws-cdk-lib";
-import { IBucket } from "aws-cdk-lib/aws-s3";
 import { ILogGroup, LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Effect, Policy, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import {
@@ -24,6 +24,8 @@ import {
   Stage,
 } from "aws-cdk-lib/aws-apigateway";
 import { Construct } from "constructs";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import { Solution, SOLUTIONS_METRICS_ENDPOINT } from "../../bin/solution";
 
 /**
  * @interface DLTAPIProps
@@ -58,12 +60,8 @@ export interface DLTAPIProps {
    * Solution config properties.
    * the metric URL endpoint, send anonymized usage, solution ID, version, source code bucket, and source code prefix
    */
-  readonly metricsUrl: string;
   readonly sendAnonymizedUsage: string;
-  readonly solutionId: string;
-  readonly solutionVersion: string;
-  readonly sourceCodeBucket: IBucket;
-  readonly sourceCodePrefix: string;
+  readonly solution: Solution;
   readonly uuid: string;
 }
 
@@ -79,13 +77,14 @@ export class DLTAPI extends Construct {
   constructor(scope: Construct, id: string, props: DLTAPIProps) {
     super(scope, id);
 
-    const taskArn = Stack.of(this).formatArn({
+    Stack.of(this).formatArn({
       service: "ecs",
       resource: "task",
       resourceName: "*",
+      region: "*",
       arnFormat: ArnFormat.SLASH_RESOURCE_NAME,
     });
-    const taskDefArn = Stack.of(this).formatArn({ service: "ecs", resource: "task-definition/" });
+    Stack.of(this).formatArn({ service: "ecs", region: "*", resource: "task-definition/" });
 
     const dltApiServicesLambdaRole = new Role(this, "DLTAPIServicesLambdaRole", {
       assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
@@ -94,13 +93,19 @@ export class DLTAPI extends Construct {
           statements: [
             new PolicyStatement({
               effect: Effect.ALLOW,
-              actions: ["ecs:ListTasks"],
+              actions: [
+                "ecs:ListTasks",
+                "ecs:RunTask",
+                "ecs:DescribeTasks",
+                "ecs:TagResource",
+                "logs:DeleteMetricFilter",
+              ],
               resources: ["*"],
-            }),
-            new PolicyStatement({
-              effect: Effect.ALLOW,
-              actions: ["ecs:RunTask", "ecs:DescribeTasks", "ecs:TagResource"],
-              resources: [taskArn, taskDefArn],
+              conditions: {
+                StringEquals: {
+                  "aws:ResourceTag/SolutionId": props.solution.id,
+                },
+              },
             }),
             new PolicyStatement({
               effect: Effect.ALLOW,
@@ -111,11 +116,6 @@ export class DLTAPI extends Construct {
               effect: Effect.ALLOW,
               actions: ["states:StartExecution"],
               resources: [props.taskRunnerStepFunctionsArn],
-            }),
-            new PolicyStatement({
-              effect: Effect.ALLOW,
-              actions: ["logs:DeleteMetricFilter"],
-              resources: [props.ecsCloudWatchLogGroup.logGroupArn],
             }),
             new PolicyStatement({
               effect: Effect.ALLOW,
@@ -191,24 +191,23 @@ export class DLTAPI extends Construct {
       ],
     });
 
-    const dltApiServicesLambda = new LambdaFunction(this, "DLTAPIServicesLambdaNew", {
+    const dltApiServicesLambda = new NodejsFunction(this, "DLTAPIServicesLambdaNew", {
       description: "API microservices for creating, updating, listing and deleting test scenarios",
-      code: Code.fromBucket(props.sourceCodeBucket, `${props.sourceCodePrefix}/api-services.zip`),
+      entry: path.join(__dirname, "../../../api-services/index.js"),
       runtime: Runtime.NODEJS_20_X,
-      handler: "index.handler",
       timeout: Duration.seconds(120),
       environment: {
         HISTORY_TABLE: props.historyTable,
-        METRIC_URL: props.metricsUrl,
+        METRIC_URL: SOLUTIONS_METRICS_ENDPOINT,
         SCENARIOS_BUCKET: props.scenariosBucketName,
         SCENARIOS_TABLE: props.scenariosTableName,
         SEND_METRIC: props.sendAnonymizedUsage,
-        SOLUTION_ID: props.solutionId,
+        SOLUTION_ID: props.solution.id,
         STACK_ID: Aws.STACK_ID,
         STATE_MACHINE_ARN: props.taskRunnerStepFunctionsArn,
         TASK_CANCELER_ARN: props.taskCancelerArn,
         UUID: props.uuid,
-        VERSION: props.solutionVersion,
+        VERSION: props.solution.version,
       },
       role: dltApiServicesLambdaRole,
     });
@@ -299,7 +298,7 @@ export class DLTAPI extends Construct {
         stageName: "prod",
         tracingEnabled: true,
       },
-      description: `Distributed Load Testing API - version ${props.solutionVersion}`,
+      description: `Distributed Load Testing API - version ${props.solution.version}`,
       endpointTypes: [EndpointType.EDGE],
     });
 
