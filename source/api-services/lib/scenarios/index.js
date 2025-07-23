@@ -1,20 +1,31 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const AWS = require("aws-sdk");
+const { CloudFormation } = require("@aws-sdk/client-cloudformation");
+const { CloudWatch } = require("@aws-sdk/client-cloudwatch");
+const { CloudWatchEvents } = require("@aws-sdk/client-cloudwatch-events");
+const { CloudWatchLogs } = require("@aws-sdk/client-cloudwatch-logs");
+const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDB } = require("@aws-sdk/client-dynamodb");
+const { ECS } = require("@aws-sdk/client-ecs");
+const { Lambda } = require("@aws-sdk/client-lambda");
+const { S3 } = require("@aws-sdk/client-s3");
+const { ServiceQuotas } = require("@aws-sdk/client-service-quotas");
+const { SFN } = require("@aws-sdk/client-sfn");
+
 const utils = require("solution-utils");
 const cronParser = require("cron-parser");
 
 const { HISTORY_TABLE, SCENARIOS_TABLE, SCENARIOS_BUCKET, STATE_MACHINE_ARN, TASK_CANCELER_ARN, STACK_ID } =
   process.env;
-AWS.config.logger = console;
+
 let options = utils.getOptions({ region: process.env.AWS_REGION });
-const s3 = new AWS.S3(options);
-const lambda = new AWS.Lambda(options);
-const dynamoDB = new AWS.DynamoDB.DocumentClient(options);
-const stepFunctions = new AWS.StepFunctions(options);
-const cloudwatchevents = new AWS.CloudWatchEvents(options);
-const cloudformation = new AWS.CloudFormation(options);
+const s3 = new S3(options);
+const lambda = new Lambda(options);
+const dynamoDB = DynamoDBDocument.from(new DynamoDB(options));
+const stepFunctions = new SFN(options);
+const cloudwatchevents = new CloudWatchEvents(options);
+const cloudformation = new CloudFormation(options);
 
 const StatusCodes = {
   OK: 200,
@@ -53,7 +64,7 @@ const getCFUrl = async () => {
   let params = {};
   try {
     do {
-      const listExports = await cloudformation.listExports(params).promise();
+      const listExports = await cloudformation.listExports(params);
       exports.push(...listExports.Exports);
       params.NextToken = listExports.NextToken;
     } while (params.NextToken);
@@ -87,7 +98,7 @@ const getAllRegionConfigs = async () => {
   };
   try {
     do {
-      const regionConfigs = await dynamoDB.scan(params).promise();
+      const regionConfigs = await dynamoDB.scan(params);
       response.push(...regionConfigs.Items);
       params.ExclusiveStartKey = regionConfigs.LastEvaluatedKey;
     } while (params.ExclusiveStartKey);
@@ -111,7 +122,7 @@ const getTestEntry = async (testId) => {
         testId: testId,
       },
     };
-    const response = await dynamoDB.get(params).promise();
+    const response = await dynamoDB.get(params);
     return response.Item;
   } catch (err) {
     console.error(err);
@@ -132,7 +143,7 @@ const getRegionInfraConfigs = async (testRegion) => {
         testId: `region-${testRegion}`,
       },
     };
-    const ddbEntry = await dynamoDB.get(regionalParameters).promise();
+    const ddbEntry = await dynamoDB.get(regionalParameters);
     if (!("Item" in ddbEntry)) {
       const errorMessage = "The region requested does not have a stored infrastructure configuration.";
       console.error(errorMessage);
@@ -189,7 +200,7 @@ const getTestHistoryEntries = async (testId) => {
       },
     };
     do {
-      const historyEntries = await dynamoDB.query(params).promise();
+      const historyEntries = await dynamoDB.query(params);
       response.push(...historyEntries.Items);
       params.ExclusiveStartKey = historyEntries.LastEvaluatedKey;
     } while (params.ExclusiveStartKey);
@@ -229,7 +240,7 @@ const listTests = async () => {
       },
     };
     do {
-      const testScenarios = await dynamoDB.scan(params).promise();
+      const testScenarios = await dynamoDB.scan(params);
       response.Items.push(...testScenarios.Items);
       params.ExclusiveStartKey = testScenarios.LastEvaluatedKey;
     } while (params.ExclusiveStartKey);
@@ -405,9 +416,9 @@ const getScheduleString = (props) => {
 const removeRules = async (testId, functionName, recurrence) => {
   if (recurrence) {
     let ruleName = `${testId}Create`;
-    await cloudwatchevents.removeTargets({ Rule: ruleName, Ids: [ruleName] }).promise();
-    await lambda.removePermission({ FunctionName: functionName, StatementId: ruleName }).promise();
-    await cloudwatchevents.deleteRule({ Name: ruleName }).promise();
+    await cloudwatchevents.removeTargets({ Rule: ruleName, Ids: [ruleName] });
+    await lambda.removePermission({ FunctionName: functionName, StatementId: ruleName });
+    await cloudwatchevents.deleteRule({ Name: ruleName });
   }
 };
 
@@ -466,13 +477,13 @@ const scheduleTest = async (event, context) => {
         "Missing cronValue, scheduleDate and ScheduleTime. Cannot schedule the Test."
       );
     // check if rule exists, delete rule if exists
-    let rulesResponse = await cloudwatchevents.listRules({ NamePrefix: testId }).promise();
+    let rulesResponse = await cloudwatchevents.listRules({ NamePrefix: testId });
 
     for (let rule of rulesResponse.Rules) {
       let ruleName = rule.Name;
-      await cloudwatchevents.removeTargets({ Rule: ruleName, Ids: [ruleName] }).promise();
-      await lambda.removePermission({ FunctionName: functionName, StatementId: ruleName }).promise();
-      await cloudwatchevents.deleteRule({ Name: ruleName }).promise();
+      await cloudwatchevents.removeTargets({ Rule: ruleName, Ids: [ruleName] });
+      await lambda.removePermission({ FunctionName: functionName, StatementId: ruleName });
+      await cloudwatchevents.deleteRule({ Name: ruleName });
     }
 
     let createRun;
@@ -513,7 +524,7 @@ const scheduleTest = async (event, context) => {
         ScheduleExpression: cronStart,
         State: "ENABLED",
       };
-      let ruleArn = await cloudwatchevents.putRule(createRuleParams).promise();
+      let ruleArn = await cloudwatchevents.putRule(createRuleParams);
 
       //Add permissions to lambda
       let permissionParams = {
@@ -523,7 +534,7 @@ const scheduleTest = async (event, context) => {
         SourceArn: ruleArn.RuleArn,
         StatementId: `${testId}Create`,
       };
-      await lambda.addPermission(permissionParams).promise();
+      await lambda.addPermission(permissionParams);
 
       //modify schedule step in input params
       config.scheduleStep = "start";
@@ -540,7 +551,7 @@ const scheduleTest = async (event, context) => {
           },
         ],
       };
-      await cloudwatchevents.putTargets(createTargetParams).promise();
+      await cloudwatchevents.putTargets(createTargetParams);
     } else {
       //create schedule expression
       const getScheduleStringProps = { recurrence, cronValue, minute, hour, day, month, year, cronExpiryDate };
@@ -553,7 +564,7 @@ const scheduleTest = async (event, context) => {
         ScheduleExpression: scheduleString,
         State: "ENABLED",
       };
-      let ruleArn = await cloudwatchevents.putRule(ruleParams).promise();
+      let ruleArn = await cloudwatchevents.putRule(ruleParams);
 
       //Add permissions to lambda
       let permissionParams = {
@@ -563,7 +574,7 @@ const scheduleTest = async (event, context) => {
         SourceArn: ruleArn.RuleArn,
         StatementId: `${testId}Scheduled`,
       };
-      await lambda.addPermission(permissionParams).promise();
+      await lambda.addPermission(permissionParams);
 
       //remove schedule step in params
       delete config.scheduleStep;
@@ -580,7 +591,7 @@ const scheduleTest = async (event, context) => {
           },
         ],
       };
-      await cloudwatchevents.putTargets(targetParams).promise();
+      await cloudwatchevents.putTargets(targetParams);
 
       // Remove rule created during create schedule step
       await removeRules(testId, functionName, recurrence);
@@ -836,7 +847,7 @@ const writeTestScenarioToS3 = async (testTaskConfigs, testScenario, testId) => {
         Bucket: SCENARIOS_BUCKET,
         Key: `test-scenarios/${testId}-${testTaskConfig.region}.json`,
       };
-      return s3.putObject(params).promise();
+      return s3.putObject(params);
     });
     await Promise.all(s3Promises);
   } catch (err) {
@@ -870,16 +881,14 @@ const mergeTestAndInfraConfiguration = async (testTaskConfigs) => {
  */
 const startStepFunctionExecution = async (stepFunctionParams) => {
   try {
-    const prefix = new Date().toISOString().replace("Z", "").split("").reverse().join("");
-    await stepFunctions
-      .startExecution({
-        stateMachineArn: STATE_MACHINE_ARN,
-        input: JSON.stringify({
-          ...stepFunctionParams,
-          prefix,
-        }),
-      })
-      .promise();
+    const prefix = new Date().toISOString().replace("Z", "");
+    await stepFunctions.startExecution({
+      stateMachineArn: STATE_MACHINE_ARN,
+      input: JSON.stringify({
+        ...stepFunctionParams,
+        prefix,
+      }),
+    });
   } catch (err) {
     console.error(err);
     throw err;
@@ -954,7 +963,7 @@ const updateTestDBEntry = async (updateTestConfigs) => {
       },
       ReturnValues: "ALL_NEW",
     };
-    return dynamoDB.update(params).promise();
+    return dynamoDB.update(params);
   } catch (err) {
     console.error(err);
     throw err;
@@ -1117,7 +1126,7 @@ const getRunningTasks = async (ecs, tasks, taskCluster, tasksInRegion) => {
   while (tasks.length > 0) {
     //get groups of 100 tasks
     params.tasks = tasks.splice(0, 100);
-    describeTasksResponse = await ecs.describeTasks(params).promise();
+    describeTasksResponse = await ecs.describeTasks(params);
     //add tasks to returned value for use in UI
     tasksInRegion.tasks = tasksInRegion.tasks.concat(describeTasksResponse.tasks);
   }
@@ -1140,7 +1149,7 @@ const getListOfTasksInRegion = async (ecs, taskCluster, testId) => {
   let tasks = [];
   let tasksResponse;
   do {
-    tasksResponse = await ecs.listTasks(params).promise();
+    tasksResponse = await ecs.listTasks(params);
     tasks = tasks.concat(tasksResponse.taskArns);
     params.nextToken = tasksResponse.nextToken;
   } while (tasksResponse.nextToken);
@@ -1160,7 +1169,7 @@ const listTasksPerRegion = async (data, testId) => {
       let tasksInRegion = { region: region };
       tasksInRegion.tasks = [];
       options.region = region;
-      const ecs = new AWS.ECS(options);
+      const ecs = new ECS(options);
       const tasks = await getListOfTasksInRegion(ecs, testRegion.taskCluster, testId);
       if (tasks.length !== 0) {
         tasksInRegion = await getRunningTasks(ecs, tasks, testRegion.taskCluster, tasksInRegion);
@@ -1229,7 +1238,7 @@ const deleteDDBTestEntry = async (testId) => {
         testId: testId,
       },
     };
-    await dynamoDB.delete(params).promise();
+    await dynamoDB.delete(params);
   } catch (err) {
     console.error(err);
     throw err;
@@ -1255,7 +1264,7 @@ const getTestHistoryTestRunIds = async (testId) => {
       },
     };
     do {
-      const testRunIds = await dynamoDB.query(params).promise();
+      const testRunIds = await dynamoDB.query(params);
       testRunIds.Items.forEach((testRunItem) => {
         response.push(testRunItem.testRunId);
       });
@@ -1293,7 +1302,7 @@ const deleteTestHistory = async (deleteItems) => {
     const params = {
       RequestItems: batchRequestItem,
     };
-    const response = await dynamoDB.batchWrite(params).promise();
+    const response = await dynamoDB.batchWrite(params);
     if (Object.keys(response.UnprocessedItems).length > 0) {
       deleteTestHistory(response.UnprocessedItems);
     }
@@ -1316,7 +1325,7 @@ const parseBatchRequests = async (testRuns) => {
 
 const deleteMetricFilter = async (testId, taskCluster, ecsCloudWatchLogGroup) => {
   const metrics = ["numVu", "numSucc", "numFail", "avgRt"];
-  const cloudwatchLogs = new AWS.CloudWatchLogs(options);
+  const cloudwatchLogs = new CloudWatchLogs(options);
 
   for (let metric of metrics) {
     console.log("deleting metric filter:", `${taskCluster}-Ecs${metric}-${testId}`);
@@ -1325,9 +1334,9 @@ const deleteMetricFilter = async (testId, taskCluster, ecsCloudWatchLogGroup) =>
       logGroupName: ecsCloudWatchLogGroup,
     };
     try {
-      await cloudwatchLogs.deleteMetricFilter(deleteMetricFilterParams).promise();
+      await cloudwatchLogs.deleteMetricFilter(deleteMetricFilterParams);
     } catch (e) {
-      if (e.code === "ResourceNotFoundException") {
+      if (e.name === "ResourceNotFoundException") {
         console.error("metric filter", `${taskCluster}-Ecs${metric}-${testId}`, "does not exist");
       } else {
         throw e;
@@ -1349,12 +1358,12 @@ const deleteDashboards = async (testId, testAndRegionalInfraConfigs) => {
     for (const regionConfig of testAndRegionalInfraConfigs.testTaskConfigs) {
       dashboardNames.push(`EcsLoadTesting-${testId}-${regionConfig.region}`);
       options.region = regionConfig.region;
-      const cloudwatch = new AWS.CloudWatch(options);
+      const cloudwatch = new CloudWatch(options);
       await deleteMetricFilter(testId, regionConfig.taskCluster, regionConfig.ecsCloudWatchLogGroup);
       //Delete Dashboard
       console.log("deleting dash:", dashboardNames);
       const deleteDashboardParams = { DashboardNames: dashboardNames };
-      await cloudwatch.deleteDashboards(deleteDashboardParams).promise();
+      await cloudwatch.deleteDashboards(deleteDashboardParams);
     }
   } catch (err) {
     console.error(err);
@@ -1365,13 +1374,13 @@ const deleteDashboards = async (testId, testAndRegionalInfraConfigs) => {
 const deleteRules = async (testId, functionName) => {
   try {
     //Get Rules
-    let rulesResponse = await cloudwatchevents.listRules({ NamePrefix: testId }).promise();
+    let rulesResponse = await cloudwatchevents.listRules({ NamePrefix: testId });
     //Delete Rule
     for (let rule of rulesResponse.Rules) {
       let ruleName = rule.Name;
-      await cloudwatchevents.removeTargets({ Rule: ruleName, Ids: [ruleName] }).promise();
-      await lambda.removePermission({ FunctionName: functionName, StatementId: ruleName }).promise();
-      await cloudwatchevents.deleteRule({ Name: ruleName }).promise();
+      await cloudwatchevents.removeTargets({ Rule: ruleName, Ids: [ruleName] });
+      await lambda.removePermission({ FunctionName: functionName, StatementId: ruleName });
+      await cloudwatchevents.deleteRule({ Name: ruleName });
     }
   } catch (err) {
     console.error(err);
@@ -1436,7 +1445,7 @@ const cancelTest = async (testId) => {
             testTaskConfig: regionalConfig,
           }),
         };
-        await lambda.invoke(taskCancelerParams).promise();
+        await lambda.invoke(taskCancelerParams);
       }
     }
 
@@ -1454,7 +1463,7 @@ const cancelTest = async (testId) => {
         ":s": "cancelling",
       },
     };
-    await dynamoDB.update(params).promise();
+    await dynamoDB.update(params);
 
     return "test cancelling";
   } catch (err) {
@@ -1479,10 +1488,10 @@ const listTasks = async () => {
       let params = {
         cluster: regionalConfig.taskCluster,
       };
-      const ecs = new AWS.ECS(options);
+      const ecs = new ECS(options);
       const taskArns = [];
       do {
-        let data = await ecs.listTasks(params).promise();
+        let data = await ecs.listTasks(params);
         taskArns.push(...data.taskArns);
         params.nextToken = data.nextToken;
       } while (params.nextToken);
@@ -1560,15 +1569,15 @@ const getAllPromiseResults = async (jsPromises) => {
 };
 
 /**
- * Grabs users Fargate vCPU limit for the region specified by the AWS.ServiceQuota parameter
- * @param {AWS.ServiceQuota} servicequotas an instance of ServiceQuotas with the proper region to make the API calls from
+ * Grabs users Fargate vCPU limit for the region specified by the ServiceQuota parameter
+ * @param {ServiceQuotas} servicequotas an instance of ServiceQuotas with the proper region to make the API calls from
  * @returns {Promise<int>} the number of vCPUs allowed for a given region
  */
 const getRegionFargatevCPULimit = async (servicequotas) => {
   console.log("Getting the users Fargate vCPU limit from ServiceQuotas");
   try {
     const sqParams = { ServiceCode: "fargate", QuotaCode: "L-3032A538" };
-    const sqData = await servicequotas.getServiceQuota(sqParams).promise();
+    const sqData = await servicequotas.getServiceQuota(sqParams);
 
     return sqData.Quota.Value;
   } catch (err) {
@@ -1579,13 +1588,13 @@ const getRegionFargatevCPULimit = async (servicequotas) => {
 
 /**
  * Returns the descriptions of all Fargate tasks within a cluster
- * @param {AWS.ECS} ecs an instance of ECS to make the API calls from
+ * @param {ECS} ecs an instance of ECS to make the API calls from
  * @param {string} clusterArn the cluster in question
  * @returns {Promise<array>} array of descriptions for the Fargate tasks
  */
 const describeTasksInCluster = async (ecs, clusterArn) => {
   console.log("Describing all the Fargate tasks within a cluster");
-  const ecsListTasks = async (params) => ecs.listTasks(params).promise(); // wrap API call to be passed to a function
+  const ecsListTasks = async (params) => ecs.listTasks(params); // wrap API call to be passed to a function
   const API_REQUEST_LIMIT = 100; // AWS API calls can only request 100
 
   try {
@@ -1595,7 +1604,6 @@ const describeTasksInCluster = async (ecs, clusterArn) => {
     splitArrayBySize(tasks, API_REQUEST_LIMIT).forEach((taskArray) => {
       const describeTaskPromise = ecs
         .describeTasks({ cluster: clusterArn, tasks: taskArray })
-        .promise()
         .then((apiResponse) => apiResponse.tasks);
       taskDetailPromises.push(describeTaskPromise);
     });
@@ -1609,12 +1617,12 @@ const describeTasksInCluster = async (ecs, clusterArn) => {
 
 /**
  * Returns the number of active Fargate tasks for an account in a given region
- * @param {AWS.ECS} ecs an instance of ECS to make the API calls from
+ * @param {ECS} ecs an instance of ECS to make the API calls from
  * @returns {Promise<float>} number of active Fargate tasks
  */
 const getRegionFargatevCPUsInUse = async (ecs) => {
   console.log("Getting Fargate vCPU usage");
-  const ecsListClusters = async (params) => ecs.listClusters(params).promise(); // wrap API call to be passed to a function
+  const ecsListClusters = async (params) => ecs.listClusters(params); // wrap API call to be passed to a function
   try {
     const clusters = await getAllAPIData(ecsListClusters, {}, "clusterArns");
 
@@ -1642,13 +1650,13 @@ const getRegionFargatevCPUsInUse = async (ecs) => {
 
 /**
  * Returns the number of vCPUs that each DLT task will use for the region
- * @param {AWS.ECS} ecs an instance of ECS to make the API calls from with the region specified
+ * @param {ECS} ecs an instance of ECS to make the API calls from with the region specified
  * @returns {Promise<int>} the number of vCPUs used in each DLT task for the region
  */
 const getRegionDLTvCPUsPerTask = async (ecs, taskDefinition) => {
   console.log("Getting DLT vCPUs per task for a region");
   try {
-    const apiResponse = await ecs.describeTaskDefinition({ taskDefinition: taskDefinition }).promise();
+    const apiResponse = await ecs.describeTaskDefinition({ taskDefinition: taskDefinition });
     const vCPUs = parseInt(apiResponse.taskDefinition.cpu) / 1024;
     return vCPUs;
   } catch (error) {
@@ -1670,8 +1678,8 @@ const getRegionFargatevCPUDetails = async (regionConfig) => {
     utils.getOptions(ecsOptions); // duplicate options to avoid async interleaving issues
     options.region = regionConfig.region;
 
-    const ecs = new AWS.ECS(options);
-    const servicequotas = new AWS.ServiceQuotas(options);
+    const ecs = new ECS(options);
+    const servicequotas = new ServiceQuotas(options);
 
     // Return a null value if any of the functions fail
     const vCPUFargateLimitPromise = getRegionFargatevCPULimit(servicequotas).catch(() => undefined);

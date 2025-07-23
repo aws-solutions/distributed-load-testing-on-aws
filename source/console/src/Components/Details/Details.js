@@ -141,7 +141,7 @@ class Details extends React.Component {
     try {
       const testId = this.state.testId;
       const { testType } = this.state.data;
-      const scriptExtensions = { jmeter: "jmx" };
+      const scriptExtensions = { jmeter: "jmx", k6: "js", locust: "py" };
       const extension = scriptExtensions[testType];
 
       let filename = this.state.data.fileType === "zip" ? `${testId}.zip` : `${testId}.${extension}`;

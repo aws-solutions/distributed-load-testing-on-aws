@@ -5,6 +5,13 @@ exports[`DLT API Test 1`] = `
   "Resources": {
     "TestScenarioStorageDLTHistoryTable3639137E": {
       "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "DYNAMODB_TABLE_ENCRYPTED_KMS",
+          ],
+        },
+      },
       "Properties": {
         "AttributeDefinitions": [
           {
@@ -61,7 +68,7 @@ exports[`DLT API Test 1`] = `
                 "PUT",
               ],
               "AllowedOrigins": [
-                "https://test.exampledomain.com",
+                "test.exampledomain.com",
               ],
               "ExposedHeaders": [
                 "ETag",
@@ -171,6 +178,13 @@ exports[`DLT API Test 1`] = `
     },
     "TestScenarioStorageDLTScenariosTable136C8D56": {
       "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "DYNAMODB_TABLE_ENCRYPTED_KMS",
+          ],
+        },
+      },
       "Properties": {
         "AttributeDefinitions": [
           {

@@ -6,7 +6,6 @@ import { StartQueryCommandInput } from "@aws-sdk/client-cloudwatch-logs";
 import { QueryDefinitionProps } from "aws-cdk-lib/aws-logs";
 // eslint-disable-next-line import/no-unresolved
 import { EventBridgeEvent, SQSEvent } from "aws-lambda";
-import { IBucket } from "aws-cdk-lib/aws-s3";
 
 export interface QueryProps extends Pick<StartQueryCommandInput, "queryString" | "logGroupNames"> {}
 export interface EventBridgeQueryEvent
@@ -15,7 +14,9 @@ export interface EventBridgeQueryEvent
 }
 
 export interface MetricDataProps
-  extends Pick<MetricDataQuery, "MetricStat" | "Expression" | "Label" | "ReturnData" | "Period"> {}
+  extends Pick<MetricDataQuery, "MetricStat" | "Expression" | "Label" | "ReturnData" | "Period"> {
+  identifier?: string;
+}
 
 export enum ExecutionDay {
   DAILY = "*",
@@ -33,8 +34,6 @@ export interface SolutionsMetricProps {
   metricDataProps?: MetricDataProps[];
   queryProps?: QueryDefinitionProps[];
   executionDay?: string;
-  sourceCodeBucket: IBucket;
-  sourceCodePrefix: string;
 }
 
 export interface SQSEventBody {
@@ -60,10 +59,20 @@ export interface MetricPayload {
   Data: MetricPayloadData;
 }
 
-export function isEventBridgeQueryEvent(event: any): event is EventBridgeQueryEvent {
+/**
+ *
+ * @param {EventBridgeQueryEvent | SQSEvent} event The event to be analyzed
+ * @returns {boolean} Whether the event is an EventBridgeQueryEvent
+ */
+export function isEventBridgeQueryEvent(event: EventBridgeQueryEvent | SQSEvent): event is EventBridgeQueryEvent {
   return "detail-type" in event && "time" in event && "metrics-data-query" in event;
 }
 
-export function isSQSEvent(event: any): event is SQSEvent {
+/**
+ *
+ * @param {EventBridgeQueryEvent | SQSEvent} event The event to be analyzed
+ * @returns {boolean} Whether the event is an SQSEvent
+ */
+export function isSQSEvent(event: EventBridgeQueryEvent | SQSEvent): event is SQSEvent {
   return "Records" in event && Array.isArray(event.Records);
 }

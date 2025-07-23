@@ -5,8 +5,9 @@ import { Template } from "aws-cdk-lib/assertions";
 import { App, DefaultStackSynthesizer, Stack } from "aws-cdk-lib";
 import { Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { LogGroup } from "aws-cdk-lib/aws-logs";
-import { Bucket } from "aws-cdk-lib/aws-s3";
 import { RealTimeDataConstruct } from "../lib/testing-resources/real-time-data";
+import { Solution } from "../bin/solution";
+import { createTemplateWithoutS3Key } from "./snapshot_helpers";
 
 test("DLT real time data resources Test", () => {
   const app = new App();
@@ -24,31 +25,24 @@ test("DLT real time data resources Test", () => {
     ],
   });
   const testLogGroup = new LogGroup(stack, "TestLogsGroup");
-  const testBucket = Bucket.fromBucketName(stack, "SourceCodeBucket", "testbucket");
 
-  const realTimeData = new RealTimeDataConstruct(stack, "TestECS", {
+  const solution = new Solution("testId", "DLT", "testVersion", "mainStackDescription");
+  new RealTimeDataConstruct(stack, "TestECS", {
     cloudWatchLogsPolicy: testPolicy,
     ecsCloudWatchLogGroup: testLogGroup,
     iotEndpoint: "iotEndpoint",
     mainRegion: "test-region-1",
-    solutionId: "testID",
-    solutionVersion: "testVersion",
-    sourceCodeBucket: testBucket,
-    sourceCodePrefix: "testPrefix",
+    solution,
   });
 
-  expect(Template.fromStack(stack)).toMatchSnapshot();
+  expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();
   Template.fromStack(stack).hasResourceProperties("AWS::Lambda::Function", {
-    Code: {
-      S3Bucket: "testbucket",
-      S3Key: "testPrefix/real-time-data-publisher.zip",
-    },
     Environment: {
       Variables: {
         MAIN_REGION: "test-region-1",
-        IOT_ENDPOINT: "iotEndpoint",
-        SOLUTION_ID: "testID",
-        VERSION: "testVersion",
+        IOT_ENDPOINT: "https://iotEndpoint",
+        SOLUTION_ID: solution.id,
+        VERSION: solution.version,
       },
     },
     Handler: "index.handler",

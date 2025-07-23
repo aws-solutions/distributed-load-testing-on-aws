@@ -5,6 +5,16 @@ exports[`DLT real time data resources Test 1`] = `
   "Resources": {
     "TestECSRealTimeDataPublisherLogGroupC1EBECA4": {
       "DeletionPolicy": "Retain",
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W84",
+              "reason": "KMS encryption unnecessary for log group",
+            },
+          ],
+        },
+      },
       "Properties": {
         "LogGroupName": {
           "Fn::Join": [
@@ -46,15 +56,17 @@ exports[`DLT real time data resources Test 1`] = `
       },
       "Properties": {
         "Code": {
-          "S3Bucket": "testbucket",
-          "S3Key": "testPrefix/real-time-data-publisher.zip",
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
         },
         "Description": "Real time data publisher",
         "Environment": {
           "Variables": {
-            "IOT_ENDPOINT": "iotEndpoint",
+            "IOT_ENDPOINT": "https://iotEndpoint",
             "MAIN_REGION": "test-region-1",
-            "SOLUTION_ID": "testID",
+            "SOLUTION_ID": "testId",
             "VERSION": "testVersion",
           },
         },
@@ -71,6 +83,13 @@ exports[`DLT real time data resources Test 1`] = `
       "Type": "AWS::Lambda::Function",
     },
     "TestECSrealTimeDataPublisherRoleEFE9F1CD": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
       "Properties": {
         "AssumeRolePolicyDocument": {
           "Statement": [

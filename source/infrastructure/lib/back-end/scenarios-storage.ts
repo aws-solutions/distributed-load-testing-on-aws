@@ -6,12 +6,13 @@ import { AttributeType, BillingMode, Table, TableEncryption } from "aws-cdk-lib/
 import { AnyPrincipal, Effect, Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { BlockPublicAccess, Bucket, BucketEncryption, HttpMethods } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
+import { addCfnGuardSuppression } from "../common-resources/add-cfn-guard-suppression";
 
 export interface ScenarioTestRunnerStorageConstructProps {
   // S3 Logs Bucket
   readonly s3LogsBucket: Bucket;
   // CloudFront domain name
-  readonly cloudFrontDomainName: string;
+  readonly webAppURL: string;
   // Solution Id
   readonly solutionId: string;
 }
@@ -43,7 +44,7 @@ export class ScenarioTestRunnerStorageConstruct extends Construct {
       cors: [
         {
           allowedMethods: [HttpMethods.GET, HttpMethods.POST, HttpMethods.PUT],
-          allowedOrigins: [`https://${props.cloudFrontDomainName}`],
+          allowedOrigins: [props.webAppURL],
           allowedHeaders: ["*"],
           exposedHeaders: ["ETag"],
         },
@@ -78,16 +79,24 @@ export class ScenarioTestRunnerStorageConstruct extends Construct {
       billingMode: BillingMode.PAY_PER_REQUEST,
       encryption: TableEncryption.AWS_MANAGED,
       partitionKey: { name: "testId", type: AttributeType.STRING },
-      pointInTimeRecovery: true,
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true,
+      },
     });
+
+    addCfnGuardSuppression(this.scenariosTable, "DYNAMODB_TABLE_ENCRYPTED_KMS");
 
     this.historyTable = new Table(this, "DLTHistoryTable", {
       billingMode: BillingMode.PAY_PER_REQUEST,
       encryption: TableEncryption.AWS_MANAGED,
       partitionKey: { name: "testId", type: AttributeType.STRING },
       sortKey: { name: "testRunId", type: AttributeType.STRING },
-      pointInTimeRecovery: true,
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true,
+      },
     });
+
+    addCfnGuardSuppression(this.historyTable, "DYNAMODB_TABLE_ENCRYPTED_KMS");
 
     const historyDDBActions = ["dynamodb:BatchWriteItem", "dynamodb:PutItem", "dynamodb:Query"];
     this.historyDynamoDbPolicy = new Policy(this, "HistoryDynamoDbPolicy", {

@@ -1,12 +1,12 @@
 // Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Template } from "aws-cdk-lib/assertions";
 import { App, DefaultStackSynthesizer, Stack } from "aws-cdk-lib";
 import { TaskRunnerStepFunctionConstruct } from "../lib/back-end/step-functions";
-import { Code, Function as LambdaFunction, Runtime } from "aws-cdk-lib/aws-lambda";
+import { Code, Runtime, Function } from "aws-cdk-lib/aws-lambda";
 import { Bucket } from "aws-cdk-lib/aws-s3";
 import { Effect, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
+import { createTemplateWithoutS3Key } from "./snapshot_helpers";
 
 test("DLT API Test", () => {
   const app = new App();
@@ -31,8 +31,9 @@ test("DLT API Test", () => {
     },
   });
 
-  const testLambda = new LambdaFunction(stack, "TestFunction", {
-    code: Code.fromBucket(Bucket.fromBucketName(stack, "SourceCodeBucket", "testbucket"), "custom-resource.zip"),
+  const codeBucket = Bucket.fromBucketName(stack, "SourceCodeBucket", "testbucket");
+  const testLambda = new Function(stack, "TestFunction", {
+    code: Code.fromBucket(codeBucket, "custom-resource.zip"),
     handler: "index.handler",
     runtime: Runtime.NODEJS_20_X,
     role: testRole,
@@ -43,10 +44,9 @@ test("DLT API Test", () => {
     taskRunner: testLambda,
     resultsParser: testLambda,
     taskCanceler: testLambda,
-    solutionId: "testId",
     suffix: "abc-def-xyz",
   });
 
-  expect(Template.fromStack(stack)).toMatchSnapshot();
+  expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();
   expect(testStateMachine.taskRunnerStepFunctions).toBeDefined();
 });
