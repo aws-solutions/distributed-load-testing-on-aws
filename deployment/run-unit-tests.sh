@@ -43,12 +43,6 @@ run_tests() {
   # prepare coverage reports
   prepare_jest_coverage_report $component_name
 
-  if [ $component_name = "solution-utils" ]
-  then
-    rm -rf coverage
-  else
-    rm -rf coverage node_modules
-  fi
 }
 
 # Get reference for source folder
@@ -58,6 +52,7 @@ coverage_reports_top_path=$source_dir/test/coverage-reports
 #install dependencies
 cd $source_dir
 npm run install:all
+npm run build:console
 
 #run prettier
 echo "Running prettier formatting check"
@@ -95,11 +90,12 @@ declare -a packages=(
     "custom-resource"
     "infrastructure"
     "real-time-data-publisher"
-    "results-parser"
     "task-canceler"
     "task-runner"
+    "results-parser"
     "task-status-checker"
     "console"
+    "metrics-utils"
 )
 
 for package in "${packages[@]}"; do
@@ -113,5 +109,16 @@ for package in "${packages[@]}"; do
     echo "Test FAILED for $package"
     echo "******************************************************************************"
     exit 1
+  fi
+done
+
+# Removing node_modules post tests executions
+for package in "${packages[@]}"; do
+  cd $source_dir/$package
+  if [ $package = "solution-utils" ]
+  then
+    rm -rf coverage
+  else
+    rm -rf coverage node_modules
   fi
 done

@@ -1,11 +1,17 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const AWS = require("aws-sdk");
+const { CloudWatch } = require("@aws-sdk/client-cloudwatch");
+const { CloudWatchLogs } = require("@aws-sdk/client-cloudwatch-logs");
+const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDB } = require("@aws-sdk/client-dynamodb");
+const { ECS } = require("@aws-sdk/client-ecs");
+const { S3 } = require("@aws-sdk/client-s3");
+
 const utils = require("solution-utils");
 let options = utils.getOptions({ region: process.env.AWS_REGION });
-const dynamo = new AWS.DynamoDB.DocumentClient(options);
-const s3 = new AWS.S3();
+const dynamo = DynamoDBDocument.from(new DynamoDB(options));
+const s3 = new S3();
 
 const checkRunningTasks = async (ecs, runTaskCount, taskCount, taskCluster, testId) => {
   let desiredWorkers = taskCount - 1;
@@ -18,7 +24,7 @@ const checkRunningTasks = async (ecs, runTaskCount, taskCount, taskCluster, test
   let data;
   //get running tasks belonging to test
   do {
-    data = await ecs.listTasks(listTaskParams).promise();
+    data = await ecs.listTasks(listTaskParams);
     runningTasks = runningTasks.concat(data.taskArns);
     listTaskParams.nextToken = data.nextToken;
   } while (data.nextToken);
@@ -38,7 +44,7 @@ const checkTestStatus = async (testId) => {
     },
     AttributesToGet: ["status"],
   };
-  data = await dynamo.get(ddbParams).promise();
+  data = await dynamo.get(ddbParams);
   const { status } = data.Item;
   return status;
 };
@@ -77,7 +83,7 @@ const singleTask = async (params, taskIds, taskCluster, ecs, runTaskCount, testI
       //get task info in chunks of 100 or less
       let taskIdSubset = taskIds.splice(0, 100);
       let describeTasksParams = { cluster: taskCluster, tasks: taskIdSubset };
-      let runningNodeInfo = await ecs.describeTasks(describeTasksParams).promise();
+      let runningNodeInfo = await ecs.describeTasks(describeTasksParams);
 
       //get IPV4 Address info
       let ipAddress;
@@ -98,7 +104,7 @@ const singleTask = async (params, taskIds, taskCluster, ecs, runTaskCount, testI
     };
 
     //Storing the IPHOSTS in the s3 bucket.
-    await s3.putObject(s3Params).promise();
+    await s3.putObject(s3Params);
 
     //copy needed for testing in jest, use shallow copy for less resource utilization
     let leaderParams = Object.assign({}, params);
@@ -114,7 +120,7 @@ const singleTask = async (params, taskIds, taskCluster, ecs, runTaskCount, testI
 
     //run leader node task
     console.log("STARTING LEADER NODE AND RUNNING TESTS");
-    const leadTaskResponse = await ecs.runTask(leaderParams).promise();
+    const leadTaskResponse = await ecs.runTask(leaderParams);
     //if leader node fails to launch, log error and end test
     if (leadTaskResponse.failures.length > 0) {
       throw ("The lead task failed to launch:\n", leadTaskResponse.failures);
@@ -124,7 +130,7 @@ const singleTask = async (params, taskIds, taskCluster, ecs, runTaskCount, testI
     params.count = runTaskCount;
     console.log("Starting Task");
     params.overrides.containerOverrides[0].environment.pop();
-    const singleTaskRunResponse = await ecs.runTask(params).promise();
+    const singleTaskRunResponse = await ecs.runTask(params);
     if (singleTaskRunResponse.failures.length > 0) {
       throw ("The task failed to launch:\n", singleTaskRunResponse.failures);
     }
@@ -146,7 +152,7 @@ const launchWorkers = async (runTaskWorkersCount, launchParams, ecs, taskIds, ta
   taskParams.count = count;
   //run tasks
   console.log(`STARTING ${count} WORKER TASKS`);
-  let runTaskResponse = await ecs.runTask(taskParams).promise();
+  let runTaskResponse = await ecs.runTask(taskParams);
   //get amount successfully launched
   let actualLaunched = runTaskResponse.tasks.length;
   runTaskWorkersCount = runTaskWorkersCount - actualLaunched;
@@ -160,8 +166,8 @@ const createDashboard = async (testId, ecsCloudWatchLogGroup, taskCluster, regio
   //Create metric filters and dashboard
   const metrics = ["numVu", "numSucc", "numFail", "avgRt"];
   const metricNames = ["Virtual Users Activities", "Success", "Failures", "Average Response Time"];
-  const cloudwatch = new AWS.CloudWatch(options);
-  const cloudwatchLogs = new AWS.CloudWatchLogs(options);
+  const cloudwatch = new CloudWatch(options);
+  const cloudwatchLogs = new CloudWatchLogs(options);
   let widgets = [];
   const widgetPlacement = [
     [8, 0],
@@ -187,7 +193,7 @@ const createDashboard = async (testId, ecsCloudWatchLogGroup, taskCluster, regio
         },
       ],
     };
-    await cloudwatchLogs.putMetricFilter(metricFilterParams).promise();
+    await cloudwatchLogs.putMetricFilter(metricFilterParams);
     //create widget
     let query = `SOURCE '${ecsCloudWatchLogGroup}'| limit 10000 | \
                 fields @logStream | \
@@ -213,12 +219,10 @@ const createDashboard = async (testId, ecsCloudWatchLogGroup, taskCluster, regio
   }
   //create dashboard
   const dashboardBody = { widgets: widgets };
-  await cloudwatch
-    .putDashboard({
-      DashboardName: `EcsLoadTesting-${testId}-${region}`,
-      DashboardBody: JSON.stringify(dashboardBody),
-    })
-    .promise();
+  await cloudwatch.putDashboard({
+    DashboardName: `EcsLoadTesting-${testId}-${region}`,
+    DashboardBody: JSON.stringify(dashboardBody),
+  });
 };
 
 exports.handler = async (event, context) => {
@@ -248,7 +252,7 @@ exports.handler = async (event, context) => {
 
   options = utils.getOptions(options);
   options.region = region;
-  const ecs = new AWS.ECS(options);
+  const ecs = new ECS(options);
 
   // Run tasks in batches of 10
   const params = {
@@ -328,21 +332,19 @@ exports.handler = async (event, context) => {
     console.error(err);
 
     // Update DynamoDB with Status FAILED and Error Message
-    await dynamo
-      .update({
-        TableName: process.env.SCENARIOS_TABLE,
-        Key: { testId },
-        UpdateExpression: "set #s = :s, #e = :e",
-        ExpressionAttributeNames: {
-          "#s": "status",
-          "#e": "errorReason",
-        },
-        ExpressionAttributeValues: {
-          ":s": "failed",
-          ":e": "Failed to run Fargate tasks.",
-        },
-      })
-      .promise();
+    await dynamo.update({
+      TableName: process.env.SCENARIOS_TABLE,
+      Key: { testId },
+      UpdateExpression: "set #s = :s, #e = :e",
+      ExpressionAttributeNames: {
+        "#s": "status",
+        "#e": "errorReason",
+      },
+      ExpressionAttributeValues: {
+        ":s": "failed",
+        ":e": "Failed to run Fargate tasks.",
+      },
+    });
 
     throw err;
   }

@@ -1,12 +1,16 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const AWS = require("aws-sdk");
+const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDB } = require("@aws-sdk/client-dynamodb");
+const { ECS } = require("@aws-sdk/client-ecs");
+const { Lambda } = require("@aws-sdk/client-lambda");
+
 const utils = require("solution-utils");
 
 let options = utils.getOptions({});
-const dynamoDb = new AWS.DynamoDB.DocumentClient(options);
-const lambda = new AWS.Lambda(options);
+const dynamoDb = DynamoDBDocument.from(new DynamoDB(options));
+const lambda = new Lambda(options);
 
 const checkTestStatus = async (testId, isRunning) => {
   let data;
@@ -17,7 +21,7 @@ const checkTestStatus = async (testId, isRunning) => {
     },
     AttributesToGet: ["status"],
   };
-  data = await dynamoDb.get(ddbParams).promise();
+  data = await dynamoDb.get(ddbParams);
   const { status } = data.Item;
   return status === "running" && isRunning;
 };
@@ -39,7 +43,7 @@ const stopECSTasks = async (timeoutCount, testTaskConfig, result, runningTaskCou
           testTaskConfig: testTaskConfig,
         }),
       };
-      await lambda.invoke(params).promise();
+      await lambda.invoke(params);
       result.isRunning = false;
     }
   }
@@ -52,7 +56,7 @@ exports.handler = async (event) => {
   const { region, taskCluster } = event.testTaskConfig;
   options = utils.getOptions(options);
   options.region = region;
-  const ecs = new AWS.ECS(options);
+  const ecs = new ECS(options);
 
   try {
     let nextToken = null;
@@ -65,12 +69,10 @@ exports.handler = async (event) => {
       nextToken = response.NextToken;
 
       if (response.Tasks.length > 0) {
-        const describedTasks = await ecs
-          .describeTasks({
-            cluster: taskCluster,
-            tasks: response.Tasks,
-          })
-          .promise();
+        const describedTasks = await ecs.describeTasks({
+          cluster: taskCluster,
+          tasks: response.Tasks,
+        });
 
         // If there are any current test ECS tasks and no prefix, it's currently running.
         if (describedTasks.tasks.some((task) => task.group === testId) && !event.prefix) {
@@ -112,21 +114,19 @@ exports.handler = async (event) => {
     console.error(error);
 
     // Update DynamoDB with Status FAILED and Error Message
-    await dynamoDb
-      .update({
-        TableName: process.env.SCENARIOS_TABLE,
-        Key: { testId },
-        UpdateExpression: "set #s = :s, #e = :e",
-        ExpressionAttributeNames: {
-          "#s": "status",
-          "#e": "errorReason",
-        },
-        ExpressionAttributeValues: {
-          ":s": "failed",
-          ":e": "Failed to check Fargate tasks.",
-        },
-      })
-      .promise();
+    await dynamoDb.update({
+      TableName: process.env.SCENARIOS_TABLE,
+      Key: { testId },
+      UpdateExpression: "set #s = :s, #e = :e",
+      ExpressionAttributeNames: {
+        "#s": "status",
+        "#e": "errorReason",
+      },
+      ExpressionAttributeValues: {
+        ":s": "failed",
+        ":e": "Failed to check Fargate tasks.",
+      },
+    });
 
     throw error;
   }
@@ -140,12 +140,12 @@ exports.handler = async (event) => {
  */
 async function listTasks(nextToken, region, taskCluster) {
   options.region = region;
-  const ecs = new AWS.ECS(options);
+  const ecs = new ECS(options);
   let param = { cluster: taskCluster };
   if (nextToken) {
     param.nextToken = nextToken;
   }
-  const response = await ecs.listTasks(param).promise();
+  const response = await ecs.listTasks(param);
   return {
     Tasks: response.taskArns,
     NextToken: response.nextToken,

@@ -1,26 +1,17 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Aws, CfnResource, Fn, RemovalPolicy, Stack, Tags, CfnCondition } from "aws-cdk-lib";
-import {
-  BlockPublicAccess,
-  Bucket,
-  BucketAccessControl,
-  BucketEncryption,
-  IBucket,
-  ObjectOwnership,
-} from "aws-cdk-lib/aws-s3";
+import { ArnFormat, CfnResource, RemovalPolicy, Stack } from "aws-cdk-lib";
+import { BlockPublicAccess, Bucket, BucketAccessControl, BucketEncryption, ObjectOwnership } from "aws-cdk-lib/aws-s3";
 import { AnyPrincipal, Effect, Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
-import * as appreg from "@aws-cdk/aws-servicecatalogappregistry-alpha";
 import { Construct } from "constructs";
-import {
-  CfnResourceAssociation,
-  CfnApplication,
-  CfnAttributeGroup,
-  CfnAttributeGroupAssociation,
-} from "aws-cdk-lib/aws-servicecatalogappregistry";
-export interface CommonResourcesConstructProps {
-  readonly sourceCodeBucket: string;
+import { Solution } from "../../bin/solution";
+import { CustomResourceLambda } from "./custom-resource-lambda";
+
+interface ICommonResources {
+  cloudWatchLogsPolicy: Policy;
+  s3LogsBucket: Bucket;
+  customResourceLambda: CustomResourceLambda;
 }
 
 export interface AppRegistryApplicationProps {
@@ -35,19 +26,19 @@ export interface AppRegistryApplicationProps {
  * Distributed Load Testing on AWS common resources construct.
  * Creates a CloudWatch logs policy and an S3 bucket to store logs.
  */
-export class CommonResourcesConstruct extends Construct {
-  // CloudWatch logs Policy
-  public cloudWatchLogsPolicy: Policy;
-  // Code S3 Bucket
-  public sourceBucket: IBucket;
+export class CommonResources extends Construct implements ICommonResources {
+  public readonly cloudWatchLogsPolicy: Policy;
+  public readonly s3LogsBucket: Bucket;
+  public readonly customResourceLambda: CustomResourceLambda;
 
-  constructor(scope: Construct, id: string, props: CommonResourcesConstructProps) {
+  constructor(scope: Construct, id: string, solution: Solution) {
     super(scope, id);
 
     const logGroupResourceArn = Stack.of(this).formatArn({
       service: "logs",
-      resource: "log-group:",
-      resourceName: "aws/lambda/*",
+      resource: "log-group",
+      resourceName: "/aws/lambda/*",
+      arnFormat: ArnFormat.COLON_RESOURCE_NAME,
     });
     this.cloudWatchLogsPolicy = new Policy(this, "CloudWatchLogsPolicy", {
       statements: [
@@ -59,10 +50,14 @@ export class CommonResourcesConstruct extends Construct {
       ],
     });
 
-    this.sourceBucket = Bucket.fromBucketName(this, "SourceCodeBucket", props.sourceCodeBucket);
+    this.s3LogsBucket = this.createLogsBucket();
+
+    const customResourceLambda = new CustomResourceLambda(this, "CustomResource", solution);
+    customResourceLambda.addPolicy([this.cloudWatchLogsPolicy]);
+    this.customResourceLambda = customResourceLambda;
   }
 
-  public s3LogsBucket(): Bucket {
+  private createLogsBucket(): Bucket {
     const logsBucket = new Bucket(this, "LogsBucket", {
       accessControl: BucketAccessControl.LOG_DELIVERY_WRITE,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
@@ -99,61 +94,5 @@ export class CommonResourcesConstruct extends Construct {
       ],
     });
     return logsBucket;
-  }
-
-  public appRegistryApplication(props: AppRegistryApplicationProps) {
-    const stack = Stack.of(this);
-    const applicationType = "AWS-Solutions";
-    const solutionName = "Distributed Load Testing";
-
-    const application = new appreg.Application(stack, "AppRegistry", {
-      applicationName: Fn.join("-", [props.applicationName, Aws.REGION, Aws.ACCOUNT_ID]),
-      description: `Service Catalog application to track and manage all your resources for the solution ${solutionName}`,
-    });
-    application.associateApplicationWithStack(stack);
-
-    Tags.of(application).add("Solutions:SolutionID", props.solutionId);
-    Tags.of(application).add("Solutions:SolutionName", solutionName);
-    Tags.of(application).add("Solutions:SolutionVersion", props.solutionVersion);
-    Tags.of(application).add("Solutions:ApplicationType", applicationType);
-
-    const attributeGroup = new appreg.AttributeGroup(stack, "DefaultApplicationAttributes", {
-      attributeGroupName: Aws.STACK_NAME,
-      description: "Attribute group for solution information",
-      attributes: {
-        applicationType,
-        version: props.solutionVersion,
-        solutionID: props.solutionId,
-        solutionName,
-      },
-    });
-    attributeGroup.associateWith(application);
-    // Add hard-coded conditions to the AppRegistry resources
-    // These can be later on changed by users if they failed to update the
-    // Stack due to change of AppRegistry resources logical Id
-    this.addConditions(stack, [
-      CfnApplication,
-      CfnAttributeGroup,
-      CfnAttributeGroupAssociation,
-      CfnResourceAssociation,
-    ]);
-  }
-
-  private addConditions(stack: Stack, resourceTypes: Array<any>) {
-    const createAppCondition = new CfnCondition(this, "AppRegistryCondition", {
-      expression: Fn.conditionEquals("true", "true"),
-    });
-
-    const visit = (node: Construct) => {
-      for (const resourceType of resourceTypes) {
-        if (node instanceof resourceType) {
-          (node as CfnResource).cfnOptions.condition = createAppCondition;
-        }
-      }
-      for (const child of node.node.children) {
-        visit(child as Construct);
-      }
-    };
-    visit(stack);
   }
 }

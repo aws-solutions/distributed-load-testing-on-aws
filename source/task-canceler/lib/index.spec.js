@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Mock AWS SDK
-const mockAWS = require("aws-sdk");
 const mockDynamoDb = {
   update: jest.fn(),
 };
@@ -11,12 +10,20 @@ const mockEcs = {
   stopTask: jest.fn(),
 };
 
-mockAWS.ECS = jest.fn(() => ({
-  listTasks: mockEcs.listTasks,
-  stopTask: mockEcs.stopTask,
+// Mock AWS SDK v3
+jest.mock("@aws-sdk/client-ecs", () => ({
+  ECS: jest.fn(() => ({
+    listTasks: mockEcs.listTasks,
+    stopTask: mockEcs.stopTask,
+  })),
 }));
-mockAWS.DynamoDB.DocumentClient = jest.fn(() => ({
-  update: mockDynamoDb.update,
+
+jest.mock("@aws-sdk/lib-dynamodb", () => ({
+  DynamoDBDocument: {
+    from: jest.fn(() => ({
+      update: mockDynamoDb.update,
+    })),
+  },
 }));
 
 process.env = {
@@ -52,28 +59,10 @@ describe("#TASK RUNNER:: ", () => {
 
   it("Should return test canceled when there is less than 100 tasks to delete", async () => {
     let listResponse = listTasksResponse(1);
-    mockEcs.listTasks.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve(listResponse);
-      },
-    }));
-
-    mockEcs.stopTask.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
-    mockEcs.listTasks.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve({ taskArns: [] });
-      },
-    }));
-
-    mockDynamoDb.update.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
+    mockEcs.listTasks.mockImplementationOnce(() => Promise.resolve(listResponse));
+    mockEcs.stopTask.mockImplementationOnce(() => Promise.resolve({}));
+    mockEcs.listTasks.mockImplementationOnce(() => Promise.resolve({ taskArns: [] }));
+    mockDynamoDb.update.mockImplementationOnce(() => Promise.resolve({}));
 
     const response = await lambda.handler(event);
     expect(response).toEqual("test cancelled");
@@ -81,28 +70,10 @@ describe("#TASK RUNNER:: ", () => {
   it('Should return "test stopped due to error" when error is included in event', async () => {
     let listResponse = listTasksResponse(1);
     event.error = "error";
-    mockEcs.listTasks.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve(listResponse);
-      },
-    }));
-
-    mockEcs.stopTask.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
-    mockEcs.listTasks.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve({ taskArns: [] });
-      },
-    }));
-
-    mockDynamoDb.update.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
+    mockEcs.listTasks.mockImplementationOnce(() => Promise.resolve(listResponse));
+    mockEcs.stopTask.mockImplementationOnce(() => Promise.resolve({}));
+    mockEcs.listTasks.mockImplementationOnce(() => Promise.resolve({ taskArns: [] }));
+    mockDynamoDb.update.mockImplementationOnce(() => Promise.resolve({}));
 
     const response = await lambda.handler(event);
     expect(response).toEqual("test stopped due to error");
@@ -110,42 +81,14 @@ describe("#TASK RUNNER:: ", () => {
   });
   it("Should return test canceled when and call listTasks multiple times when nextToken", async () => {
     let listResponse = listTasksResponse(1);
-    const mockEcs = {
-      listTasks: jest.fn(),
-      stopTask: jest.fn(),
-    };
-    mockAWS.ECS = jest.fn(() => ({
-      listTasks: mockEcs.listTasks,
-      stopTask: mockEcs.stopTask,
-    }));
-    mockEcs.listTasks.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve({ taskArns: listResponse.taskArns, nextToken: "a1" });
-      },
-    }));
+    mockEcs.listTasks.mockImplementationOnce(() =>
+      Promise.resolve({ taskArns: listResponse.taskArns, nextToken: "a1" })
+    );
     delete listResponse.nextToken;
-    mockEcs.listTasks.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve(listResponse);
-      },
-    }));
-
-    mockEcs.stopTask.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
-    mockEcs.listTasks.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve({ taskArns: [] });
-      },
-    }));
-
-    mockDynamoDb.update.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
+    mockEcs.listTasks.mockImplementationOnce(() => Promise.resolve(listResponse));
+    mockEcs.stopTask.mockImplementation(() => Promise.resolve({}));
+    mockEcs.listTasks.mockImplementationOnce(() => Promise.resolve({ taskArns: [] }));
+    mockDynamoDb.update.mockImplementationOnce(() => Promise.resolve({}));
 
     const response = await lambda.handler(event);
 
@@ -154,42 +97,14 @@ describe("#TASK RUNNER:: ", () => {
   });
   it('Should return "test canceled" and wait between stopTask when more than 100 tasks', async () => {
     let listResponse = listTasksResponse(50);
-    const mockEcs = {
-      listTasks: jest.fn(),
-      stopTask: jest.fn(),
-    };
-    mockAWS.ECS = jest.fn(() => ({
-      listTasks: mockEcs.listTasks,
-      stopTask: mockEcs.stopTask,
-    }));
-    mockEcs.listTasks.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve({ taskArns: listResponse.taskArns, nextToken: "a1" });
-      },
-    }));
+    mockEcs.listTasks.mockImplementationOnce(() =>
+      Promise.resolve({ taskArns: listResponse.taskArns, nextToken: "a1" })
+    );
     const listResponseSecondCall = listTasksResponse(51);
-    mockEcs.listTasks.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve(listResponseSecondCall);
-      },
-    }));
-
-    mockEcs.stopTask.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
-    mockEcs.listTasks.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve({ taskArns: [] });
-      },
-    }));
-
-    mockDynamoDb.update.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
+    mockEcs.listTasks.mockImplementationOnce(() => Promise.resolve(listResponseSecondCall));
+    mockEcs.stopTask.mockImplementation(() => Promise.resolve({}));
+    mockEcs.listTasks.mockImplementationOnce(() => Promise.resolve({ taskArns: [] }));
+    mockDynamoDb.update.mockImplementationOnce(() => Promise.resolve({}));
 
     const response = await lambda.handler(event);
 
@@ -198,36 +113,10 @@ describe("#TASK RUNNER:: ", () => {
   });
   //negative tests
   it("Should throw error when listTasks fails", async () => {
-    const mockEcs = {
-      listTasks: jest.fn(),
-      stopTask: jest.fn(),
-    };
-    mockAWS.ECS = jest.fn(() => ({
-      listTasks: mockEcs.listTasks,
-      stopTask: mockEcs.stopTask,
-    }));
-    mockEcs.listTasks.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.reject("List Tasks Error");
-      },
-    }));
-
-    mockEcs.stopTask.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
-    mockEcs.listTasks.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve({ taskArns: [] });
-      },
-    }));
-
-    mockDynamoDb.update.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
+    mockEcs.listTasks.mockImplementationOnce(() => Promise.reject("List Tasks Error"));
+    mockEcs.stopTask.mockImplementation(() => Promise.resolve({}));
+    mockEcs.listTasks.mockImplementationOnce(() => Promise.resolve({ taskArns: [] }));
+    mockDynamoDb.update.mockImplementationOnce(() => Promise.resolve({}));
     try {
       await lambda.handler(event);
     } catch (err) {

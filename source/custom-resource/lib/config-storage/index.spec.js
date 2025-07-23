@@ -4,12 +4,14 @@
 // Mock AWS SDK
 const mockDynamoDb = {
   put: jest.fn(),
-  delete: jest.fn(),
 };
-const mockAWS = require("aws-sdk");
 
-mockAWS.DynamoDB.DocumentClient = jest.fn(() => ({
-  put: mockDynamoDb.put,
+jest.mock("@aws-sdk/lib-dynamodb", () => ({
+  DynamoDBDocument: {
+    from: jest.fn(() => ({
+      put: mockDynamoDb.put,
+    })),
+  },
 }));
 
 process.env = {
@@ -53,12 +55,7 @@ describe("#Write Configs::", () => {
   });
 
   it('should return "success" for writing to S3 and DynamoDB', async () => {
-    mockDynamoDb.put.mockImplementation(() => ({
-      promise() {
-        // update DDB entry
-        return Promise.resolve();
-      },
-    }));
+    mockDynamoDb.put.mockResolvedValue({});
 
     const response = await lambda.testingResourcesConfigFile(testingResourcesConfig, () => {
       expect(this.options.customUserAgent).toBeDefined();
@@ -72,12 +69,7 @@ describe("#Write Configs::", () => {
   });
 
   it('should return "ERROR" on ConfigFile failure', async () => {
-    mockDynamoDb.put.mockImplementation(() => ({
-      promise() {
-        // update
-        return Promise.reject("ERROR");
-      },
-    }));
+    mockDynamoDb.put.mockRejectedValue("ERROR");
 
     try {
       await lambda.testingResourcesConfigFile(testingResourcesConfig);
@@ -97,11 +89,7 @@ describe("#Delete Configs::", () => {
   });
 
   it('should return "success" for deleting S3 object and DynamoDB item', async () => {
-    mockDynamoDb.put.mockImplementation(() => ({
-      promise() {
-        return Promise.resolve();
-      },
-    }));
+    mockDynamoDb.put.mockResolvedValue({});
 
     const response = await lambda.delTestingResourcesConfigFile(testingResourcesConfig);
     expect(response).toEqual("success");
@@ -112,11 +100,7 @@ describe("#Delete Configs::", () => {
   });
 
   it('should return "ERROR" on delete failure', async () => {
-    mockDynamoDb.put.mockImplementation(() => ({
-      promise() {
-        return Promise.reject("ERROR");
-      },
-    }));
+    mockDynamoDb.put.mockRejectedValue("ERROR");
 
     try {
       await lambda.delTestingResourcesConfigFile(testingResourcesConfig);

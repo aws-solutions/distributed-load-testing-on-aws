@@ -259,7 +259,7 @@ exports[`DLT API Test 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "testbucket",
-          "S3Key": "custom-resource.zip",
+          "S3Key": "Omitted to remove snapshot dependency on hash",
         },
         "Handler": "index.handler",
         "Role": {

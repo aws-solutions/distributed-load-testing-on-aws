@@ -23,15 +23,19 @@ const mockSolutionUtils = {
   getOptions: jest.fn(),
   sendMetric: jest.fn(),
 };
-
-jest.mock("aws-sdk", () => ({
+jest.mock("@aws-sdk/client-s3", () => ({
   S3: jest.fn(() => ({
     ...mockS3,
   })),
-  DynamoDB: {
-    DocumentClient: jest.fn(() => ({
-      ...mockDDBDocumentClient,
-    })),
+}));
+
+jest.mock("@aws-sdk/client-dynamodb", () => ({
+  DynamoDB: jest.fn(() => ({})),
+}));
+
+jest.mock("@aws-sdk/lib-dynamodb", () => ({
+  DynamoDBDocument: {
+    from: jest.fn(() => ({ ...mockDDBDocumentClient })),
   },
 }));
 

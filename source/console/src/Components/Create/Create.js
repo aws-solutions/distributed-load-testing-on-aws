@@ -31,6 +31,9 @@ import {
   NavLink,
   TabContent,
   TabPane,
+  Modal,
+  ModalBody,
+  ModalFooter,
 } from "reactstrap";
 import "brace/theme/github";
 import { generateUniqueId } from "solution-utils";
@@ -41,7 +44,7 @@ import RefreshButtons from "../Shared/Buttons/RefreshButtons";
 const FILE_SIZE_LIMIT = 50 * 1024 * 1024;
 
 // Allowed file extensions
-const SCRIPT_FILE_EXTENSIONS = { jmeter: "jmx" };
+const SCRIPT_FILE_EXTENSIONS = { jmeter: "jmx", k6: "js", locust: "py" };
 
 class Create extends React.Component {
   constructor(props) {
@@ -115,6 +118,7 @@ class Create extends React.Component {
         showLive: this.props.location.state.data.showLive || false,
         cronValue: this.props.location.state.data.cronValue || "0 * * * *",
         cronExpiryDate: this.props.location.state.data.cronExpiryDate || "",
+        k6Acknowledged: this.props.location.state.data.k6Acknowledged || false,
       },
     };
     if (this.props.location.state.data.cronValue) {
@@ -165,6 +169,7 @@ class Create extends React.Component {
         showLive: false,
         cronValue: "0 * * * *",
         cronExpiryDate: "",
+        k6Acknowledged: false,
       },
     };
   }
@@ -220,6 +225,7 @@ class Create extends React.Component {
       rampUpUnits,
       holdFor,
       holdForUnits,
+      onSchedule,
       testType,
       fileType,
       showLive,
@@ -227,9 +233,13 @@ class Create extends React.Component {
       body,
       endpoint,
       method,
-      onSchedule,
+      k6Acknowledged,
     } = this.state.formValues;
 
+    if (testType === "k6" && !k6Acknowledged) {
+      this.setState({ showModal: true });
+      return false;
+    }
     if (!this.form.current.reportValidity()) {
       this.setState({ isLoading: false });
       return false;
@@ -364,9 +374,12 @@ class Create extends React.Component {
     const value = event.target.name === "showLive" ? event.target.checked : event.target.value;
     const name = event.target.name;
     const id = event.target.id;
-
     if (name === "testType") {
       this.setState({ file: null });
+      if (value === "k6" && !this.state.isAcknowledged) {
+        this.setState({ showModal: true });
+        this.setFormValue("k6Acknowledged", false);
+      }
     } else if (name === "onSchedule") {
       this.setState({ submitLabel: value === "1" ? "Schedule" : "Run Now" });
     } else if (name === "testTaskConfigs") {
@@ -382,9 +395,24 @@ class Create extends React.Component {
       this.setState({ cronError: true });
     } else if (name === "holdFor" || name === "rampUp") this.setFormValue(name, value, id);
     this.setState({ intervalDiff: false });
-    if (this.checkEnoughIntervalDiff()) this.setState({ intervalDiff: true });
-
+    this.checkIntervalDiff();
     this.setFormValue(name, value, id);
+  }
+
+  /**
+   * Checks if there is enough time interval between successive scheduled test runs.
+   *
+   * This function verifies that the customer has allowed for enough time interval between
+   * successive test runs, as each test run on its own can use up the entire ECS service quota in the account.
+   * The interval check is only performed when the customer is using the scheduling feature in the UI
+   * (when they select the radio button to schedule a test instead of the "Run Now" option).
+   *
+   * The state attribute formValues.onSchedule is "1" when the user has selected to schedule the test.
+   * This check is skipped when the customer chooses to run the test immediately after submitting the form.
+   */
+  checkIntervalDiff() {
+    if (this.state.formValues.onSchedule === "1" && this.checkEnoughIntervalDiff())
+      this.setState({ intervalDiff: true });
   }
 
   handleBodyPayloadChange(value) {
@@ -548,7 +576,7 @@ class Create extends React.Component {
   };
 
   uploadFileDescription = () => {
-    if (!["jmeter"].includes(this.state.formValues.testType)) {
+    if (!["jmeter", "k6", "locust"].includes(this.state.formValues.testType)) {
       return null;
     }
     const ext = SCRIPT_FILE_EXTENSIONS[this.state.formValues.testType];
@@ -1367,7 +1395,42 @@ class Create extends React.Component {
                 >
                   <option value="simple">Single HTTP Endpoint</option>
                   <option value="jmeter">JMeter</option>
+                  <option value="k6">K6</option>
+                  <option value="locust">Locust</option>
                 </Input>
+                <Modal
+                  isOpen={this.state.showModal}
+                  toggle={() => {
+                    this.setState({ showModal: false });
+                    this.setFormValue("k6Acknowledged", false);
+                  }}
+                >
+                  <ModalBody>
+                    <p>
+                      This project is licensed under the{" "}
+                      <code>
+                        <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache-2.0 License.</a>
+                      </code>{" "}
+                      However, as part of this test, the K6 testing framework that will be installed is licensed under
+                      the{" "}
+                      <code>
+                        <a href="https://github.com/grafana/k6?tab=AGPL-3.0-1-ov-file">AGPL-3.0 License</a>
+                      </code>
+                    </p>
+                  </ModalBody>
+                  <ModalFooter>
+                    <Button
+                      id="modalAcknowledge"
+                      color="primary"
+                      onClick={() => {
+                        this.setState({ showModal: false, isAcknowledged: true });
+                        this.setFormValue("k6Acknowledged", true);
+                      }}
+                    >
+                      Acknowledge
+                    </Button>
+                  </ModalFooter>
+                </Modal>
               </FormGroup>
               {this.state.formValues.testType === "simple" && (
                 <div>

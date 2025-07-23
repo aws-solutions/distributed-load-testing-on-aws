@@ -3,109 +3,62 @@
 
 const yaml = require("js-yaml");
 // Mock AWS SDK
-const mockS3 = jest.fn();
-const mockAWS = require("aws-sdk");
-mockAWS.S3 = jest.fn(() => ({
-  getObject: mockS3,
-  putObject: mockS3,
-  copyObject: mockS3,
+const mockS3 = {
+  getObject: jest.fn(),
+  putObject: jest.fn(),
+  copyObject: jest.fn(),
+};
+
+jest.mock("@aws-sdk/client-s3", () => ({
+  S3: jest.fn(() => ({
+    getObject: mockS3.getObject,
+    putObject: mockS3.putObject,
+    copyObject: mockS3.copyObject,
+  })),
 }));
-mockAWS.config = jest.fn(() => ({
-  logger: Function,
-}));
+
 process.env.SOLUTION_ID = "SO0062";
 process.env.VERSION = "3.0.0";
 const lambda = require("./index.js");
 
 //fake template for putRegionalTemplate tests
-const template = yaml.dump({
+const template = {
   Mappings: {
     Solution: {
       Config: {
-        APIServicesLambdaRoleName: "PLACEHOLDER",
-        MainStackRegion: "PLACEHOLDER",
-        ScenariosTable: "PLACEHOLDER",
-        TaskRunnerRoleName: "PLACEHOLDER",
-        TaskCancelerRoleName: "PLACEHOLDER",
-        TaskStatusCheckerRoleName: "PLACEHOLDER",
-        ScenariosS3Bucket: "PLACEHOLDER",
-        Uuid: "PLACEHOLDER",
+        MainRegionLambdaTaskRoleArn: "Main_Region_Lambda_Task_Role_Arn",
+        MainRegionStack: "Main_Region_Stack",
+        ScenariosBucket: "Scenarios_Bucket",
+        ScenariosTable: "Scenarios_Table",
       },
     },
   },
-});
+};
 
 //event body for putRegionalTemplate tests
 const putRegionalTemplateEventBody = {
-  APIServicesLambdaRoleName: "test-services-role",
-  MainStackRegion: "test-region",
-  ScenariosTable: "test-table",
-  TaskRunnerRoleName: "test-runner-role",
-  TaskCancelerRoleName: "test-canceler-role",
-  TaskStatusCheckerRoleName: "test-checker-role",
+  MainRegionLambdaTaskRoleArn: "test-services-role",
+  MainRegionStack: "test-region",
   DestBucket: "test-bucket",
-  Uuid: "test-uuid",
+  ScenariosTable: "test-table",
 };
 
 describe("#S3::", () => {
   beforeEach(() => {
-    mockS3.mockReset();
-  });
-
-  it('should return "success" on copyAssets success', async () => {
-    const data = { Body: '["console/file1","console/file2"]' };
-    mockS3
-      .mockImplementationOnce(() => ({
-        promise() {
-          // getObject
-          return Promise.resolve(data);
-        },
-      }))
-      .mockImplementation(() => ({
-        promise() {
-          // copyObject
-          return Promise.resolve({});
-        },
-      }));
-
-    const response = await lambda.copyAssets("srcBucket", "srcPath", "manifestFile", "destBucket");
-    expect(response).toEqual("success");
-  });
-
-  it('should return "ERROR" on copyAssets failure', async () => {
-    mockS3.mockImplementation(() => ({
-      promise() {
-        // getObject
-        return Promise.reject("ERROR");
-      },
-    }));
-
-    try {
-      await lambda.copyAssets("srcBucket", "srcPath", "manifestFile", "destBucket");
-    } catch (error) {
-      expect(error).toEqual("ERROR");
-    }
+    mockS3.getObject.mockReset();
+    mockS3.putObject.mockReset();
+    mockS3.copyObject.mockReset();
   });
 
   it('should return "success" on ConfigFile success', async () => {
-    mockS3.mockImplementation(() => ({
-      promise() {
-        // putObject
-        return Promise.resolve();
-      },
-    }));
+    mockS3.putObject.mockResolvedValue({});
 
     const response = await lambda.configFile("file", "destBucket");
     expect(response).toEqual("success");
   });
 
   it('should return "ERROR" on ConfigFile failure', async () => {
-    mockS3.mockImplementation(() => ({
-      promise() {
-        // putObject
-        return Promise.reject("ERROR");
-      },
-    }));
+    mockS3.putObject.mockRejectedValue("ERROR");
 
     try {
       await lambda.configFile("file", "destBucket");
@@ -115,48 +68,36 @@ describe("#S3::", () => {
   });
 
   it('should return "SUCCESS" on putRegionalTemplate success', async () => {
-    mockS3.mockImplementationOnce(() => ({
-      promise() {
-        // getObject
-        return Promise.resolve({ Body: template });
-      },
-    }));
-
-    mockS3.mockImplementationOnce(() => ({
-      promise() {
-        // putObject
-        return Promise.resolve();
-      },
-    }));
-
-    const response = await lambda.putRegionalTemplate(putRegionalTemplateEventBody);
-    const expectedTemplate = yaml.dump({
-      Mappings: {
-        Solution: {
-          Config: {
-            APIServicesLambdaRoleName: "test-services-role",
-            MainStackRegion: "test-region",
-            ScenariosTable: "test-table",
-            TaskRunnerRoleName: "test-runner-role",
-            TaskCancelerRoleName: "test-canceler-role",
-            TaskStatusCheckerRoleName: "test-checker-role",
-            ScenariosS3Bucket: "test-bucket",
-            Uuid: "test-uuid",
-          },
-        },
+    mockS3.getObject.mockResolvedValueOnce({
+      Body: {
+        transformToString: () => Promise.resolve(Buffer.from(JSON.stringify(template))),
       },
     });
-    expect(mockS3).toHaveBeenNthCalledWith(2, expect.objectContaining({ Body: expectedTemplate }));
+
+    mockS3.putObject.mockResolvedValueOnce({});
+
+    const response = await lambda.putRegionalTemplate(putRegionalTemplateEventBody);
+    expect(mockS3.putObject).toHaveBeenCalledWith({
+      Bucket: "test-bucket",
+      Key: "regional-template/distributed-load-testing-on-aws-regional.template",
+      Body: JSON.stringify({
+        Mappings: {
+          Solution: {
+            Config: {
+              MainRegionLambdaTaskRoleArn: "test-services-role",
+              MainRegionStack: "test-region",
+              ScenariosBucket: "test-bucket",
+              ScenariosTable: "test-table",
+            },
+          },
+        },
+      }),
+    });
     expect(response).toEqual("success");
   });
 
   it('should return "ERROR" on putRegionalTemplate failure', async () => {
-    mockS3.mockImplementation(() => ({
-      promise() {
-        // putObject
-        return Promise.reject("ERROR");
-      },
-    }));
+    mockS3.getObject.mockRejectedValue("ERROR");
 
     try {
       await lambda.putRegionalTemplate(putRegionalTemplateEventBody);

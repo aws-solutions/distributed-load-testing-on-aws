@@ -7,7 +7,7 @@
     "es6": true,
     "cypress/globals": true
   },
-  "ignorePatterns": ["**/node_modules/**", "**/*.config.ts", "**/dist/**", "**/cdk.out/**"],
+  "ignorePatterns": ["**/node_modules/**", "**/*.config.ts", "**/dist/**", "**/cdk.out/**", "**/metrics-utils/**/*.js"],
   "parserOptions": {
     "ecmaVersion": "latest"
   },
