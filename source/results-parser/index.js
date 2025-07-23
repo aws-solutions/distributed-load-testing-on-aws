@@ -2,12 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const parser = require("./lib/parser/");
-const AWS = require("aws-sdk");
+
+const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDB } = require("@aws-sdk/client-dynamodb");
+const { S3 } = require("@aws-sdk/client-s3");
+
 const utils = require("solution-utils");
 let options = utils.getOptions({});
-const s3 = new AWS.S3(options);
+const s3 = new S3(options);
 
-const dynamoDb = new AWS.DynamoDB.DocumentClient(options);
+const dynamoDb = DynamoDBDocument.from(new DynamoDB(options));
 
 const parseResults = async (eventConfigs, testId, endTime, startTime, totalDuration, resultList) => {
   let aggregateData = [];
@@ -23,7 +27,7 @@ const parseResults = async (eventConfigs, testId, endTime, startTime, totalDurat
 
     //parse each results file
     for (const content of result) {
-      const parsedResult = parser.results(content.Body, testId);
+      const parsedResult = parser.results(await content.Body.transformToString(), testId);
       let duration = parseInt(parsedResult.duration);
       totalDuration += isNaN(duration) ? 0 : duration;
       data.push(parsedResult);
@@ -45,7 +49,8 @@ const parseResults = async (eventConfigs, testId, endTime, startTime, totalDurat
     aggregateData = aggregateData.concat(data);
 
     // Parser final results for region
-    finalResults[eventConfig.region] = await parser.finalResults(testId, data);
+    let finalResultsPerRegion = await parser.finalResults(testId, data);
+    finalResults[eventConfig.region] = finalResultsPerRegion;
 
     //create widget image for region
     const { metricS3Location, metrics: taskMetrics } = await parser.createWidget(
@@ -67,7 +72,8 @@ const parseResults = async (eventConfigs, testId, endTime, startTime, totalDurat
     );
   }
   //parse aggregate final results
-  finalResults["total"] = await parser.finalResults(testId, aggregateData);
+  let finalResultsTotal = await parser.finalResults(testId, aggregateData);
+  finalResults["total"] = finalResultsTotal;
   return { finalResults: finalResults, allMetrics: allMetrics, completeTasks: completeTasks };
 };
 
@@ -98,6 +104,7 @@ const writeTestDataToHistoryTable = async (
     allMetrics
   );
   finalResults["total"].metricS3Location = aggMetricS3Loc;
+
   // Write test run data to history table
   let status = "complete";
   const historyParams = {
@@ -126,7 +133,7 @@ const getScenariosTableItems = async (testId) => {
     },
     AttributesToGet: ["startTime", "status", "testTaskConfigs", "testType", "testScenario", "testDescription"],
   };
-  const ddbGetResponse = await dynamoDb.get(ddbParams).promise();
+  const ddbGetResponse = await dynamoDb.get(ddbParams);
   return ddbGetResponse.Item;
 };
 
@@ -145,7 +152,7 @@ const getResultList = async (testId, prefix) => {
     if (nextContinuationToken) {
       params.ContinuationToken = nextContinuationToken;
     }
-    const result = await s3.listObjectsV2(params).promise();
+    const result = await s3.listObjectsV2(params);
     resultList = resultList.concat(result.Contents);
     nextContinuationToken = result.IsTruncated ? result.NextContinuationToken : null;
   } while (nextContinuationToken);
@@ -166,7 +173,7 @@ const getFilesByRegion = async (resultList) => {
   //get all results files from test sorted by region
   for (const content of resultList) {
     //extract region from file name
-    const regex = /[a-z]{1,3}-[a-z]+-\d(?=.xml)/g;
+    const regex = /[a-z]{1,3}-(?:gov-[a-z]+|[a-z]+)-\d(?=\.xml)/g;
 
     // Check if logString exceeds character limit
     if (content.Key.length > 250) throw new Error("Log message exceeds character limit.");
@@ -190,12 +197,10 @@ const getFilesByRegion = async (resultList) => {
     const region = raceResult;
     !(region in promises) && (promises[region] = []);
     promises[region].push(
-      s3
-        .getObject({
-          Bucket: process.env.SCENARIOS_BUCKET,
-          Key: content.Key,
-        })
-        .promise()
+      s3.getObject({
+        Bucket: process.env.SCENARIOS_BUCKET,
+        Key: content.Key,
+      })
     );
   }
   return promises;
@@ -203,7 +208,7 @@ const getFilesByRegion = async (resultList) => {
 
 exports.handler = async (event) => {
   console.log(JSON.stringify(event, null, 2));
-  const { testId, fileType, prefix, testTaskConfig: eventConfigs, executionStart: testStartTime } = event;
+  const { showLive, testId, fileType, prefix, testTaskConfig: eventConfigs, executionStart: testStartTime } = event;
   const endTime = new Date()
     .toISOString()
     .replace("T", " ")
@@ -241,15 +246,20 @@ exports.handler = async (event) => {
       const currentTime = new Date();
       const durationMilliseconds = currentTime - new Date(testStartTime);
       const durationSeconds = durationMilliseconds / 1000;
-
-      await utils.sendMetric({
+      const metricsToSend = {
         Type: "TestCompletion",
         TestType: testType,
         FileType: fileType || (testType === "simple" ? "none" : "script"),
         TestResult: testResult,
         Duration: durationSeconds,
         TestId: testId,
-      });
+        TaskCount: eventConfigs.taskCount,
+        Concurrency: eventConfigs.concurrency,
+        LiveData: showLive,
+        Region: eventConfigs.region,
+      };
+      console.debug(`Sending metrics: ${JSON.stringify(metricsToSend)}`);
+      await utils.sendMetric(metricsToSend);
     }
     return "success";
   } catch (error) {
@@ -266,21 +276,19 @@ exports.handler = async (event) => {
 };
 
 const updateScenariosTable = async (testId, errorReason) => {
-  await dynamoDb
-    .update({
-      TableName: process.env.SCENARIOS_TABLE,
-      Key: { testId },
-      UpdateExpression: "set #s = :s, #e = :e",
-      ExpressionAttributeNames: {
-        "#s": "status",
-        "#e": "errorReason",
-      },
-      ExpressionAttributeValues: {
-        ":s": "failed",
-        ":e": errorReason,
-      },
-    })
-    .promise();
+  await dynamoDb.update({
+    TableName: process.env.SCENARIOS_TABLE,
+    Key: { testId },
+    UpdateExpression: "set #s = :s, #e = :e",
+    ExpressionAttributeNames: {
+      "#s": "status",
+      "#e": "errorReason",
+    },
+    ExpressionAttributeValues: {
+      ":s": "failed",
+      ":e": errorReason,
+    },
+  });
 };
 
 if (process.env.RUNNING_UNIT_TESTS === "True") {

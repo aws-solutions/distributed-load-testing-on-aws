@@ -5,12 +5,18 @@ import { Template } from "aws-cdk-lib/assertions";
 import { App, DefaultStackSynthesizer, Stack } from "aws-cdk-lib";
 import { Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { ECSResourcesConstruct } from "../lib/testing-resources/ecs";
+import { Vpc } from "aws-cdk-lib/aws-ec2";
+import { createTemplateWithoutS3Key } from "./snapshot_helpers";
 
 test("DLT ECS Test", () => {
   const app = new App();
+  process.env.PUBLIC_ECR_REGISTRY = "registry";
+  process.env.PUBLIC_ECR_TAG = "tag";
   const stack = new Stack(app, "DLTStack", {
     synthesizer: new DefaultStackSynthesizer({
       generateBootstrapVersionRule: false,
+      imageAssetsRepositoryName: process.env.PUBLIC_ECR_REGISTRY,
+      dockerTagPrefix: process.env.PUBLIC_ECR_TAG,
     }),
   });
   const testPolicy = new Policy(stack, "TestPolicy", {
@@ -21,16 +27,15 @@ test("DLT ECS Test", () => {
       }),
     ],
   });
+  const vpc = new Vpc(stack, "TestVPC");
   const ecs = new ECSResourcesConstruct(stack, "TestECS", {
-    cloudWatchLogsPolicy: testPolicy,
-    containerImage: "testRepository/testImage:testTag",
-    fargateVpcId: "vpc-1a2b3c4d5e",
+    fargateVpc: vpc,
     scenariosS3Bucket: "testscenariobucket",
     securityGroupEgress: "0.0.0.0/0",
     solutionId: "SO0062",
   });
 
-  expect(Template.fromStack(stack)).toMatchSnapshot();
+  expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();
   Template.fromStack(stack).hasResourceProperties("AWS::ECS::Cluster", {
     ClusterSettings: [
       {
@@ -63,16 +68,17 @@ test("DLT ECS Test", () => {
     RequiresCompatibilities: ["FARGATE"],
   });
   Template.fromStack(stack).resourceCountIs("AWS::EC2::SecurityGroup", 1);
-  Template.fromStack(stack).hasResourceProperties("AWS::EC2::SecurityGroupIngress", {
-    GroupId: {
-      Ref: "TestECSDLTEcsSecurityGroupFE5016DC",
-    },
-    SourceSecurityGroupId: {
-      Ref: "TestECSDLTEcsSecurityGroupFE5016DC",
-    },
+  Template.fromStack(stack).hasResourceProperties("AWS::EC2::SecurityGroup", {
+    SecurityGroupEgress: [
+      {
+        CidrIp: "0.0.0.0/0",
+        IpProtocol: "-1",
+      },
+    ],
   });
-  Template.fromStack(stack).hasResourceProperties("AWS::EC2::SecurityGroupEgress", {
-    Description: "Allow tasks to call out to external resources",
+  Template.fromStack(stack).hasResourceProperties("AWS::EC2::SecurityGroupIngress", {
+    FromPort: 50000,
+    ToPort: 50000,
   });
   expect(ecs.taskClusterName).toBeDefined();
   expect(ecs.ecsCloudWatchLogGroup).toBeDefined();

@@ -13,6 +13,11 @@ exports[`DLT Task Lambda Test 1`] = `
             },
           ],
         },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
       },
       "Properties": {
         "AssumeRolePolicyDocument": {
@@ -41,50 +46,15 @@ exports[`DLT Task Lambda Test 1`] = `
                     "ecs:RunTask",
                     "ecs:DescribeTasks",
                     "ecs:TagResource",
+                    "logs:PutMetricFilter",
                   ],
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:ResourceTag/SolutionId": "testId",
+                    },
+                  },
                   "Effect": "Allow",
-                  "Resource": [
-                    {
-                      "Fn::Join": [
-                        "",
-                        [
-                          "arn:",
-                          {
-                            "Ref": "AWS::Partition",
-                          },
-                          ":ecs:",
-                          {
-                            "Ref": "AWS::Region",
-                          },
-                          ":",
-                          {
-                            "Ref": "AWS::AccountId",
-                          },
-                          ":task/*",
-                        ],
-                      ],
-                    },
-                    {
-                      "Fn::Join": [
-                        "",
-                        [
-                          "arn:",
-                          {
-                            "Ref": "AWS::Partition",
-                          },
-                          ":ecs:",
-                          {
-                            "Ref": "AWS::Region",
-                          },
-                          ":",
-                          {
-                            "Ref": "AWS::AccountId",
-                          },
-                          ":task-definition/*:*",
-                        ],
-                      ],
-                    },
-                  ],
+                  "Resource": "*",
                 },
                 {
                   "Action": "s3:putObject",
@@ -95,16 +65,6 @@ exports[`DLT Task Lambda Test 1`] = `
                   "Action": "iam:PassRole",
                   "Effect": "Allow",
                   "Resource": "arn:aws:iam:us-east-1:111122223333:roleArn",
-                },
-                {
-                  "Action": "logs:PutMetricFilter",
-                  "Effect": "Allow",
-                  "Resource": {
-                    "Fn::GetAtt": [
-                      "TestLogsGroup54B681C7",
-                      "Arn",
-                    ],
-                  },
                 },
                 {
                   "Action": "cloudwatch:PutDashboard",
@@ -156,13 +116,13 @@ exports[`DLT Task Lambda Test 1`] = `
             },
             {
               "Action": "logs:DeleteMetricFilter",
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "TestLogsGroup54B681C7",
-                  "Arn",
-                ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:ResourceTag/SolutionId": "testId",
+                },
               },
+              "Effect": "Allow",
+              "Resource": "*",
             },
           ],
           "Version": "2012-10-17",
@@ -184,6 +144,11 @@ exports[`DLT Task Lambda Test 1`] = `
               "id": "W12",
               "reason": "The action does not support resource level permissions.",
             },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
           ],
         },
       },
@@ -213,6 +178,11 @@ exports[`DLT Task Lambda Test 1`] = `
             },
           ],
         },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
       },
       "Properties": {
         "AssumeRolePolicyDocument": {
@@ -232,55 +202,19 @@ exports[`DLT Task Lambda Test 1`] = `
             "PolicyDocument": {
               "Statement": [
                 {
-                  "Action": "ecs:ListTasks",
+                  "Action": "ecs:StopTask",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:ResourceTag/SolutionId": "testId",
+                    },
+                  },
                   "Effect": "Allow",
                   "Resource": "*",
                 },
                 {
-                  "Action": "ecs:StopTask",
+                  "Action": "ecs:ListTasks",
                   "Effect": "Allow",
-                  "Resource": [
-                    {
-                      "Fn::Join": [
-                        "",
-                        [
-                          "arn:",
-                          {
-                            "Ref": "AWS::Partition",
-                          },
-                          ":ecs:",
-                          {
-                            "Ref": "AWS::Region",
-                          },
-                          ":",
-                          {
-                            "Ref": "AWS::AccountId",
-                          },
-                          ":task/*",
-                        ],
-                      ],
-                    },
-                    {
-                      "Fn::Join": [
-                        "",
-                        [
-                          "arn:",
-                          {
-                            "Ref": "AWS::Partition",
-                          },
-                          ":ecs:",
-                          {
-                            "Ref": "AWS::Region",
-                          },
-                          ":",
-                          {
-                            "Ref": "AWS::AccountId",
-                          },
-                          ":task-definition/*:*",
-                        ],
-                      ],
-                    },
-                  ],
+                  "Resource": "*",
                 },
                 {
                   "Action": "dynamodb:UpdateItem",
@@ -303,6 +237,21 @@ exports[`DLT Task Lambda Test 1`] = `
     },
     "TaskRunnerLambdaFunctionsResultsParserLambdaLogGroup4DCE2769": {
       "DeletionPolicy": "Retain",
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W84",
+              "reason": "KMS encryption unnecessary for log group",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
       "Properties": {
         "LogGroupName": {
           "Fn::Join": [
@@ -344,8 +293,10 @@ exports[`DLT Task Lambda Test 1`] = `
       },
       "Properties": {
         "Code": {
-          "S3Bucket": "testbucket",
-          "S3Key": "testPrefix/results-parser.zip",
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
         },
         "Description": "Result parser for indexing xml test results to DynamoDB",
         "Environment": {
@@ -353,7 +304,7 @@ exports[`DLT Task Lambda Test 1`] = `
             "HISTORY_TABLE": {
               "Ref": "TestTable5769773A",
             },
-            "METRIC_URL": "test.example.net",
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
             "SCENARIOS_BUCKET": "testBucket",
             "SCENARIOS_TABLE": {
               "Ref": "TestTable5769773A",
@@ -426,13 +377,15 @@ exports[`DLT Task Lambda Test 1`] = `
       },
       "Properties": {
         "Code": {
-          "S3Bucket": "testbucket",
-          "S3Key": "testPrefix/task-canceler.zip",
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
         },
         "Description": "Stops ECS task",
         "Environment": {
           "Variables": {
-            "METRIC_URL": "test.example.net",
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
             "SCENARIOS_TABLE": {
               "Ref": "TestTable5769773A",
             },
@@ -454,6 +407,13 @@ exports[`DLT Task Lambda Test 1`] = `
     },
     "TaskRunnerLambdaFunctionsTaskCancellerLambdaLogGroup0546CAC3": {
       "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
       "Properties": {
         "LogGroupName": {
           "Fn::Join": [
@@ -473,6 +433,13 @@ exports[`DLT Task Lambda Test 1`] = `
     },
     "TaskRunnerLambdaFunctionsTaskRunnerLambdaLogGroup9B234D13": {
       "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
       "Properties": {
         "LogGroupName": {
           "Fn::Join": [
@@ -514,8 +481,10 @@ exports[`DLT Task Lambda Test 1`] = `
       },
       "Properties": {
         "Code": {
-          "S3Bucket": "testbucket",
-          "S3Key": "testPrefix/task-runner.zip",
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
         },
         "Description": "Task runner for ECS task definitions",
         "Environment": {
@@ -565,8 +534,10 @@ exports[`DLT Task Lambda Test 1`] = `
       },
       "Properties": {
         "Code": {
-          "S3Bucket": "testbucket",
-          "S3Key": "testPrefix/task-status-checker.zip",
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
         },
         "Description": "Task status checker",
         "Environment": {
@@ -606,6 +577,11 @@ exports[`DLT Task Lambda Test 1`] = `
             },
           ],
         },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
       },
       "Properties": {
         "AssumeRolePolicyDocument": {
@@ -625,33 +601,12 @@ exports[`DLT Task Lambda Test 1`] = `
             "PolicyDocument": {
               "Statement": [
                 {
-                  "Action": "ecs:ListTasks",
+                  "Action": [
+                    "ecs:DescribeTasks",
+                    "ecs:ListTasks",
+                  ],
                   "Effect": "Allow",
                   "Resource": "*",
-                },
-                {
-                  "Action": "ecs:DescribeTasks",
-                  "Effect": "Allow",
-                  "Resource": {
-                    "Fn::Join": [
-                      "",
-                      [
-                        "arn:",
-                        {
-                          "Ref": "AWS::Partition",
-                        },
-                        ":ecs:",
-                        {
-                          "Ref": "AWS::Region",
-                        },
-                        ":",
-                        {
-                          "Ref": "AWS::AccountId",
-                        },
-                        ":task/*",
-                      ],
-                    ],
-                  },
                 },
               ],
               "Version": "2012-10-17",
@@ -664,6 +619,13 @@ exports[`DLT Task Lambda Test 1`] = `
     },
     "TaskRunnerLambdaFunctionstaskStatusCheckerLambdaLogGroup7A24AD42": {
       "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
       "Properties": {
         "LogGroupName": {
           "Fn::Join": [

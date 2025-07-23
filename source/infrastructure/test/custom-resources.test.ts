@@ -3,10 +3,11 @@
 
 import { App, CfnCondition, DefaultStackSynthesizer, Fn, Stack } from "aws-cdk-lib";
 import { Bucket } from "aws-cdk-lib/aws-s3";
-import { Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
-import { CustomResourcesConstruct } from "../lib/custom-resources/custom-resources";
-import { CustomResourceInfraConstruct } from "../lib/custom-resources/custom-resources-infra";
+import { CustomResourcesConstruct } from "../lib/common-resources/custom-resources";
 import { Template } from "aws-cdk-lib/assertions";
+import { CustomResourceLambda } from "../lib/common-resources/custom-resource-lambda";
+import { Solution } from "../bin/solution";
+import { createTemplateWithoutS3Key } from "./snapshot_helpers";
 
 test("DLT API Test", () => {
   const app = new App();
@@ -15,55 +16,30 @@ test("DLT API Test", () => {
       generateBootstrapVersionRule: false,
     }),
   });
-  const testSourceBucket = new Bucket(stack, "testSourceCodeBucket");
-  const testPolicy = new Policy(stack, "TestPolicy", {
-    statements: [
-      new PolicyStatement({
-        resources: ["*"],
-        actions: ["cloudwatch:Get*"],
-      }),
-    ],
-  });
 
-  const testCustomResourceInfra = new CustomResourceInfraConstruct(stack, "TestCustomResourceInfra", {
-    cloudWatchPolicy: testPolicy,
-    consoleBucketArn: "test:console:bucket:arn",
-    mainStackRegion: "test-region-1",
-    metricsUrl: "http://testurl.com",
-    scenariosS3Bucket: "scenariotestbucket",
-    scenariosTable: "scenarioTestTable",
-    solutionId: "S0XXX",
-    solutionVersion: "testVersion",
-    sourceCodeBucket: testSourceBucket,
-    sourceCodePrefix: "test/source/prefix",
-    stackType: "main",
-  });
+  const solution = new Solution("testId", "DLT", "testVersion", "mainStackDescription");
+
+  const testCustomResourceLambda = new CustomResourceLambda(stack, "TestCustomResourceInfra", solution);
 
   const sendAnonymizedUsageCondition = new CfnCondition(stack, "condition", {
     expression: Fn.conditionIf("testCondition", true, false),
   });
   const boolExistingVpc = "false";
 
-  const customResources = new CustomResourcesConstruct(stack, "DLTCustomResources", {
-    customResourceLambdaArn: testCustomResourceInfra.customResourceArn,
-  });
+  const customResources = new CustomResourcesConstruct(
+    stack,
+    "DLTCustomResources",
+    testCustomResourceLambda.nodejsLambda
+  );
 
-  customResources.copyConsoleFiles({
-    consoleBucketName: "testconsolebucket",
-    scenariosBucket: "testscenariosbucket",
-    sourceCodeBucketName: "testcodebucket",
-    sourceCodePrefix: "testCodePrefix/",
-  });
-
+  const testBucket = new Bucket(stack, "testConsoleBucket");
   customResources.consoleConfig({
     apiEndpoint: "http://testEndpointUrl.com",
     cognitoIdentityPool: "testIdentityPool",
     cognitoUserPool: "testUserPool",
     cognitoUserPoolClient: "testUserPoolClient",
-    consoleBucketName: "testconsolebucket",
+    consoleBucket: testBucket,
     scenariosBucket: "testscenariobucket",
-    sourceCodeBucketName: "sourcebucket",
-    sourceCodePrefix: "sourcecode/prefix",
     iotEndpoint: "testIoTEndpoint",
     iotPolicy: "testIoTPolicy",
   });
@@ -75,7 +51,6 @@ test("DLT API Test", () => {
     taskDefinition: "task:def:arn:123",
     subnetA: "subnet-123",
     subnetB: "subnet-abc",
-    uuid: "abc-123-def-456",
   });
 
   customResources.sendAnonymizedMetricsCR({
@@ -87,10 +62,7 @@ test("DLT API Test", () => {
     sendAnonymizedUsageCondition,
   });
 
-  expect(Template.fromStack(stack)).toMatchSnapshot();
-  Template.fromStack(stack).hasResourceProperties("AWS::CloudFormation::CustomResource", {
-    Resource: "CopyAssets",
-  });
+  expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();
   Template.fromStack(stack).hasResourceProperties("AWS::CloudFormation::CustomResource", {
     Resource: "ConfigFile",
   });

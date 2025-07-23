@@ -117,9 +117,35 @@ const createResponse = (data, statusCode) => ({
   body: JSON.stringify(data),
 });
 
+//validate config object for data types for inputs.
+const validateConfig = (config) => {
+  const testCreateKeyDataTypes = Object.freeze({
+    testId: "string",
+    testName: "string",
+    testDescription: "string",
+    testTaskConfigs: "object",
+    testScenario: "object",
+    showLive: "boolean",
+    testType: "string",
+    fileType: "string",
+    regionalTaskDetails: "object",
+  });
+
+  for (let key in config) {
+    if (testCreateKeyDataTypes[key]) {
+      if (typeof config[key] !== testCreateKeyDataTypes[key]) {
+        throw new scenarios.ErrorException(
+          "BAD_INPUT",
+          `Invalid input type for ${key}`,
+          scenarios.StatusCodes.BAD_REQUEST
+        );
+      }
+    }
+  }
+};
+
 // Main handler function
 exports.handler = async (event, context) => {
-  console.log(JSON.stringify(event, null, 2));
   let data;
   let response;
   let config = JSON.parse(event.body);
@@ -132,7 +158,7 @@ exports.handler = async (event, context) => {
         break;
       case "/scenarios":
         if (!event.headers) config.eventBridge = "true";
-
+        validateConfig(config);
         data = await apiHandler.handleScenarios(
           config,
           event.queryStringParameters,
@@ -164,3 +190,5 @@ exports.handler = async (event, context) => {
   console.log(response);
   return response;
 };
+
+exports.validateConfig = validateConfig;

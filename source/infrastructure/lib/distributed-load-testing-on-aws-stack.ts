@@ -18,10 +18,9 @@ import {
 import { Construct, IConstruct } from "constructs";
 import { DLTAPI } from "./front-end/api";
 import { CognitoAuthConstruct } from "./front-end/auth";
-import { CommonResourcesConstruct } from "./common-resources/common-resources";
+import { CommonResources } from "./common-resources/common-resources";
 import { DLTConsoleConstruct } from "./front-end/console";
-import { CustomResourcesConstruct } from "./custom-resources/custom-resources";
-import { CustomResourceInfraConstruct } from "./custom-resources/custom-resources-infra";
+import { CustomResourcesConstruct } from "./common-resources/custom-resources";
 import { ECSResourcesConstruct } from "./testing-resources/ecs";
 import { ScenarioTestRunnerStorageConstruct } from "./back-end/scenarios-storage";
 import { TaskRunnerStepFunctionConstruct } from "./back-end/step-functions";
@@ -29,6 +28,8 @@ import { TestRunnerLambdasConstruct } from "./back-end/test-task-lambdas";
 import { FargateVpcConstruct } from "./testing-resources/vpc";
 import { RealTimeDataConstruct } from "./testing-resources/real-time-data";
 import { SolutionsMetrics } from "../../metrics-utils";
+import { Solution } from "../bin/solution";
+import { Bucket } from "aws-cdk-lib/aws-s3";
 
 /**
  * CDK Aspect implementation to set up conditions to the entire Construct resources
@@ -59,38 +60,27 @@ class ConditionAspect implements IAspect {
  * @interface DLTStackProps
  */
 export interface DLTStackProps extends StackProps {
-  readonly codeBucket: string;
-  readonly codeVersion: string;
-  readonly description: string;
-  readonly publicECRRegistry: string;
-  readonly publicECRTag: string;
+  readonly solution: Solution;
   readonly stackType: string;
-  readonly solutionId: string;
-  readonly solutionName: string;
-  readonly url: string;
 }
 
 /**
  * Distributed Load Testing on AWS main CDK Stack
  */
 export class DLTStack extends Stack {
-  // VPC ID
-  private fargateVpcId: string;
-  // Subnets for Fargate tasks
-  private fargateSubnetA: string;
-  private fargateSubnetB: string;
+  public readonly mappings: CfnMapping;
 
   constructor(scope: Construct, id: string, props: DLTStackProps) {
     super(scope, id, props);
 
     // CFN template format version
     this.templateOptions.templateFormatVersion = "2010-09-09";
+    this.templateOptions.description = props.solution.description;
 
     // CFN Parameters
     // Admin name
     const adminName = new CfnParameter(this, "AdminName", {
       type: "String",
-      description: "Admin user name to access the Distributed Load Testing console",
       minLength: 4,
       maxLength: 20,
       allowedPattern: "[a-zA-Z0-9-]+",
@@ -100,7 +90,6 @@ export class DLTStack extends Stack {
     // Admin email
     const adminEmail = new CfnParameter(this, "AdminEmail", {
       type: "String",
-      description: "Admin user email address to access the Distributed Load Testing Console",
       allowedPattern: "^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$",
       constraintDescription: "Admin email must be a valid email address",
       minLength: 5,
@@ -109,18 +98,21 @@ export class DLTStack extends Stack {
     // Existing VPC ID
     const existingVpcId = new CfnParameter(this, "ExistingVPCId", {
       type: "String",
+      default: "",
       description: "Existing VPC ID",
       allowedPattern: "(?:^$|^vpc-[a-zA-Z0-9-]+)",
     });
 
     const existingSubnetA = new CfnParameter(this, "ExistingSubnetA", {
       type: "String",
+      default: "",
       description: "First existing subnet",
       allowedPattern: "(?:^$|^subnet-[a-zA-Z0-9-]+)",
     });
 
     const existingSubnetB = new CfnParameter(this, "ExistingSubnetB", {
       type: "String",
+      default: "",
       description: "Second existing subnet",
       allowedPattern: "(?:^$|^subnet-[a-zA-Z0-9-]+)",
     });
@@ -129,41 +121,21 @@ export class DLTStack extends Stack {
     const vpcCidrBlock = new CfnParameter(this, "VpcCidrBlock", {
       type: "String",
       default: "192.168.0.0/16",
-      description: "CIDR block of the new VPC where AWS Fargate will be placed",
-      allowedPattern: "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
+      description: "You may leave the parameter blank if you are using existing VPC",
+      allowedPattern: "(^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
       constraintDescription: "The VPC CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
       minLength: 9,
       maxLength: 18,
-    });
-
-    // Subnet A CIDR Block
-    const subnetACidrBlock = new CfnParameter(this, "SubnetACidrBlock", {
-      type: "String",
-      default: "192.168.0.0/20",
-      description: "CIDR block for subnet A of the AWS Fargate VPC",
-      allowedPattern: "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
-      constraintDescription: "The subnet CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
-      minLength: 9,
-      maxLength: 18,
-    });
-
-    // Subnet B CIDR Block
-    const subnetBCidrBlock = new CfnParameter(this, "SubnetBCidrBlock", {
-      type: "String",
-      default: "192.168.16.0/20",
-      description: "CIDR block for subnet B of the AWS Fargate VPC",
-      allowedPattern: "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
-      constraintDescription: "The subnet CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
     });
 
     // Egress CIDR Block
     const egressCidrBlock = new CfnParameter(this, "EgressCidr", {
       type: "String",
       default: "0.0.0.0/0",
-      description: "CIDR Block to restrict the ECS container outbound access",
+      description: "CIDR Block to restrict the Amazon ECS container outbound access",
       minLength: 9,
       maxLength: 18,
-      allowedPattern: "(?:^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
+      allowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
       constraintDescription: "The Egress CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
     });
 
@@ -176,29 +148,26 @@ export class DLTStack extends Stack {
             Parameters: [adminName.logicalId, adminEmail.logicalId],
           },
           {
-            Label: { default: "Enter values here to use your own existing VPC" },
-            Parameters: [existingVpcId.logicalId, existingSubnetA.logicalId, existingSubnetB.logicalId],
-          },
-          {
-            Label: { default: "Or have the solution create a new AWS Fargate VPC" },
+            Label: { default: "Network configurations for running distributed load test Fargate tasks" },
             Parameters: [
+              existingVpcId.logicalId,
+              existingSubnetA.logicalId,
+              existingSubnetB.logicalId,
               vpcCidrBlock.logicalId,
-              subnetACidrBlock.logicalId,
-              subnetBCidrBlock.logicalId,
               egressCidrBlock.logicalId,
             ],
           },
         ],
         ParameterLabels: {
-          [adminName.logicalId]: { default: "* Console Administrator Name" },
-          [adminEmail.logicalId]: { default: "* Console Administrator Email" },
-          [existingVpcId.logicalId]: { default: "The ID of an existing VPC in this region. Ex: `vpc-1a2b3c4d5e6f`" },
-          [existingSubnetA.logicalId]: { default: "The ID of a subnet within the existing VPC. Ex: `subnet-7h8i9j0k`" },
-          [existingSubnetB.logicalId]: { default: "The ID of a subnet within the existing VPC. Ex: `subnet-1x2y3z`" },
-          [vpcCidrBlock.logicalId]: { default: "AWS Fargate VPC CIDR Block" },
-          [subnetACidrBlock.logicalId]: { default: "AWS Fargate Subnet A CIDR Block" },
-          [subnetBCidrBlock.logicalId]: { default: "AWS Fargate Subnet A CIDR Block" },
-          [egressCidrBlock.logicalId]: { default: "AWS Fargate SecurityGroup CIDR Block" },
+          [adminName.logicalId]: { default: "* Administrator Name" },
+          [adminEmail.logicalId]: { default: "* Administrator Email" },
+          [existingVpcId.logicalId]: { default: "Select an existing VPC in the region" },
+          [existingSubnetA.logicalId]: { default: "Select first subnet from the existing VPC" },
+          [existingSubnetB.logicalId]: { default: "Select second subnet from the existing VPC" },
+          [vpcCidrBlock.logicalId]: { default: "Provide valid CIDR block for the solution to create VPC" },
+          [egressCidrBlock.logicalId]: {
+            default: "Provide CIDR block for allowing outbound traffic of AWS Fargate tasks",
+          },
         },
       },
     };
@@ -226,23 +195,16 @@ export class DLTStack extends Stack {
     const solutionMapping = new CfnMapping(this, "Solution", {
       mapping: {
         Config: {
-          CodeVersion: props.codeVersion,
-          ContainerImage: `${props.publicECRRegistry}/distributed-load-testing-on-aws-load-tester:${props.publicECRTag}`,
-          KeyPrefix: `${props.solutionName}/${props.codeVersion}`,
-          S3Bucket: props.codeBucket,
+          CodeVersion: props.solution.version,
           SendAnonymizedUsage: "Yes",
-          SolutionId: props.solutionId,
-          URL: props.url,
+          SolutionId: props.solution.id,
         },
       },
     });
+
     const sendAnonymizedUsage = solutionMapping.findInMap("Config", "SendAnonymizedUsage");
     const solutionId = solutionMapping.findInMap("Config", "SolutionId");
     const solutionVersion = solutionMapping.findInMap("Config", "CodeVersion");
-    const sourceCodeBucket = Fn.join("-", [solutionMapping.findInMap("Config", "S3Bucket"), Aws.REGION]);
-    const sourceCodePrefix = solutionMapping.findInMap("Config", "KeyPrefix");
-    const metricsUrl = solutionMapping.findInMap("Config", "URL");
-    const containerImage = solutionMapping.findInMap("Config", "ContainerImage");
     const mainStackRegion = Aws.REGION;
 
     // CFN Conditions
@@ -259,79 +221,60 @@ export class DLTStack extends Stack {
     });
 
     // Fargate VPC resources
-    const fargateVpc = new FargateVpcConstruct(this, "DLTVpc", {
-      solutionId,
-      subnetACidrBlock: subnetACidrBlock.valueAsString,
-      subnetBCidrBlock: subnetBCidrBlock.valueAsString,
-      vpcCidrBlock: vpcCidrBlock.valueAsString,
-    });
+    const fargateVpc = new FargateVpcConstruct(this, "DLTVpc", vpcCidrBlock.valueAsString);
     Aspects.of(fargateVpc).add(new ConditionAspect(createFargateVpcResourcesCondition));
-    this.fargateVpcId = Fn.conditionIf(
-      createFargateVpcResourcesCondition.logicalId,
-      fargateVpc.vpcId,
-      existingVpcId.valueAsString
-    ).toString();
 
-    this.fargateSubnetA = Fn.conditionIf(
+    const fargateSubnetA = Fn.conditionIf(
       createFargateVpcResourcesCondition.logicalId,
-      fargateVpc.subnetA,
+      fargateVpc.vpc.publicSubnets[0].subnetId,
       existingSubnetA.valueAsString
     ).toString();
 
-    this.fargateSubnetB = Fn.conditionIf(
+    const fargateSubnetB = Fn.conditionIf(
       createFargateVpcResourcesCondition.logicalId,
-      fargateVpc.subnetB,
+      fargateVpc.vpc.publicSubnets[1].subnetId,
       existingSubnetB.valueAsString
     ).toString();
 
     const existingVpc = Fn.conditionIf(usingExistingVpc.logicalId, true, false).toString();
 
-    const commonResources = new CommonResourcesConstruct(this, "DLTCommonResources", {
-      sourceCodeBucket,
-    });
-
-    const s3LogsBucket = commonResources.s3LogsBucket();
+    const commonResources = new CommonResources(this, "DLTCommonResources", props.solution);
 
     const dltConsole = new DLTConsoleConstruct(this, "DLTConsoleResources", {
-      s3LogsBucket,
+      s3LogsBucket: commonResources.s3LogsBucket,
       solutionId,
     });
 
     const dltStorage = new ScenarioTestRunnerStorageConstruct(this, "DLTTestRunnerStorage", {
-      s3LogsBucket,
-      cloudFrontDomainName: dltConsole.cloudFrontDomainName,
+      s3LogsBucket: commonResources.s3LogsBucket,
+      webAppURL: dltConsole.webAppURL,
       solutionId,
     });
 
-    const customResourceInfra = new CustomResourceInfraConstruct(this, "DLTCustomResourceInfra", {
-      cloudWatchPolicy: commonResources.cloudWatchLogsPolicy,
-      consoleBucketArn: dltConsole.consoleBucketArn,
-      mainStackRegion,
-      metricsUrl,
-      scenariosS3Bucket: dltStorage.scenariosBucket.bucketName,
-      scenariosTable: dltStorage.scenariosTable.tableName,
-      solutionId,
-      solutionVersion,
-      sourceCodeBucket: commonResources.sourceBucket,
-      sourceCodePrefix,
-      stackType: props.stackType,
+    // add permission and environment variables on custom resource backed lambda function
+    dltStorage.scenariosBucket.grantWrite(commonResources.customResourceLambda.nodejsLambda);
+    dltStorage.scenariosTable.grantReadWriteData(commonResources.customResourceLambda.nodejsLambda);
+    commonResources.customResourceLambda.addEnvironmentVariables({
+      MAIN_REGION: Aws.REGION,
+      S3_BUCKET: dltStorage.scenariosBucket.bucketName,
+      DDB_TABLE: dltStorage.scenariosTable.tableName,
     });
 
-    const customResources = new CustomResourcesConstruct(this, "DLTCustomResources", {
-      customResourceLambdaArn: customResourceInfra.customResourceArn,
-    });
+    const customResources = new CustomResourcesConstruct(
+      this,
+      "DLTCustomResources",
+      commonResources.customResourceLambda.nodejsLambda
+    );
 
     const iotEndpoint = customResources.getIotEndpoint();
 
     const { uuid, suffix } = customResources.uuidGenerator();
 
     const fargateResources = new ECSResourcesConstruct(this, "DLTEcs", {
-      cloudWatchLogsPolicy: commonResources.cloudWatchLogsPolicy,
-      containerImage,
-      fargateVpcId: this.fargateVpcId,
+      fargateVpc: fargateVpc.vpc,
       scenariosS3Bucket: dltStorage.scenariosBucket.bucketName,
       securityGroupEgress: egressCidrBlock.valueAsString,
-      solutionId,
+      solutionId: props.solution.id,
     });
 
     const realTimeDataConstruct = new RealTimeDataConstruct(this, "RealTimeData", {
@@ -339,31 +282,23 @@ export class DLTStack extends Stack {
       ecsCloudWatchLogGroup: fargateResources.ecsCloudWatchLogGroup,
       iotEndpoint,
       mainRegion: Aws.REGION,
-      solutionId,
-      solutionVersion,
-      sourceCodeBucket: commonResources.sourceBucket,
-      sourceCodePrefix,
+      solution: props.solution,
     });
 
     const stepLambdaFunctions = new TestRunnerLambdasConstruct(this, "DLTLambdaFunction", {
       cloudWatchLogsPolicy: commonResources.cloudWatchLogsPolicy,
       scenariosDynamoDbPolicy: dltStorage.scenarioDynamoDbPolicy,
       ecsTaskExecutionRoleArn: fargateResources.taskExecutionRoleArn,
-      ecsCloudWatchLogGroup: fargateResources.ecsCloudWatchLogGroup,
       ecsCluster: fargateResources.taskClusterName,
       ecsTaskDefinition: fargateResources.taskDefinitionArn,
       ecsTaskSecurityGroup: fargateResources.ecsSecurityGroupId,
       historyTable: dltStorage.historyTable,
       historyDynamoDbPolicy: dltStorage.historyDynamoDbPolicy,
       scenariosS3Policy: dltStorage.scenariosS3Policy,
-      subnetA: this.fargateSubnetA,
-      subnetB: this.fargateSubnetB,
-      metricsUrl,
+      subnetA: fargateSubnetA,
+      subnetB: fargateSubnetB,
       sendAnonymizedUsage,
-      solutionId,
-      solutionVersion,
-      sourceCodeBucket: commonResources.sourceBucket,
-      sourceCodePrefix,
+      solution: props.solution,
       scenariosBucket: dltStorage.scenariosBucket.bucketName,
       scenariosBucketArn: dltStorage.scenariosBucket.bucketArn,
       scenariosTable: dltStorage.scenariosTable,
@@ -376,7 +311,6 @@ export class DLTStack extends Stack {
       taskRunner: stepLambdaFunctions.taskRunner,
       resultsParser: stepLambdaFunctions.resultsParser,
       taskCanceler: stepLambdaFunctions.taskCanceler,
-      solutionId,
       suffix,
     });
 
@@ -393,12 +327,8 @@ export class DLTStack extends Stack {
       taskCancelerArn: stepLambdaFunctions.taskCanceler.functionArn,
       taskCancelerInvokePolicy: stepLambdaFunctions.taskCancelerInvokePolicy,
       taskRunnerStepFunctionsArn: taskRunnerStepFunctions.taskRunnerStepFunctions.stateMachineArn,
-      metricsUrl,
       sendAnonymizedUsage,
-      solutionId,
-      solutionVersion,
-      sourceCodeBucket: commonResources.sourceBucket,
-      sourceCodePrefix,
+      solution: props.solution,
       uuid,
     });
 
@@ -406,44 +336,35 @@ export class DLTStack extends Stack {
       adminEmail: adminEmail.valueAsString,
       adminName: adminName.valueAsString,
       apiId: dltApi.apiId,
-      cloudFrontDomainName: dltConsole.cloudFrontDomainName,
+      webAppURL: dltConsole.webAppURL,
       scenariosBucketArn: dltStorage.scenariosBucket.bucketArn,
-    });
-
-    customResources.copyConsoleFiles({
-      consoleBucketName: dltConsole.consoleBucket.bucketName,
-      scenariosBucket: dltStorage.scenariosBucket.bucketName,
-      sourceCodeBucketName: sourceCodeBucket,
-      sourceCodePrefix,
-    });
-
-    customResources.putRegionalTemplate({
-      sourceCodeBucketName: sourceCodeBucket,
-      regionalTemplatePrefix: sourceCodePrefix,
-      scenariosBucket: dltStorage.scenariosBucket.bucketName,
-      mainStackRegion,
-      apiServicesLambdaRoleName: dltApi.apiServicesLambdaRoleName,
-      resultsParserRoleName: <string>stepLambdaFunctions.resultsParser.role?.roleName,
-      scenariosTable: dltStorage.scenariosTable.tableName,
-      taskRunnerRoleName: <string>stepLambdaFunctions.taskRunner.role?.roleName,
-      taskCancelerRoleName: <string>stepLambdaFunctions.taskCanceler.role?.roleName,
-      taskStatusCheckerRoleName: <string>stepLambdaFunctions.taskStatusChecker.role?.roleName,
-      uuid,
     });
 
     customResources.detachIotPrincipalPolicy({
       iotPolicyName: cognitoResources.iotPolicy.ref,
     });
 
+    const { DIST_OUTPUT_BUCKET, SOLUTION_NAME, VERSION, PUBLIC_ECR_REGISTRY, PUBLIC_ECR_TAG } = process.env;
+    if (DIST_OUTPUT_BUCKET && SOLUTION_NAME && VERSION && PUBLIC_ECR_REGISTRY && PUBLIC_ECR_TAG) {
+      const sourceBucketName = Fn.join("-", [DIST_OUTPUT_BUCKET, Aws.REGION]);
+      const sourceBucket = Bucket.fromBucketName(this, "SourceCodeBucket", sourceBucketName.toString());
+      sourceBucket.grantReadWrite(commonResources.customResourceLambda.nodejsLambda);
+      customResources.putRegionalTemplate({
+        sourceCodeBucketName: sourceBucketName,
+        regionalTemplatePrefix: `${SOLUTION_NAME}/${VERSION}`,
+        scenariosBucket: dltStorage.scenariosBucket.bucketName,
+        scenariosTable: dltStorage.scenariosTable.tableName,
+        lambdaTaskRoleArn: stepLambdaFunctions.lambdaTaskRole.roleArn,
+        mainStackRegion,
+      });
+    }
     customResources.consoleConfig({
       apiEndpoint: dltApi.apiEndpointPath,
       cognitoIdentityPool: cognitoResources.cognitoIdentityPoolId,
       cognitoUserPool: cognitoResources.cognitoUserPoolId,
       cognitoUserPoolClient: cognitoResources.cognitoUserPoolClientId,
-      consoleBucketName: dltConsole.consoleBucket.bucketName,
+      consoleBucket: dltConsole.consoleBucket as Bucket,
       scenariosBucket: dltStorage.scenariosBucket.bucketName,
-      sourceCodeBucketName: sourceCodeBucket,
-      sourceCodePrefix,
       iotEndpoint,
       iotPolicy: cognitoResources.iotPolicy.ref,
     });
@@ -453,9 +374,8 @@ export class DLTStack extends Stack {
       ecsCloudWatchLogGroup: fargateResources.ecsCloudWatchLogGroup.logGroupName,
       taskSecurityGroup: fargateResources.ecsSecurityGroupId,
       taskDefinition: fargateResources.taskDefinitionArn,
-      subnetA: this.fargateSubnetA,
-      subnetB: this.fargateSubnetB,
-      uuid,
+      subnetA: fargateSubnetA,
+      subnetB: fargateSubnetB,
     });
 
     customResources.sendAnonymizedMetricsCR({
@@ -467,63 +387,110 @@ export class DLTStack extends Stack {
       sendAnonymizedUsageCondition,
     });
 
-    commonResources.appRegistryApplication({
-      description: props.description,
-      solutionVersion,
-      stackType: props.stackType,
-      solutionId,
-      applicationName: props.solutionName,
-    });
-
     // metrics
 
-    const solutionsMetrics = new SolutionsMetrics(this, "SolutionMetrics", {
-      uuid: uuid,
-      sourceCodeBucket: commonResources.sourceBucket,
-      sourceCodePrefix: sourceCodePrefix,
+    const solutionsMetrics = new SolutionsMetrics(this, "SolutionMetricsNew", {
+      uuid,
     });
-    solutionsMetrics.addLambdaInvocationCount(stepLambdaFunctions.taskRunner.functionName);
-    solutionsMetrics.addLambdaInvocationCount(realTimeDataConstruct.realTimeDataPublisher.functionName);
-    solutionsMetrics.addLambdaInvocationCount(stepLambdaFunctions.resultsParser.functionName);
-    solutionsMetrics.addLambdaInvocationCount(stepLambdaFunctions.taskCanceler.functionName);
-    solutionsMetrics.addLambdaInvocationCount(stepLambdaFunctions.taskStatusChecker.functionName);
-    solutionsMetrics.addLambdaInvocationCount(customResourceInfra.customResourceLambdaFunctionName);
-    solutionsMetrics.addLambdaBilledDurationMemorySize(
-      [
-        stepLambdaFunctions.taskRunnerLambdaLogGroup,
-        realTimeDataConstruct.realTimeDataPublisherLogGroup,
-        stepLambdaFunctions.resultsParserLambdaLogGroup,
-        stepLambdaFunctions.taskCancelerLambdaLogGroup,
-        stepLambdaFunctions.taskStatusCheckerLambdaLogGroup,
-        dltApi.apiLambdaLogGroup,
-      ],
-      "BilledDurationQuery"
-    );
+    solutionsMetrics.addLambdaInvocationCount({
+      functionName: stepLambdaFunctions.taskRunner.functionName,
+      identifier: "TaskRunner",
+    });
+    solutionsMetrics.addLambdaInvocationCount({
+      functionName: realTimeDataConstruct.realTimeDataPublisher.functionName,
+      identifier: "RealTimeDataPublisher",
+    });
+    solutionsMetrics.addLambdaInvocationCount({
+      functionName: stepLambdaFunctions.resultsParser.functionName,
+      identifier: "ResultsParser",
+    });
+    solutionsMetrics.addLambdaInvocationCount({
+      functionName: stepLambdaFunctions.taskCanceler.functionName,
+      identifier: "TaskCanceler",
+    });
+    solutionsMetrics.addLambdaInvocationCount({
+      functionName: stepLambdaFunctions.taskStatusChecker.functionName,
+      identifier: "TaskStatusChecker",
+    });
+    solutionsMetrics.addLambdaInvocationCount({
+      functionName: commonResources.customResourceLambda.nodejsLambda.functionName,
 
-    solutionsMetrics.addDynamoDBConsumedReadCapacityUnits(dltStorage.scenariosTable.tableName);
-    solutionsMetrics.addDynamoDBConsumedReadCapacityUnits(dltStorage.historyTable.tableName);
-    solutionsMetrics.addDynamoDBConsumedWriteCapacityUnits(dltStorage.scenariosTable.tableName);
-    solutionsMetrics.addDynamoDBConsumedWriteCapacityUnits(dltStorage.historyTable.tableName);
+      identifier: "CustomResourceLambda",
+    });
+    solutionsMetrics.addLambdaBilledDurationMemorySize({
+      logGroups: [stepLambdaFunctions.taskRunnerLambdaLogGroup],
+      identifier: "TaskRunner",
+    });
 
-    solutionsMetrics.addECSAverageCPUUtilization(
-      fargateResources.taskClusterName,
-      fargateResources.taskDefinitionFamily
-    );
-    solutionsMetrics.addECSAverageMemoryUtilization(
-      fargateResources.taskClusterName,
-      fargateResources.taskDefinitionFamily
-    );
+    solutionsMetrics.addLambdaBilledDurationMemorySize({
+      logGroups: [realTimeDataConstruct.realTimeDataPublisherLogGroup],
+      identifier: "RealTimeDataPublisher",
+    });
+
+    solutionsMetrics.addLambdaBilledDurationMemorySize({
+      logGroups: [stepLambdaFunctions.resultsParserLambdaLogGroup],
+      identifier: "ResultsParser",
+    });
+
+    solutionsMetrics.addLambdaBilledDurationMemorySize({
+      logGroups: [stepLambdaFunctions.taskCancelerLambdaLogGroup],
+      identifier: "TaskCanceler",
+    });
+
+    solutionsMetrics.addLambdaBilledDurationMemorySize({
+      logGroups: [stepLambdaFunctions.taskStatusCheckerLambdaLogGroup],
+      identifier: "TaskStatusChecker",
+    });
+
+    solutionsMetrics.addLambdaBilledDurationMemorySize({
+      logGroups: [dltApi.apiLambdaLogGroup],
+      identifier: "ApiLambda",
+    });
+
+    solutionsMetrics.addDynamoDBConsumedReadCapacityUnits({
+      tableName: dltStorage.scenariosTable.tableName,
+      identifier: "ScenariosTable",
+    });
+    solutionsMetrics.addDynamoDBConsumedReadCapacityUnits({
+      tableName: dltStorage.historyTable.tableName,
+      identifier: "HistoryTable",
+    });
+    solutionsMetrics.addDynamoDBConsumedWriteCapacityUnits({
+      tableName: dltStorage.scenariosTable.tableName,
+      identifier: "ScenariosTable",
+    });
+    solutionsMetrics.addDynamoDBConsumedWriteCapacityUnits({
+      tableName: dltStorage.historyTable.tableName,
+      identifier: "HistoryTable",
+    });
+
+    solutionsMetrics.addECSAverageCPUUtilization({
+      clusterName: fargateResources.taskClusterName,
+      taskDefinitionFamily: fargateResources.taskDefinitionFamily,
+    });
+    solutionsMetrics.addECSAverageMemoryUtilization({
+      clusterName: fargateResources.taskClusterName,
+      taskDefinitionFamily: fargateResources.taskDefinitionFamily,
+    });
 
     Aspects.of(solutionsMetrics).add(new ConditionAspect(sendAnonymizedUsageCondition));
 
     // Outputs
-    new CfnOutput(this, "Console", {
-      description: "Console URL",
-      value: dltConsole.cloudFrontDomainName,
+    new CfnOutput(this, "Console URL", {
+      description: "Web portal for DLT",
+      value: dltConsole.webAppURL,
     });
     new CfnOutput(this, "SolutionUUID", {
-      description: "Solution UUID",
+      description: "Unique ID for deployment",
       value: uuid,
+    });
+    new CfnOutput(this, "ScenariosBucket", {
+      description: "Common storage bucket for test scenarios",
+      value: dltStorage.scenariosBucket.bucketName,
+    });
+    new CfnOutput(this, "ScenariosTable", {
+      description: "Common table for storing load test details",
+      value: dltStorage.scenariosTable.tableName,
     });
     new CfnOutput(this, "RegionalCFTemplate", {
       description: "S3 URL for regional CloudFormation template",

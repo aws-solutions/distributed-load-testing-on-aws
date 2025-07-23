@@ -54,9 +54,14 @@ export class MetricsHelper {
       response = await this.clientHelper.getCwClient().send(command);
       console.info(response);
 
-      input.MetricDataQueries?.forEach((item, index) => {
-        const key = `${item.MetricStat?.Metric?.Namespace}/${item.MetricStat?.Metric?.MetricName}`;
-        const value: number[] = response.MetricDataResults?.[index].Values || [];
+      response.MetricDataResults?.forEach((result) => {
+        // Let key be equal to the item id without the id_ prefix and replacing all underscores with slashes
+        const key = result.Id?.replace("id_", "").replace(/_/g, "/");
+        if (!key) {
+          console.error(`Non existent ID returned: ${result}`);
+          throw new Error("Non existent ID returned");
+        }
+        const value: number[] = result.Values || [];
         results[key] = ((results[key] as number[]) || []).concat(...value);
       });
 
@@ -74,7 +79,9 @@ export class MetricsHelper {
         failedQueries.push(body.queryIds[index]);
         return;
       }
-      metricsData[data.field!] = parseInt(data.value!, 10);
+      if (data.field && data.value) {
+        metricsData[data.field] = parseInt(data.value, 10);
+      }
     });
     console.debug("Query data: ", JSON.stringify(metricsData, null, 2));
 

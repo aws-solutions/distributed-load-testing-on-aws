@@ -1,18 +1,20 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const AWS = require("aws-sdk");
+const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDB } = require("@aws-sdk/client-dynamodb");
+const { ECS } = require("@aws-sdk/client-ecs");
+
 const utils = require("solution-utils");
-AWS.config.logger = console;
 let options = utils.getOptions({ region: process.env.AWS_REGION });
-const dynamoDB = new AWS.DynamoDB.DocumentClient(options);
+const dynamoDB = DynamoDBDocument.from(new DynamoDB(options));
 
 //Function to list tasks belonging to test
 async function listTasks(ecs, params) {
   let currentRunningTasks = [];
   let data;
   do {
-    data = await ecs.listTasks(params).promise();
+    data = await ecs.listTasks(params);
     currentRunningTasks = currentRunningTasks.concat(data.taskArns);
     params.nextToken = data.nextToken;
   } while (data.nextToken);
@@ -26,7 +28,7 @@ exports.handler = async (event) => {
   console.log(`Cancelling test: ${testId}`);
   const sleep = (s) => new Promise((resolve) => setTimeout(resolve, s * 1000));
   options.region = region;
-  const ecs = new AWS.ECS(options);
+  const ecs = new ECS(options);
   try {
     const listTaskParams = {
       cluster: taskCluster,
@@ -47,12 +49,7 @@ exports.handler = async (event) => {
           task: task,
         };
         //create stopTask promise and add to array
-        promises.push(
-          ecs
-            .stopTask(stopTaskParams)
-            .promise()
-            .catch((err) => console.error(err))
-        );
+        promises.push(ecs.stopTask(stopTaskParams).catch((err) => console.error(err)));
       }
       //await subset of 100 or less stopTask promises
       await Promise.all(promises);
@@ -77,7 +74,7 @@ exports.handler = async (event) => {
           ":s": "cancelled",
         },
       };
-      await dynamoDB.update(ddbParams).promise();
+      await dynamoDB.update(ddbParams);
 
       return "test cancelled";
     } else {

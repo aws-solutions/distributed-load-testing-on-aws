@@ -1,193 +1,112 @@
 #!/usr/bin/env bash
-#
-# This assumes all of the OS-level configuration has been completed and git repo has already been cloned
-#
-# This script should be run from the repo's deployment directory
-# cd deployment
-# ./build-s3-dist.sh source-bucket-base-name trademarked-solution-name version-code
-#
-# Paramenters:
-#  - source-bucket-base-name: Name for the S3 bucket location where the AWS CloudFormation template will source the Lambda code from. 
-#    The AWS Lambda code is contained in the zip files. The template will append '-[region_name]' to this bucket name.
-#    For example: ./build-s3-dist.sh solutions my-solution v1.0.0
-#    The template will then expect the source code to be located in the solutions-[region_name] bucket
-#
-#  - trademarked-solution-name: name of the solution for consistency
-#
-#  - version-code: version of the package (should follow semver)
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+[[ $DEBUG ]] && set -x
+set -e -o pipefail
 
-# Check to see if input has been provided:
-if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
+header() {
+    declare text=$1
+    echo "------------------------------------------------------------------------------"
+    echo "$text"
+    echo "------------------------------------------------------------------------------"
+}
+
+usage() {
     echo "Please provide the base source bucket name, trademark approved solution name and version where the lambda code will eventually reside."
     echo "For example: ./build-s3-dist.sh solutions trademarked-solution-name v1.0.0"
-    exit 1
-fi
+}
 
-set -e
+main() {
+    if [ ! "$1" ] || [ ! "$2" ] || [ ! "$3" ]; then
+        usage
+        exit 1
+    fi
+    set -u
 
-# Get reference for all important folders
-template_dir="$PWD"
-template_dist_dir="${template_dir}/global-s3-assets"
-build_dist_dir="${template_dir}/regional-s3-assets"
-source_dir="${template_dir}/../source"
-
-echo "------------------------------------------------------------------------------"
-echo "Rebuild distribution"
-echo "------------------------------------------------------------------------------"
-rm -rf ${template_dist_dir}
-mkdir -p ${template_dist_dir}
-rm -rf ${build_dist_dir}
-mkdir -p ${build_dist_dir}
-
-echo "--------------------------------------------------------------------------------------"
-echo "CloudFormation Template generation - for main solution stack and regional deployments"
-echo "--------------------------------------------------------------------------------------"
-export CODE_BUCKET=$1
-export SOLUTION_NAME=$2
-export CODE_VERSION=$3
-export PUBLIC_ECR_REGISTRY=${PUBLIC_ECR_REGISTRY}
-export PUBLIC_ECR_TAG=${PUBLIC_ECR_TAG}
-
-# Change these 
-main_cfn_template=${SOLUTION_NAME}
-regional_cfn_template=${main_cfn_template}-regional
-
-declare -A templates=(
-  [${main_cfn_template}]=${template_dist_dir}
-  [${regional_cfn_template}]=${build_dist_dir}
-)
-
-cd ${source_dir}/infrastructure
-npm ci
-
-for template in "${!templates[@]}"; do
-  node_modules/aws-cdk/bin/cdk synth --asset-metadata false --path-metadata false -a "npx ts-node --prefer-ts-exts bin/${template}.ts" > ${templates[$template]}/${template}.template
-  if [ $? -eq 0 ]
-  then
-    echo "Build for ${template} succeeded"
-  else
-    echo "******************************************************************************"
-    echo "Build FAILED for ${template}"
-    echo "******************************************************************************"
-    exit 1
-  fi
-done
-
-# Setup solution utils package
-cd ${source_dir}/solution-utils
-npm ci --production
-
-# Creating custom resource resources for both stacks
-main_stack_custom_resource_files="index.js node_modules lib/*"
-regional_stack_custom_resource_files="index.js node_modules lib/cfn lib/metrics lib/config-storage lib/iot"
-
-declare -a stacks=(
-  "main"
-  "regional"
-)
-
-cd ${source_dir}/custom-resource
-npm ci --production
-for stack in "${stacks[@]}"; do
-  cp ${stack}-index.js index.js
-  files_to_zip=${stack}_stack_custom_resource_files
-  zip -q -r ${build_dist_dir}/${stack}-custom-resource.zip ${!files_to_zip}
-  rm index.js
-  if [ $? -eq 0 ]
-  then
-    echo "Build for ${stack}-custom-resource.zip succeeded"
-  else
-    echo "******************************************************************************"
-    echo "Build FAILED for ${stack}-custom-resource.zip"
-    echo "******************************************************************************"
-    exit 1
-  fi
-done
-
-# Create lambda packages
-declare -a packages=(
-    "api-services"
-    "results-parser"
-    "task-canceler"
-    "task-runner"
-    "task-status-checker"
-    "real-time-data-publisher"
-)
-
-for package in "${packages[@]}"; do
-  echo "------------------------------------------------------------------------------"
-  echo "Creating $package deployment package"
-  echo "------------------------------------------------------------------------------"
-  cd ${source_dir}/${package}
-  npm ci --production
-  zip -q -r9 ${build_dist_dir}/${package}.zip *
-  if [ $? -eq 0 ]
-  then
-    echo "Build for ${package} succeeded"
-  else
-    echo "******************************************************************************"
-    echo "Build FAILED for ${package}"
-    echo "******************************************************************************"
-    exit 1
-  fi
-done
-
-echo "------------------------------------------------------------------------------"
-echo "Creating container deployment package"
-echo "------------------------------------------------------------------------------"
-cd ${template_dir}/ecr/distributed-load-testing-on-aws-load-tester
-# Downloading jetty 9.4.53.v20231009
-curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-alpn-client/9.4.53.v20231009/jetty-alpn-client-9.4.53.v20231009.jar
-curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-alpn-openjdk8-client/9.4.53.v20231009/jetty-alpn-openjdk8-client-9.4.53.v20231009.jar
-curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-client/9.4.53.v20231009/jetty-client-9.4.53.v20231009.jar
-curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-http/9.4.53.v20231009/jetty-http-9.4.53.v20231009.jar
-curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-io/9.4.53.v20231009/jetty-io-9.4.53.v20231009.jar
-curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-util/9.4.53.v20231009/jetty-util-9.4.53.v20231009.jar
-
-echo "------------------------------------------------------------------------------"
-echo "Building console"
-echo "------------------------------------------------------------------------------"
-cd ${source_dir}/console
-[ -e build ] && rm -r build
-npm ci
-npm run build
-mkdir ${build_dist_dir}/console
-cp -r ./build/* ${build_dist_dir}/console/
-
-echo "------------------------------------------------------------------------------"
-echo "Generate console manifest file"
-echo "------------------------------------------------------------------------------"
-cd ${build_dist_dir}/console
-manifest=(`find * -type f ! -iname ".DS_Store"`)
-manifest_json=$(IFS=,;printf "%s" "${manifest[*]}")
-echo "[\"${manifest_json}\"]" | sed 's/,/","/g' > ./console-manifest.json
-
-echo "------------------------------------------------------------------------------"
-echo "Build Metrics utils lambda archive."
-echo "------------------------------------------------------------------------------"
-cd ${source_dir}/metrics-utils
-npm run build && npm run zip
-if [ $? -eq 0 ]
-then
-  echo "Build for metrics-utils succeeded"
-else
-  echo "******************************************************************************"
-  echo "Build FAILED for metrics-utils"
-  echo "******************************************************************************"
-  exit 1
-fi
-mv ${source_dir}/metrics-utils/dist/*.zip ${build_dist_dir}/metrics-utils.zip
-if [ $? -eq 0 ]
-then
-  echo "moved metrics-utils.zip to ${build_dist_dir}"
-else
-  echo "******************************************************************************"
-  echo "FAILED to move metrics-utils.zip to ${build_dist_dir}"
-  echo "******************************************************************************"
-  exit 1
-fi
+    declare DIST_OUTPUT_BUCKET=$1 SOLUTION_NAME=$2 VERSION=$3
+    # Check to see if the required parameters have been provided:
 
 
-echo "------------------------------------------------------------------------------"
-echo "Build S3 Packaging Complete"
-echo "------------------------------------------------------------------------------"
+    export DIST_OUTPUT_BUCKET
+    export SOLUTION_NAME
+    export VERSION
+
+    # Get reference for all important folders
+    local project_root=$(dirname "$(cd -P -- "$(dirname "$0")" && pwd -P)")
+    local deployment_dir="$project_root"/deployment
+    #output folders
+    local global_dist_dir="$deployment_dir"/global-s3-assets
+    local regional_dist_dir="$deployment_dir"/regional-s3-assets
+
+    #build directories
+    local source_dir="$project_root"/source
+    local cdk_out_dir="$source_dir"/infrastructure/cdk.out
+
+    header "[Init] Remove any old dist files from previous runs"
+
+    rm -rf "$global_dist_dir"
+    mkdir -p "$global_dist_dir"
+    rm -rf "$regional_dist_dir"
+    mkdir -p "$regional_dist_dir"
+    rm -rf "$cdk_out_dir"
+
+    header "[Synth] CDK Project"
+    cd ${source_dir}/infrastructure
+    npm ci 
+    npm run install:all
+
+    node_modules/aws-cdk/bin/cdk synth --asset-metadata false --path-metadata false
+
+    header "[Packing] Template artifacts"
+
+    # copy templates to global_dist_dir
+    echo "Move templates from staging to global_dist_dir"
+    cp "$cdk_out_dir"/*.template.json "$global_dist_dir"/
+
+    # Rename all *.template.json files to *.template
+    echo "Rename all *.template.json to *.template"
+    echo "copy templates and rename"
+    for f in "$global_dist_dir"/*.template.json; do
+        mv -- "$f" "${f%.template.json}.template"
+    done
+
+    header "[Move-Regiona-Template] Move regional template to regional folder"
+    mv "$global_dist_dir"/*-regional.template "$regional_dist_dir"
+
+    header "[Build-Console] Building console assets"
+    cd ${source_dir}/console
+    npm ci
+    npm run build
+
+    header "[CDK-Helper] Copy the Lambda Asset and Console Assets"
+    pushd $cdk_out_dir
+    # Loop over already zipped assets (console asset mainly) and copy to destination
+    for f in asset.*.zip; do cp "$f" "$regional_dist_dir/${f#asset.}"; done
+
+    # Loop over all items in the current directory that start with "asset. but are not zipped"
+    for f in asset.*; do
+      # Check if it is a directory
+      if [ -d "$f" ]; then
+        # The zip file is created with the original name (with asset. prefix)
+        zipfile="${f}.zip"
+
+        # Only zip it if the zip file doesn't already exist
+        if [ ! -f "$zipfile" ]; then
+          echo "Zipping folder: $f -> $zipfile"
+          (cd "$f" && zip -r "../$zipfile" .) 
+        else
+          echo "Zip file already exists: $zipfile"
+        fi
+
+        new_name="${f#asset.}.zip"
+
+        # Copy the zip file to $regional_dist_dir
+        cp "$zipfile" "$regional_dist_dir/$new_name"
+        echo "Copied $zipfile as $new_name to $regional_dist_dir"
+      fi
+    done
+    popd
+
+}
+
+main "$@"

@@ -11,9 +11,7 @@ console_new/
 deployment/ecr/**/*.jar
 .idea
 source/test/
-
-# IDE
-.vscode
+**/__pycache__/
 
 .pnp
 .pnp.js

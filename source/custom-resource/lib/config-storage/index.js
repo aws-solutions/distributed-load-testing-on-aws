@@ -1,15 +1,17 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const AWS = require("aws-sdk");
+const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDB } = require("@aws-sdk/client-dynamodb");
+
 const utils = require("solution-utils");
-AWS.config.logger = console;
-const { MAIN_REGION, DDB_TABLE, S3_BUCKET, AWS_REGION } = process.env;
+
+const { MAIN_REGION, DDB_TABLE, AWS_REGION } = process.env;
 let options = utils.getOptions({
   region: MAIN_REGION,
 });
-const s3 = new AWS.S3(options);
-const dynamoDB = new AWS.DynamoDB.DocumentClient(options);
+options = utils.getOptions(options);
+const dynamoDB = DynamoDBDocument.from(new DynamoDB(options));
 
 /**
  * generate the testing-resources config file containing the resource information for the remote region, stored in the scenario bucket.
@@ -31,7 +33,7 @@ const testingResourcesConfigFile = async (config) => {
         taskImage: config.taskImage,
       },
     };
-    await dynamoDB.put(ddbParams).promise();
+    await dynamoDB.put(ddbParams);
     console.log("Testing infrastructure configuration stored successfully");
   } catch (err) {
     console.error(`There was an error creating the configuration: ${err}`);
@@ -56,7 +58,7 @@ const delTestingResourcesConfigFile = async (config) => {
         taskImage: "",
       },
     };
-    await dynamoDB.put(ddbParams).promise();
+    await dynamoDB.put(ddbParams);
     console.log(`Deleted DynamoDB region entry region-${AWS_REGION}`);
   } catch (err) {
     console.error(`There was an error deleting the configurations: ${err}`);

@@ -1,15 +1,18 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Duration, CfnResource, Aws, Fn } from "aws-cdk-lib";
+import * as path from "path";
+import { Duration, CfnResource, Aws } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { Schedule } from "aws-cdk-lib/aws-events";
 import { PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { EventbridgeToLambda } from "@aws-solutions-constructs/aws-eventbridge-lambda";
-import { Code, Function as LambdaFunction, Runtime } from "aws-cdk-lib/aws-lambda";
+import { Runtime } from "aws-cdk-lib/aws-lambda";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+
 import { LambdaToSqsToLambda } from "@aws-solutions-constructs/aws-lambda-sqs-lambda";
 import { MetricDataQuery } from "@aws-sdk/client-cloudwatch";
-import { ILogGroup, QueryDefinition, QueryDefinitionProps } from "aws-cdk-lib/aws-logs";
+import { ILogGroup, QueryDefinition, QueryDefinitionProps, QueryString } from "aws-cdk-lib/aws-logs";
 import { ExecutionDay, MetricDataProps, SolutionsMetricProps } from "../lambda/helpers/types";
 import {
   addLambdaBilledDurationMemorySize,
@@ -24,27 +27,45 @@ import {
 export class SolutionsMetrics extends Construct {
   private metricDataQueries: MetricDataQuery[];
   private eventBridgeRule: CfnResource;
-  private metricsLambdaFunction: LambdaFunction;
+  private metricsLambdaFunction: NodejsFunction;
+  private existingMetricIdentifiers: Set<string>;
+  private queryDefinitionNames: Set<string>;
 
   constructor(scope: Construct, id: string, props: SolutionsMetricProps) {
     super(scope, id);
 
-    const { SOLUTION_ID, SOLUTION_NAME, CODE_VERSION } = process.env;
-    this.metricsLambdaFunction = new LambdaFunction(this, "MetricsLambda", {
+    this.metricsLambdaFunction = new NodejsFunction(this, "MetricsLambda", {
       description: "Metrics util",
-      code: Code.fromBucket(props.sourceCodeBucket, `${props.sourceCodePrefix}/metrics-utils.zip`),
-      handler: "index.handler",
+      entry: path.join(__dirname, "../lambda/index.ts"),
       runtime: Runtime.NODEJS_20_X,
       timeout: Duration.seconds(60),
       memorySize: 128,
       environment: {
         QUERY_PREFIX: `${Aws.STACK_NAME}-`,
-        SOLUTION_ID: SOLUTION_ID ?? scope.node.tryGetContext("solutionId"),
-        SOLUTION_NAME: SOLUTION_NAME ?? scope.node.tryGetContext("solutionName"),
-        SOLUTION_VERSION: CODE_VERSION ?? scope.node.tryGetContext("codeVersion"),
+        SOLUTION_ID: scope.node.tryGetContext("solutionId"),
+        SOLUTION_NAME: scope.node.tryGetContext("solutionName"),
+        SOLUTION_VERSION: scope.node.tryGetContext("solutionVersion"),
         UUID: props.uuid ?? "",
         EXECUTION_DAY: props.executionDay ? props.executionDay : ExecutionDay.MONDAY,
       },
+    });
+
+    const metricsLambdaResource = this.metricsLambdaFunction.node.defaultChild as CfnResource;
+    metricsLambdaResource.addMetadata("cfn_nag", {
+      rules_to_suppress: [
+        {
+          id: "W58",
+          reason: "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+        },
+        {
+          id: "W89",
+          reason: "This Lambda function does not require a VPC",
+        },
+        {
+          id: "W92",
+          reason: "Does not run concurrent executions",
+        },
+      ],
     });
 
     const ruleToLambda = new EventbridgeToLambda(this, "EventbridgeRuleToLambda", {
@@ -76,13 +97,44 @@ export class SolutionsMetrics extends Construct {
       },
       deployDeadLetterQueue: false,
     });
+
+    this.existingMetricIdentifiers = new Set<string>();
+    this.queryDefinitionNames = new Set<string>();
+  }
+
+  extractQueryFields(queryString: QueryString): string[] {
+    const statsString = queryString.toString();
+    if (!statsString) return [];
+
+    // This regular expression is used only to run log insight query and cannot be invoked by external API.
+    const regex = /(\w+)\(([^)]+)\)\s+as\s+([^,]+?)(?:,|$)/gi; // NOSONAR
+    const matches = [...statsString.matchAll(regex)];
+    return matches.map((match) => (match[3] ? match[3] : `${match[1]}_${match[2]}`));
   }
 
   addQueryDefinition(queryDefinitionProps: QueryDefinitionProps): void {
+    const modifiedQueryDefinitionName = `${Aws.STACK_NAME}-${queryDefinitionProps.queryDefinitionName}`;
     new QueryDefinition(this, queryDefinitionProps.queryDefinitionName, {
       ...queryDefinitionProps,
-      queryDefinitionName: `${Aws.STACK_NAME}-${queryDefinitionProps.queryDefinitionName}`,
+      queryDefinitionName: modifiedQueryDefinitionName,
     });
+    if (this.queryDefinitionNames.has(modifiedQueryDefinitionName)) {
+      throw new Error(`Duplicate query definition name: ${modifiedQueryDefinitionName}.`);
+    }
+    this.queryDefinitionNames.add(modifiedQueryDefinitionName);
+
+    const metricIdentifier = this.extractQueryFields(queryDefinitionProps.queryString);
+    // Duplicate metric names would cause it to be impossible to determine which metric refers to which initial resource
+    metricIdentifier.forEach((metricIdentifier) => {
+      if (metricIdentifier && !metricIdentifier.match(/^[a-zA-Z0-9_]*$/)) {
+        throw new Error(`Identifier: ${metricIdentifier} must contain only alphanumeric characters and underscores`);
+      }
+      if (this.existingMetricIdentifiers.has(metricIdentifier)) {
+        throw new Error(`Duplicate metric identifier: ${metricIdentifier}.`);
+      }
+      this.existingMetricIdentifiers.add(metricIdentifier);
+    });
+
     queryDefinitionProps.logGroups?.map((logGroup: ILogGroup) =>
       logGroup.grant(this.metricsLambdaFunction, "logs:StartQuery", "logs:GetQueryResults")
     );
@@ -95,6 +147,18 @@ export class SolutionsMetrics extends Construct {
   }
 
   addMetricDataQuery(metricDataProp: MetricDataProps): void {
+    const identifierAddon = metricDataProp.identifier ? `/${metricDataProp.identifier}` : "";
+    if (identifierAddon && !identifierAddon.match(/^[a-zA-Z0-9/]*$/)) {
+      throw new Error(
+        `Metric Identifier: ${identifierAddon} must contain only alphanumeric characters and forward slashes`
+      );
+    }
+
+    const metricIdentifier = `${metricDataProp.MetricStat?.Metric?.Namespace}/${metricDataProp.MetricStat?.Metric?.MetricName}${identifierAddon}`;
+    if (this.existingMetricIdentifiers.has(metricIdentifier)) {
+      throw new Error(`Duplicate metric identifier: ${metricIdentifier}.`);
+    }
+    this.existingMetricIdentifiers.add(metricIdentifier);
     if (this.metricDataQueries.length === 0) {
       this.metricsLambdaFunction.addToRolePolicy(
         new PolicyStatement({
@@ -105,7 +169,7 @@ export class SolutionsMetrics extends Construct {
     }
     this.metricDataQueries.push({
       ...metricDataProp,
-      Id: `id_${Fn.join("_", Fn.split("-", Aws.STACK_NAME))}_${this.metricDataQueries.length}`,
+      Id: `id_${metricIdentifier.replace(/\//g, "_")}`,
     });
     this.eventBridgeRule.addOverride("Properties.Targets.0.InputTransformer", {
       InputPathsMap: {

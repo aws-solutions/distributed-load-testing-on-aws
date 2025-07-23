@@ -21,17 +21,15 @@ import { LambdaInvoke } from "aws-cdk-lib/aws-stepfunctions-tasks";
 import { Aws, CfnResource, Duration } from "aws-cdk-lib";
 import { Policy } from "aws-cdk-lib/aws-iam";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
-import { IFunction } from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 
 export interface TaskRunnerStepFunctionConstructProps {
   // State machine Lambda functions
-  readonly taskStatusChecker: IFunction;
-  readonly taskRunner: IFunction;
-  readonly resultsParser: IFunction;
-  readonly taskCanceler: IFunction;
-  // Solution ID
-  readonly solutionId: string;
+  readonly taskStatusChecker: NodejsFunction;
+  readonly taskRunner: NodejsFunction;
+  readonly resultsParser: NodejsFunction;
+  readonly taskCanceler: NodejsFunction;
   readonly suffix: string;
 }
 

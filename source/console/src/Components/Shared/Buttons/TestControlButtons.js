@@ -80,6 +80,12 @@ class TestControlButtons extends React.Component {
       jmeter: {
         script: `${testId}.jmx`,
       },
+      k6: {
+        script: `${testId}.js`,
+      },
+      locust: {
+        script: `${testId}.py`,
+      },
     };
     payload.testScenario.scenarios[data.testName] = obj[data.testType];
     if (data.testType !== "simple") payload.fileType = data.fileType;

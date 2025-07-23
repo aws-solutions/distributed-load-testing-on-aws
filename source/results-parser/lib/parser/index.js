@@ -1,13 +1,18 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const AWS = require("aws-sdk");
+const { CloudWatch } = require("@aws-sdk/client-cloudwatch");
+const { CloudWatchLogs } = require("@aws-sdk/client-cloudwatch-logs");
+const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDB } = require("@aws-sdk/client-dynamodb");
+const { S3 } = require("@aws-sdk/client-s3");
+
 const parser = require("xml-js");
 const utils = require("solution-utils");
 const { AWS_REGION, HISTORY_TABLE, SCENARIOS_TABLE } = process.env;
 const awsOptions = utils.getOptions({ region: AWS_REGION });
-const dynamoDb = new AWS.DynamoDB.DocumentClient(awsOptions);
-const s3 = new AWS.S3(awsOptions);
+const dynamoDb = DynamoDBDocument.from(new DynamoDB(awsOptions));
+const s3 = new S3(awsOptions);
 
 /**
  * Breaking down results item and creating the basic breakdown object.
@@ -339,7 +344,7 @@ async function putTestHistory(historyParams) {
       TableName: HISTORY_TABLE,
       Item: history,
     };
-    await dynamoDb.put(ddbParams).promise();
+    await dynamoDb.put(ddbParams);
   } catch (err) {
     console.error(err);
     throw err;
@@ -370,7 +375,7 @@ async function updateTable(params) {
     },
     ReturnValues: "ALL_NEW",
   };
-  await dynamoDb.update(ddbUpdateParams).promise();
+  await dynamoDb.update(ddbUpdateParams);
   return "Success";
 }
 
@@ -462,8 +467,8 @@ async function createWidget(startTime, endTime, region, testId, metrics) {
   console.log(JSON.stringify(widget));
   // Write the image to S3, store the object key in DDB
   awsOptions.region = region === "total" ? AWS_REGION : region;
-  const cloudwatch = new AWS.CloudWatch(awsOptions);
-  const image = await cloudwatch.getMetricWidgetImage(cwParams).promise();
+  const cloudwatch = new CloudWatch(awsOptions);
+  const image = await cloudwatch.getMetricWidgetImage(cwParams);
   const metricWidgetImage = Buffer.from(image.MetricWidgetImage).toString("base64");
   const metricImageTitle = `${widget.title}-${widget.start}`;
   const metricS3ObjectKey = `cloudwatch-images/${testId}/${metricImageTitle}`;
@@ -474,7 +479,7 @@ async function createWidget(startTime, endTime, region, testId, metrics) {
     ContentEncoding: "base64",
     ContentType: "image/jpeg",
   };
-  await s3.putObject(s3PutObjectParams).promise();
+  await s3.putObject(s3PutObjectParams);
   console.log(`Wrote metric widget public/${metricS3ObjectKey} to S3 bucket`);
 
   return { metricS3Location: metricS3ObjectKey, metrics: widget.metrics };
@@ -482,14 +487,14 @@ async function createWidget(startTime, endTime, region, testId, metrics) {
 
 async function deleteRegionalMetricFilter(testId, region, taskCluster, ecsCloudWatchLogGroup) {
   awsOptions.region = region;
-  const cloudwatchLogs = new AWS.CloudWatchLogs(awsOptions);
+  const cloudwatchLogs = new CloudWatchLogs(awsOptions);
   const metrics = ["numVu", "numSucc", "numFail", "avgRt"];
   for (const metric of metrics) {
     const deleteMetricFilterParams = {
       filterName: `${taskCluster}-Ecs${metric}-${testId}`,
       logGroupName: ecsCloudWatchLogGroup,
     };
-    await cloudwatchLogs.deleteMetricFilter(deleteMetricFilterParams).promise();
+    await cloudwatchLogs.deleteMetricFilter(deleteMetricFilterParams);
   }
   return "Success";
 }

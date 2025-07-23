@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Mock AWS SDK
-const mockAWS = require("aws-sdk");
-const mockIotData = {
-  publish: jest.fn(),
-};
-mockAWS.IotData = jest.fn(() => ({
-  publish: mockIotData.publish,
-}));
+const { mockClient } = require("aws-sdk-client-mock");
+const { IoTDataPlane, PublishCommand } = require("@aws-sdk/client-iot-data-plane");
+require("aws-sdk-client-mock-jest");
 
+const iotDataMock = mockClient(IoTDataPlane);
 //required modules
 const util = require("util");
 const zlib = require("zlib");
@@ -82,7 +79,8 @@ const topic = "dlt/zlppmfYHww";
 describe("#REAL TIME DATA PUBLISHER:: ", () => {
   beforeEach(() => {
     //reset iot mock before each test
-    mockIotData.publish.mockReset();
+    iotDataMock.reset();
+    iotDataMock.onAnyCommand().rejects("NoMockProvided"); // Default SDK error response if a command is not mocked.
   });
   beforeAll(async () => {
     //zip and encode event data once before all tests
@@ -91,19 +89,14 @@ describe("#REAL TIME DATA PUBLISHER:: ", () => {
   });
   it("Should call publish with correct data", async () => {
     //mock IoT publish call
-    mockIotData.publish.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.resolve({});
-      },
-    }));
+    const expectedResult = {
+      payload: JSON.stringify({ [process.env.AWS_REGION]: resultData }),
+      topic,
+    };
+    iotDataMock.on(PublishCommand, expectedResult).resolves({});
 
     //test lambda
     await lambda.handler(event);
-    const expectedResult = {
-      payload: JSON.stringify({ [process.env.AWS_REGION]: resultData }),
-      topic: topic,
-    };
-    expect(mockIotData.publish).toHaveBeenCalledWith(expectedResult);
   });
   it("Should fail if zlib.gunzip fails", async () => {
     //mock zlib.gunzip
@@ -112,25 +105,14 @@ describe("#REAL TIME DATA PUBLISHER:: ", () => {
     });
 
     //test lambda
-    try {
-      await lambda.handler(event);
-    } catch (error) {
-      expect(error).toBe("Error");
-    }
+    await expect(lambda.handler(event)).rejects.toBe("Error");
   });
   it("Should fail if publishing to IoT endpoint fails", async () => {
     //mock IoT publish failure
-    mockIotData.publish.mockImplementationOnce(() => ({
-      promise() {
-        return Promise.reject("Error");
-      },
-    }));
+    const error = new Error("Error");
+    iotDataMock.on(PublishCommand).rejectsOnce(error);
 
     //test lambda
-    try {
-      await lambda.handler(event);
-    } catch (error) {
-      expect(error).toBe("Error");
-    }
+    await expect(lambda.handler(event)).rejects.toBe(error);
   });
 });

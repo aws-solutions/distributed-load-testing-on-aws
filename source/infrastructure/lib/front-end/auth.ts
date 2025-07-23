@@ -24,7 +24,7 @@ export interface CognitoAuthConstructProps {
   adminEmail: string;
   adminName: string;
   apiId: string;
-  cloudFrontDomainName: string;
+  webAppURL: string;
   scenariosBucketArn: string;
 }
 
@@ -124,7 +124,7 @@ export class CognitoAuthConstruct extends Construct {
                     Password: <strong>{####}</strong>
                 </p>
                 <p>
-                    Console: <strong>https://${props.cloudFrontDomainName}/</strong>
+                    Console: <strong>${props.webAppURL}/</strong>
                 </p>
               `,
         smsMessage: "Your username is {username} and temporary password is {####}.",

@@ -1,33 +1,21 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Aws, CfnResource } from "aws-cdk-lib";
-import { CfnCluster, CfnTaskDefinition } from "aws-cdk-lib/aws-ecs";
-import {
-  Effect,
-  ManagedPolicy,
-  ServicePrincipal,
-  Role,
-  PolicyDocument,
-  PolicyStatement,
-  Policy,
-} from "aws-cdk-lib/aws-iam";
+import { Aws, CfnResource, Tags } from "aws-cdk-lib";
+import { Cluster, ContainerImage, FargateTaskDefinition, LogDriver, ContainerInsights } from "aws-cdk-lib/aws-ecs";
+import { Effect, ServicePrincipal, Role, PolicyDocument, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
-import { CfnSecurityGroup, CfnSecurityGroupEgress, CfnSecurityGroupIngress } from "aws-cdk-lib/aws-ec2";
+import { Peer, Port, SecurityGroup, Vpc } from "aws-cdk-lib/aws-ec2";
 import { Bucket } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
+import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
+import * as path from "path";
+import { addCfnGuardSuppression } from "../common-resources/add-cfn-guard-suppression";
 
 export interface ECSResourcesConstructProps {
-  readonly cloudWatchLogsPolicy: Policy;
-  // Container image
-  readonly containerImage: string;
-  // Fargate VPC ID
-  readonly fargateVpcId: string;
-  // Scenarios S3 bucket
+  readonly fargateVpc: Vpc;
   readonly scenariosS3Bucket: string;
-  // IP CIDR for Fargate egress
   readonly securityGroupEgress: string;
-  // Solution ID
   readonly solutionId: string;
 }
 
@@ -41,34 +29,40 @@ export class ECSResourcesConstruct extends Construct {
   public taskDefinitionArn: string;
   public taskExecutionRoleArn: string;
   public ecsSecurityGroupId: string;
-  public taskDefinitionFamily: string | undefined;
+  public taskDefinitionFamily: string;
 
   constructor(scope: Construct, id: string, props: ECSResourcesConstructProps) {
     super(scope, id);
 
-    const dltTaskCluster = new CfnCluster(this, "DLTEcsCluster", {
-      clusterName: Aws.STACK_NAME,
-      clusterSettings: [{ name: "containerInsights", value: "enabled" }],
-      tags: [
-        {
-          key: "SolutionId",
-          value: props.solutionId,
-        },
-        {
-          key: "CloudFormation Stack",
-          value: Aws.STACK_NAME,
-        },
-      ],
+    const dltTaskCluster = new Cluster(this, "DLTEcsCluster", {
+      clusterName: Aws.STACK_NAME + "Cluster",
+      containerInsightsV2: ContainerInsights.ENABLED,
+      vpc: props.fargateVpc,
     });
 
-    this.taskClusterName = dltTaskCluster.ref;
+    this.taskClusterName = dltTaskCluster.clusterName;
 
     const scenariosBucketArn = Bucket.fromBucketName(this, "ScenariosBucket", props.scenariosS3Bucket).bucketArn;
 
     const dltTaskExecutionRole = new Role(this, "DLTTaskExecutionRole", {
       assumedBy: new ServicePrincipal("ecs-tasks.amazonaws.com"),
-      managedPolicies: [ManagedPolicy.fromAwsManagedPolicyName("service-role/AmazonECSTaskExecutionRolePolicy")],
       inlinePolicies: {
+        ECSTaskExecutionPolicy: new PolicyDocument({
+          statements: [
+            new PolicyStatement({
+              effect: Effect.ALLOW,
+              actions: [
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              resources: ["*"],
+            }),
+          ],
+        }),
         ScenariosS3Policy: new PolicyDocument({
           statements: [
             new PolicyStatement({
@@ -80,8 +74,10 @@ export class ECSResourcesConstruct extends Construct {
         }),
       },
     });
-    dltTaskExecutionRole.attachInlinePolicy(props.cloudWatchLogsPolicy);
     this.taskExecutionRoleArn = dltTaskExecutionRole.roleArn;
+
+    addCfnGuardSuppression(dltTaskExecutionRole, "IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE");
+    addCfnGuardSuppression(dltTaskExecutionRole, "IAM_NO_INLINE_POLICY_CHECK");
 
     this.ecsCloudWatchLogGroup = new LogGroup(this, "DLTCloudWatchLogsGroup", {
       retention: RetentionDays.ONE_YEAR,
@@ -95,41 +91,44 @@ export class ECSResourcesConstruct extends Construct {
         },
       ],
     });
+    Tags.of(this.ecsCloudWatchLogGroup).add("SolutionId", props.solutionId);
 
-    const dltTaskDefinition = new CfnTaskDefinition(this, "DLTTaskDefinition", {
-      cpu: "2048",
-      memory: "4096",
-      networkMode: "awsvpc",
-      executionRoleArn: this.taskExecutionRoleArn,
-      requiresCompatibilities: ["FARGATE"],
-      taskRoleArn: this.taskExecutionRoleArn,
-      family: `${Aws.STACK_NAME}-task-family`,
-      containerDefinitions: [
-        {
-          essential: true,
-          name: `${Aws.STACK_NAME}-load-tester`,
-          image: props.containerImage,
-          memory: 4096,
-          logConfiguration: {
-            logDriver: "awslogs",
-            options: {
-              "awslogs-group": this.ecsCloudWatchLogGroup.logGroupName,
-              "awslogs-stream-prefix": "load-testing",
-              "awslogs-region": `${Aws.REGION}`,
-            },
-          },
-        },
-      ],
+    const dltTaskDefinition = new FargateTaskDefinition(this, "DLTTaskDefinition", {
+      cpu: 2048,
+      memoryLimitMiB: 4096,
+      executionRole: dltTaskExecutionRole,
+      taskRole: dltTaskExecutionRole,
     });
+    const dockerRepoName = "distributed-load-testing-on-aws-load-tester";
+    const imageAsset =
+      process.env.PUBLIC_ECR_REGISTRY && process.env.PUBLIC_ECR_TAG
+        ? ContainerImage.fromRegistry(
+            `${process.env.PUBLIC_ECR_REGISTRY}/${dockerRepoName}:${process.env.PUBLIC_ECR_TAG}`
+          )
+        : new DockerImageAsset(this, "LoadTesterImage", {
+            directory: path.join(__dirname, `../../../../deployment/ecr/${dockerRepoName}`),
+          });
 
-    this.taskDefinitionArn = dltTaskDefinition.ref;
-    this.taskDefinitionFamily = dltTaskDefinition.family;
-
-    const ecsSecurityGroup = new CfnSecurityGroup(this, "DLTEcsSecurityGroup", {
-      vpcId: props.fargateVpcId,
-      groupDescription: "DLTS Tasks Security Group",
+    dltTaskDefinition.addContainer("LoadTestContainer", {
+      containerName: `${Aws.STACK_NAME}-load-tester`,
+      image: imageAsset instanceof DockerImageAsset ? ContainerImage.fromDockerImageAsset(imageAsset) : imageAsset,
+      memoryLimitMiB: 4096,
+      logging: LogDriver.awsLogs({
+        streamPrefix: "load-testing",
+        logGroup: this.ecsCloudWatchLogGroup,
+      }),
     });
-    ecsSecurityGroup.addMetadata("cfn_nag", {
+    Tags.of(dltTaskDefinition).add("SolutionId", props.solutionId);
+    this.taskDefinitionArn = dltTaskDefinition.taskDefinitionArn;
+
+    const ecsSecurityGroup = new SecurityGroup(this, "DLTEcsSecurityGroup", {
+      vpc: props.fargateVpc,
+      description: "DLT Tasks Security Group",
+      allowAllOutbound: true,
+    });
+    ecsSecurityGroup.addIngressRule(ecsSecurityGroup, Port.tcp(50000), "Allow tasks to communicate");
+    ecsSecurityGroup.addEgressRule(Peer.ipv4(props.securityGroupEgress), Port.allTraffic(), "Allow outbound traffic");
+    ecsSecurityGroup.node.addMetadata("cfn_nag", {
       rules_to_suppress: [
         {
           id: "W40",
@@ -138,22 +137,10 @@ export class ECSResourcesConstruct extends Construct {
       ],
     });
 
-    this.ecsSecurityGroupId = ecsSecurityGroup.ref;
+    addCfnGuardSuppression(ecsSecurityGroup, "EC2_SECURITY_GROUP_EGRESS_OPEN_TO_WORLD_RULE");
+    addCfnGuardSuppression(ecsSecurityGroup, "SECURITY_GROUP_EGRESS_ALL_PROTOCOLS_RULE");
 
-    new CfnSecurityGroupEgress(this, "DLTSecGroupEgress", {
-      cidrIp: props.securityGroupEgress,
-      description: "Allow tasks to call out to external resources",
-      groupId: ecsSecurityGroup.ref,
-      ipProtocol: "-1",
-    });
-
-    new CfnSecurityGroupIngress(this, "DLTSecGroupIngress", {
-      description: "Allow tasks to communicate",
-      fromPort: 50000,
-      groupId: ecsSecurityGroup.ref,
-      ipProtocol: "tcp",
-      sourceSecurityGroupId: ecsSecurityGroup.ref,
-      toPort: 50000,
-    });
+    this.ecsSecurityGroupId = ecsSecurityGroup.securityGroupId;
+    this.taskDefinitionFamily = dltTaskDefinition.family;
   }
 }
