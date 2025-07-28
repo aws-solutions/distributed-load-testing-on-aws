@@ -124,7 +124,7 @@ export class DLTStack extends Stack {
       description: "You may leave the parameter blank if you are using existing VPC",
       allowedPattern: "(^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
       constraintDescription: "The VPC CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
-      minLength: 9,
+      minLength: 0,
       maxLength: 18,
     });
 
