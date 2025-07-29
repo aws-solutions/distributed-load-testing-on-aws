@@ -1,11 +1,11 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Aws, CfnResource, Tags } from "aws-cdk-lib";
+import { Aws, CfnResource, Tags, Fn } from "aws-cdk-lib";
 import { Cluster, ContainerImage, FargateTaskDefinition, LogDriver, ContainerInsights } from "aws-cdk-lib/aws-ecs";
 import { Effect, ServicePrincipal, Role, PolicyDocument, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
-import { Peer, Port, SecurityGroup, Vpc } from "aws-cdk-lib/aws-ec2";
+import { Peer, Port, SecurityGroup, Vpc, CfnSecurityGroup } from "aws-cdk-lib/aws-ec2";
 import { Bucket } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
@@ -126,6 +126,13 @@ export class ECSResourcesConstruct extends Construct {
       description: "DLT Tasks Security Group",
       allowAllOutbound: true,
     });
+
+    const cfnSecurityGroup = ecsSecurityGroup.node.defaultChild as CfnSecurityGroup;
+    cfnSecurityGroup.vpcId = Fn.conditionIf(
+      "CreateFargateVPCResources",
+      props.fargateVpc.vpcId,
+      Fn.ref("ExistingVPCId")
+    ).toString();
     ecsSecurityGroup.addIngressRule(ecsSecurityGroup, Port.tcp(50000), "Allow tasks to communicate");
     ecsSecurityGroup.addEgressRule(Peer.ipv4(props.securityGroupEgress), Port.allTraffic(), "Allow outbound traffic");
     ecsSecurityGroup.node.addMetadata("cfn_nag", {
