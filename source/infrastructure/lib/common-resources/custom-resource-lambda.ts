@@ -19,7 +19,7 @@ interface ICustomResourceLambda {
 export class CustomResourceLambda extends Construct implements ICustomResourceLambda {
   public readonly nodejsLambda: NodejsFunction;
 
-  constructor(scope: Construct, id: string, solution: Solution) {
+  constructor(scope: Construct, id: string, solution: Solution, stackType: string) {
     super(scope, id);
 
     const policyForCustomResource = new PolicyDocument({
@@ -67,7 +67,7 @@ export class CustomResourceLambda extends Construct implements ICustomResourceLa
       description: "CFN Lambda backed custom resource to deploy assets to s3",
       handler: "index.handler",
       role: customResourceRole,
-      entry: path.join(__dirname, "../../../custom-resource/main-index.js"),
+      entry: path.join(__dirname, `../../../custom-resource/${stackType}-index.js`),
       runtime: Runtime.NODEJS_20_X,
       timeout: Duration.seconds(120),
       environment: {

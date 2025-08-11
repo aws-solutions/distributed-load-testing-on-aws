@@ -27,6 +27,7 @@ import { Bucket } from "aws-cdk-lib/aws-s3";
 import { Table } from "aws-cdk-lib/aws-dynamodb";
 import { SolutionsMetrics } from "../../metrics-utils";
 import { Policy, Role, PolicyStatement, Effect } from "aws-cdk-lib/aws-iam";
+import { CidrBlockCfnParameters } from "./common-resources/common-cfn-parameters";
 
 /**
  * CDK Aspect implementation to set up conditions to the entire Construct resources
@@ -89,16 +90,11 @@ export class RegionalInfrastructureDLTStack extends Stack {
       default: "",
     });
 
-    // VPC CIDR Block
-    const vpcCidrBlock = new CfnParameter(this, "VpcCidrBlock", {
-      type: "String",
-      default: "192.168.0.0/16",
-      description: "You may leave this parameter blank if you are using existing VPC",
-      allowedPattern: "(^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
-      constraintDescription: "The VPC CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
-      minLength: 9,
-      maxLength: 18,
-    });
+    const vpcCidrBlockCfnParameters = new CidrBlockCfnParameters(this, "DLTRegional");
+
+    vpcCidrBlockCfnParameters.vpcCidrBlock.overrideLogicalId("VpcCidrBlock");
+    vpcCidrBlockCfnParameters.subnetACidrBlock.overrideLogicalId("SubnetACidrBlock");
+    vpcCidrBlockCfnParameters.subnetBCidrBlock.overrideLogicalId("SubnetBCidrBlock");
 
     // Egress CIDR Block
     const egressCidrBlock = new CfnParameter(this, "EgressCidr", {
@@ -108,6 +104,14 @@ export class RegionalInfrastructureDLTStack extends Stack {
       maxLength: 18,
       allowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
       constraintDescription: "The Egress CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
+    });
+
+    const stableTagging = new CfnParameter(this, "UseStableTagging", {
+      description:
+        "Automatically use the most up to date and secure image up until the next minor release. Selecting 'No' will pull the image as originally released, without any security updates.",
+      type: "String",
+      default: "Yes",
+      allowedValues: ["Yes", "No"],
     });
 
     // CFN Mappings
@@ -138,7 +142,9 @@ export class RegionalInfrastructureDLTStack extends Stack {
               existingVpcId.logicalId,
               existingSubnetA.logicalId,
               existingSubnetB.logicalId,
-              vpcCidrBlock.logicalId,
+              vpcCidrBlockCfnParameters.vpcCidrBlock.logicalId,
+              vpcCidrBlockCfnParameters.subnetACidrBlock.logicalId,
+              vpcCidrBlockCfnParameters.subnetBCidrBlock.logicalId,
               egressCidrBlock.logicalId,
             ],
           },
@@ -147,8 +153,17 @@ export class RegionalInfrastructureDLTStack extends Stack {
           [existingVpcId.logicalId]: { default: "Select an existing VPC in the region" },
           [existingSubnetA.logicalId]: { default: "Select first subnet from the existing VPC" },
           [existingSubnetB.logicalId]: { default: "Select second subnet from the existing VPC" },
-          [vpcCidrBlock.logicalId]: { default: "Provide valid CIDR block for the solution to create VPC" },
+          [vpcCidrBlockCfnParameters.vpcCidrBlock.logicalId]: {
+            default: "Provide valid CIDR block for the solution to create VPC",
+          },
+          [vpcCidrBlockCfnParameters.subnetACidrBlock.logicalId]: {
+            default: "Provide valid CIDR block for subnet A for the solution to create VPC",
+          },
+          [vpcCidrBlockCfnParameters.subnetBCidrBlock.logicalId]: {
+            default: "Provide valid CIDR block for subnet B for the solution to create VPC",
+          },
           [egressCidrBlock.logicalId]: { default: "Provide CIDR block for allowing outbound traffic of Fargate tasks" },
+          [stableTagging.logicalId]: { default: "Auto-update Container Image" },
         },
       },
     };
@@ -177,7 +192,11 @@ export class RegionalInfrastructureDLTStack extends Stack {
       expression: Fn.conditionEquals(existingVpcId.valueAsString, ""),
     });
 
-    const commonResources = new CommonResources(this, "CommonResources", props.solution);
+    const stableTagCondition = new CfnCondition(this, "UseStableTagCondition", {
+      expression: Fn.conditionEquals(stableTagging.valueAsString, "Yes"),
+    });
+
+    const commonResources = new CommonResources(this, "CommonResources", props.solution, props.stackType);
     commonResources.customResourceLambda.addEnvironmentVariables({
       MAIN_REGION: mainStackRegion.toString(),
       S3_BUCKET: scenariosBucket.toString(),
@@ -205,27 +224,39 @@ export class RegionalInfrastructureDLTStack extends Stack {
     );
 
     // Fargate VPC resources
-    const fargateVpc = new FargateVpcConstruct(this, "DLTRegionalVpc", vpcCidrBlock.valueAsString);
+    const fargateVpc = new FargateVpcConstruct(this, "DLTVpc", {
+      solutionId: props.solution.id,
+      subnetACidrBlock: vpcCidrBlockCfnParameters.subnetACidrBlock.valueAsString,
+      subnetBCidrBlock: vpcCidrBlockCfnParameters.subnetBCidrBlock.valueAsString,
+      vpcCidrBlock: vpcCidrBlockCfnParameters.vpcCidrBlock.valueAsString,
+    });
     Aspects.of(fargateVpc).add(new ConditionAspect(createFargateVpcResourcesCondition));
+
+    const fargateVpcId = Fn.conditionIf(
+      createFargateVpcResourcesCondition.logicalId,
+      fargateVpc.vpcId,
+      existingVpcId.valueAsString
+    ).toString();
 
     const fargateSubnetA = Fn.conditionIf(
       createFargateVpcResourcesCondition.logicalId,
-      fargateVpc.vpc.publicSubnets[0].subnetId,
+      fargateVpc.subnetA,
       existingSubnetA.valueAsString
     ).toString();
 
     const fargateSubnetB = Fn.conditionIf(
       createFargateVpcResourcesCondition.logicalId,
-      fargateVpc.vpc.publicSubnets[1].subnetId,
+      fargateVpc.subnetB,
       existingSubnetB.valueAsString
     ).toString();
 
     // ECS Fargate resources
     const fargateResources = new ECSResourcesConstruct(this, "DLTRegionalFargate", {
-      fargateVpc: fargateVpc.vpc,
+      fargateVpcId: fargateVpcId,
       securityGroupEgress: egressCidrBlock.valueAsString,
       scenariosS3Bucket: scenariosBucket.toString(),
       solutionId: props.solution.id,
+      stableTagCondition: stableTagCondition.logicalId,
     });
 
     const ecsPolicyName = `RegionalECRPerms-${Aws.STACK_NAME}-${Aws.REGION}`;

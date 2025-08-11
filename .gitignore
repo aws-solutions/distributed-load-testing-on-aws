@@ -12,6 +12,8 @@ deployment/ecr/**/*.jar
 .idea
 source/test/
 **/__pycache__/
+build
+git-info
 
 .pnp
 .pnp.js

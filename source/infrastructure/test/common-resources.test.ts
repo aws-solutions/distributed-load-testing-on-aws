@@ -18,7 +18,7 @@ test("DLT API Test", () => {
     }),
   });
   const solution = new Solution("testId", "DLT", "testVersion", "mainStackDescription");
-  const common = new CommonResources(stack, "TestCommonResources", solution);
+  const common = new CommonResources(stack, "TestCommonResources", solution, "regional");
 
   expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();
   expect(common.s3LogsBucket).toBeInstanceOf(Bucket);

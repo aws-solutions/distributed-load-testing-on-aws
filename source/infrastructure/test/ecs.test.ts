@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Template } from "aws-cdk-lib/assertions";
-import { App, DefaultStackSynthesizer, Stack } from "aws-cdk-lib";
+import { App, CfnCondition, DefaultStackSynthesizer, Fn, Stack } from "aws-cdk-lib";
 import { Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { ECSResourcesConstruct } from "../lib/testing-resources/ecs";
 import { Vpc } from "aws-cdk-lib/aws-ec2";
@@ -28,11 +28,17 @@ test("DLT ECS Test", () => {
     ],
   });
   const vpc = new Vpc(stack, "TestVPC");
+
+  const stableTagCondition = new CfnCondition(stack, "UseStableTagCondition", {
+    expression: Fn.conditionEquals("Yes", "Yes"),
+  });
+
   const ecs = new ECSResourcesConstruct(stack, "TestECS", {
-    fargateVpc: vpc,
+    fargateVpcId: vpc.vpcId,
     scenariosS3Bucket: "testscenariobucket",
     securityGroupEgress: "0.0.0.0/0",
     solutionId: "SO0062",
+    stableTagCondition: stableTagCondition.logicalId,
   });
 
   expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();
@@ -68,17 +74,16 @@ test("DLT ECS Test", () => {
     RequiresCompatibilities: ["FARGATE"],
   });
   Template.fromStack(stack).resourceCountIs("AWS::EC2::SecurityGroup", 1);
-  Template.fromStack(stack).hasResourceProperties("AWS::EC2::SecurityGroup", {
-    SecurityGroupEgress: [
-      {
-        CidrIp: "0.0.0.0/0",
-        IpProtocol: "-1",
-      },
-    ],
-  });
   Template.fromStack(stack).hasResourceProperties("AWS::EC2::SecurityGroupIngress", {
-    FromPort: 50000,
-    ToPort: 50000,
+    GroupId: {
+      Ref: "TestECSDLTEcsSecurityGroupFE5016DC",
+    },
+    SourceSecurityGroupId: {
+      Ref: "TestECSDLTEcsSecurityGroupFE5016DC",
+    },
+  });
+  Template.fromStack(stack).hasResourceProperties("AWS::EC2::SecurityGroupEgress", {
+    Description: "Allow tasks to call out to external resources",
   });
   expect(ecs.taskClusterName).toBeDefined();
   expect(ecs.ecsCloudWatchLogGroup).toBeDefined();

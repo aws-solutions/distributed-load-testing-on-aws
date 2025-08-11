@@ -189,6 +189,10 @@ export class DLTAPI extends Construct {
           id: "W11",
           reason: "ecs:ListTasks and cloudformation:ListExports do not support resource level permissions",
         },
+        {
+          id: "F10",
+          reason: "requires in-line role permissions.",
+        },
       ],
     });
 
@@ -246,6 +250,16 @@ export class DLTAPI extends Construct {
     });
     dltApiServicesLambdaRole.attachInlinePolicy(lambdaApiPermissionPolicy);
 
+    const dltApiServicesLambdaLogGroupResource = dltApiServicesLambdaLogGroup.node.defaultChild as CfnResource;
+    dltApiServicesLambdaLogGroupResource.addMetadata("cfn_nag", {
+      rules_to_suppress: [
+        {
+          id: "W84",
+          reason: "KMS encryption unnecessary for log group",
+        },
+      ],
+    });
+
     const apiLogs = new LogGroup(this, "APILogs", {
       retention: RetentionDays.ONE_YEAR,
       removalPolicy: RemovalPolicy.RETAIN,
@@ -282,6 +296,16 @@ export class DLTAPI extends Construct {
           ],
         }),
       },
+    });
+
+    const apiLoggingRoleResource = apiLoggingRole.node.defaultChild as CfnResource;
+    apiLoggingRoleResource.addMetadata("cfn_nag", {
+      rules_to_suppress: [
+        {
+          id: "F10",
+          reason: "Requires inline policy resources.",
+        },
+      ],
     });
 
     const api = new RestApi(this, "DLTApi", {

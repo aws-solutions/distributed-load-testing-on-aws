@@ -42,6 +42,16 @@ exports[`DLT API Test 1`] = `
       "Type": "AWS::ApiGateway::RequestValidator",
     },
     "TestAPIAPILoggingRoleA1147DD8": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "F10",
+              "reason": "Requires inline policy resources.",
+            },
+          ],
+        },
+      },
       "Properties": {
         "AssumeRolePolicyDocument": {
           "Statement": [
@@ -235,6 +245,10 @@ exports[`DLT API Test 1`] = `
             {
               "id": "W11",
               "reason": "ecs:ListTasks and cloudformation:ListExports do not support resource level permissions",
+            },
+            {
+              "id": "F10",
+              "reason": "requires in-line role permissions.",
             },
           ],
         },
@@ -1207,6 +1221,16 @@ exports[`DLT API Test 1`] = `
     },
     "TestAPIdltApiServicesLambdaLogGroupFB2A284C": {
       "DeletionPolicy": "Retain",
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W84",
+              "reason": "KMS encryption unnecessary for log group",
+            },
+          ],
+        },
+      },
       "Properties": {
         "LogGroupName": {
           "Fn::Join": [

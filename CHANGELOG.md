@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.1] - 2025-08-11
+ 
+### Security
+
+- Update libxml2 to fix [CVE-2025-49794](https://nvd.nist.gov/vuln/detail/CVE-2025-49794)
+- Update libxml2 to fix [CVE-2025-49795](https://nvd.nist.gov/vuln/detail/CVE-2025-49795)
+- Update libxml2 to fix [CVE-2025-49796](https://nvd.nist.gov/vuln/detail/CVE-2025-49796)
+- Update java-21-amazon-corretto to fix [CVE-2025-30749](https://nvd.nist.gov/vuln/detail/CVE-2025-30749)
+- Update java-21-amazon-corretto to fix [CVE-2025-50106](https://nvd.nist.gov/vuln/detail/CVE-2025-50106)
+- Update java-21-amazon-corretto to fix [CVE-2025-50049](https://nvd.nist.gov/vuln/detail/CVE-2025-50049)
+
+### Fixed
+
+- Fixed issue pertaining to https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/244
+
+### Added
+
+- Add stable tag feature to get patched version of the solution ecr image.
+
 ## [3.4.0] - 2025-07-23
  
 ### Added 
@@ -24,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- Update form-data to fix [CVE-2025-7783](https://avd.aquasec.com/nvd/cve-2025-7783)
+- Update form-data to fix [CVE](CVE-2025-7783 - https://avd.aquasec.com/nvd/cve-2025-7783)
 
 ## [3.3.10] - 2025-07-01
 

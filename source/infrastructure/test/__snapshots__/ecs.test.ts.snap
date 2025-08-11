@@ -2,6 +2,14 @@
 
 exports[`DLT ECS Test 1`] = `
 {
+  "Conditions": {
+    "UseStableTagCondition": {
+      "Fn::Equals": [
+        "Yes",
+        "Yes",
+      ],
+    },
+  },
   "Resources": {
     "TestECSDLTCloudWatchLogsGroup505959A6": {
       "DeletionPolicy": "Retain",
@@ -27,18 +35,10 @@ exports[`DLT ECS Test 1`] = `
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
     },
-    "TestECSDLTEcsCluster5313EC18": {
+    "TestECSDLTEcsCluster7C6F0F5D": {
       "Properties": {
         "ClusterName": {
-          "Fn::Join": [
-            "",
-            [
-              {
-                "Ref": "AWS::StackName",
-              },
-              "Cluster",
-            ],
-          ],
+          "Ref": "AWS::StackName",
         },
         "ClusterSettings": [
           {
@@ -46,49 +46,65 @@ exports[`DLT ECS Test 1`] = `
             "Value": "enabled",
           },
         ],
+        "Tags": [
+          {
+            "Key": "CloudFormation Stack",
+            "Value": {
+              "Ref": "AWS::StackName",
+            },
+          },
+          {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
       },
       "Type": "AWS::ECS::Cluster",
     },
-    "TestECSDLTEcsSecurityGroup51051213": {
+    "TestECSDLTEcsSecurityGroupFE5016DC": {
       "Metadata": {
-        "guard": {
-          "SuppressedRules": [
-            "EC2_SECURITY_GROUP_EGRESS_OPEN_TO_WORLD_RULE",
-            "SECURITY_GROUP_EGRESS_ALL_PROTOCOLS_RULE",
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W40",
+              "reason": "IpProtocol set to -1 (any) as ports are not known prior to running tests",
+            },
+            {
+              "id": "F1000",
+              "reason": "egress rule is specificed as its own cfn resource.",
+            },
           ],
         },
       },
       "Properties": {
-        "GroupDescription": "DLT Tasks Security Group",
-        "SecurityGroupEgress": [
-          {
-            "CidrIp": "0.0.0.0/0",
-            "Description": "Allow all outbound traffic by default",
-            "IpProtocol": "-1",
-          },
-        ],
+        "GroupDescription": "DLTS Tasks Security Group",
         "VpcId": {
           "Ref": "TestVPCD26570D8",
         },
       },
       "Type": "AWS::EC2::SecurityGroup",
     },
-    "TestECSDLTEcsSecurityGroupfromDLTStackTestECSDLTEcsSecurityGroup60CC59BA50000973FCDA0": {
+    "TestECSDLTSecGroupEgressFC1E4757": {
+      "Properties": {
+        "CidrIp": "0.0.0.0/0",
+        "Description": "Allow tasks to call out to external resources",
+        "GroupId": {
+          "Ref": "TestECSDLTEcsSecurityGroupFE5016DC",
+        },
+        "IpProtocol": "-1",
+      },
+      "Type": "AWS::EC2::SecurityGroupEgress",
+    },
+    "TestECSDLTSecGroupIngress78B83F3F": {
       "Properties": {
         "Description": "Allow tasks to communicate",
         "FromPort": 50000,
         "GroupId": {
-          "Fn::GetAtt": [
-            "TestECSDLTEcsSecurityGroup51051213",
-            "GroupId",
-          ],
+          "Ref": "TestECSDLTEcsSecurityGroupFE5016DC",
         },
         "IpProtocol": "tcp",
         "SourceSecurityGroupId": {
-          "Fn::GetAtt": [
-            "TestECSDLTEcsSecurityGroup51051213",
-            "GroupId",
-          ],
+          "Ref": "TestECSDLTEcsSecurityGroupFE5016DC",
         },
         "ToPort": 50000,
       },
@@ -99,7 +115,13 @@ exports[`DLT ECS Test 1`] = `
         "ContainerDefinitions": [
           {
             "Essential": true,
-            "Image": "registry/distributed-load-testing-on-aws-load-tester:tag",
+            "Image": {
+              "Fn::If": [
+                "UseStableTagCondition",
+                "registry/distributed-load-testing-on-aws-load-tester:tag_stable",
+                "registry/distributed-load-testing-on-aws-load-tester:tag",
+              ],
+            },
             "LogConfiguration": {
               "LogDriver": "awslogs",
               "Options": {

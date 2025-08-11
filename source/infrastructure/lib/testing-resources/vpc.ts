@@ -1,10 +1,28 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Aws, Tags } from "aws-cdk-lib";
-import { IpAddresses, SubnetType, Vpc, ISubnet } from "aws-cdk-lib/aws-ec2";
+import { Aws, Fn, Tags } from "aws-cdk-lib";
+import {
+  CfnVPC,
+  CfnSubnet,
+  CfnInternetGateway,
+  CfnRouteTable,
+  CfnVPCGatewayAttachment,
+  CfnRoute,
+  CfnSubnetRouteTableAssociation,
+} from "aws-cdk-lib/aws-ec2";
 import { Construct } from "constructs";
-import { addCfnGuardSuppression } from "../common-resources/add-cfn-guard-suppression";
+
+export interface FargateVpcConstructProps {
+  // IP CIDR block for Subnet A
+  readonly subnetACidrBlock: string;
+  // IP CIDR block for Subnet B
+  readonly subnetBCidrBlock: string;
+  // Solution ID
+  readonly solutionId: string;
+  // IP CIDR block for VPC
+  readonly vpcCidrBlock: string;
+}
 
 /**
  * Distributed Load Testing on AWS VPC construct.
@@ -12,32 +30,21 @@ import { addCfnGuardSuppression } from "../common-resources/add-cfn-guard-suppre
  * Includes 2 public subnets across 2 availability zones.
  */
 export class FargateVpcConstruct extends Construct {
-  public vpc: Vpc;
+  // VPC
+  public vpcId: string;
+  public subnetA: string;
+  public subnetB: string;
 
-  constructor(scope: Construct, id: string, vpcCidrBlock: string) {
+  constructor(scope: Construct, id: string, props: FargateVpcConstructProps) {
     super(scope, id);
 
-    const fargateVpc = new Vpc(this, "DLTFargateVpc", {
-      ipAddresses: IpAddresses.cidr("192.168.0.0/16"),
+    const fargateVpc = new CfnVPC(this, "DLTFargateVpc", {
+      cidrBlock: props.vpcCidrBlock,
       enableDnsHostnames: true,
       enableDnsSupport: true,
-      subnetConfiguration: [
-        {
-          name: "DLTSubnetA",
-          subnetType: SubnetType.PUBLIC,
-          cidrMask: 20,
-        },
-        {
-          name: "DLTSubnetB",
-          subnetType: SubnetType.PUBLIC,
-          cidrMask: 20,
-        },
-      ],
-      maxAzs: 2,
-      natGateways: 0,
     });
 
-    fargateVpc.node.addMetadata("cfn_nag", {
+    fargateVpc.addMetadata("cfn_nag", {
       rules_to_suppress: [
         {
           id: "W60",
@@ -46,16 +53,49 @@ export class FargateVpcConstruct extends Construct {
       ],
     });
 
-    fargateVpc.privateSubnets.forEach((subnet: ISubnet) => {
-      addCfnGuardSuppression(subnet, "SUBNET_AUTO_ASSIGN_PUBLIC_IP_DISABLED");
-    });
-
-    fargateVpc.publicSubnets.forEach((subnet: ISubnet) => {
-      addCfnGuardSuppression(subnet, "SUBNET_AUTO_ASSIGN_PUBLIC_IP_DISABLED");
-    });
-
-    this.vpc = fargateVpc;
-
     Tags.of(fargateVpc).add("Name", Aws.STACK_NAME);
+    this.vpcId = fargateVpc.ref;
+
+    const subnetAResource = new CfnSubnet(this, "DLTSubnetA", {
+      cidrBlock: props.subnetACidrBlock,
+      vpcId: this.vpcId,
+      availabilityZone: Fn.select(0, Fn.getAzs()),
+    });
+    this.subnetA = subnetAResource.ref;
+
+    const subnetBResource = new CfnSubnet(this, "DLTSubnetB", {
+      cidrBlock: props.subnetBCidrBlock,
+      vpcId: this.vpcId,
+      availabilityZone: Fn.select(1, Fn.getAzs()),
+    });
+    this.subnetB = subnetBResource.ref;
+
+    const ig = new CfnInternetGateway(this, "DLTFargateIG", {});
+
+    const mainRouteTable = new CfnRouteTable(this, "DLTFargateRT", {
+      vpcId: this.vpcId,
+    });
+
+    const gwa = new CfnVPCGatewayAttachment(this, "DLTGatewayattachment", {
+      vpcId: this.vpcId,
+      internetGatewayId: ig.ref,
+    });
+
+    const routeToInternet = new CfnRoute(this, "DLTRoute", {
+      destinationCidrBlock: "0.0.0.0/0",
+      routeTableId: mainRouteTable.ref,
+      gatewayId: ig.ref,
+    });
+    routeToInternet.addDependency(gwa);
+
+    new CfnSubnetRouteTableAssociation(this, "DLTRouteTableAssociationA", {
+      routeTableId: mainRouteTable.ref,
+      subnetId: subnetAResource.ref,
+    });
+
+    new CfnSubnetRouteTableAssociation(this, "DLTRouteTableAssociationB", {
+      routeTableId: mainRouteTable.ref,
+      subnetId: subnetBResource.ref,
+    });
   }
 }

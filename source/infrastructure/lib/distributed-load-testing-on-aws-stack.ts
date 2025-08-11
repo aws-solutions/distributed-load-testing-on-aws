@@ -30,6 +30,7 @@ import { RealTimeDataConstruct } from "./testing-resources/real-time-data";
 import { SolutionsMetrics } from "../../metrics-utils";
 import { Solution } from "../bin/solution";
 import { Bucket } from "aws-cdk-lib/aws-s3";
+import { CidrBlockCfnParameters } from "./common-resources/common-cfn-parameters";
 
 /**
  * CDK Aspect implementation to set up conditions to the entire Construct resources
@@ -117,16 +118,7 @@ export class DLTStack extends Stack {
       allowedPattern: "(?:^$|^subnet-[a-zA-Z0-9-]+)",
     });
 
-    // VPC CIDR Block
-    const vpcCidrBlock = new CfnParameter(this, "VpcCidrBlock", {
-      type: "String",
-      default: "192.168.0.0/16",
-      description: "You may leave the parameter blank if you are using existing VPC",
-      allowedPattern: "(^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
-      constraintDescription: "The VPC CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
-      minLength: 9,
-      maxLength: 18,
-    });
+    const vpcCidrBlockCfnParameters = new CidrBlockCfnParameters(this, "DLTMain");
 
     // Egress CIDR Block
     const egressCidrBlock = new CfnParameter(this, "EgressCidr", {
@@ -137,6 +129,14 @@ export class DLTStack extends Stack {
       maxLength: 18,
       allowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
       constraintDescription: "The Egress CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
+    });
+
+    const stableTagging = new CfnParameter(this, "UseStableTagging", {
+      description:
+        "Automatically use the most up to date and secure image up until the next minor release. Selecting 'No' will pull the image as originally released, without any security updates.",
+      type: "String",
+      default: "Yes",
+      allowedValues: ["Yes", "No"],
     });
 
     // CloudFormation metadata
@@ -153,7 +153,9 @@ export class DLTStack extends Stack {
               existingVpcId.logicalId,
               existingSubnetA.logicalId,
               existingSubnetB.logicalId,
-              vpcCidrBlock.logicalId,
+              vpcCidrBlockCfnParameters.vpcCidrBlock.logicalId,
+              vpcCidrBlockCfnParameters.subnetACidrBlock.logicalId,
+              vpcCidrBlockCfnParameters.subnetBCidrBlock.logicalId,
               egressCidrBlock.logicalId,
             ],
           },
@@ -164,10 +166,19 @@ export class DLTStack extends Stack {
           [existingVpcId.logicalId]: { default: "Select an existing VPC in the region" },
           [existingSubnetA.logicalId]: { default: "Select first subnet from the existing VPC" },
           [existingSubnetB.logicalId]: { default: "Select second subnet from the existing VPC" },
-          [vpcCidrBlock.logicalId]: { default: "Provide valid CIDR block for the solution to create VPC" },
+          [vpcCidrBlockCfnParameters.vpcCidrBlock.logicalId]: {
+            default: "Provide valid CIDR block for the solution to create VPC",
+          },
+          [vpcCidrBlockCfnParameters.subnetACidrBlock.logicalId]: {
+            default: "Provide valid CIDR block for subnet A for the solution to create VPC",
+          },
+          [vpcCidrBlockCfnParameters.subnetBCidrBlock.logicalId]: {
+            default: "Provide valid CIDR block for subnet B for the solution to create VPC",
+          },
           [egressCidrBlock.logicalId]: {
             default: "Provide CIDR block for allowing outbound traffic of AWS Fargate tasks",
           },
+          [stableTagging.logicalId]: { default: "Auto-update Container Image" },
         },
       },
     };
@@ -220,25 +231,41 @@ export class DLTStack extends Stack {
       expression: Fn.conditionNot(Fn.conditionEquals(existingVpcId.valueAsString, "")),
     });
 
+    const stableTagCondition = new CfnCondition(this, "UseStableTagCondition", {
+      expression: Fn.conditionEquals(stableTagging.valueAsString, "Yes"),
+    });
+
     // Fargate VPC resources
-    const fargateVpc = new FargateVpcConstruct(this, "DLTVpc", vpcCidrBlock.valueAsString);
+    const fargateVpc = new FargateVpcConstruct(this, "DLTVpc", {
+      solutionId,
+      subnetACidrBlock: vpcCidrBlockCfnParameters.subnetACidrBlock.valueAsString,
+      subnetBCidrBlock: vpcCidrBlockCfnParameters.subnetBCidrBlock.valueAsString,
+      vpcCidrBlock: vpcCidrBlockCfnParameters.vpcCidrBlock.valueAsString,
+    });
+
     Aspects.of(fargateVpc).add(new ConditionAspect(createFargateVpcResourcesCondition));
+
+    const fargateVpcId = Fn.conditionIf(
+      createFargateVpcResourcesCondition.logicalId,
+      fargateVpc.vpcId,
+      existingVpcId.valueAsString
+    ).toString();
 
     const fargateSubnetA = Fn.conditionIf(
       createFargateVpcResourcesCondition.logicalId,
-      fargateVpc.vpc.publicSubnets[0].subnetId,
+      fargateVpc.subnetA,
       existingSubnetA.valueAsString
     ).toString();
 
     const fargateSubnetB = Fn.conditionIf(
       createFargateVpcResourcesCondition.logicalId,
-      fargateVpc.vpc.publicSubnets[1].subnetId,
+      fargateVpc.subnetB,
       existingSubnetB.valueAsString
     ).toString();
 
     const existingVpc = Fn.conditionIf(usingExistingVpc.logicalId, true, false).toString();
 
-    const commonResources = new CommonResources(this, "DLTCommonResources", props.solution);
+    const commonResources = new CommonResources(this, "DLTCommonResources", props.solution, props.stackType);
 
     const dltConsole = new DLTConsoleConstruct(this, "DLTConsoleResources", {
       s3LogsBucket: commonResources.s3LogsBucket,
@@ -271,10 +298,11 @@ export class DLTStack extends Stack {
     const { uuid, suffix } = customResources.uuidGenerator();
 
     const fargateResources = new ECSResourcesConstruct(this, "DLTEcs", {
-      fargateVpc: fargateVpc.vpc,
+      fargateVpcId: fargateVpcId,
       scenariosS3Bucket: dltStorage.scenariosBucket.bucketName,
       securityGroupEgress: egressCidrBlock.valueAsString,
       solutionId: props.solution.id,
+      stableTagCondition: stableTagCondition.logicalId,
     });
 
     const realTimeDataConstruct = new RealTimeDataConstruct(this, "RealTimeData", {

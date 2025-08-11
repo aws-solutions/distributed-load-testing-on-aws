@@ -16,7 +16,7 @@ test("DLT API Test", () => {
   });
 
   const solution = new Solution("testId", "DLT", "testVersion", "mainStackDescription");
-  new CustomResourceLambda(stack, "TestCustomResourceInfra", solution);
+  new CustomResourceLambda(stack, "TestCustomResourceInfra", solution, "main");
 
   expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();
   Template.fromStack(stack).hasResourceProperties("AWS::Lambda::Function", {

@@ -60,6 +60,10 @@ exports[`DLT API Test 1`] = `
               "id": "W11",
               "reason": "iot:AttachPrincipalPolicy does not allow for resource specification",
             },
+            {
+              "id": "F10",
+              "reason": "requires inline policies",
+            },
           ],
         },
       },
