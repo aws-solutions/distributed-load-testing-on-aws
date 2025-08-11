@@ -3,12 +3,32 @@
 exports[`DLT VPC Test 1`] = `
 {
   "Resources": {
-    "TestVPCDLTFargateVpc069226BC": {
+    "TestVPCDLTFargateIG4FFBAA11": {
+      "Type": "AWS::EC2::InternetGateway",
+    },
+    "TestVPCDLTFargateRT6952750D": {
       "Properties": {
-        "CidrBlock": "192.168.0.0/16",
+        "VpcId": {
+          "Ref": "TestVPCDLTFargateVpc0EC32C36",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "TestVPCDLTFargateVpc0EC32C36": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W60",
+              "reason": "This VPC is used for the test runner Fargate tasks only, it does not require VPC flow logs.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "CidrBlock": "10.0.0.0/16",
         "EnableDnsHostnames": true,
         "EnableDnsSupport": true,
-        "InstanceTenancy": "default",
         "Tags": [
           {
             "Key": "Name",
@@ -20,345 +40,87 @@ exports[`DLT VPC Test 1`] = `
       },
       "Type": "AWS::EC2::VPC",
     },
-    "TestVPCDLTFargateVpcDLTSubnetASubnet1DefaultRoute6BC8D546": {
-      "DependsOn": [
-        "TestVPCDLTFargateVpcVPCGWEE18F710",
-      ],
-      "Properties": {
-        "DestinationCidrBlock": "0.0.0.0/0",
-        "GatewayId": {
-          "Ref": "TestVPCDLTFargateVpcIGW673E1540",
-        },
-        "RouteTableId": {
-          "Ref": "TestVPCDLTFargateVpcDLTSubnetASubnet1RouteTable510B591A",
-        },
-      },
-      "Type": "AWS::EC2::Route",
-    },
-    "TestVPCDLTFargateVpcDLTSubnetASubnet1RouteTable510B591A": {
-      "Properties": {
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "DLTStack/TestVPC/DLTFargateVpc/DLTSubnetASubnet1",
-          },
-        ],
-        "VpcId": {
-          "Ref": "TestVPCDLTFargateVpc069226BC",
-        },
-      },
-      "Type": "AWS::EC2::RouteTable",
-    },
-    "TestVPCDLTFargateVpcDLTSubnetASubnet1RouteTableAssociation24A068EC": {
-      "Properties": {
-        "RouteTableId": {
-          "Ref": "TestVPCDLTFargateVpcDLTSubnetASubnet1RouteTable510B591A",
-        },
-        "SubnetId": {
-          "Ref": "TestVPCDLTFargateVpcDLTSubnetASubnet1SubnetB29DCAA1",
-        },
-      },
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
-    },
-    "TestVPCDLTFargateVpcDLTSubnetASubnet1SubnetB29DCAA1": {
-      "Metadata": {
-        "guard": {
-          "SuppressedRules": [
-            "SUBNET_AUTO_ASSIGN_PUBLIC_IP_DISABLED",
-          ],
-        },
-      },
-      "Properties": {
-        "AvailabilityZone": {
-          "Fn::Select": [
-            0,
-            {
-              "Fn::GetAZs": "",
-            },
-          ],
-        },
-        "CidrBlock": "192.168.0.0/20",
-        "MapPublicIpOnLaunch": true,
-        "Tags": [
-          {
-            "Key": "aws-cdk:subnet-name",
-            "Value": "DLTSubnetA",
-          },
-          {
-            "Key": "aws-cdk:subnet-type",
-            "Value": "Public",
-          },
-          {
-            "Key": "Name",
-            "Value": "DLTStack/TestVPC/DLTFargateVpc/DLTSubnetASubnet1",
-          },
-        ],
-        "VpcId": {
-          "Ref": "TestVPCDLTFargateVpc069226BC",
-        },
-      },
-      "Type": "AWS::EC2::Subnet",
-    },
-    "TestVPCDLTFargateVpcDLTSubnetASubnet2DefaultRoute46EB00D5": {
-      "DependsOn": [
-        "TestVPCDLTFargateVpcVPCGWEE18F710",
-      ],
-      "Properties": {
-        "DestinationCidrBlock": "0.0.0.0/0",
-        "GatewayId": {
-          "Ref": "TestVPCDLTFargateVpcIGW673E1540",
-        },
-        "RouteTableId": {
-          "Ref": "TestVPCDLTFargateVpcDLTSubnetASubnet2RouteTableC81919EE",
-        },
-      },
-      "Type": "AWS::EC2::Route",
-    },
-    "TestVPCDLTFargateVpcDLTSubnetASubnet2RouteTableAssociationA97A19FD": {
-      "Properties": {
-        "RouteTableId": {
-          "Ref": "TestVPCDLTFargateVpcDLTSubnetASubnet2RouteTableC81919EE",
-        },
-        "SubnetId": {
-          "Ref": "TestVPCDLTFargateVpcDLTSubnetASubnet2SubnetB7AF516C",
-        },
-      },
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
-    },
-    "TestVPCDLTFargateVpcDLTSubnetASubnet2RouteTableC81919EE": {
-      "Properties": {
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "DLTStack/TestVPC/DLTFargateVpc/DLTSubnetASubnet2",
-          },
-        ],
-        "VpcId": {
-          "Ref": "TestVPCDLTFargateVpc069226BC",
-        },
-      },
-      "Type": "AWS::EC2::RouteTable",
-    },
-    "TestVPCDLTFargateVpcDLTSubnetASubnet2SubnetB7AF516C": {
-      "Metadata": {
-        "guard": {
-          "SuppressedRules": [
-            "SUBNET_AUTO_ASSIGN_PUBLIC_IP_DISABLED",
-          ],
-        },
-      },
-      "Properties": {
-        "AvailabilityZone": {
-          "Fn::Select": [
-            1,
-            {
-              "Fn::GetAZs": "",
-            },
-          ],
-        },
-        "CidrBlock": "192.168.16.0/20",
-        "MapPublicIpOnLaunch": true,
-        "Tags": [
-          {
-            "Key": "aws-cdk:subnet-name",
-            "Value": "DLTSubnetA",
-          },
-          {
-            "Key": "aws-cdk:subnet-type",
-            "Value": "Public",
-          },
-          {
-            "Key": "Name",
-            "Value": "DLTStack/TestVPC/DLTFargateVpc/DLTSubnetASubnet2",
-          },
-        ],
-        "VpcId": {
-          "Ref": "TestVPCDLTFargateVpc069226BC",
-        },
-      },
-      "Type": "AWS::EC2::Subnet",
-    },
-    "TestVPCDLTFargateVpcDLTSubnetBSubnet1DefaultRoute21979AB9": {
-      "DependsOn": [
-        "TestVPCDLTFargateVpcVPCGWEE18F710",
-      ],
-      "Properties": {
-        "DestinationCidrBlock": "0.0.0.0/0",
-        "GatewayId": {
-          "Ref": "TestVPCDLTFargateVpcIGW673E1540",
-        },
-        "RouteTableId": {
-          "Ref": "TestVPCDLTFargateVpcDLTSubnetBSubnet1RouteTable3F1E1810",
-        },
-      },
-      "Type": "AWS::EC2::Route",
-    },
-    "TestVPCDLTFargateVpcDLTSubnetBSubnet1RouteTable3F1E1810": {
-      "Properties": {
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "DLTStack/TestVPC/DLTFargateVpc/DLTSubnetBSubnet1",
-          },
-        ],
-        "VpcId": {
-          "Ref": "TestVPCDLTFargateVpc069226BC",
-        },
-      },
-      "Type": "AWS::EC2::RouteTable",
-    },
-    "TestVPCDLTFargateVpcDLTSubnetBSubnet1RouteTableAssociationD11D2964": {
-      "Properties": {
-        "RouteTableId": {
-          "Ref": "TestVPCDLTFargateVpcDLTSubnetBSubnet1RouteTable3F1E1810",
-        },
-        "SubnetId": {
-          "Ref": "TestVPCDLTFargateVpcDLTSubnetBSubnet1Subnet02E231C7",
-        },
-      },
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
-    },
-    "TestVPCDLTFargateVpcDLTSubnetBSubnet1Subnet02E231C7": {
-      "Metadata": {
-        "guard": {
-          "SuppressedRules": [
-            "SUBNET_AUTO_ASSIGN_PUBLIC_IP_DISABLED",
-          ],
-        },
-      },
-      "Properties": {
-        "AvailabilityZone": {
-          "Fn::Select": [
-            0,
-            {
-              "Fn::GetAZs": "",
-            },
-          ],
-        },
-        "CidrBlock": "192.168.32.0/20",
-        "MapPublicIpOnLaunch": true,
-        "Tags": [
-          {
-            "Key": "aws-cdk:subnet-name",
-            "Value": "DLTSubnetB",
-          },
-          {
-            "Key": "aws-cdk:subnet-type",
-            "Value": "Public",
-          },
-          {
-            "Key": "Name",
-            "Value": "DLTStack/TestVPC/DLTFargateVpc/DLTSubnetBSubnet1",
-          },
-        ],
-        "VpcId": {
-          "Ref": "TestVPCDLTFargateVpc069226BC",
-        },
-      },
-      "Type": "AWS::EC2::Subnet",
-    },
-    "TestVPCDLTFargateVpcDLTSubnetBSubnet2DefaultRouteD6BCB76D": {
-      "DependsOn": [
-        "TestVPCDLTFargateVpcVPCGWEE18F710",
-      ],
-      "Properties": {
-        "DestinationCidrBlock": "0.0.0.0/0",
-        "GatewayId": {
-          "Ref": "TestVPCDLTFargateVpcIGW673E1540",
-        },
-        "RouteTableId": {
-          "Ref": "TestVPCDLTFargateVpcDLTSubnetBSubnet2RouteTable9556E0F9",
-        },
-      },
-      "Type": "AWS::EC2::Route",
-    },
-    "TestVPCDLTFargateVpcDLTSubnetBSubnet2RouteTable9556E0F9": {
-      "Properties": {
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "DLTStack/TestVPC/DLTFargateVpc/DLTSubnetBSubnet2",
-          },
-        ],
-        "VpcId": {
-          "Ref": "TestVPCDLTFargateVpc069226BC",
-        },
-      },
-      "Type": "AWS::EC2::RouteTable",
-    },
-    "TestVPCDLTFargateVpcDLTSubnetBSubnet2RouteTableAssociation6C98D30E": {
-      "Properties": {
-        "RouteTableId": {
-          "Ref": "TestVPCDLTFargateVpcDLTSubnetBSubnet2RouteTable9556E0F9",
-        },
-        "SubnetId": {
-          "Ref": "TestVPCDLTFargateVpcDLTSubnetBSubnet2SubnetE65F07DF",
-        },
-      },
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
-    },
-    "TestVPCDLTFargateVpcDLTSubnetBSubnet2SubnetE65F07DF": {
-      "Metadata": {
-        "guard": {
-          "SuppressedRules": [
-            "SUBNET_AUTO_ASSIGN_PUBLIC_IP_DISABLED",
-          ],
-        },
-      },
-      "Properties": {
-        "AvailabilityZone": {
-          "Fn::Select": [
-            1,
-            {
-              "Fn::GetAZs": "",
-            },
-          ],
-        },
-        "CidrBlock": "192.168.48.0/20",
-        "MapPublicIpOnLaunch": true,
-        "Tags": [
-          {
-            "Key": "aws-cdk:subnet-name",
-            "Value": "DLTSubnetB",
-          },
-          {
-            "Key": "aws-cdk:subnet-type",
-            "Value": "Public",
-          },
-          {
-            "Key": "Name",
-            "Value": "DLTStack/TestVPC/DLTFargateVpc/DLTSubnetBSubnet2",
-          },
-        ],
-        "VpcId": {
-          "Ref": "TestVPCDLTFargateVpc069226BC",
-        },
-      },
-      "Type": "AWS::EC2::Subnet",
-    },
-    "TestVPCDLTFargateVpcIGW673E1540": {
-      "Properties": {
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": {
-              "Ref": "AWS::StackName",
-            },
-          },
-        ],
-      },
-      "Type": "AWS::EC2::InternetGateway",
-    },
-    "TestVPCDLTFargateVpcVPCGWEE18F710": {
+    "TestVPCDLTGatewayattachment7F5F62C2": {
       "Properties": {
         "InternetGatewayId": {
-          "Ref": "TestVPCDLTFargateVpcIGW673E1540",
+          "Ref": "TestVPCDLTFargateIG4FFBAA11",
         },
         "VpcId": {
-          "Ref": "TestVPCDLTFargateVpc069226BC",
+          "Ref": "TestVPCDLTFargateVpc0EC32C36",
         },
       },
       "Type": "AWS::EC2::VPCGatewayAttachment",
+    },
+    "TestVPCDLTRoute5972150C": {
+      "DependsOn": [
+        "TestVPCDLTGatewayattachment7F5F62C2",
+      ],
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "TestVPCDLTFargateIG4FFBAA11",
+        },
+        "RouteTableId": {
+          "Ref": "TestVPCDLTFargateRT6952750D",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "TestVPCDLTRouteTableAssociationAD1563098": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "TestVPCDLTFargateRT6952750D",
+        },
+        "SubnetId": {
+          "Ref": "TestVPCDLTSubnetA8E320A43",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "TestVPCDLTRouteTableAssociationB831818FD": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "TestVPCDLTFargateRT6952750D",
+        },
+        "SubnetId": {
+          "Ref": "TestVPCDLTSubnetB7A2BD254",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "TestVPCDLTSubnetA8E320A43": {
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "10.0.0.0/24",
+        "VpcId": {
+          "Ref": "TestVPCDLTFargateVpc0EC32C36",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "TestVPCDLTSubnetB7A2BD254": {
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "10.0.1.0/24",
+        "VpcId": {
+          "Ref": "TestVPCDLTFargateVpc0EC32C36",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
     },
   },
 }

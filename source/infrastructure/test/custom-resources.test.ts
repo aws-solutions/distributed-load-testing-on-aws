@@ -19,7 +19,7 @@ test("DLT API Test", () => {
 
   const solution = new Solution("testId", "DLT", "testVersion", "mainStackDescription");
 
-  const testCustomResourceLambda = new CustomResourceLambda(stack, "TestCustomResourceInfra", solution);
+  const testCustomResourceLambda = new CustomResourceLambda(stack, "TestCustomResourceInfra", solution, "main");
 
   const sendAnonymizedUsageCondition = new CfnCondition(stack, "condition", {
     expression: Fn.conditionIf("testCondition", true, false),

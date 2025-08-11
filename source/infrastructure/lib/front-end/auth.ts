@@ -245,6 +245,10 @@ export class CognitoAuthConstruct extends Construct {
           id: "W11",
           reason: "iot:AttachPrincipalPolicy does not allow for resource specification",
         },
+        {
+          id: "F10",
+          reason: "requires inline policies",
+        },
       ],
     });
 

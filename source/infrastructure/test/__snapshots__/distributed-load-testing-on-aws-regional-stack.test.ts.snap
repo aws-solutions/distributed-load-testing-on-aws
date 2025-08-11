@@ -23,6 +23,14 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         "Yes",
       ],
     },
+    "UseStableTagCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "UseStableTagging",
+        },
+        "Yes",
+      ],
+    },
   },
   "Description": "mainStackDescription",
   "Mappings": {
@@ -48,6 +56,8 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
             "ExistingSubnetA",
             "ExistingSubnetB",
             "VpcCidrBlock",
+            "SubnetACidrBlock",
+            "SubnetBCidrBlock",
             "EgressCidr",
           ],
         },
@@ -65,6 +75,15 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         "ExistingVPCId": {
           "default": "Select an existing VPC in the region",
         },
+        "SubnetACidrBlock": {
+          "default": "Provide valid CIDR block for subnet A for the solution to create VPC",
+        },
+        "SubnetBCidrBlock": {
+          "default": "Provide valid CIDR block for subnet B for the solution to create VPC",
+        },
+        "UseStableTagging": {
+          "default": "Auto-update Container Image",
+        },
         "VpcCidrBlock": {
           "default": "Provide valid CIDR block for the solution to create VPC",
         },
@@ -81,7 +100,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
     "TaskCluster": {
       "Description": "Fargate task cluster",
       "Value": {
-        "Ref": "DLTRegionalFargateDLTEcsClusterD6EA02B9",
+        "Ref": "DLTRegionalFargateDLTEcsCluster1D89D366",
       },
     },
   },
@@ -109,13 +128,34 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       "Default": "",
       "Type": "String",
     },
+    "SubnetACidrBlock": {
+      "AllowedPattern": "(^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})$)",
+      "ConstraintDescription": "The subnet CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
+      "Default": "192.168.0.0/20",
+      "Description": "CIDR block for subnet A of the AWS Fargate VPC",
+      "Type": "String",
+    },
+    "SubnetBCidrBlock": {
+      "AllowedPattern": "(^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})$)",
+      "ConstraintDescription": "The subnet CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
+      "Default": "192.168.16.0/20",
+      "Description": "CIDR block for subnet B of the AWS Fargate VPC",
+      "Type": "String",
+    },
+    "UseStableTagging": {
+      "AllowedValues": [
+        "Yes",
+        "No",
+      ],
+      "Default": "Yes",
+      "Description": "Automatically use the most up to date and secure image up until the next minor release. Selecting 'No' will pull the image as originally released, without any security updates.",
+      "Type": "String",
+    },
     "VpcCidrBlock": {
-      "AllowedPattern": "(^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
+      "AllowedPattern": "(^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})$)",
       "ConstraintDescription": "The VPC CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
       "Default": "192.168.0.0/16",
       "Description": "You may leave this parameter blank if you are using existing VPC",
-      "MaxLength": 18,
-      "MinLength": 9,
       "Type": "String",
     },
   },
@@ -506,7 +546,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
             "Fn::If": [
               "CreateFargateVPCResources",
               {
-                "Ref": "DLTRegionalVpcDLTFargateVpcDLTSubnetASubnet1Subnet17A82E9E",
+                "Ref": "DLTVpcDLTSubnetAAE7DDEE8",
               },
               {
                 "Ref": "ExistingSubnetA",
@@ -517,7 +557,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
             "Fn::If": [
               "CreateFargateVPCResources",
               {
-                "Ref": "DLTRegionalVpcDLTFargateVpcDLTSubnetASubnet2SubnetAEDE5080",
+                "Ref": "DLTVpcDLTSubnetB294F4ED2",
               },
               {
                 "Ref": "ExistingSubnetB",
@@ -525,7 +565,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
             ],
           },
           "taskCluster": {
-            "Ref": "DLTRegionalFargateDLTEcsClusterD6EA02B9",
+            "Ref": "DLTRegionalFargateDLTEcsCluster1D89D366",
           },
           "taskDefinition": {
             "Ref": "DLTRegionalFargateDLTTaskDefinitionA3FD5099",
@@ -542,10 +582,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
             ],
           },
           "taskSecurityGroup": {
-            "Fn::GetAtt": [
-              "DLTRegionalFargateDLTEcsSecurityGroup417CC807",
-              "GroupId",
-            ],
+            "Ref": "DLTRegionalFargateDLTEcsSecurityGroup76A38D53",
           },
         },
       },
@@ -613,18 +650,10 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       },
       "Type": "AWS::Lambda::Permission",
     },
-    "DLTRegionalFargateDLTEcsClusterD6EA02B9": {
+    "DLTRegionalFargateDLTEcsCluster1D89D366": {
       "Properties": {
         "ClusterName": {
-          "Fn::Join": [
-            "",
-            [
-              {
-                "Ref": "AWS::StackName",
-              },
-              "Cluster",
-            ],
-          ],
+          "Ref": "AWS::StackName",
         },
         "ClusterSettings": [
           {
@@ -632,49 +661,75 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
             "Value": "enabled",
           },
         ],
+        "Tags": [
+          {
+            "Key": "CloudFormation Stack",
+            "Value": {
+              "Ref": "AWS::StackName",
+            },
+          },
+          {
+            "Key": "SolutionId",
+            "Value": "testId",
+          },
+        ],
       },
       "Type": "AWS::ECS::Cluster",
     },
-    "DLTRegionalFargateDLTEcsSecurityGroup417CC807": {
+    "DLTRegionalFargateDLTEcsSecurityGroup76A38D53": {
       "Metadata": {
-        "guard": {
-          "SuppressedRules": [
-            "EC2_SECURITY_GROUP_EGRESS_OPEN_TO_WORLD_RULE",
-            "SECURITY_GROUP_EGRESS_ALL_PROTOCOLS_RULE",
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W40",
+              "reason": "IpProtocol set to -1 (any) as ports are not known prior to running tests",
+            },
+            {
+              "id": "F1000",
+              "reason": "egress rule is specificed as its own cfn resource.",
+            },
           ],
         },
       },
       "Properties": {
-        "GroupDescription": "DLT Tasks Security Group",
-        "SecurityGroupEgress": [
-          {
-            "CidrIp": "0.0.0.0/0",
-            "Description": "Allow all outbound traffic by default",
-            "IpProtocol": "-1",
-          },
-        ],
+        "GroupDescription": "DLTS Tasks Security Group",
         "VpcId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpc347C8563",
+          "Fn::If": [
+            "CreateFargateVPCResources",
+            {
+              "Ref": "DLTVpcDLTFargateVpc0E6FEAB7",
+            },
+            {
+              "Ref": "ExistingVPCId",
+            },
+          ],
         },
       },
       "Type": "AWS::EC2::SecurityGroup",
     },
-    "DLTRegionalFargateDLTEcsSecurityGroupfromTestDLTRegionalStackDLTRegionalFargateDLTEcsSecurityGroup3DF77665500007D576EF1": {
+    "DLTRegionalFargateDLTSecGroupEgress64416366": {
+      "Properties": {
+        "CidrIp": {
+          "Ref": "EgressCidr",
+        },
+        "Description": "Allow tasks to call out to external resources",
+        "GroupId": {
+          "Ref": "DLTRegionalFargateDLTEcsSecurityGroup76A38D53",
+        },
+        "IpProtocol": "-1",
+      },
+      "Type": "AWS::EC2::SecurityGroupEgress",
+    },
+    "DLTRegionalFargateDLTSecGroupIngress5C8E0E6E": {
       "Properties": {
         "Description": "Allow tasks to communicate",
         "FromPort": 50000,
         "GroupId": {
-          "Fn::GetAtt": [
-            "DLTRegionalFargateDLTEcsSecurityGroup417CC807",
-            "GroupId",
-          ],
+          "Ref": "DLTRegionalFargateDLTEcsSecurityGroup76A38D53",
         },
         "IpProtocol": "tcp",
         "SourceSecurityGroupId": {
-          "Fn::GetAtt": [
-            "DLTRegionalFargateDLTEcsSecurityGroup417CC807",
-            "GroupId",
-          ],
+          "Ref": "DLTRegionalFargateDLTEcsSecurityGroup76A38D53",
         },
         "ToPort": 50000,
       },
@@ -685,7 +740,13 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         "ContainerDefinitions": [
           {
             "Essential": true,
-            "Image": "registry/distributed-load-testing-on-aws-load-tester:tag",
+            "Image": {
+              "Fn::If": [
+                "UseStableTagCondition",
+                "registry/distributed-load-testing-on-aws-load-tester:tag_stable",
+                "registry/distributed-load-testing-on-aws-load-tester:tag",
+              ],
+            },
             "LogConfiguration": {
               "LogDriver": "awslogs",
               "Options": {
@@ -874,13 +935,37 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       },
       "Type": "AWS::IAM::Policy",
     },
-    "DLTRegionalVpcDLTFargateVpc347C8563": {
+    "DLTVpcDLTFargateIG0E71BA5C": {
+      "Condition": "CreateFargateVPCResources",
+      "Type": "AWS::EC2::InternetGateway",
+    },
+    "DLTVpcDLTFargateRT86406464": {
       "Condition": "CreateFargateVPCResources",
       "Properties": {
-        "CidrBlock": "192.168.0.0/16",
+        "VpcId": {
+          "Ref": "DLTVpcDLTFargateVpc0E6FEAB7",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "DLTVpcDLTFargateVpc0E6FEAB7": {
+      "Condition": "CreateFargateVPCResources",
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W60",
+              "reason": "This VPC is used for the test runner Fargate tasks only, it does not require VPC flow logs.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "CidrBlock": {
+          "Ref": "VpcCidrBlock",
+        },
         "EnableDnsHostnames": true,
         "EnableDnsSupport": true,
-        "InstanceTenancy": "default",
         "Tags": [
           {
             "Key": "Name",
@@ -892,363 +977,97 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       },
       "Type": "AWS::EC2::VPC",
     },
-    "DLTRegionalVpcDLTFargateVpcDLTSubnetASubnet1DefaultRouteE1572191": {
-      "Condition": "CreateFargateVPCResources",
-      "DependsOn": [
-        "DLTRegionalVpcDLTFargateVpcVPCGWDA7BD2FF",
-      ],
-      "Properties": {
-        "DestinationCidrBlock": "0.0.0.0/0",
-        "GatewayId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpcIGWE5ABA820",
-        },
-        "RouteTableId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpcDLTSubnetASubnet1RouteTableC574E4A7",
-        },
-      },
-      "Type": "AWS::EC2::Route",
-    },
-    "DLTRegionalVpcDLTFargateVpcDLTSubnetASubnet1RouteTableAssociation23A1D7AC": {
-      "Condition": "CreateFargateVPCResources",
-      "Properties": {
-        "RouteTableId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpcDLTSubnetASubnet1RouteTableC574E4A7",
-        },
-        "SubnetId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpcDLTSubnetASubnet1Subnet17A82E9E",
-        },
-      },
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
-    },
-    "DLTRegionalVpcDLTFargateVpcDLTSubnetASubnet1RouteTableC574E4A7": {
-      "Condition": "CreateFargateVPCResources",
-      "Properties": {
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "TestDLTRegionalStack/DLTRegionalVpc/DLTFargateVpc/DLTSubnetASubnet1",
-          },
-        ],
-        "VpcId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpc347C8563",
-        },
-      },
-      "Type": "AWS::EC2::RouteTable",
-    },
-    "DLTRegionalVpcDLTFargateVpcDLTSubnetASubnet1Subnet17A82E9E": {
-      "Condition": "CreateFargateVPCResources",
-      "Metadata": {
-        "guard": {
-          "SuppressedRules": [
-            "SUBNET_AUTO_ASSIGN_PUBLIC_IP_DISABLED",
-          ],
-        },
-      },
-      "Properties": {
-        "AvailabilityZone": {
-          "Fn::Select": [
-            0,
-            {
-              "Fn::GetAZs": "",
-            },
-          ],
-        },
-        "CidrBlock": "192.168.0.0/20",
-        "MapPublicIpOnLaunch": true,
-        "Tags": [
-          {
-            "Key": "aws-cdk:subnet-name",
-            "Value": "DLTSubnetA",
-          },
-          {
-            "Key": "aws-cdk:subnet-type",
-            "Value": "Public",
-          },
-          {
-            "Key": "Name",
-            "Value": "TestDLTRegionalStack/DLTRegionalVpc/DLTFargateVpc/DLTSubnetASubnet1",
-          },
-        ],
-        "VpcId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpc347C8563",
-        },
-      },
-      "Type": "AWS::EC2::Subnet",
-    },
-    "DLTRegionalVpcDLTFargateVpcDLTSubnetASubnet2DefaultRoute7C3F3F4F": {
-      "Condition": "CreateFargateVPCResources",
-      "DependsOn": [
-        "DLTRegionalVpcDLTFargateVpcVPCGWDA7BD2FF",
-      ],
-      "Properties": {
-        "DestinationCidrBlock": "0.0.0.0/0",
-        "GatewayId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpcIGWE5ABA820",
-        },
-        "RouteTableId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpcDLTSubnetASubnet2RouteTable171237CE",
-        },
-      },
-      "Type": "AWS::EC2::Route",
-    },
-    "DLTRegionalVpcDLTFargateVpcDLTSubnetASubnet2RouteTable171237CE": {
-      "Condition": "CreateFargateVPCResources",
-      "Properties": {
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "TestDLTRegionalStack/DLTRegionalVpc/DLTFargateVpc/DLTSubnetASubnet2",
-          },
-        ],
-        "VpcId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpc347C8563",
-        },
-      },
-      "Type": "AWS::EC2::RouteTable",
-    },
-    "DLTRegionalVpcDLTFargateVpcDLTSubnetASubnet2RouteTableAssociation70C84C55": {
-      "Condition": "CreateFargateVPCResources",
-      "Properties": {
-        "RouteTableId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpcDLTSubnetASubnet2RouteTable171237CE",
-        },
-        "SubnetId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpcDLTSubnetASubnet2SubnetAEDE5080",
-        },
-      },
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
-    },
-    "DLTRegionalVpcDLTFargateVpcDLTSubnetASubnet2SubnetAEDE5080": {
-      "Condition": "CreateFargateVPCResources",
-      "Metadata": {
-        "guard": {
-          "SuppressedRules": [
-            "SUBNET_AUTO_ASSIGN_PUBLIC_IP_DISABLED",
-          ],
-        },
-      },
-      "Properties": {
-        "AvailabilityZone": {
-          "Fn::Select": [
-            1,
-            {
-              "Fn::GetAZs": "",
-            },
-          ],
-        },
-        "CidrBlock": "192.168.16.0/20",
-        "MapPublicIpOnLaunch": true,
-        "Tags": [
-          {
-            "Key": "aws-cdk:subnet-name",
-            "Value": "DLTSubnetA",
-          },
-          {
-            "Key": "aws-cdk:subnet-type",
-            "Value": "Public",
-          },
-          {
-            "Key": "Name",
-            "Value": "TestDLTRegionalStack/DLTRegionalVpc/DLTFargateVpc/DLTSubnetASubnet2",
-          },
-        ],
-        "VpcId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpc347C8563",
-        },
-      },
-      "Type": "AWS::EC2::Subnet",
-    },
-    "DLTRegionalVpcDLTFargateVpcDLTSubnetBSubnet1DefaultRoute6EFA5BB9": {
-      "Condition": "CreateFargateVPCResources",
-      "DependsOn": [
-        "DLTRegionalVpcDLTFargateVpcVPCGWDA7BD2FF",
-      ],
-      "Properties": {
-        "DestinationCidrBlock": "0.0.0.0/0",
-        "GatewayId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpcIGWE5ABA820",
-        },
-        "RouteTableId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpcDLTSubnetBSubnet1RouteTable3A89C730",
-        },
-      },
-      "Type": "AWS::EC2::Route",
-    },
-    "DLTRegionalVpcDLTFargateVpcDLTSubnetBSubnet1RouteTable3A89C730": {
-      "Condition": "CreateFargateVPCResources",
-      "Properties": {
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "TestDLTRegionalStack/DLTRegionalVpc/DLTFargateVpc/DLTSubnetBSubnet1",
-          },
-        ],
-        "VpcId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpc347C8563",
-        },
-      },
-      "Type": "AWS::EC2::RouteTable",
-    },
-    "DLTRegionalVpcDLTFargateVpcDLTSubnetBSubnet1RouteTableAssociation10B0AA04": {
-      "Condition": "CreateFargateVPCResources",
-      "Properties": {
-        "RouteTableId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpcDLTSubnetBSubnet1RouteTable3A89C730",
-        },
-        "SubnetId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpcDLTSubnetBSubnet1Subnet250E677E",
-        },
-      },
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
-    },
-    "DLTRegionalVpcDLTFargateVpcDLTSubnetBSubnet1Subnet250E677E": {
-      "Condition": "CreateFargateVPCResources",
-      "Metadata": {
-        "guard": {
-          "SuppressedRules": [
-            "SUBNET_AUTO_ASSIGN_PUBLIC_IP_DISABLED",
-          ],
-        },
-      },
-      "Properties": {
-        "AvailabilityZone": {
-          "Fn::Select": [
-            0,
-            {
-              "Fn::GetAZs": "",
-            },
-          ],
-        },
-        "CidrBlock": "192.168.32.0/20",
-        "MapPublicIpOnLaunch": true,
-        "Tags": [
-          {
-            "Key": "aws-cdk:subnet-name",
-            "Value": "DLTSubnetB",
-          },
-          {
-            "Key": "aws-cdk:subnet-type",
-            "Value": "Public",
-          },
-          {
-            "Key": "Name",
-            "Value": "TestDLTRegionalStack/DLTRegionalVpc/DLTFargateVpc/DLTSubnetBSubnet1",
-          },
-        ],
-        "VpcId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpc347C8563",
-        },
-      },
-      "Type": "AWS::EC2::Subnet",
-    },
-    "DLTRegionalVpcDLTFargateVpcDLTSubnetBSubnet2DefaultRouteBE7FBEE1": {
-      "Condition": "CreateFargateVPCResources",
-      "DependsOn": [
-        "DLTRegionalVpcDLTFargateVpcVPCGWDA7BD2FF",
-      ],
-      "Properties": {
-        "DestinationCidrBlock": "0.0.0.0/0",
-        "GatewayId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpcIGWE5ABA820",
-        },
-        "RouteTableId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpcDLTSubnetBSubnet2RouteTableCFDD2994",
-        },
-      },
-      "Type": "AWS::EC2::Route",
-    },
-    "DLTRegionalVpcDLTFargateVpcDLTSubnetBSubnet2RouteTableAssociationC2350431": {
-      "Condition": "CreateFargateVPCResources",
-      "Properties": {
-        "RouteTableId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpcDLTSubnetBSubnet2RouteTableCFDD2994",
-        },
-        "SubnetId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpcDLTSubnetBSubnet2Subnet0CAA321C",
-        },
-      },
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
-    },
-    "DLTRegionalVpcDLTFargateVpcDLTSubnetBSubnet2RouteTableCFDD2994": {
-      "Condition": "CreateFargateVPCResources",
-      "Properties": {
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "TestDLTRegionalStack/DLTRegionalVpc/DLTFargateVpc/DLTSubnetBSubnet2",
-          },
-        ],
-        "VpcId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpc347C8563",
-        },
-      },
-      "Type": "AWS::EC2::RouteTable",
-    },
-    "DLTRegionalVpcDLTFargateVpcDLTSubnetBSubnet2Subnet0CAA321C": {
-      "Condition": "CreateFargateVPCResources",
-      "Metadata": {
-        "guard": {
-          "SuppressedRules": [
-            "SUBNET_AUTO_ASSIGN_PUBLIC_IP_DISABLED",
-          ],
-        },
-      },
-      "Properties": {
-        "AvailabilityZone": {
-          "Fn::Select": [
-            1,
-            {
-              "Fn::GetAZs": "",
-            },
-          ],
-        },
-        "CidrBlock": "192.168.48.0/20",
-        "MapPublicIpOnLaunch": true,
-        "Tags": [
-          {
-            "Key": "aws-cdk:subnet-name",
-            "Value": "DLTSubnetB",
-          },
-          {
-            "Key": "aws-cdk:subnet-type",
-            "Value": "Public",
-          },
-          {
-            "Key": "Name",
-            "Value": "TestDLTRegionalStack/DLTRegionalVpc/DLTFargateVpc/DLTSubnetBSubnet2",
-          },
-        ],
-        "VpcId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpc347C8563",
-        },
-      },
-      "Type": "AWS::EC2::Subnet",
-    },
-    "DLTRegionalVpcDLTFargateVpcIGWE5ABA820": {
-      "Condition": "CreateFargateVPCResources",
-      "Properties": {
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": {
-              "Ref": "AWS::StackName",
-            },
-          },
-        ],
-      },
-      "Type": "AWS::EC2::InternetGateway",
-    },
-    "DLTRegionalVpcDLTFargateVpcVPCGWDA7BD2FF": {
+    "DLTVpcDLTGatewayattachment220D400F": {
       "Condition": "CreateFargateVPCResources",
       "Properties": {
         "InternetGatewayId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpcIGWE5ABA820",
+          "Ref": "DLTVpcDLTFargateIG0E71BA5C",
         },
         "VpcId": {
-          "Ref": "DLTRegionalVpcDLTFargateVpc347C8563",
+          "Ref": "DLTVpcDLTFargateVpc0E6FEAB7",
         },
       },
       "Type": "AWS::EC2::VPCGatewayAttachment",
+    },
+    "DLTVpcDLTRouteF8F2A836": {
+      "Condition": "CreateFargateVPCResources",
+      "DependsOn": [
+        "DLTVpcDLTGatewayattachment220D400F",
+      ],
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "DLTVpcDLTFargateIG0E71BA5C",
+        },
+        "RouteTableId": {
+          "Ref": "DLTVpcDLTFargateRT86406464",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "DLTVpcDLTRouteTableAssociationAE94A08EA": {
+      "Condition": "CreateFargateVPCResources",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "DLTVpcDLTFargateRT86406464",
+        },
+        "SubnetId": {
+          "Ref": "DLTVpcDLTSubnetAAE7DDEE8",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "DLTVpcDLTRouteTableAssociationBBED3E4B3": {
+      "Condition": "CreateFargateVPCResources",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "DLTVpcDLTFargateRT86406464",
+        },
+        "SubnetId": {
+          "Ref": "DLTVpcDLTSubnetB294F4ED2",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "DLTVpcDLTSubnetAAE7DDEE8": {
+      "Condition": "CreateFargateVPCResources",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": {
+          "Ref": "SubnetACidrBlock",
+        },
+        "VpcId": {
+          "Ref": "DLTVpcDLTFargateVpc0E6FEAB7",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "DLTVpcDLTSubnetB294F4ED2": {
+      "Condition": "CreateFargateVPCResources",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": {
+          "Ref": "SubnetBCidrBlock",
+        },
+        "VpcId": {
+          "Ref": "DLTVpcDLTFargateVpc0E6FEAB7",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
     },
     "RealTimeDataRealTimeDataPublisherLogGroup3FE55F9A": {
       "DeletionPolicy": "Retain",
@@ -1570,11 +1389,11 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
                   [
                     "{"detail-type": <detail-type>, "time": <time>, "metrics-data-query": [{"MetricStat":{"Metric":{"Namespace":"ECS/ContainerInsights","Dimensions":[{"Name":"ClusterName","Value":"",
                     {
-                      "Ref": "DLTRegionalFargateDLTEcsClusterD6EA02B9",
+                      "Ref": "DLTRegionalFargateDLTEcsCluster1D89D366",
                     },
                     ""},{"Name":"TaskDefinitionFamily","Value":"TestDLTRegionalStackDLTRegionalFargateDLTTaskDefinitionDF9563D4"}],"MetricName":"CpuUtilized"},"Stat":"Average","Period":604800},"Id":"id_ECS_ContainerInsights_CpuUtilized"},{"MetricStat":{"Metric":{"Namespace":"ECS/ContainerInsights","Dimensions":[{"Name":"ClusterName","Value":"",
                     {
-                      "Ref": "DLTRegionalFargateDLTEcsClusterD6EA02B9",
+                      "Ref": "DLTRegionalFargateDLTEcsCluster1D89D366",
                     },
                     ""},{"Name":"TaskDefinitionFamily","Value":"TestDLTRegionalStackDLTRegionalFargateDLTTaskDefinitionDF9563D4"}],"MetricName":"MemoryUtilized"},"Stat":"Average","Period":604800},"Id":"id_ECS_ContainerInsights_MemoryUtilized"}]}",
                   ],

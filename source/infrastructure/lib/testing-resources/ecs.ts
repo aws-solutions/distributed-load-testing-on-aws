@@ -1,11 +1,11 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Aws, CfnResource, Tags } from "aws-cdk-lib";
-import { Cluster, ContainerImage, FargateTaskDefinition, LogDriver, ContainerInsights } from "aws-cdk-lib/aws-ecs";
+import { Aws, CfnResource, Tags, Fn } from "aws-cdk-lib";
+import { ContainerImage, FargateTaskDefinition, LogDriver, CfnCluster } from "aws-cdk-lib/aws-ecs";
 import { Effect, ServicePrincipal, Role, PolicyDocument, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
-import { Peer, Port, SecurityGroup, Vpc } from "aws-cdk-lib/aws-ec2";
+import { CfnSecurityGroup, CfnSecurityGroupEgress, CfnSecurityGroupIngress } from "aws-cdk-lib/aws-ec2";
 import { Bucket } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
@@ -13,10 +13,11 @@ import * as path from "path";
 import { addCfnGuardSuppression } from "../common-resources/add-cfn-guard-suppression";
 
 export interface ECSResourcesConstructProps {
-  readonly fargateVpc: Vpc;
+  readonly fargateVpcId: string;
   readonly scenariosS3Bucket: string;
   readonly securityGroupEgress: string;
   readonly solutionId: string;
+  readonly stableTagCondition: string;
 }
 
 /**
@@ -34,13 +35,22 @@ export class ECSResourcesConstruct extends Construct {
   constructor(scope: Construct, id: string, props: ECSResourcesConstructProps) {
     super(scope, id);
 
-    const dltTaskCluster = new Cluster(this, "DLTEcsCluster", {
-      clusterName: Aws.STACK_NAME + "Cluster",
-      containerInsightsV2: ContainerInsights.ENABLED,
-      vpc: props.fargateVpc,
+    const dltTaskCluster = new CfnCluster(this, "DLTEcsCluster", {
+      clusterName: Aws.STACK_NAME,
+      clusterSettings: [{ name: "containerInsights", value: "enabled" }],
+      tags: [
+        {
+          key: "SolutionId",
+          value: props.solutionId,
+        },
+        {
+          key: "CloudFormation Stack",
+          value: Aws.STACK_NAME,
+        },
+      ],
     });
 
-    this.taskClusterName = dltTaskCluster.clusterName;
+    this.taskClusterName = dltTaskCluster.ref;
 
     const scenariosBucketArn = Bucket.fromBucketName(this, "ScenariosBucket", props.scenariosS3Bucket).bucketArn;
 
@@ -100,14 +110,26 @@ export class ECSResourcesConstruct extends Construct {
       taskRole: dltTaskExecutionRole,
     });
     const dockerRepoName = "distributed-load-testing-on-aws-load-tester";
-    const imageAsset =
+
+    const versionTagForImage: string =
       process.env.PUBLIC_ECR_REGISTRY && process.env.PUBLIC_ECR_TAG
-        ? ContainerImage.fromRegistry(
-            `${process.env.PUBLIC_ECR_REGISTRY}/${dockerRepoName}:${process.env.PUBLIC_ECR_TAG}`
-          )
-        : new DockerImageAsset(this, "LoadTesterImage", {
-            directory: path.join(__dirname, `../../../../deployment/ecr/${dockerRepoName}`),
-          });
+        ? `${process.env.PUBLIC_ECR_REGISTRY}/${dockerRepoName}:${process.env.PUBLIC_ECR_TAG}`
+        : "";
+
+    const stageTagForImage: string =
+      process.env.PUBLIC_ECR_REGISTRY && process.env.PUBLIC_ECR_TAG
+        ? `${process.env.PUBLIC_ECR_REGISTRY}/${dockerRepoName}:${
+            process.env.PUBLIC_ECR_TAG.substring(0, 4) + "_stable"
+          }`
+        : "";
+
+    const imageUseTag = Fn.conditionIf(props.stableTagCondition, stageTagForImage, versionTagForImage).toString();
+
+    const imageAsset = imageUseTag
+      ? ContainerImage.fromRegistry(`${imageUseTag}`)
+      : new DockerImageAsset(this, "LoadTesterImage", {
+          directory: path.join(__dirname, `../../../../deployment/ecr/${dockerRepoName}`),
+        });
 
     dltTaskDefinition.addContainer("LoadTestContainer", {
       containerName: `${Aws.STACK_NAME}-load-tester`,
@@ -121,26 +143,41 @@ export class ECSResourcesConstruct extends Construct {
     Tags.of(dltTaskDefinition).add("SolutionId", props.solutionId);
     this.taskDefinitionArn = dltTaskDefinition.taskDefinitionArn;
 
-    const ecsSecurityGroup = new SecurityGroup(this, "DLTEcsSecurityGroup", {
-      vpc: props.fargateVpc,
-      description: "DLT Tasks Security Group",
-      allowAllOutbound: true,
+    const ecsSecurityGroup = new CfnSecurityGroup(this, "DLTEcsSecurityGroup", {
+      vpcId: props.fargateVpcId,
+      groupDescription: "DLTS Tasks Security Group",
     });
-    ecsSecurityGroup.addIngressRule(ecsSecurityGroup, Port.tcp(50000), "Allow tasks to communicate");
-    ecsSecurityGroup.addEgressRule(Peer.ipv4(props.securityGroupEgress), Port.allTraffic(), "Allow outbound traffic");
-    ecsSecurityGroup.node.addMetadata("cfn_nag", {
+    ecsSecurityGroup.addMetadata("cfn_nag", {
       rules_to_suppress: [
         {
           id: "W40",
           reason: "IpProtocol set to -1 (any) as ports are not known prior to running tests",
         },
+        {
+          id: "F1000",
+          reason: "egress rule is specificed as its own cfn resource.",
+        },
       ],
     });
 
-    addCfnGuardSuppression(ecsSecurityGroup, "EC2_SECURITY_GROUP_EGRESS_OPEN_TO_WORLD_RULE");
-    addCfnGuardSuppression(ecsSecurityGroup, "SECURITY_GROUP_EGRESS_ALL_PROTOCOLS_RULE");
+    this.ecsSecurityGroupId = ecsSecurityGroup.ref;
 
-    this.ecsSecurityGroupId = ecsSecurityGroup.securityGroupId;
+    new CfnSecurityGroupEgress(this, "DLTSecGroupEgress", {
+      cidrIp: props.securityGroupEgress,
+      description: "Allow tasks to call out to external resources",
+      groupId: ecsSecurityGroup.ref,
+      ipProtocol: "-1",
+    });
+
+    new CfnSecurityGroupIngress(this, "DLTSecGroupIngress", {
+      description: "Allow tasks to communicate",
+      fromPort: 50000,
+      groupId: ecsSecurityGroup.ref,
+      ipProtocol: "tcp",
+      sourceSecurityGroupId: ecsSecurityGroup.ref,
+      toPort: 50000,
+    });
+
     this.taskDefinitionFamily = dltTaskDefinition.family;
   }
 }

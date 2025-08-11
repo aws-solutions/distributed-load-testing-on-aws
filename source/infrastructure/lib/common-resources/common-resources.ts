@@ -14,14 +14,6 @@ interface ICommonResources {
   customResourceLambda: CustomResourceLambda;
 }
 
-export interface AppRegistryApplicationProps {
-  readonly description: string;
-  readonly stackType: string;
-  readonly solutionId: string;
-  readonly applicationName: string;
-  readonly solutionVersion: string;
-}
-
 /**
  * Distributed Load Testing on AWS common resources construct.
  * Creates a CloudWatch logs policy and an S3 bucket to store logs.
@@ -31,7 +23,7 @@ export class CommonResources extends Construct implements ICommonResources {
   public readonly s3LogsBucket: Bucket;
   public readonly customResourceLambda: CustomResourceLambda;
 
-  constructor(scope: Construct, id: string, solution: Solution) {
+  constructor(scope: Construct, id: string, solution: Solution, stackType: string) {
     super(scope, id);
 
     const logGroupResourceArn = Stack.of(this).formatArn({
@@ -52,7 +44,7 @@ export class CommonResources extends Construct implements ICommonResources {
 
     this.s3LogsBucket = this.createLogsBucket();
 
-    const customResourceLambda = new CustomResourceLambda(this, "CustomResource", solution);
+    const customResourceLambda = new CustomResourceLambda(this, "CustomResource", solution, stackType);
     customResourceLambda.addPolicy([this.cloudWatchLogsPolicy]);
     this.customResourceLambda = customResourceLambda;
   }
