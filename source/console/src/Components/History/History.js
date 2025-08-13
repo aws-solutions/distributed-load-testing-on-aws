@@ -50,6 +50,24 @@ class History extends React.Component {
 
   render() {
     const history = this.props.data.history || [];
+
+    // Enrich the history with more data, and sort by start time.
+    const resultsHistory = history.map((testRun) => {
+      const loadInfo = testRun.testTaskConfigs.reduce(
+        (previous, current) => ({
+          taskCount: previous.taskCount + current.taskCount,
+          concurrency: previous.concurrency + current.concurrency,
+        }),
+        { taskCount: 0, concurrency: 0 }
+      );
+      const data = this.getHistoricalTest(testRun);
+      return {
+        testRun,
+        data,
+        loadInfo,
+      };
+    });
+    resultsHistory.sort((a, b) => new Date(b.testRun.startTime) - new Date(a.testRun.startTime));
     return (
       <div>
         <div className="box">
@@ -57,7 +75,7 @@ class History extends React.Component {
           <Table borderless responsive>
             <thead>
               <tr>
-                <th>Run Time</th>
+                <th>Started at</th>
                 <th>Total Task Count</th>
                 <th>Total Concurrency</th>
                 <th>Average Response Time</th>
@@ -66,23 +84,18 @@ class History extends React.Component {
               </tr>
             </thead>
             <tbody>
-              {history.map((i, index) => {
-                const loadInfo = i.testTaskConfigs.reduce((previous, current) => ({
-                  taskCount: previous.taskCount + current.taskCount,
-                  concurrency: previous.concurrency + current.concurrency,
-                }));
-                const data = this.getHistoricalTest(i);
+              {resultsHistory.map(({ testRun, data, loadInfo }, index) => {
                 return (
                   <tr
                     id={`historyRow-${index}`}
-                    key={i.testRunId}
+                    key={testRun.testRunId}
                     className={this.state.rowIsActive === index ? "rowActive" : ""}
                   >
-                    <td id={`endTime-${index}`}>{i.endTime}</td>
+                    <td id={`startTime-${index}`}>{testRun.startTime}</td>
                     <td id={`taskCount-${index}`}>{loadInfo.taskCount}</td>
                     <td id={`concurrency-${index}`}>{loadInfo.concurrency}</td>
-                    <td id={`avgResponseTime-${index}`}>{i.results.total?.avg_rt}s</td>
-                    <td id={`successPercent-${index}`}>{i.succPercent}%</td>
+                    <td id={`avgResponseTime-${index}`}>{testRun.results.total?.avg_rt}s</td>
+                    <td id={`successPercent-${index}`}>{testRun.succPercent}%</td>
                     <td id={`detailsLink-${index}`}>
                       <div className="text-link history-link" onClick={() => this.onClick(index)}>
                         View details
@@ -101,7 +114,9 @@ class History extends React.Component {
                             this.setState({ rowIsActive: -1 });
                           }}
                         >
-                          <h2>Test run from {i.endTime}</h2>
+                          <h2>
+                            Test run from {testRun.startTime} to {testRun.endTime}
+                          </h2>
                         </ModalHeader>
                         <ModalBody>
                           <DetailsTable
