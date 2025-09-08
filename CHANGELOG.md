@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [3.4.2] - 2025-09-09
+
+### Fixed
+
+- Fixed Dockerfile to remove locust from excluded plugins installation list.
+
+### Security
+
+- Update Flask-Cors from 4.0.2 to 6.0.0 to fix [CVE-2024-6221](https://nvd.nist.gov/vuln/detail/CVE-2024-6221), [CVE-2024-6839](https://nvd.nist.gov/vuln/detail/CVE-2024-6839), [CVE-2024-6844](https://nvd.nist.gov/vuln/detail/CVE-2024-6844), [CVE-2024-6866](https://nvd.nist.gov/vuln/detail/CVE-2024-6866)
+- Update setuptools to 80.9.0 to fix [CVE-2025-47273](https://nvd.nist.gov/vuln/detail/CVE-2025-47273) and [CVE-2024-6345](https://nvd.nist.gov/vuln/detail/CVE-2024-6345)
+- Update pip to 25.2 to fix [CVE-2023-5752](https://nvd.nist.gov/vuln/detail/CVE-2023-5752)
+- Update Jetty HTTP/2 to fix [CVE-2025-5115](https://nvd.nist.gov/vuln/detail/CVE-2025-5115)
+
+
 ## [3.4.1] - 2025-08-11
  
 ### Security

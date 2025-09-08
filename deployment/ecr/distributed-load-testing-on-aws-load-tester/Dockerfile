@@ -6,15 +6,17 @@ RUN dnf upgrade -y && \
 
 ENV PIP_INSTALL="pip3.11 install --no-cache-dir"
 
-
-# install bzt
-RUN $PIP_INSTALL --upgrade bzt awscli setuptools==78.1.1 h11 urllib3==2.2.2 && \
-    $PIP_INSTALL --upgrade bzt
+# install bzt and upgrade pip/setuptools, then remove vulnerable system packages
+RUN $PIP_INSTALL --upgrade pip==25.2 setuptools==80.9.0 && \
+    $PIP_INSTALL --upgrade bzt awscli h11 urllib3==2.5.0 && \
+    $PIP_INSTALL --upgrade Flask-Cors==6.0.1 && \
+    dnf remove -y python3.11-setuptools python3.11-pip && \
+    dnf clean all
 COPY ./.bzt-rc /root/.bzt-rc
 RUN chmod 755 /root/.bzt-rc
 
 # install bzt tools
-RUN bzt -install-tools -o modules.install-checker.exclude=selenium,gatling,tsung,siege,ab,k6,external-results-loader,locust,junit,testng,rspec,mocha,nunit,xunit,wdio,robot,newman
+RUN bzt -install-tools -o modules.install-checker.exclude=selenium,gatling,tsung,siege,ab,k6,external-results-loader,junit,testng,rspec,mocha,nunit,xunit,wdio,robot,newman
 RUN rm -rf /root/.bzt/selenium-taurus
 RUN mkdir /bzt-configs /tmp/artifacts
 ADD ./load-test.sh /bzt-configs/

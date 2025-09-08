@@ -126,7 +126,7 @@ export class SolutionsMetrics extends Construct {
     const metricIdentifier = this.extractQueryFields(queryDefinitionProps.queryString);
     // Duplicate metric names would cause it to be impossible to determine which metric refers to which initial resource
     metricIdentifier.forEach((metricIdentifier) => {
-      if (metricIdentifier && !metricIdentifier.match(/^[a-zA-Z0-9_]*$/)) {
+      if (metricIdentifier && !metricIdentifier.match(/^\w*$/)) {
         throw new Error(`Identifier: ${metricIdentifier} must contain only alphanumeric characters and underscores`);
       }
       if (this.existingMetricIdentifiers.has(metricIdentifier)) {
