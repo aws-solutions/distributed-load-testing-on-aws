@@ -18,10 +18,9 @@ const createMockFactory = (moduleLocation, clientName, mockFn) => () => {
   const actualModule = jest.requireActual(moduleLocation);
 
   const handler = {
-    get: (target, prop) => {
+    get: (target, prop) =>
       // Return mockFn for any property access
-      return mockFn;
-    },
+      mockFn,
   };
 
   return {
@@ -61,10 +60,9 @@ jest.mock("@aws-sdk/lib-dynamodb", () => {
   const actualModule = jest.requireActual("@aws-sdk/lib-dynamodb");
 
   const handler = {
-    get: (target, prop) => {
+    get: (target, prop) =>
       // Return mockFn for any property access
-      return mockDynamoDB;
-    },
+      mockDynamoDB,
   };
 
   return {

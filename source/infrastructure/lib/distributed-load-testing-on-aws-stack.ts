@@ -298,7 +298,7 @@ export class DLTStack extends Stack {
     const { uuid, suffix } = customResources.uuidGenerator();
 
     const fargateResources = new ECSResourcesConstruct(this, "DLTEcs", {
-      fargateVpcId: fargateVpcId,
+      fargateVpcId,
       scenariosS3Bucket: dltStorage.scenariosBucket.bucketName,
       securityGroupEgress: egressCidrBlock.valueAsString,
       solutionId: props.solution.id,

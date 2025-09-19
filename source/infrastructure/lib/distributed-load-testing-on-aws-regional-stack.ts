@@ -252,7 +252,7 @@ export class RegionalInfrastructureDLTStack extends Stack {
 
     // ECS Fargate resources
     const fargateResources = new ECSResourcesConstruct(this, "DLTRegionalFargate", {
-      fargateVpcId: fargateVpcId,
+      fargateVpcId,
       securityGroupEgress: egressCidrBlock.valueAsString,
       scenariosS3Bucket: scenariosBucket.toString(),
       solutionId: props.solution.id,

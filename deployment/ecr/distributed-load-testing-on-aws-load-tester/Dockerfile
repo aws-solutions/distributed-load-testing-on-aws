@@ -16,7 +16,7 @@ COPY ./.bzt-rc /root/.bzt-rc
 RUN chmod 755 /root/.bzt-rc
 
 # install bzt tools
-RUN bzt -install-tools -o modules.install-checker.exclude=selenium,gatling,tsung,siege,ab,k6,external-results-loader,junit,testng,rspec,mocha,nunit,xunit,wdio,robot,newman
+RUN bzt -install-tools -o modules.install-checker.exclude=selenium,gatling,tsung,siege,ab,k6,external-results-loader,junit,testng,rspec,mocha,nunit,xunit,wdio,robot,newman,playwright
 RUN rm -rf /root/.bzt/selenium-taurus
 RUN mkdir /bzt-configs /tmp/artifacts
 ADD ./load-test.sh /bzt-configs/

@@ -56,4 +56,4 @@ If you discover a potential security issue in this project we ask that you notif
 
 See the [LICENSE](https://github.com/aws-solutions/distributed-load-testing-on-aws/blob/master/LICENSE.txt) file for our project's licensing. We will ask you to confirm the licensing of your contribution.
 
-We may ask you to sign a [Contributor License Agreement (CLA)](http://en.wikipedia.org/wiki/Contributor_License_Agreement) for larger changes.
+We may ask you to sign a [Contributor License Agreement (CLA)](https://en.wikipedia.org/wiki/Contributor_License_Agreement) for larger changes.

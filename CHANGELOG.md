@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.3] - 2025-09-19
+
+### Fixed
+
+- Resolve issue with regional templates failing to deploy
+
+### Security
+
+- Update axios to fix [CVE-2025-58754](https://nvd.nist.gov/vuln/detail/CVE-2025-58754)
+- Update npm dependencies
 
 ## [3.4.2] - 2025-09-09
 
@@ -19,9 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update pip to 25.2 to fix [CVE-2023-5752](https://nvd.nist.gov/vuln/detail/CVE-2023-5752)
 - Update Jetty HTTP/2 to fix [CVE-2025-5115](https://nvd.nist.gov/vuln/detail/CVE-2025-5115)
 
-
 ## [3.4.1] - 2025-08-11
- 
+
 ### Security
 
 - Update libxml2 to fix [CVE-2025-49794](https://nvd.nist.gov/vuln/detail/CVE-2025-49794)
@@ -33,15 +42,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed issue pertaining to https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/244
+- Fixed issue pertaining to [Issue #244](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/244)
 
 ### Added
 
 - Add stable tag feature to get patched version of the solution ecr image.
 
 ## [3.4.0] - 2025-07-23
- 
-### Added 
+
+### Added
 
 - Added support for K6 framework
 - Added support Locust framework
@@ -53,52 +62,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed issues pertaining to https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/187 
-- Fixed issue pertaining to https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/191
+- Fixed issues pertaining to [Issue #187](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/187)
+- Fixed issue pertaining to [Issue #191](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/191)
 
 ### Security
 
-- Update form-data to fix [CVE](CVE-2025-7783 - https://avd.aquasec.com/nvd/cve-2025-7783)
+- Update form-data to fix [CVE-2025-7783](https://avd.aquasec.com/nvd/cve-2025-7783)
 
 ## [3.3.10] - 2025-07-01
 
 ### Security
 
-- Update python-setuptools to resolve [CVE](https://alas.aws.amazon.com/cve/json/v1/CVE-2025-47273.json)
-- Update glibc to resolve [CVE](https://alas.aws.amazon.com/cve/json/v1/CVE-2025-4802.json)
-- Updated webpack-dev-server for [CVE](https://nvd.nist.gov/vuln/detail/CVE-2025-30360)
-- Updated http-proxy-middleware for [CVE](https://nvd.nist.gov/vuln/detail/CVE-2025-32996)
-- Updated esbuild for [CVE](https://github.com/advisories/GHSA-67mh-4wv8-2f99)
+- Update python-setuptools to resolve [CVE-2025-47273](https://alas.aws.amazon.com/cve/json/v1/CVE-2025-47273.json)
+- Update glibc to resolve [CVE-2025-4802](https://alas.aws.amazon.com/cve/json/v1/CVE-2025-4802.json)
+- Updated webpack-dev-server for [CVE-2025-30360](https://nvd.nist.gov/vuln/detail/CVE-2025-30360)
+- Updated http-proxy-middleware for [CVE-2025-32996](https://nvd.nist.gov/vuln/detail/CVE-2025-32996)
+- Updated esbuild for [GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99)
 
 ## [3.3.9] - 2025-06-09
 
 ### Security
 
 - Update Jmeter to 5.6.3 to resolve issue with groovy scripts.
-- Update Jmeter-plugin-manager to 1.11 to resolve [CVE](https://nvd.nist.gov/vuln/detail/CVE-2025-48734)
+- Update Jmeter-plugin-manager to 1.11 to resolve [CVE-2025-48734](https://nvd.nist.gov/vuln/detail/CVE-2025-48734)
 - Remove setuptools older distributions in the ECR Image.
 
 ## [3.3.8] - 2025-05-22
 
 ### Security
 
-- Update sqllite-libs to fix [CVE](https://alas.aws.amazon.com/cve/json/v1/CVE-2022-46908.json)
-- Update setuptools to fix [CVE](https://www.cve.org/CVERecord?id=CVE-2025-47273)
+- Update sqllite-libs to fix [CVE-2022-46908](https://alas.aws.amazon.com/cve/json/v1/CVE-2022-46908.json)
+- Update setuptools to fix [CVE-2025-47273](https://www.cve.org/CVERecord?id=CVE-2025-47273)
 
 ## [3.3.7] - 2025-05-06
 
 ### Security
 
-- Update h11 to 0.16.0 to fix [CVE](https://nvd.nist.gov/vuln/detail/CVE-2025-43859)
+- Update h11 to 0.16.0 to fix [CVE-2025-43859](https://nvd.nist.gov/vuln/detail/CVE-2025-43859)
 
 ## [3.3.6] - 2025-04-16
 
 ### Security
 
 - Change Dockerfile base image reference from blazemeter/taurus:1.16.38 to amazonlinux:2023-minimal to resolve vulnerabilities.
-- Update aws-cdk-lib to 2.189.0 to fix [CVE](https://github.com/aws/aws-cdk/security/advisories/GHSA-qq4x-c6h6-rfxh)
+- Update aws-cdk-lib to 2.189.0 to fix [GHSA-qq4x-c6h6-rfxh](https://github.com/aws/aws-cdk/security/advisories/GHSA-qq4x-c6h6-rfxh)
 
-### Changes
+### Changed
 
 - Updated Dockerfile results in an [image of size 424 MB instead of the earlier 2.2 GB](https://gallery.ecr.aws/aws-solutions/distributed-load-testing-on-aws-load-tester), this results in improved test start times, depending on the task count, a 500 task count tests starts 40% faster than the previous version of the solution.
 - Updating lambda runtimes to use node-20
@@ -110,14 +119,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Library updates to address [Possible SSRF and Credential Leakage via Absolute URL in axios Requests](https://avd.aquasec.com/nvd/cve-2025-27152)
 
 ## [3.3.4] - 2025-02-06
- 
+
 ### Security
+
 - `path-to-regexp` to mitigate [CVE-2024-52798](https://nvd.nist.gov/vuln/detail/CVE-2024-52798)
 - `nanoid` to mitigate [CVE-2024-55565](https://nvd.nist.gov/vuln/detail/CVE-2024-55565)
 
 ### Fixed
 
-- Update tika-core to v1.28.4 to fix upload file issues in jmeter scripts 
+- Update tika-core to v1.28.4 to fix upload file issues in jmeter scripts
 
 ## [3.3.3] - 2024-11-22
 
@@ -128,9 +138,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Update tika-core to v3.0.0 to resolve [#214](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/214)
+- Update tika-core to v3.0.0 to resolve [Issue #214](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/214)
 
-### Updated
+### Changed
 
 - Updates on metrics collection process
 
@@ -144,7 +154,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed bug pertain to start button not working properly [#218](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/218)
+- Fixed bug pertain to start button not working properly [Issue #218](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/218)
 
 ## [3.3.1] - 2024-10-02
 
@@ -160,14 +170,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added cron scheduling [#84](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/84)
-- Added jtl report to s3 bucket logs [#150](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/150)
+- Added cron scheduling [Issue #84](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/84)
+- Added jtl report to s3 bucket logs [Issue #150](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/150)
 - Added enhanced mechanism to collect Anonymized Metrics Feature
 - Added new integration tests
 
 ### Fixed
 
-- Fixed issues pertaining to [#193](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/193)
+- Fixed issues pertaining to [Issue #193](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/193)
 
 ### Security
 
@@ -180,15 +190,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `send` to mitigate [CVE-2024-43799](https://github.com/advisories/GHSA-m6fv-jmcg-4jfg)
 - `Flask_Cors` on Docker image to mitigate [CVE-2024-6221](https://github.com/advisories/GHSA-hxwh-jpp2-84pm)
 
-### Updated
+### Changed
 
 - Updated aws-cdk to 2.155.0
 - Updated aws-cdk-lib to 2.155.0
-- Updated @aws-cdk/aws-servicecatalogappregistry-alpha to 2.155.0-alpha.0  
+- Updated @aws-cdk/aws-servicecatalogappregistry-alpha to 2.155.0-alpha.0
 
 ## [3.2.11] - 2024-08-19
 
-### Updated
+### Changed
 
 - Updated taurus from 1.16.31 to 1.16.34
 - Updated axios to 1.7.4 to mitigate [CVE-2024-39338](https://nvd.nist.gov/vuln/detail/CVE-2024-39338)
@@ -198,18 +208,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.2.10] - 2024-08-02
 
-### Updated
+### Changed
 
 - Updated dnsjava jar on docker image to 3.6.1 to mitigate security vulnerability [CVE-2023-50387](https://nvd.nist.gov/vuln/detail/CVE-2023-50387)
 - Updated fast-xml-parser to 4.4.1 to mitigate [CVE-2024-41818](https://avd.aquasec.com/nvd/cve-2024-41818)
 
 ### Fixed
 
-- Fixed issues pertaining to discrepency between the sum of failed response codes number and total number of error count 
+- Fixed issues pertaining to discrepency between the sum of failed response codes number and total number of error count
 
 ## [3.2.9] - 2024-06-21
 
-### Updated
+### Changed
 
 - Updated braces from 3.0.2 to 3.0.3 to mitigate security vulnerability [CVE-2024-4068](https://avd.aquasec.com/nvd/2024/cve-2024-4068)
 - Updated ejs from 3.1.9 to 3.1.10 to mitigate security vulnerability [CVE-2024-33883](https://avd.aquasec.com/nvd/2024/cve-2024-33883)
@@ -219,7 +229,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.2.8] - 2024-04-15
 
-### Updated
+### Changed
 
 - Updated webpack-dev-middleware from 5.3.3 to 5.3.4 to resolve security vulnerability [CVE-2024-29180](https://nvd.nist.gov/vuln/detail/CVE-2024-29180)
 - Updated express from 4.18.1 to 4.19.2 to resolve security vulnerability [CVE-2024-29041](https://nvd.nist.gov/vuln/detail/CVE-2024-29041)
@@ -228,7 +238,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed issues pertaining to [#170](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/170)
+- Fixed issues pertaining to [Issue #170](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/170)
 - Fixed issues pertaining the update stack problem from versions before DLT v3.2.6 to DLT versions after 3.2.6.
 
 ## [3.2.7] - 2024-03-11
@@ -257,9 +267,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Bug fix to resolve issue with graph not showing on scheduled tests [#158](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/158)
-- Bug fix created by changes of the ECS account setting and enabling Tag Resource Authorization as default settings [#162](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/162)
-- Bug fix to resolve issue with running the tests on OPT-IN regions [#163](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/163)
+- Bug fix to resolve issue with graph not showing on scheduled tests [Issue #158](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/158)
+- Bug fix created by changes of the ECS account setting and enabling Tag Resource Authorization as default settings [Issue #162](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/162)
+- Bug fix to resolve issue with running the tests on OPT-IN regions [Issue #163](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/163)
 
 ## [3.2.5] - 2024-01-11
 
@@ -272,7 +282,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Bug fix to resolve issues with automatic plugins installation [#152](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/152)
+- Bug fix to resolve issues with automatic plugins installation [Issue #152](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/152)
 
 ## [3.2.4] - 2023-11-10
 
@@ -284,8 +294,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Bug fix to resolve issues with our recurring schedulers [#141](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/141)
-- Bug fix to resolve issues with deploying to distant regions as additional regions to the main region [#138](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/138)
+- Bug fix to resolve issues with our recurring schedulers [Issue #141](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/141)
+- Bug fix to resolve issues with deploying to distant regions as additional regions to the main region [Issue #138](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/138)
 
 ## [3.2.3] - 2023-10-05
 
@@ -293,7 +303,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bug fix to resolve Multipart upload for files bigger than 5MB
 - Bug fix to show success codes other than 200
-- Bug fix to reoslve [#131](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/131)
+- Bug fix to reoslve [Issue #131](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/131)
 - Updating CDK libraries to latest version to allow deployment in some form in Israel Region
 - Fixing Security Hotspots and resolving codesmells
 - Updating the Docker Image to the latest version
@@ -324,8 +334,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Bug fix for [#115](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/115) where Step Functions hits a task execution limit.
-- Bug fix for [#115](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/115) where test does not cancel properly.
+- Bug fix for [Issue #115](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/115) where Step Functions hits a task execution limit.
+- Bug fix for [Issue #115](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/115) where test does not cancel properly.
 - CloudWatch Dashboards link in console
 - Deletion of CloudWatch Dashboards on test deletion
 
@@ -338,7 +348,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Bug fix for [#111](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/111) where a CloudFormation bug would occasionally cause deployments to fail.
+- Bug fix for [Issue #111](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/111) where a CloudFormation bug would occasionally cause deployments to fail.
 
 ## [3.1.0] - 2022-11-10
 
@@ -519,7 +529,7 @@ Version 2.0.0 does not support upgrading from previous versions.
 
 ### Added
 
-- JMeter support with `jmx` script: [#3](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/3)
+- JMeter support with `jmx` script: [Issue #3](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/3)
 - Add `START` button on details page
 - Add `CANCEL` button on create page
 - Add AWS Step Functions to run tasks and update result instead of Amazon DynamoDB and Amazon SQS
