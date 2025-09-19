@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+const uuid = require("uuid");
 const cfn = require("./lib/cfn");
 const metrics = require("./lib/metrics");
 const storeConfig = require("./lib/config-storage");
@@ -21,6 +22,14 @@ exports.handler = async (event, context) => {
           await storeConfig.delTestingResourcesConfigFile(config.TestingResourcesConfig);
         } else {
           await storeConfig.testingResourcesConfigFile(config.TestingResourcesConfig);
+        }
+        break;
+      case "UUID":
+        if (requestType === "Create") {
+          responseData = {
+            UUID: uuid.v4(),
+            SUFFIX: uuid.v4().slice(-10),
+          };
         }
         break;
       case "GetIotEndpoint":
