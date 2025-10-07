@@ -1,9 +1,9 @@
-id: SO0062 
+id: SO0062
 name: distributed-load-testing-on-aws
-version: v3.4.3
+version: v3.4.4
 cloudformation_templates:
   - template: distributed-load-testing-on-aws.template
-    main_template: true 
+    main_template: true
   - template: distributed-load-testing-on-aws-regional.template
     main_template: false
 build_environment:
