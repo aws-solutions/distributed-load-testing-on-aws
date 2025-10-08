@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws-ui",
-  "version": "3.4.3",
+  "version": "3.4.4",
   "private": true,
   "license": "Apache-2.0",
   "author": {
@@ -57,7 +57,7 @@
     "axios": "^1.8.3",
     "react-refresh": "0.14.0",
     "fast-xml-parser": "4.4.1",
-    "webpack-dev-server": "5.2.2",
+    "webpack-dev-server":"5.2.2",
     "form-data": "3.0.4"
   },
   "readme": "./README.md",
