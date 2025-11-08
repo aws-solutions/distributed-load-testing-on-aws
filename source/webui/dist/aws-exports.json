@@ -1,0 +1,10 @@
+{
+  "UserPoolId": "",
+  "PoolClientId": "",
+  "IdentityPoolId": "",
+  "ApiEndpoint": "",
+  "UserFilesBucket": "",
+  "UserFilesBucketRegion": "",
+  "IoTEndpoint": "",
+  "IoTPolicy": ""
+}
