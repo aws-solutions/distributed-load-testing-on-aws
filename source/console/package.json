@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws-ui",
-  "version": "3.4.5",
+  "version": "3.4.6",
   "private": true,
   "license": "Apache-2.0",
   "author": {
