@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - Update to address vulnerability in [CVE-2025-6176](https://nvd.nist.gov/vuln/detail/CVE-2025-6176)
+- Update to address vulnerability in [CVE-2025-58188](https://nvd.nist.gov/vuln/detail/CVE-2025-58188)
 
 ## [3.4.5] - 2025-11-03
 
