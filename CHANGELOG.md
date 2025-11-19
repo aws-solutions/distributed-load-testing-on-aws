@@ -15,14 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tags for Test Scenarios** - Added the ability to tag test scenarios for easier searching and grouping
 - **Downloadable Test Results** - Added the ability to download test results from the front-end
 
-## Changed
+### Changed
 - **User Interface** - A complete frontend rewrite built on React, the Cloudscape design system, and Redux state management
 
-## Fixed
+### Fixed
 - **Cron Scheduling Issues** - Fixed cron expression parsing and validation
 - **Infinite Fetching** - Fixed infinite fetching of test results
 
-## Security
+### Security
 - **CloudFront Security Headers** - Added security headers policy with CSP, HSTS, Permissions-Policy, and CORP
 - **Resolved Vulnerabilities** - Resolved security vulnerabilities in multiple npm and Python dependencies
 
