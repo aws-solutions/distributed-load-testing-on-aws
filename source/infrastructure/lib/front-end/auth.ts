@@ -1,17 +1,17 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { ArnFormat, Aws, CfnResource, Duration, RemovalPolicy, Stack } from "aws-cdk-lib";
 import {
-  UserPool,
-  CfnUserPool,
-  UserPoolClient,
-  ClientAttributes,
   CfnIdentityPool,
   CfnIdentityPoolRoleAttachment,
+  CfnUserPool,
   CfnUserPoolUser,
+  ClientAttributes,
+  UserPool,
+  UserPoolClient,
 } from "aws-cdk-lib/aws-cognito";
 import { Effect, FederatedPrincipal, PolicyDocument, PolicyStatement, Role } from "aws-cdk-lib/aws-iam";
-import { Aws, ArnFormat, CfnResource, Duration, RemovalPolicy, Stack } from "aws-cdk-lib";
 import { CfnPolicy } from "aws-cdk-lib/aws-iot";
 import { Construct } from "constructs";
 
@@ -29,6 +29,7 @@ export interface CognitoAuthConstructProps {
 }
 
 export class CognitoAuthConstruct extends Construct {
+  cognitoUserPool: UserPool;
   cognitoIdentityPoolId: string;
   cognitoUserPoolClientId: string;
   cognitoUserPoolId: string;
@@ -132,6 +133,7 @@ export class CognitoAuthConstruct extends Construct {
       userPoolName: `${Aws.STACK_NAME}-user-pool`,
     });
     (cognitoUserPool.node.defaultChild as CfnUserPool).userPoolAddOns = { advancedSecurityMode: "ENFORCED" };
+    this.cognitoUserPool = cognitoUserPool;
     this.cognitoUserPoolId = cognitoUserPool.userPoolId;
 
     const clientWriteAttributes = new ClientAttributes().withStandardAttributes({
@@ -190,13 +192,23 @@ export class CognitoAuthConstruct extends Construct {
               actions: ["s3:PutObject", "s3:GetObject"],
               resources: [`${props.scenariosBucketArn}/public/*`, `${props.scenariosBucketArn}/cloudWatchImages/*`],
             }),
+            new PolicyStatement({
+              effect: Effect.ALLOW,
+              actions: ["s3:GetObject"],
+              resources: [`${props.scenariosBucketArn}/results/*`],
+            }),
+            new PolicyStatement({
+              effect: Effect.ALLOW,
+              actions: ["s3:ListBucket"],
+              resources: [props.scenariosBucketArn],
+            }),
           ],
         }),
         IoTPolicy: new PolicyDocument({
           statements: [
             new PolicyStatement({
               effect: Effect.ALLOW,
-              actions: ["iot:AttachPrincipalPolicy"],
+              actions: ["iot:AttachPolicy"],
               resources: ["*"],
             }),
             new PolicyStatement({
@@ -243,7 +255,7 @@ export class CognitoAuthConstruct extends Construct {
       rules_to_suppress: [
         {
           id: "W11",
-          reason: "iot:AttachPrincipalPolicy does not allow for resource specification",
+          reason: "iot:AttachPolicy does not allow for resource specification",
         },
         {
           id: "F10",

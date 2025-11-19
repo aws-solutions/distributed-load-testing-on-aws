@@ -46,6 +46,7 @@ describe("Handler", () => {
     mockDDBDocumentClient.update.mockReset();
     mockS3.listObjectsV2.mockReset();
     mockS3.getObject.mockReset();
+    mockSolutionUtils.sendMetric.mockReset();
   });
   const successfulMocks = () => {
     mockDDBDocumentClient.update.mockImplementation(() => Promise.resolve(""));
@@ -77,7 +78,6 @@ describe("Handler", () => {
   it("metric sent successfully", async () => {
     // Arrange
     successfulMocks();
-    process.env.SEND_METRIC = "Yes";
     mockSolutionUtils.sendMetric.mockResolvedValue("metric sent");
 
     // Act

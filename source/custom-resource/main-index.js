@@ -17,12 +17,7 @@ const testingResourcesConfigFile = async (config, requestType) => {
 };
 
 const s3Handler = async (config, requestType, resource) => {
-  switch (resource) {
-    case "ConfigFile":
-      if (requestType !== "Delete") {
-        await s3.configFile(config.AwsExports, config.DestBucket);
-      }
-      break;
+  switch (resource) { // NOSONAR
     case "PutRegionalTemplate":
       if (requestType !== "Delete") {
         await s3.putRegionalTemplate(config);
@@ -32,7 +27,7 @@ const s3Handler = async (config, requestType, resource) => {
 };
 
 exports.handler = async (event, context) => {
-  console.log(`event: ${JSON.stringify(event, null, 2)}`);
+  console.log(`Custom resource: ${event.ResourceProperties?.Resource}, RequestType: ${event.RequestType}`);
 
   const resource = event.ResourceProperties.Resource;
   const config = event.ResourceProperties;
@@ -69,7 +64,7 @@ exports.handler = async (event, context) => {
           await iot.detachIotPolicy(config.IotPolicyName);
         }
         break;
-      case "AnonymizedMetric":
+      case "Metric":
         await metrics.send(config, requestType);
         break;
       default:
@@ -77,7 +72,8 @@ exports.handler = async (event, context) => {
     }
     await cfn.send(event, context, "SUCCESS", responseData, resource);
   } catch (err) {
-    console.log(err, err.stack);
+    console.error(`Error in custom resource ${resource}: ${err.message}, Code: ${err.code || 'N/A'}, RequestType: ${requestType}`);
     await cfn.send(event, context, "FAILED", {}, resource);
+    throw new Error(`Custom resource ${resource} failed: ${err.message || 'Unknown error'}`);
   }
 };

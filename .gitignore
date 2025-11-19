@@ -1,4 +1,6 @@
-node_modules/
+**/aws-exports.json
+**/dist/
+**/node_modules/
 cdk.out
 coverage
 build/
@@ -6,18 +8,15 @@ dev/
 global-s3-assets/
 regional-s3-assets/
 open-source/
-console_new/
-**/aws_config.js
 deployment/ecr/**/*.jar
 .idea
 source/test/
 **/__pycache__/
-build
 git-info
-
+.env
+build
 .pnp
 .pnp.js
-aws_exports.js
 .DS_Store
 .env.local
 .env.development.local
@@ -26,7 +25,9 @@ aws_exports.js
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-yarm-lock.json
+yarn-lock.json
+script_deploy*
+cdk.context.json
 
 # cypress
 screenshots
@@ -39,3 +40,6 @@ source/metrics-utils/*.d.ts
 source/metrics-utils/**/*.d.ts
 source/metrics-utils/**/*.js
 source/metrics-utils/dist/
+
+# webui public directory
+source/webui/public/

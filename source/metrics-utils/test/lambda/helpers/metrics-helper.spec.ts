@@ -159,7 +159,7 @@ describe("MetricsHelper", () => {
     expect(result).toEqual([mockResult, mockResult]);
   });
 
-  it("should properly populate anonymous metric data", async () => {
+  it("should properly populate metric data", async () => {
     // Arrange
     const metricData: MetricData = {
       metric1: [1, 2, 3],
@@ -173,9 +173,9 @@ describe("MetricsHelper", () => {
     axios.post = jest.fn().mockResolvedValue({ statusText: "OK", status: 200 });
 
     // Act
-    const result = await metricsHelper.sendAnonymousMetric(metricData, startTime, endTime);
+    const result = await metricsHelper.sendMetric(metricData, startTime, endTime);
     // Assert
-    expect(result.Message).toEqual("Anonymous data was sent successfully.");
+    expect(result.Message).toEqual("Data was sent successfully.");
 
     // Assert payload Data DataStartTime sent with axios is in expected format
     expect(axios.post).toHaveBeenCalledWith(

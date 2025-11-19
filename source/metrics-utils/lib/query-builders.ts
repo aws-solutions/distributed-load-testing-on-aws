@@ -248,9 +248,11 @@ export function addLambdaBilledDurationMemorySize(
   this.addQueryDefinition({
     logGroups: props.logGroups,
     queryString: new QueryString({
-      stats: `sum(@billedDuration) as AWSLambdaBilledDuration${
-        props.identifier || ""
-      }, max(@memorySize) as AWSLambdaMemorySize${props.identifier || ""}`,
+      statsStatements: [
+        `sum(@billedDuration) as AWSLambdaBilledDuration${
+          props.identifier || ""
+        }, max(@memorySize) as AWSLambdaMemorySize${props.identifier || ""}`,
+      ],
       limit: props.limit,
     }),
     queryDefinitionName: `${props.queryDefinitionName || "BilledDurationMemorySizeQuery"}${props.identifier || ""}`,

@@ -15,6 +15,7 @@ const send = async (config, type) => {
         Type: type,
         Region: config.Region,
         ExistingVpc: config.existingVPC,
+        AccountId: config.AccountId,
       },
     };
     const params = {

@@ -18,9 +18,7 @@ const createMockFactory = (moduleLocation, clientName, mockFn) => () => {
   const actualModule = jest.requireActual(moduleLocation);
 
   const handler = {
-    get: (target, prop) =>
-      // Return mockFn for any property access
-      mockFn,
+    get: (target, prop) => mockFn,
   };
 
   return {
@@ -60,9 +58,7 @@ jest.mock("@aws-sdk/lib-dynamodb", () => {
   const actualModule = jest.requireActual("@aws-sdk/lib-dynamodb");
 
   const handler = {
-    get: (target, prop) =>
-      // Return mockFn for any property access
-      mockDynamoDB,
+    get: (target, prop) => mockDynamoDB,
   };
 
   return {
@@ -686,12 +682,20 @@ const serviceQuotavCPULimit = {
 process.env.SCENARIOS_BUCKET = "bucket";
 process.env.SCENARIOS_TABLE = "testScenariosTable";
 process.env.HISTORY_TABLE = "testHistoryTable";
+process.env.HISTORY_TABLE_GSI_NAME = "testHistoryTableGSI";
 process.env.STATE_MACHINE_ARN = "arn:of:state:machine";
 process.env.LAMBDA_ARN = "arn:of:apilambda";
 process.env.TASK_CANCELER_ARN = "arn:of:taskCanceler";
 process.env.SOLUTION_ID = "SO0062";
 process.env.STACK_ID = "arn:of:cloudformation:stack/stackName/abc-def-hij-123";
 process.env.VERSION = "3.0.0";
+
+// Mock solution-utils
+jest.mock("solution-utils", () => ({
+  getOptions: jest.fn(() => ({})),
+  generateUniqueId: jest.fn(() => "abc1234567"),
+  sendMetric: jest.fn(() => Promise.resolve()),
+}));
 
 const lambda = require("./index.js");
 
@@ -720,18 +724,29 @@ describe("#SCENARIOS API:: ", () => {
   //Positive tests
   it('should return "SUCCESS" when "LISTTESTS" returns success', async () => {
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(listData));
+    // Mock the count queries for each test scenario
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 5 })); // for testId "1234"
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 3 })); // for testId "5678"
     const response = await lambda.listTests();
     expect(response.Items[0].testId).toEqual("1234");
+    expect(response.Items[0].totalTestRuns).toEqual(5);
+    expect(response.Items[1].totalTestRuns).toEqual(3);
   });
 
   it('should return "SUCCESS" when "GETTEST" returns success', async () => {
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementation(() => Promise.resolve(historyEntries));
-    mockEcs.mockImplementation(() => Promise.resolve(tasks2));
+    // First call: listTasks returns taskArns
+    mockEcs.mockImplementationOnce(() => Promise.resolve(tasks2));
+    // Second call: describeTasks returns tasks with details
     mockEcs.mockImplementationOnce(() =>
       Promise.resolve({
-        tasks: [{ group: testId }, { group: testId }, { group: "notTestId" }],
+        tasks: [
+          { group: testId, taskArn: "arn:of:task1", lastStatus: "RUNNING", desiredStatus: "RUNNING" },
+          { group: testId, taskArn: "arn:of:task2", lastStatus: "RUNNING", desiredStatus: "RUNNING" },
+          { group: "notTestId", taskArn: "arn:of:task3", lastStatus: "RUNNING", desiredStatus: "RUNNING" }
+        ],
       })
     );
 
@@ -1033,6 +1048,16 @@ describe("#SCENARIOS API:: ", () => {
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(updateData));
     const response = await lambda.createTest(config, context.functionName);
     expect(response.testStatus).toEqual("running");
+    expect(mockStepFunctions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.stringContaining('"prefix":'),
+      })
+    );
+    expect(mockStepFunctions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.stringContaining('"testRunId":'),
+      })
+    );
   });
 
   it("should use the right nextRun value for manually triggered recurring tests", async () => {
@@ -1164,6 +1189,9 @@ describe("#SCENARIOS API:: ", () => {
 
   it('should return SUCCESS when "CANCELTEST" finds running tasks and returns success', async () => {
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(listData));
+    // Mock count queries for listTests totalTestRuns
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 5 })); // for testId "1234"
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 3 })); // for testId "5678"
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockLambda.mockImplementationOnce(() => Promise.resolve());
@@ -1398,6 +1426,80 @@ describe("#SCENARIOS API:: ", () => {
     expect(response).toEqual("https://s3-test-url/prefix/regional.template");
   });
 
+  it('should return "SUCCESS" when "getStackInfo" returns stack information', async () => {
+    const mockStackResponse = {
+      Stacks: [
+        {
+          CreationTime: new Date("2025-09-09T19:40:22Z"),
+          StackId: "arn:aws:cloudformation:us-west-2:123456789012:stack/test-stack/12345",
+          Tags: [{ Key: "SolutionVersion", Value: "v4.0.0" }],
+        },
+      ],
+    };
+    mockCloudFormation.mockImplementation(() => Promise.resolve(mockStackResponse));
+
+    const response = await lambda.getStackInfo();
+    expect(response).toEqual({
+      created_time: "2025-09-09T19:40:22.000Z",
+      region: "us-west-2",
+      version: "v4.0.0",
+    });
+  });
+
+  it('should return "SUCCESS" with unknown version when no SolutionVersion tag exists', async () => {
+    const mockStackResponse = {
+      Stacks: [
+        {
+          CreationTime: new Date("2025-09-09T19:40:22Z"),
+          StackId: "arn:aws:cloudformation:eu-west-1:123456789012:stack/test-stack/12345",
+          Tags: [{ Key: "OtherTag", Value: "value" }],
+        },
+      ],
+    };
+    mockCloudFormation.mockImplementation(() => Promise.resolve(mockStackResponse));
+
+    const response = await lambda.getStackInfo();
+    expect(response.version).toEqual("unknown");
+  });
+
+  it("should extract version from stack description when no SolutionVersion tag exists", async () => {
+    const mockStackResponse = {
+      Stacks: [
+        {
+          CreationTime: new Date("2025-09-09T19:40:22Z"),
+          StackId: "arn:aws:cloudformation:us-east-1:123456789012:stack/test-stack/12345",
+          Description: "Distributed Load Testing Solution v4.0.0 - Creates infrastructure for load testing",
+          Tags: [{ Key: "OtherTag", Value: "value" }],
+        },
+      ],
+    };
+    mockCloudFormation.mockImplementation(() => Promise.resolve(mockStackResponse));
+
+    const response = await lambda.getStackInfo();
+    expect(response).toEqual({
+      created_time: "2025-09-09T19:40:22.000Z",
+      region: "us-east-1",
+      version: "v4.0.0",
+    });
+  });
+
+  it("should return unknown version when no tag or description version found", async () => {
+    const mockStackResponse = {
+      Stacks: [
+        {
+          CreationTime: new Date("2025-09-09T19:40:22Z"),
+          StackId: "arn:aws:cloudformation:us-west-1:123456789012:stack/test-stack/12345",
+          Description: "Some description without version",
+          Tags: [{ Key: "OtherTag", Value: "value" }],
+        },
+      ],
+    };
+    mockCloudFormation.mockImplementation(() => Promise.resolve(mockStackResponse));
+
+    const response = await lambda.getStackInfo();
+    expect(response.version).toEqual("unknown");
+  });
+
   //Negative Tests
   it('should return "DB ERROR" when "LISTTESTS" fails', async () => {
     mockDynamoDB.mockImplementation(() => Promise.reject("DB ERROR"));
@@ -1407,6 +1509,18 @@ describe("#SCENARIOS API:: ", () => {
     } catch (error) {
       expect(error).toEqual("DB ERROR");
     }
+  });
+
+  it('should return "SUCCESS" with totalTestRuns=0 when count query fails for a scenario', async () => {
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(listData));
+    // Mock the count query to fail for the first test scenario
+    mockDynamoDB.mockImplementationOnce(() => Promise.reject("COUNT ERROR"));
+    // Mock successful count for the second test scenario
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 2 }));
+    const response = await lambda.listTests();
+    expect(response.Items[0].testId).toEqual("1234");
+    expect(response.Items[0].totalTestRuns).toEqual(0); // Should default to 0 on error
+    expect(response.Items[1].totalTestRuns).toEqual(2);
   });
 
   it('should return "DB ERROR" when "GETTEST" fails', async () => {
@@ -1737,6 +1851,62 @@ describe("#SCENARIOS API:: ", () => {
       expect(error).toEqual("ECS ERROR");
     }
   });
+
+  it('should return "BAD_REQUEST" when "getTestRuns" is called with invalid limit', async () => {
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(origData)); // getTestEntry
+
+    try {
+      await lambda.getTestRuns(testId, { limit: "150" }); // exceeds max of 100
+    } catch (error) {
+      expect(error.code).toEqual("BAD_REQUEST");
+      expect(error.message).toContain("Limit must be between 1 and 100");
+    }
+  });
+
+  it('should return "BAD_REQUEST" when "getTestRuns" is called with invalid timestamp format', async () => {
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(origData)); // getTestEntry
+
+    try {
+      await lambda.getTestRuns(testId, { start_timestamp: "invalid-date" });
+    } catch (error) {
+      expect(error.code).toEqual("BAD_REQUEST");
+      expect(error.message).toContain("Invalid start_timestamp format");
+    }
+  });
+
+  it('should return "BAD_REQUEST" when "getTestRuns" is called with invalid next_token', async () => {
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(origData)); // getTestEntry
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 1 })); // count query
+
+    try {
+      await lambda.getTestRuns(testId, { next_token: "invalid-token" });
+    } catch (error) {
+      expect(error.code).toEqual("BAD_REQUEST");
+      expect(error.message).toContain("Invalid next_token format");
+    }
+  });
+
+  it('should return "TEST_NOT_FOUND" when "getTestRuns" is called with non-existent testId', async () => {
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // getTestEntry returns empty
+
+    try {
+      await lambda.getTestRuns("non-existent-id");
+    } catch (error) {
+      expect(error.code).toEqual("TEST_NOT_FOUND");
+      expect(error.statusCode).toEqual(404);
+    }
+  });
+
+  it('should return "DB ERROR" when "getTestRuns" fails', async () => {
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(origData)); // getTestEntry
+    mockDynamoDB.mockImplementationOnce(() => Promise.reject("DB ERROR")); // query history table fails
+
+    try {
+      await lambda.getTestRuns(testId);
+    } catch (error) {
+      expect(error).toEqual("DB ERROR");
+    }
+  });
 });
 
 it('should return "SUCCESS" when listClusters receives bad output', async () => {
@@ -1812,6 +1982,55 @@ it("should return an error when no exports returned", async () => {
   });
 });
 
+it('should return "STACK_NOT_FOUND" when no STACK_ID is available', async () => {
+  const originalStackId = process.env.STACK_ID;
+  delete process.env.STACK_ID;
+
+  try {
+    await lambda.getStackInfo();
+  } catch (error) {
+    expect(error.code).toEqual("STACK_NOT_FOUND");
+    expect(error.statusCode).toEqual(404);
+  }
+
+  if (originalStackId !== undefined) {
+    process.env.STACK_ID = originalStackId;
+  }
+});
+
+it('should return "STACK_NOT_FOUND" when stack is not found', async () => {
+  mockCloudFormation.mockImplementation(() => Promise.resolve({ Stacks: [] }));
+
+  try {
+    await lambda.getStackInfo();
+  } catch (error) {
+    expect(error.code).toEqual("STACK_NOT_FOUND");
+    expect(error.statusCode).toEqual(404);
+  }
+});
+
+it('should return "FORBIDDEN" when access is denied', async () => {
+  mockCloudFormation.mockImplementation(() => Promise.reject({ name: "AccessDenied" }));
+
+  try {
+    await lambda.getStackInfo();
+  } catch (error) {
+    expect(error.code).toEqual("FORBIDDEN");
+    expect(error.statusCode).toEqual(403);
+  }
+});
+
+it('should return "INTERNAL_SERVER_ERROR" when CloudFormation fails', async () => {
+  mockCloudFormation.mockImplementation(() => Promise.reject("CF ERROR"));
+
+  try {
+    await lambda.getStackInfo();
+  } catch (error) {
+    expect(error.code).toEqual("INTERNAL_SERVER_ERROR");
+    expect(error.statusCode).toEqual(500);
+  }
+});
+
 it('should return "S3 ERROR" when "PUTOBJECT" fails', async () => {
   mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
   mockS3.mockImplementation(() => Promise.reject("S3 ERROR"));
@@ -1821,4 +2040,664 @@ it('should return "S3 ERROR" when "PUTOBJECT" fails', async () => {
   } catch (error) {
     expect(error).toEqual("S3 ERROR");
   }
+});
+
+it('should return "SUCCESS" when "getTestRuns" returns test run IDs with pagination', async () => {
+  const testRunsData = {
+    Items: [
+      {
+        testId: "1234",
+        testRunId: "run-001",
+        startTime: "2024-01-01T10:00:00Z",
+      },
+      {
+        testId: "1234",
+        testRunId: "run-002",
+        startTime: "2024-01-02T10:00:00Z",
+      },
+    ],
+    LastEvaluatedKey: {
+      testId: "1234",
+      testRunId: "run-002",
+    },
+  };
+
+  mockDynamoDB.mockImplementationOnce(() => Promise.resolve(origData)); // getTestEntry
+  mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 2 })); // count query
+  mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testRunsData)); // query history table
+
+  const response = await lambda.getTestRuns(testId);
+  expect(response.testRuns).toHaveLength(2);
+  expect(response.testRuns[0].testRunId).toEqual("run-001");
+  expect(response.testRuns[0].startTime).toEqual("2024-01-01T10:00:00Z");
+  expect(response.pagination.limit).toEqual(20);
+  expect(response.pagination.next_token).toBeTruthy();
+});
+
+it('should return "SUCCESS" when "getTestRuns" with latest=true returns only the latest test run', async () => {
+  const testRunsData = {
+    Items: [
+      {
+        testId: "1234",
+        testRunId: "run-latest",
+        startTime: "2024-01-15T14:30:00Z",
+      },
+    ],
+  };
+
+  mockDynamoDB.mockImplementationOnce(() => Promise.resolve(origData)); // getTestEntry
+  mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testRunsData)); // query history table
+
+  const response = await lambda.getTestRuns(testId, { latest: "true" });
+  expect(response.testRuns).toHaveLength(1);
+  expect(response.testRuns[0].testRunId).toEqual("run-latest");
+  expect(response.pagination.limit).toEqual(1);
+  expect(response.pagination.next_token).toBeNull();
+});
+
+it('should return "SUCCESS" when "getTestRuns" with custom limit returns limited results', async () => {
+  const testRunsData = {
+    Items: [
+      {
+        testId: "1234",
+        testRunId: "run-001",
+        startTime: "2024-01-01T10:00:00Z",
+      },
+    ],
+  };
+
+  mockDynamoDB.mockImplementationOnce(() => Promise.resolve(origData)); // getTestEntry
+  mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 1 })); // count query
+  mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testRunsData)); // query history table
+
+  const response = await lambda.getTestRuns(testId, { limit: "5" });
+  expect(response.testRuns).toHaveLength(1);
+  expect(response.pagination.limit).toEqual(5);
+});
+
+it('should return "SUCCESS" when "getTestRuns" with timestamp filters', async () => {
+  const testRunsData = {
+    Items: [
+      {
+        testId: "1234",
+        testRunId: "run-001",
+        startTime: "2024-01-15T10:00:00Z",
+      },
+    ],
+  };
+
+  mockDynamoDB.mockImplementationOnce(() => Promise.resolve(origData)); // getTestEntry
+  mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 1 })); // count query
+  mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testRunsData)); // query history table
+
+  const response = await lambda.getTestRuns(testId, {
+    start_timestamp: "2024-01-01T00:00:00Z",
+    end_timestamp: "2024-12-31T23:59:59Z",
+  });
+  expect(response.testRuns).toHaveLength(1);
+  expect(response.testRuns[0].testRunId).toEqual("run-001");
+});
+
+it('should return "SUCCESS" when "getTestRuns" with next_token for pagination', async () => {
+  const testRunsData = {
+    Items: [
+      {
+        testId: "1234",
+        testRunId: "run-003",
+        startTime: "2024-01-03T10:00:00Z",
+      },
+    ],
+  };
+
+  const nextToken = Buffer.from(JSON.stringify({ testId: "1234", testRunId: "run-002" })).toString("base64");
+
+  mockDynamoDB.mockImplementationOnce(() => Promise.resolve(origData)); // getTestEntry
+  mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 1 })); // count query
+  mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testRunsData)); // query history table
+
+  const response = await lambda.getTestRuns(testId, { next_token: nextToken });
+  expect(response.testRuns).toHaveLength(1);
+  expect(response.testRuns[0].testRunId).toEqual("run-003");
+});
+
+// normalizeTag tests
+describe("normalizeTag", () => {
+  it("should normalize basic tags correctly", () => {
+    expect(lambda.normalizeTag("Test Tag")).toEqual("test-tag");
+    expect(lambda.normalizeTag("UPPERCASE")).toEqual("uppercase");
+    expect(lambda.normalizeTag("lowercase")).toEqual("lowercase");
+  });
+
+  it("should handle special characters", () => {
+    expect(lambda.normalizeTag("test@tag#123")).toEqual("testtag123");
+    expect(lambda.normalizeTag("tag!@#$%^&*()_+")).toEqual("tag");
+    expect(lambda.normalizeTag("test.tag-name")).toEqual("testtag-name");
+  });
+
+  it("should handle multiple spaces and hyphens", () => {
+    expect(lambda.normalizeTag("test   multiple   spaces")).toEqual("test-multiple-spaces");
+    expect(lambda.normalizeTag("test---multiple---hyphens")).toEqual("test-multiple-hyphens");
+    expect(lambda.normalizeTag("  leading and trailing  ")).toEqual("leading-and-trailing");
+  });
+
+  it("should handle edge cases", () => {
+    expect(lambda.normalizeTag("")).toEqual("");
+    expect(lambda.normalizeTag("   ")).toEqual("");
+    expect(lambda.normalizeTag("123")).toEqual("123");
+    expect(lambda.normalizeTag("-start-end-")).toEqual("start-end");
+    expect(lambda.normalizeTag(null)).toEqual("null");
+    expect(lambda.normalizeTag(undefined)).toEqual("undefined");
+  });
+});
+
+// deleteTestRuns tests
+describe("deleteTestRuns", () => {
+  const testRunIds = ["run-001", "run-002", "run-003"];
+  const testData = {
+    Item: {
+      testId: "1234",
+      testName: "mytest",
+      status: "complete",
+      testScenario: '{"name":"example"}',
+    },
+  };
+
+  it('should return "SUCCESS" when "deleteTestRuns" deletes multiple test runs', async () => {
+    // Mock getTestEntry
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testData));
+
+    // Mock get calls for validating test runs exist
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Item: { testId: "1234", testRunId: "run-001" } }));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Item: { testId: "1234", testRunId: "run-002" } }));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Item: { testId: "1234", testRunId: "run-003" } }));
+
+    // Mock successful batch delete
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ UnprocessedItems: {} }));
+
+    const response = await lambda.deleteTestRuns("1234", testRunIds);
+    expect(response.deletedCount).toEqual(3);
+  });
+
+  it('should return "SUCCESS" when "deleteTestRuns" deletes single test run', async () => {
+    // Mock getTestEntry
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testData));
+
+    // Mock get call for validating test run exists
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Item: { testId: "1234", testRunId: "run-001" } }));
+
+    // Mock successful batch delete
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ UnprocessedItems: {} }));
+
+    const response = await lambda.deleteTestRuns("1234", ["run-001"]);
+    expect(response.deletedCount).toEqual(1);
+  });
+
+  it('should return zero count when "deleteTestRuns" is called with empty array', async () => {
+    // Mock getTestEntry
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testData));
+
+    const response = await lambda.deleteTestRuns("1234", []);
+    expect(response.deletedCount).toEqual(0);
+  });
+
+  it('should return zero count when "deleteTestRuns" is called with non-existent testRunIds', async () => {
+    // Mock getTestEntry
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testData));
+
+    // Mock get calls returning no items (test runs don't exist)
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({}));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({}));
+
+    const response = await lambda.deleteTestRuns("1234", ["non-existent-1", "non-existent-2"]);
+    expect(response.deletedCount).toEqual(0);
+  });
+
+  it('should skip non-string testRunIds silently in "deleteTestRuns"', async () => {
+    // Mock getTestEntry
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testData));
+
+    // Mock get call for the valid string testRunId
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Item: { testId: "1234", testRunId: "run-001" } }));
+
+    // Mock successful batch delete
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ UnprocessedItems: {} }));
+
+    const mixedTestRunIds = [123, "run-001", null, undefined, { id: "run-002" }];
+    const response = await lambda.deleteTestRuns("1234", mixedTestRunIds);
+    expect(response.deletedCount).toEqual(1); // Only the valid string testRunId should be processed
+  });
+
+  it('should return "TEST_NOT_FOUND" when "deleteTestRuns" is called with non-existent testId', async () => {
+    // Mock getTestEntry returning no item
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({}));
+
+    try {
+      await lambda.deleteTestRuns("non-existent-test", testRunIds);
+    } catch (error) {
+      expect(error.code).toEqual("TEST_NOT_FOUND");
+      expect(error.message).toEqual("testId 'non-existent-test' not found");
+      expect(error.statusCode).toEqual(404);
+    }
+  });
+
+  it('should return "BAD_REQUEST" when "deleteTestRuns" is called with non-array body', async () => {
+    // Mock getTestEntry
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testData));
+
+    try {
+      await lambda.deleteTestRuns("1234", "not-an-array");
+    } catch (error) {
+      expect(error.code).toEqual("BAD_REQUEST");
+      expect(error.message).toEqual("Request body must be an array of testRunIds");
+      expect(error.statusCode).toEqual(400);
+    }
+  });
+
+  it('should return "BAD_REQUEST" when "deleteTestRuns" is called with object instead of array', async () => {
+    // Mock getTestEntry
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testData));
+
+    try {
+      await lambda.deleteTestRuns("1234", { testRunId: "run-001" });
+    } catch (error) {
+      expect(error.code).toEqual("BAD_REQUEST");
+      expect(error.message).toEqual("Request body must be an array of testRunIds");
+      expect(error.statusCode).toEqual(400);
+    }
+  });
+
+  it('should handle DynamoDB errors in "deleteTestRuns" when getting test entry', async () => {
+    // Mock getTestEntry failure
+    mockDynamoDB.mockImplementationOnce(() => Promise.reject("DB ERROR"));
+
+    try {
+      await lambda.deleteTestRuns("1234", testRunIds);
+    } catch (error) {
+      expect(error).toEqual("DB ERROR");
+    }
+  });
+
+  it("should skip testRunIds that cause DynamoDB errors during validation and continue processing", async () => {
+    // Mock getTestEntry
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testData));
+
+    // First testRunId causes a DynamoDB error during validation
+    mockDynamoDB.mockImplementationOnce(() => Promise.reject(new Error("DB ERROR")));
+
+    // Second testRunId validates successfully
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Item: { testId: "1234", testRunId: "run-002" } }));
+
+    // Third testRunId validates successfully
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Item: { testId: "1234", testRunId: "run-003" } }));
+
+    // Mock successful batch delete for the two valid testRunIds
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ UnprocessedItems: {} }));
+
+    // The function should skip the first testRunId that caused an error and process the other two
+    const response = await lambda.deleteTestRuns("1234", testRunIds);
+    expect(response.deletedCount).toEqual(2); // Only run-002 and run-003 should be deleted
+  });
+
+  it('should handle DynamoDB errors in "deleteTestRuns" when performing batch delete', async () => {
+    // Mock getTestEntry
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testData));
+
+    // Mock get call for validating test run exists
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Item: { testId: "1234", testRunId: "run-001" } }));
+
+    // Mock batch delete failure
+    mockDynamoDB.mockImplementationOnce(() => Promise.reject("DB ERROR"));
+
+    try {
+      await lambda.deleteTestRuns("1234", ["run-001"]);
+    } catch (error) {
+      expect(error).toEqual("DB ERROR");
+    }
+  });
+
+  it('should handle unprocessed items in "deleteTestRuns" batch delete', async () => {
+    // Mock getTestEntry
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testData));
+
+    // Mock get calls for validating test runs exist
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Item: { testId: "1234", testRunId: "run-001" } }));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Item: { testId: "1234", testRunId: "run-002" } }));
+
+    // Mock batch delete with unprocessed items (first attempt)
+    mockDynamoDB.mockImplementationOnce(() =>
+      Promise.resolve({
+        UnprocessedItems: {
+          testHistoryTable: [
+            {
+              DeleteRequest: {
+                Key: {
+                  testId: "1234",
+                  testRunId: "run-002",
+                },
+              },
+            },
+          ],
+        },
+      })
+    );
+
+    // Mock successful retry for unprocessed items
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ UnprocessedItems: {} }));
+
+    const response = await lambda.deleteTestRuns("1234", ["run-001", "run-002"]);
+    expect(response.deletedCount).toEqual(2);
+  });
+
+  it("should skip invalid testRunIds that cause errors and continue with valid ones", async () => {
+    // Mock getTestEntry
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testData));
+
+    // First testRunId causes an error
+    mockDynamoDB.mockImplementationOnce(() => Promise.reject(new Error("Invalid format")));
+
+    // Second testRunId is valid
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Item: { testId: "1234", testRunId: "run-002" } }));
+
+    // Third testRunId doesn't exist
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({}));
+
+    // Mock successful batch delete for the one valid testRunId
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ UnprocessedItems: {} }));
+
+    const response = await lambda.deleteTestRuns("1234", ["invalid-format", "run-002", "non-existent"]);
+    expect(response.deletedCount).toEqual(1); // Only run-002 should be deleted
+  });
+});
+
+//Baseline management tests
+describe("Baseline Management", () => {
+  const baselineTestData = {
+    Item: {
+      testId: "1234",
+      testName: "mytest",
+      status: "complete",
+      testScenario: '{"name":"example"}',
+    },
+  };
+
+  const baselineHistoryData = {
+    Item: {
+      testId: "1234",
+      testRunId: "run-5678",
+      status: "complete",
+      startTime: "2022-03-26 23:42:14",
+      endTime: "2022-03-26 23:48:25",
+      results: {
+        avg_lt: "0.03658",
+        throughput: 967,
+        succ: 967,
+        fail: 0,
+      },
+    },
+  };
+
+  const baselineTestDataWithBaseline = {
+    Item: {
+      ...baselineTestData.Item,
+      baselineId: "run-1234",
+    },
+  };
+
+  describe("PUT (setBaseline) Tests", () => {
+    it('should return "SUCCESS" when "setBaseline" sets a new baseline', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineTestData));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineHistoryData));
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({ Attributes: { testId: "1234", baselineId: "run-5678" } })
+      );
+
+      const response = await lambda.setBaseline("1234", "run-5678");
+      expect(response.message).toEqual("Baseline set successfully");
+      expect(response.testId).toEqual("1234");
+      expect(response.baselineId).toEqual("run-5678");
+      expect(response.details).toEqual("Test run run-5678 is now the baseline for test 1234");
+    });
+
+    it('should return "SUCCESS" when "setBaseline" replaces existing baseline', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineTestDataWithBaseline));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineHistoryData));
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({ Attributes: { testId: "1234", baselineId: "run-5678" } })
+      );
+
+      const response = await lambda.setBaseline("1234", "run-5678");
+      expect(response.message).toEqual("Baseline updated successfully");
+      expect(response.testId).toEqual("1234");
+      expect(response.baselineId).toEqual("run-5678");
+      expect(response.previousBaselineId).toEqual("run-1234");
+      expect(response.details).toEqual(
+        "Test run run-5678 is now the baseline for test 1234, replacing previous baseline run-1234"
+      );
+    });
+
+    it('should return "INVALID_PARAMETER" when "setBaseline" called without testRunId', async () => {
+      try {
+        await lambda.setBaseline("1234");
+      } catch (error) {
+        expect(error.code).toEqual("INVALID_PARAMETER");
+        expect(error.message).toEqual("testRunId is required");
+      }
+    });
+
+    it('should return "TEST_NOT_FOUND" when "setBaseline" called with non-existent testId', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({}));
+
+      try {
+        await lambda.setBaseline("non-existent", "run-5678");
+      } catch (error) {
+        expect(error.code).toEqual("TEST_NOT_FOUND");
+        expect(error.message).toEqual("testId 'non-existent' not found");
+      }
+    });
+
+    it('should return "TESTRUN_NOT_FOUND" when "setBaseline" called with non-existent testRunId', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineTestData));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({}));
+
+      try {
+        await lambda.setBaseline("1234", "non-existent-run");
+      } catch (error) {
+        expect(error.code).toEqual("TESTRUN_NOT_FOUND");
+        expect(error.message).toEqual("testRunId 'non-existent-run' not found for test '1234'");
+      }
+    });
+
+    it('should return "DB ERROR" when "setBaseline" fails on DynamoDB operation', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineTestData));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineHistoryData));
+      mockDynamoDB.mockImplementationOnce(() => Promise.reject("DB ERROR"));
+
+      try {
+        await lambda.setBaseline("1234", "run-5678");
+      } catch (error) {
+        expect(error).toEqual("DB ERROR");
+      }
+    });
+  });
+
+  describe("GET (getBaseline) Tests", () => {
+    it('should return baseline info when "getBaseline" called with existing baseline', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineTestDataWithBaseline));
+
+      const response = await lambda.getBaseline("1234");
+      expect(response.testId).toEqual("1234");
+      expect(response.baselineId).toEqual("run-1234");
+      expect(response.message).toEqual("Baseline retrieved successfully");
+    });
+
+    it('should return baseline with test run details when "getBaseline" called with includeResults=true', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineTestDataWithBaseline));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineHistoryData));
+
+      const response = await lambda.getBaseline("1234", true);
+      expect(response.testId).toEqual("1234");
+      expect(response.baselineId).toEqual("run-1234");
+      expect(response.message).toEqual("Baseline retrieved successfully");
+      expect(response.testRunDetails).toBeDefined();
+      expect(response.testRunDetails.testRunId).toEqual("run-5678");
+      expect(response.testRunDetails.status).toEqual("complete");
+      expect(response.testRunDetails.results).toBeDefined();
+    });
+
+    it('should return "NO_BASELINE_SET" response when test exists but has no baseline', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineTestData));
+
+      const response = await lambda.getBaseline("1234");
+      expect(response.testId).toEqual("1234");
+      expect(response.baselineId).toBeNull();
+      expect(response.message).toEqual("No baseline set for this test");
+    });
+
+    it('should return "TEST_NOT_FOUND" when "getBaseline" called with non-existent testId', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({}));
+
+      try {
+        await lambda.getBaseline("non-existent");
+      } catch (error) {
+        expect(error.code).toEqual("TEST_NOT_FOUND");
+        expect(error.message).toEqual("testId 'non-existent' not found");
+      }
+    });
+
+    it("should handle orphaned baseline gracefully when test run details not found", async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineTestDataWithBaseline));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // No test run found
+
+      const response = await lambda.getBaseline("1234", true);
+      expect(response.testId).toEqual("1234");
+      expect(response.baselineId).toEqual("run-1234");
+      expect(response.message).toEqual("Baseline retrieved successfully");
+      expect(response.testRunDetails).toBeNull();
+      expect(response.warning).toEqual("Baseline test run details not found - may have been deleted");
+    });
+
+    it('should return "DB ERROR" when "getBaseline" fails on DynamoDB operation', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.reject("DB ERROR"));
+
+      try {
+        await lambda.getBaseline("1234");
+      } catch (error) {
+        expect(error).toEqual("DB ERROR");
+      }
+    });
+
+    it('should return "DB ERROR" when "getBaseline" fails on history lookup with includeResults=true', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineTestDataWithBaseline));
+      mockDynamoDB.mockImplementationOnce(() => Promise.reject("DB ERROR"));
+
+      try {
+        await lambda.getBaseline("1234", true);
+      } catch (error) {
+        expect(error).toEqual("DB ERROR");
+      }
+    });
+  });
+
+  describe("DELETE (clearBaseline) Tests", () => {
+    it('should return "SUCCESS" when "clearBaseline" removes existing baseline', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineTestDataWithBaseline));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Attributes: { testId: "1234" } }));
+
+      const response = await lambda.clearBaseline("1234");
+      expect(response.message).toEqual("Baseline cleared successfully");
+      expect(response.testId).toEqual("1234");
+      expect(response.details).toEqual("Baseline removed for test 1234");
+    });
+
+    it('should return "TEST_NOT_FOUND" when "clearBaseline" called with non-existent testId', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({}));
+
+      try {
+        await lambda.clearBaseline("non-existent");
+      } catch (error) {
+        expect(error.code).toEqual("TEST_NOT_FOUND");
+        expect(error.message).toEqual("testId 'non-existent' not found");
+      }
+    });
+
+    it('should return "NO_BASELINE_SET" when "clearBaseline" called with no existing baseline', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineTestData));
+
+      try {
+        await lambda.clearBaseline("1234");
+      } catch (error) {
+        expect(error.code).toEqual("NO_BASELINE_SET");
+        expect(error.message).toEqual("No baseline is currently set for test '1234'");
+      }
+    });
+
+    it('should return "DB ERROR" when "clearBaseline" fails on DynamoDB operation', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineTestDataWithBaseline));
+      mockDynamoDB.mockImplementationOnce(() => Promise.reject("DB ERROR"));
+
+      try {
+        await lambda.clearBaseline("1234");
+      } catch (error) {
+        expect(error).toEqual("DB ERROR");
+      }
+    });
+  });
+
+  describe("GET (getTestRun) Tests", () => {
+    it('should return "SUCCESS" when "getTestRun" called with existing test run', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineHistoryData));
+
+      const response = await lambda.getTestRun("1234", "run-5678");
+
+      expect(response.testRunId).toEqual("run-5678");
+      expect(response.status).toEqual("complete");
+      expect(response.startTime).toEqual("2022-03-26 23:42:14");
+      expect(response.endTime).toEqual("2022-03-26 23:48:25");
+      expect(response.results).toBeDefined();
+    });
+
+    it('should return "TESTRUN_NOT_FOUND" when "getTestRun" called with non-existent test run', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // Empty response
+
+      try {
+        await lambda.getTestRun("1234", "non-existent-run");
+      } catch (error) {
+        expect(error.code).toEqual("TESTRUN_NOT_FOUND");
+        expect(error.message).toEqual("Test run 'non-existent-run' not found for test '1234'");
+        expect(error.statusCode).toEqual(404);
+      }
+    });
+
+    it('should return "INVALID_PARAMETER" when "getTestRun" called without testId', async () => {
+      try {
+        await lambda.getTestRun("", "run-5678");
+      } catch (error) {
+        expect(error.code).toEqual("INVALID_PARAMETER");
+        expect(error.message).toEqual("testId is required");
+        expect(error.statusCode).toEqual(400);
+      }
+    });
+
+    it('should return "INVALID_PARAMETER" when "getTestRun" called without testRunId', async () => {
+      try {
+        await lambda.getTestRun("1234", "");
+      } catch (error) {
+        expect(error.code).toEqual("INVALID_PARAMETER");
+        expect(error.message).toEqual("testRunId is required");
+        expect(error.statusCode).toEqual(400);
+      }
+    });
+
+    it('should return "INTERNAL_SERVER_ERROR" when "getTestRun" fails due to unexpected error', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.reject(new Error("Unexpected database error")));
+
+      try {
+        await lambda.getTestRun("1234", "run-5678");
+      } catch (error) {
+        expect(error.code).toEqual("INTERNAL_SERVER_ERROR");
+        expect(error.message).toContain("Failed to retrieve test run");
+        expect(error.statusCode).toEqual(500);
+      }
+    });
+  });
 });

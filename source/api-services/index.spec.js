@@ -1,12 +1,15 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const apiServices = require("./index");
-const scenarios = require("./lib/scenarios/");
+// Set up environment variables before any imports
+process.env.AWS_REGION = "us-east-1";
+process.env.AWS_DEFAULT_REGION = "us-east-1";
+process.env.METRICS_ENDPOINT = "https://test.metrics.com";
+process.env.SEND_METRIC = "Yes";
 
-// Mock the scenarios module
+// Mock the scenarios module before importing
 jest.mock("./lib/scenarios/", () => ({
-  ErrorException: jest.fn((code, message, statusCode) => ({
+  ErrorException: jest.fn().mockImplementation((code, message, statusCode) => ({
     code,
     message,
     statusCode,
@@ -16,21 +19,31 @@ jest.mock("./lib/scenarios/", () => ({
     BAD_REQUEST: 400,
     NOT_ALLOWED: 405,
   },
-  listTests: jest.fn(),
-  getTest: jest.fn(),
-  cancelTest: jest.fn(),
-  createTest: jest.fn(),
-  deleteTest: jest.fn(),
-  scheduleTest: jest.fn(),
-  listTasks: jest.fn(),
-  getAccountFargatevCPUDetails: jest.fn(),
-  getAllRegionConfigs: jest.fn(),
-  getCFUrl: jest.fn(),
+  listTests: jest.fn().mockResolvedValue([]),
+  getTest: jest.fn().mockResolvedValue({}),
+  cancelTest: jest.fn().mockResolvedValue("success"),
+  createTest: jest.fn().mockResolvedValue({}),
+  deleteTest: jest.fn().mockResolvedValue("success"),
+  scheduleTest: jest.fn().mockResolvedValue({}),
+  listTasks: jest.fn().mockResolvedValue([]),
+  getAccountFargatevCPUDetails: jest.fn().mockResolvedValue({}),
+  getAllRegionConfigs: jest.fn().mockResolvedValue([]),
+  getCFUrl: jest.fn().mockResolvedValue(""),
+  getTestRuns: jest.fn().mockResolvedValue({}),
+  deleteTestRuns: jest.fn().mockResolvedValue({}),
+  getTestRun: jest.fn().mockResolvedValue({}),
+  getBaseline: jest.fn().mockResolvedValue({}),
+  setBaseline: jest.fn().mockResolvedValue("success"),
+  clearBaseline: jest.fn().mockResolvedValue("success"),
+  getStackInfo: jest.fn().mockResolvedValue({}),
 }));
 
 jest.mock("solution-utils", () => ({
-  sendMetric: jest.fn(),
+  sendMetric: jest.fn().mockResolvedValue(undefined),
 }));
+
+const apiServices = require("./index");
+const scenarios = require("./lib/scenarios/");
 
 describe("validateConfig", () => {
   const validateConfig = apiServices.validateConfig;
@@ -65,12 +78,7 @@ describe("validateConfig", () => {
       regionalTaskDetails: { "us-east-1": {} },
     };
 
-    expect(() => validateConfig(invalidConfig)).toThrow();
-    expect(scenarios.ErrorException).toHaveBeenCalledWith(
-      "BAD_INPUT",
-      "Invalid input type for testId",
-      scenarios.StatusCodes.BAD_REQUEST
-    );
+    expect(() => validateConfig(invalidConfig)).toThrow("Invalid input type for testId");
   });
 
   it("should throw an error for invalid testTaskConfigs type", () => {
@@ -86,12 +94,7 @@ describe("validateConfig", () => {
       regionalTaskDetails: { "us-east-1": {} },
     };
 
-    expect(() => validateConfig(invalidConfig)).toThrow();
-    expect(scenarios.ErrorException).toHaveBeenCalledWith(
-      "BAD_INPUT",
-      "Invalid input type for testTaskConfigs",
-      scenarios.StatusCodes.BAD_REQUEST
-    );
+    expect(() => validateConfig(invalidConfig)).toThrow("Invalid input type for testTaskConfigs");
   });
 
   it("should throw an error for invalid showLive type", () => {
@@ -107,12 +110,7 @@ describe("validateConfig", () => {
       regionalTaskDetails: { "us-east-1": {} },
     };
 
-    expect(() => validateConfig(invalidConfig)).toThrow();
-    expect(scenarios.ErrorException).toHaveBeenCalledWith(
-      "BAD_INPUT",
-      "Invalid input type for showLive",
-      scenarios.StatusCodes.BAD_REQUEST
-    );
+    expect(() => validateConfig(invalidConfig)).toThrow("Invalid input type for showLive");
   });
 
   it("should validate a config with only required fields", () => {
@@ -145,231 +143,533 @@ describe("handler", () => {
     jest.clearAllMocks();
   });
 
-  it("should handle /regions GET request successfully", async () => {
-    const event = {
-      resource: "/regions",
-      httpMethod: "GET",
-      body: JSON.stringify({
-        testId: "test-123",
-        testName: "Test Name",
-        testDescription: "Test Description",
-      }),
-    };
+  describe("/regions endpoint", () => {
+    it("should handle GET /regions successfully", async () => {
+      const event = {
+        resource: "/regions",
+        httpMethod: "GET",
+        headers: { "User-Agent": "test-agent" },
+      };
 
-    const context = {};
+      const context = {};
 
-    scenarios.getAllRegionConfigs.mockResolvedValue(["us-east-1", "eu-west-1"]);
-    scenarios.getCFUrl.mockResolvedValue("https://example.com/template.yaml");
+      const response = await apiServices.handler(event, context);
 
-    const response = await apiServices.handler(event, context);
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body).toHaveProperty("regions");
+      expect(body).toHaveProperty("url");
+      expect(scenarios.getAllRegionConfigs).toHaveBeenCalled();
+      expect(scenarios.getCFUrl).toHaveBeenCalled();
+    });
 
-    expect(response.statusCode).toBe(200);
-    expect(JSON.parse(response.body)).toEqual({
-      regions: ["us-east-1", "eu-west-1"],
-      url: "https://example.com/template.yaml",
+    it("should handle /regions with unsupported method", async () => {
+      const event = {
+        resource: "/regions",
+        httpMethod: "POST",
+        body: JSON.stringify({
+          testId: "test-123",
+          testName: "Test Name",
+          testDescription: "Test Description",
+        }),
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(scenarios.StatusCodes.NOT_ALLOWED);
+      expect(response.body).toContain("Method: POST not supported");
     });
   });
 
-  it("should handle /regions with unsupported method", async () => {
-    const event = {
-      resource: "/regions",
-      httpMethod: "POST",
-      body: JSON.stringify({
-        testId: "test-123",
+  describe("/scenarios endpoint", () => {
+    it("should handle GET /scenarios successfully", async () => {
+      const event = {
+        resource: "/scenarios",
+        httpMethod: "GET",
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.listTests).toHaveBeenCalledWith(null);
+    });
+
+    it("should handle GET /scenarios with tag filtering", async () => {
+      const event = {
+        resource: "/scenarios",
+        httpMethod: "GET",
+        queryStringParameters: { tags: "tag1, tag2, tag3" },
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.listTests).toHaveBeenCalledWith(["tag1", "tag2", "tag3"]);
+    });
+
+    it("should handle GET /scenarios with listRegions operation", async () => {
+      const event = {
+        resource: "/scenarios",
+        httpMethod: "GET",
+        queryStringParameters: { op: "listRegions" },
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body).toHaveProperty("regions");
+      expect(scenarios.getAllRegionConfigs).toHaveBeenCalled();
+      expect(scenarios.getCFUrl).toHaveBeenCalled();
+    });
+
+    it("should handle POST /scenarios for creating test", async () => {
+      const testConfig = {
         testName: "Test Name",
         testDescription: "Test Description",
-      }),
-    };
+        testType: "simple",
+        testTaskConfigs: [{ region: "us-east-1", taskCount: 1, concurrency: 1 }],
+        testScenario: { execution: [{ "hold-for": "1m" }] },
+        regionalTaskDetails: { "us-east-1": { dltAvailableTasks: 10 } }
+      };
 
-    const context = {};
+      const event = {
+        resource: "/scenarios",
+        httpMethod: "POST",
+        body: JSON.stringify(testConfig),
+        headers: { "User-Agent": "test-agent" },
+      };
 
-    const response = await apiServices.handler(event, context);
+      const context = { functionName: "test-function" };
 
-    expect(response.statusCode).toBe(scenarios.StatusCodes.NOT_ALLOWED);
-    expect(response.body).toContain("Method: POST not supported");
-  });
+      const response = await apiServices.handler(event, context);
 
-  it("should handle /scenarios GET request successfully", async () => {
-    const event = {
-      resource: "/scenarios",
-      httpMethod: "GET",
-      body: JSON.stringify({
-        testId: "test-123",
-        testName: "Test Name",
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.createTest).toHaveBeenCalledWith(testConfig, "test-function");
+    });
+
+    it("should handle EventBridge invocation", async () => {
+      const testConfig = {
+        testName: "EventBridge Test",
         testDescription: "Test Description",
-        testTaskConfigs: [{ region: "us-east-1" }],
-      }),
-    };
+        testType: "simple",
+        testTaskConfigs: [{ region: "us-east-1", taskCount: 1, concurrency: 1 }],
+        testScenario: { execution: [{ "hold-for": "1m" }] },
+        regionalTaskDetails: { "us-east-1": { dltAvailableTasks: 10 } }
+      };
 
-    const context = {};
+      const event = {
+        resource: "/scenarios",
+        httpMethod: "POST", // EventBridge invocations still need httpMethod in tests
+        body: JSON.stringify(testConfig),
+        // No headers for EventBridge simulation
+      };
 
-    const mockTests = { Items: [{ testId: "123" }] };
-    scenarios.listTests.mockResolvedValue(mockTests);
+      const context = { functionName: "test-function" };
 
-    const response = await apiServices.handler(event, context);
+      const response = await apiServices.handler(event, context);
 
-    expect(response.statusCode).toBe(200);
-    expect(JSON.parse(response.body)).toEqual(mockTests);
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.createTest).toHaveBeenCalled();
+    });
   });
 
-  it("should handle /scenarios POST request for creating test", async () => {
+  describe("/scenarios/{testId} endpoint", () => {
+    it("should handle GET /scenarios/{testId}", async () => {
+      const event = {
+        resource: "/scenarios/{testId}",
+        httpMethod: "GET",
+        pathParameters: { testId: "test-123" },
+        queryStringParameters: { history: "true" },
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = { functionName: "test-function" };
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.getTest).toHaveBeenCalledWith("test-123", { history: "true" });
+    });
+
+    it("should handle POST /scenarios/{testId} (cancel test)", async () => {
+      const event = {
+        resource: "/scenarios/{testId}",
+        httpMethod: "POST",
+        pathParameters: { testId: "test-123" },
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = { functionName: "test-function" };
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.cancelTest).toHaveBeenCalledWith("test-123");
+    });
+
+    it("should handle DELETE /scenarios/{testId}", async () => {
+      const event = {
+        resource: "/scenarios/{testId}",
+        httpMethod: "DELETE",
+        pathParameters: { testId: "test-123" },
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = { functionName: "test-function" };
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.deleteTest).toHaveBeenCalledWith("test-123", "test-function");
+    });
+
+    it("should handle unsupported method for /scenarios/{testId}", async () => {
+      const event = {
+        resource: "/scenarios/{testId}",
+        httpMethod: "PUT",
+        pathParameters: { testId: "test-123" },
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(scenarios.StatusCodes.NOT_ALLOWED);
+    });
+  });
+
+  describe("/scenarios/{testId}/testruns endpoint", () => {
+    it("should handle GET /scenarios/{testId}/testruns", async () => {
+      const event = {
+        resource: "/scenarios/{testId}/testruns",
+        httpMethod: "GET",
+        pathParameters: { testId: "test-123" },
+        queryStringParameters: { limit: "10" },
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.getTestRuns).toHaveBeenCalledWith("test-123", { limit: "10" });
+    });
+
+    it("should handle DELETE /scenarios/{testId}/testruns", async () => {
+      const deleteBody = ["run-1", "run-2"];
+      const event = {
+        resource: "/scenarios/{testId}/testruns",
+        httpMethod: "DELETE",
+        pathParameters: { testId: "test-123" },
+        body: JSON.stringify(deleteBody),
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.deleteTestRuns).toHaveBeenCalledWith("test-123", deleteBody);
+    });
+
+    it("should handle /scenarios/{testId}/testruns with unsupported method", async () => {
+      const event = {
+        resource: "/scenarios/{testId}/testruns",
+        httpMethod: "POST",
+        pathParameters: {
+          testId: "123",
+        },
+        body: JSON.stringify({
+          testId: "123",
+          testName: "Test Name",
+          testDescription: "Test Description",
+        }),
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(scenarios.StatusCodes.NOT_ALLOWED);
+      expect(response.body).toContain("Method: POST not supported");
+    });
+  });
+
+  describe("/scenarios/{testId}/testruns/{testRunId} endpoint", () => {
+    it("should handle GET /scenarios/{testId}/testruns/{testRunId}", async () => {
+      const event = {
+        resource: "/scenarios/{testId}/testruns/{testRunId}",
+        httpMethod: "GET",
+        pathParameters: { testId: "test-123", testRunId: "run-123" },
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.getTestRun).toHaveBeenCalledWith("test-123", "run-123");
+    });
+
+    it("should handle /scenarios/{testId}/testruns/{testRunId} with unsupported method", async () => {
+      const event = {
+        resource: "/scenarios/{testId}/testruns/{testRunId}",
+        httpMethod: "POST",
+        pathParameters: {
+          testId: "test-id-123",
+          testRunId: "test-run-id-456",
+        },
+      };
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(scenarios.StatusCodes.NOT_ALLOWED);
+    });
+  });
+
+  describe("/scenarios/{testId}/baseline endpoint", () => {
+    it("should handle GET /scenarios/{testId}/baseline with data", async () => {
+      const event = {
+        resource: "/scenarios/{testId}/baseline",
+        httpMethod: "GET",
+        pathParameters: { testId: "test-123" },
+        queryStringParameters: { data: "true" },
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.getBaseline).toHaveBeenCalledWith("test-123", true);
+    });
+
+    it("should handle GET /scenarios/{testId}/baseline without data", async () => {
+      const event = {
+        resource: "/scenarios/{testId}/baseline",
+        httpMethod: "GET",
+        pathParameters: { testId: "test-123" },
+        queryStringParameters: { data: "false" },
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.getBaseline).toHaveBeenCalledWith("test-123", false);
+    });
+
+    it("should handle PUT /scenarios/{testId}/baseline", async () => {
+      const event = {
+        resource: "/scenarios/{testId}/baseline",
+        httpMethod: "PUT",
+        pathParameters: { testId: "test-123" },
+        body: JSON.stringify({ testRunId: "run-123" }),
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.setBaseline).toHaveBeenCalledWith("test-123", "run-123");
+    });
+
+    it("should handle DELETE /scenarios/{testId}/baseline", async () => {
+      const event = {
+        resource: "/scenarios/{testId}/baseline",
+        httpMethod: "DELETE",
+        pathParameters: { testId: "test-123" },
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.clearBaseline).toHaveBeenCalledWith("test-123");
+    });
+
+    it("should handle unsupported method for /scenarios/{testId}/baseline", async () => {
+      const event = {
+        resource: "/scenarios/{testId}/baseline",
+        httpMethod: "POST",
+        pathParameters: { testId: "test-123" },
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(scenarios.StatusCodes.NOT_ALLOWED);
+    });
+  });
+
+  describe("/tasks endpoint", () => {
+    it("should handle GET /tasks", async () => {
+      const event = {
+        resource: "/tasks",
+        httpMethod: "GET",
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.listTasks).toHaveBeenCalled();
+    });
+
+    it("should handle unsupported method for /tasks", async () => {
+      const event = {
+        resource: "/tasks",
+        httpMethod: "POST",
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(scenarios.StatusCodes.NOT_ALLOWED);
+    });
+  });
+
+  describe("/vCPUDetails endpoint", () => {
+    it("should handle GET /vCPUDetails", async () => {
+      const event = {
+        resource: "/vCPUDetails",
+        httpMethod: "GET",
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.getAccountFargatevCPUDetails).toHaveBeenCalled();
+    });
+
+    it("should handle unsupported method for /vCPUDetails", async () => {
+      const event = {
+        resource: "/vCPUDetails",
+        httpMethod: "POST",
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(scenarios.StatusCodes.NOT_ALLOWED);
+    });
+  });
+
+  describe("/stack-info endpoint", () => {
+    it("should handle GET /stack-info", async () => {
+      const event = {
+        resource: "/stack-info",
+        httpMethod: "GET",
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.getStackInfo).toHaveBeenCalled();
+    });
+
+    it("should handle unsupported method for /stack-info", async () => {
+      const event = {
+        resource: "/stack-info",
+        httpMethod: "POST",
+      };
+
+      const context = {};
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(scenarios.StatusCodes.NOT_ALLOWED);
+    });
+  });
+
+  describe("Metrics and error handling", () => {
+    it("should handle correlation ID in headers", async () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      const event = {
+        resource: "/regions",
+        httpMethod: "GET",
+        headers: { 
+          "User-Agent": "test-agent",
+          "X-Correlation-Id": "correlation-123"
+        },
+      };
+
+      const context = { awsRequestId: "request-123" };
+
+      await apiServices.handler(event, context);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Request ID: request-123, Correlation ID: correlation-123")
+      );
+      
+      consoleSpy.mockRestore();
+    });
+
+    it("should handle correlation ID in lowercase headers", async () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      const event = {
+        resource: "/regions",
+        httpMethod: "GET",
+        headers: { 
+          "user-agent": "test-agent",
+          "x-correlation-id": "correlation-456"
+        },
+      };
+
+      const context = { awsRequestId: "request-456" };
+
+      await apiServices.handler(event, context);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Request ID: request-456, Correlation ID: correlation-456")
+      );
+      
+      consoleSpy.mockRestore();
+    });
+
+  });
+
+  it("should handle error when Zod validation fails", async () => {
     const testConfig = {
-      testName: "Test Name",
-      testTaskConfigs: [{ region: "us-east-1" }],
-      testScenario: { execution: [{ "hold-for": "1m", "ramp-up": "30s" }] },
-      testType: "simple",
-      fileType: "none",
-    };
-
-    const event = {
-      resource: "/scenarios",
-      httpMethod: "POST",
-      body: JSON.stringify(testConfig),
-      headers: {},
-    };
-
-    const context = {
-      functionName: "testFunction",
-    };
-
-    const mockResponse = { testId: "123", status: "running" };
-    scenarios.createTest.mockResolvedValue(mockResponse);
-
-    const response = await apiServices.handler(event, context);
-
-    expect(scenarios.createTest).toHaveBeenCalledWith(testConfig, "testFunction");
-    expect(response.statusCode).toBe(200);
-    expect(JSON.parse(response.body)).toEqual(mockResponse);
-  });
-
-  it("should handle /scenarios/{testId} GET request", async () => {
-    const event = {
-      resource: "/scenarios/{testId}",
-      httpMethod: "GET",
-      pathParameters: {
-        testId: "123",
-      },
-      body: JSON.stringify({
-        testId: "123",
-        testName: "Test Name",
-        testDescription: "Test Description",
-      }),
-    };
-
-    const context = {};
-
-    const mockTest = { testId: "123", name: "Test Name" };
-    scenarios.getTest.mockResolvedValue(mockTest);
-
-    const response = await apiServices.handler(event, context);
-
-    expect(scenarios.getTest).toHaveBeenCalledWith("123");
-    expect(response.statusCode).toBe(200);
-    expect(JSON.parse(response.body)).toEqual(mockTest);
-  });
-
-  it("should handle /scenarios/{testId} POST request for canceling test", async () => {
-    const event = {
-      resource: "/scenarios/{testId}",
-      httpMethod: "POST",
-      pathParameters: {
-        testId: "123",
-      },
-      body: JSON.stringify({
-        testId: "123",
-        testName: "Test to Cancel",
-        testDescription: "Test Description for Cancellation",
-      }),
-    };
-
-    const context = {};
-
-    scenarios.cancelTest.mockResolvedValue("test cancelling");
-
-    const response = await apiServices.handler(event, context);
-
-    expect(scenarios.cancelTest).toHaveBeenCalledWith("123");
-    expect(response.statusCode).toBe(200);
-    expect(JSON.parse(response.body)).toBe("test cancelling");
-  });
-
-  it("should handle /scenarios/{testId} DELETE request", async () => {
-    const event = {
-      resource: "/scenarios/{testId}",
-      httpMethod: "DELETE",
-      pathParameters: {
-        testId: "123",
-      },
-      body: JSON.stringify({
-        testId: "123",
-        testName: "Test to Delete",
-        testDescription: "Test Description for Deletion",
-      }),
-    };
-
-    const context = {
-      functionName: "testFunction",
-    };
-
-    scenarios.deleteTest.mockResolvedValue("success");
-
-    const response = await apiServices.handler(event, context);
-
-    expect(scenarios.deleteTest).toHaveBeenCalledWith("123", "testFunction");
-    expect(response.statusCode).toBe(200);
-    expect(JSON.parse(response.body)).toBe("success");
-  });
-
-  it("should handle /tasks GET request", async () => {
-    const event = {
-      resource: "/tasks",
-      httpMethod: "GET",
-      body: JSON.stringify({
-        testId: "task-test-123",
-        testName: "Task Test",
-        testDescription: "Test Description for Tasks",
-      }),
-    };
-
-    const context = {};
-
-    const mockTasks = [{ region: "us-east-1", tasks: [] }];
-    scenarios.listTasks.mockResolvedValue(mockTasks);
-
-    const response = await apiServices.handler(event, context);
-
-    expect(scenarios.listTasks).toHaveBeenCalled();
-    expect(response.statusCode).toBe(200);
-    expect(JSON.parse(response.body)).toEqual(mockTasks);
-  });
-
-  it("should handle /vCPUDetails GET request", async () => {
-    const event = {
-      resource: "/vCPUDetails",
-      httpMethod: "GET",
-      body: JSON.stringify({
-        testId: "vcpu-test-123",
-        testName: "vCPU Test",
-        testDescription: "Test Description for vCPU Details",
-      }),
-    };
-
-    const context = {};
-
-    const mockDetails = { "us-east-1": { vCPULimit: 4000 } };
-    scenarios.getAccountFargatevCPUDetails.mockResolvedValue(mockDetails);
-
-    const response = await apiServices.handler(event, context);
-
-    expect(scenarios.getAccountFargatevCPUDetails).toHaveBeenCalled();
-    expect(response.statusCode).toBe(200);
-    expect(JSON.parse(response.body)).toEqual(mockDetails);
-  });
-
-  it("should handle error when validateConfig throws an exception", async () => {
-    const testConfig = {
-      testId: 123, // Invalid type
-      testTaskConfigs: [{ region: "us-east-1" }],
+      testId: 123, // Invalid type - should be string
+      // Missing required fields: testName, testDescription, regionalTaskDetails
+      testTaskConfigs: [{ region: "us-east-1" }], // Missing taskCount, concurrency
       testScenario: { execution: [] },
     };
 
@@ -385,25 +685,270 @@ describe("handler", () => {
       functionName: "testFunction",
     };
 
-    // Mock validateConfig to throw an error
-    const originalValidateConfig = apiServices.validateConfig;
-    const mockError = new Error("Invalid input type for testId");
-    mockError.code = "BAD_INPUT";
-    mockError.statusCode = scenarios.StatusCodes.BAD_REQUEST;
-    mockError.toString = () => "Invalid input type for testId";
-
-    // Replace validateConfig with a mock that throws
-    apiServices.validateConfig = jest.fn().mockImplementation(() => {
-      throw mockError;
-    });
-
     const response = await apiServices.handler(event, context);
 
-    // Restore original function
-    apiServices.validateConfig = originalValidateConfig;
-
     expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
-    expect(response.body).toContain("Invalid input type for testId");
+    // Zod provides comprehensive validation errors
+    expect(response.body).toContain("testId: Expected string, received number");
+  });
+
+  describe("Validation Integration Tests", () => {
+    describe("Path Parameter Validation", () => {
+      it("should reject invalid testId in path parameters", async () => {
+        const event = {
+          resource: "/scenarios/{testId}",
+          httpMethod: "GET",
+          pathParameters: {
+            testId: "test_invalid_format", // Invalid format - underscore not allowed
+          },
+          queryStringParameters: null,
+        };
+
+        const response = await apiServices.handler(event, {});
+
+        expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
+        expect(response.body).toContain("testId must contain only alphanumeric characters and hyphens");
+      });
+
+      it("should reject invalid testRunId in path parameters", async () => {
+        const event = {
+          resource: "/scenarios/{testId}/testruns/{testRunId}",
+          httpMethod: "GET",
+          pathParameters: {
+            testId: "valid-test-id",
+            testRunId: "run_invalid_format", // Invalid format
+          },
+        };
+
+        const response = await apiServices.handler(event, {});
+
+        expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
+        expect(response.body).toContain("testRunId must contain only alphanumeric characters and hyphens");
+      });
+
+      // Note: Positive path parameter validation is covered by the unit tests
+    });
+
+    describe("Query Parameter Validation", () => {
+      it("should reject invalid scenarios query parameters", async () => {
+        const event = {
+          resource: "/scenarios",
+          httpMethod: "GET",
+          queryStringParameters: {
+            op: "invalidOperation", // Invalid enum value
+          },
+        };
+
+        const response = await apiServices.handler(event, {});
+
+        expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
+        expect(response.body).toContain("Invalid enum value");
+      });
+
+      it("should reject invalid test runs query parameters", async () => {
+        const event = {
+          resource: "/scenarios/{testId}/testruns",
+          httpMethod: "GET",
+          pathParameters: {
+            testId: "test-123",
+          },
+          queryStringParameters: {
+            limit: "999", // Exceeds maximum limit of 100
+          },
+        };
+
+        const response = await apiServices.handler(event, {});
+
+        expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
+        expect(response.body).toContain("Limit must be between 1 and 100");
+      });
+
+      it("should reject invalid scenario query parameters", async () => {
+        const event = {
+          resource: "/scenarios/{testId}",
+          httpMethod: "GET",
+          pathParameters: {
+            testId: "test-123",
+          },
+          queryStringParameters: {
+            history: "invalid", // Must be "true" or "false"
+          },
+        };
+
+        const response = await apiServices.handler(event, {});
+
+        expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
+        expect(response.body).toContain("Invalid enum value");
+      });
+
+      // Note: Positive query parameter validation is covered by the unit tests
+    });
+
+    describe("Request Body Validation", () => {
+      it("should reject invalid create test request body", async () => {
+        const invalidTestConfig = {
+          testName: "ab", // Too short
+          testDescription: "", // Too short
+          testType: "invalid", // Invalid enum
+          testTaskConfigs: [], // Empty array
+          testScenario: {}, // Missing execution
+          regionalTaskDetails: {}, // Empty object
+        };
+
+        const event = {
+          resource: "/scenarios",
+          httpMethod: "POST",
+          body: JSON.stringify(invalidTestConfig),
+          headers: {},
+        };
+
+        const response = await apiServices.handler(event, {});
+
+        expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
+        expect(response.body).toContain("testName must be at least 3 characters");
+      });
+
+      it("should reject invalid region format in test config", async () => {
+        const testConfig = {
+          testName: "Valid Test Name",
+          testDescription: "Valid test description",
+          testType: "simple",
+          testTaskConfigs: [{
+            region: "invalid-region-format", // Invalid region
+            taskCount: 1,
+            concurrency: 1
+          }],
+          testScenario: {
+            execution: [{ "hold-for": "1m" }]
+          },
+          regionalTaskDetails: {
+            "us-east-1": { dltAvailableTasks: 10 }
+          }
+        };
+
+        const event = {
+          resource: "/scenarios",
+          httpMethod: "POST",
+          body: JSON.stringify(testConfig),
+          headers: {},
+        };
+
+        const response = await apiServices.handler(event, {});
+
+        expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
+        expect(response.body).toContain("Invalid region format");
+      });
+
+      it("should reject invalid set baseline request body", async () => {
+        const event = {
+          resource: "/scenarios/{testId}/baseline",
+          httpMethod: "PUT",
+          pathParameters: {
+            testId: "test-123",
+          },
+          body: JSON.stringify({
+            testRunId: "invalid_format", // Invalid format
+          }),
+        };
+
+        const response = await apiServices.handler(event, {});
+
+        expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
+        expect(response.body).toContain("testRunId must contain only alphanumeric characters and hyphens");
+      });
+
+      it("should reject invalid delete test runs request body", async () => {
+        const event = {
+          resource: "/scenarios/{testId}/testruns",
+          httpMethod: "DELETE",
+          pathParameters: {
+            testId: "test-123",
+          },
+          body: JSON.stringify([]), // Empty array not allowed
+        };
+
+        const response = await apiServices.handler(event, {});
+
+        expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
+        expect(response.body).toContain("At least one testRunId is required");
+      });
+
+      // Note: Positive request body validation is covered by the unit tests
+    });
+
+    describe("Edge Cases and Error Handling", () => {
+      it("should handle missing pathParameters gracefully", async () => {
+        const event = {
+          resource: "/scenarios/{testId}",
+          httpMethod: "GET",
+          // pathParameters missing
+          queryStringParameters: null,
+        };
+
+        const response = await apiServices.handler(event, {});
+
+        expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
+        expect(response.body).toContain("Path parameters are required for this resource");
+      });
+
+      it("should handle malformed JSON in request body", async () => {
+        const event = {
+          resource: "/scenarios",
+          httpMethod: "POST",
+          body: "{ invalid json", // Malformed JSON
+          headers: {},
+        };
+
+        const response = await apiServices.handler(event, {});
+
+        expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
+        expect(response.body).toContain("Invalid JSON");
+      });
+
+      // Note: Other positive test cases are covered by the unit tests
+
+      it("should provide detailed validation errors for complex objects", async () => {
+        const complexInvalidConfig = {
+          testName: "Valid Name",
+          testDescription: "Valid description",
+          testType: "simple",
+          testTaskConfigs: [
+            {
+              region: "us-east-1",
+              taskCount: 1,
+              concurrency: 1
+            },
+            {
+              region: "invalid-region", // Error in nested object
+              taskCount: 0, // Invalid value
+              concurrency: -1 // Invalid value
+            }
+          ],
+          testScenario: {
+            execution: [] // Invalid - empty array
+          },
+          regionalTaskDetails: {
+            "us-east-1": { dltAvailableTasks: 10 }
+          },
+          tags: ["tag1", "tag2", "tag3", "tag4", "tag5", "tag6"] // Too many tags
+        };
+
+        const event = {
+          resource: "/scenarios",
+          httpMethod: "POST",
+          body: JSON.stringify(complexInvalidConfig),
+          headers: {},
+        };
+
+        const response = await apiServices.handler(event, {});
+
+        expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
+        expect(response.body).toContain("testTaskConfigs[1]");
+        expect(response.body).toContain("Invalid region format");
+        expect(response.body).toContain("Number must be greater than 0");
+        expect(response.body).toContain("Maximum 5 tags allowed");
+      });
+    });
   });
 
   it("should handle unsupported resource", async () => {

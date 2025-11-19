@@ -30,7 +30,7 @@ export async function handler(event: EventBridgeQueryEvent | SQSEvent, _context:
     const endTime = new Date(event.time);
     const metricsData = await metricsHelper.getMetricsData(event);
     console.info("Metrics data: ", JSON.stringify(metricsData, null, 2));
-    await metricsHelper.sendAnonymousMetric(
+    await metricsHelper.sendMetric(
       metricsData,
       new Date(endTime.getTime() - (EXECUTION_DAY === ExecutionDay.DAILY ? 1 : 7) * 86400 * 1000),
       endTime
@@ -43,7 +43,7 @@ export async function handler(event: EventBridgeQueryEvent | SQSEvent, _context:
     console.debug(`Resolved Queries: ${JSON.stringify(resolvedQueries)}`);
     const metricsData: MetricData = metricsHelper.processQueryResults(resolvedQueries, body);
     if (Object.keys(metricsData).length > 0) {
-      await metricsHelper.sendAnonymousMetric(
+      await metricsHelper.sendMetric(
         metricsData,
         new Date(body.endTime - (EXECUTION_DAY === ExecutionDay.DAILY ? 1 : 7) * 86400 * 1000),
         new Date(body.endTime)

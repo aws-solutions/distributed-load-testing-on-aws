@@ -344,7 +344,7 @@ describe("task-status-checker", () => {
           ":e": "Failed to check Fargate tasks.",
         },
       });
-      expect(error).toEqual("listTasks error");
+      expect(error.message).toContain("Failed to check task status");
     }
   });
 
@@ -376,7 +376,7 @@ describe("task-status-checker", () => {
           ":e": "Failed to check Fargate tasks.",
         },
       });
-      expect(error).toEqual("describeTasks error");
+      expect(error.message).toContain("Failed to check task status");
     }
   });
 

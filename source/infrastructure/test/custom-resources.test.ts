@@ -21,9 +21,6 @@ test("DLT API Test", () => {
 
   const testCustomResourceLambda = new CustomResourceLambda(stack, "TestCustomResourceInfra", solution, "main");
 
-  const sendAnonymizedUsageCondition = new CfnCondition(stack, "condition", {
-    expression: Fn.conditionIf("testCondition", true, false),
-  });
   const boolExistingVpc = "false";
 
   const customResources = new CustomResourcesConstruct(
@@ -53,13 +50,11 @@ test("DLT API Test", () => {
     subnetB: "subnet-abc",
   });
 
-  customResources.sendAnonymizedMetricsCR({
+  customResources.sendMetricsCR({
     existingVpc: boolExistingVpc,
     solutionId: "testId",
     uuid: "abc-123-def-456",
     solutionVersion: "testVersion",
-    sendAnonymizedUsage: "Yes",
-    sendAnonymizedUsageCondition,
   });
 
   expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();
@@ -70,6 +65,6 @@ test("DLT API Test", () => {
     Resource: "TestingResourcesConfigFile",
   });
   Template.fromStack(stack).hasResourceProperties("AWS::CloudFormation::CustomResource", {
-    Resource: "AnonymizedMetric",
+    Resource: "Metric",
   });
 });

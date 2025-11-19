@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Aws, CfnCondition, CfnCustomResource, CustomResource } from "aws-cdk-lib";
+import { Aws, CustomResource } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { Effect, PolicyStatement } from "aws-cdk-lib/aws-iam";
@@ -18,10 +18,8 @@ export interface ConsoleConfigProps {
   readonly iotPolicy: string;
 }
 
-export interface SendAnonymizedMetricsCRProps {
+export interface SendMetricsCRProps {
   readonly existingVpc: string;
-  readonly sendAnonymizedUsage: string;
-  readonly sendAnonymizedUsageCondition: CfnCondition;
   readonly solutionId: string;
   readonly solutionVersion: string;
   readonly uuid: string;
@@ -43,6 +41,7 @@ export interface PutRegionalTemplateProps {
   readonly scenariosTable: string;
   readonly lambdaTaskRoleArn: string;
   readonly scenariosBucket: string;
+  readonly timestamp?: string;
 }
 export interface DetachIotPrincipalPolicyProps {
   readonly iotPolicyName: string;
@@ -50,7 +49,7 @@ export interface DetachIotPrincipalPolicyProps {
 
 /**
  * Distributed Load Testing on AWS Custom Resources Construct.
- * It creates a custom resource Lambda function, a solution UUID, and a custom resource to send anonymized usage.
+ * It creates a custom resource Lambda function, a solution UUID, and a custom resource to send operational metrics.
  */
 export class CustomResourcesConstruct extends Construct {
   private readonly customResourceLambda: NodejsFunction;
@@ -94,6 +93,7 @@ export class CustomResourcesConstruct extends Construct {
       MainRegionLambdaTaskRoleArn: props.lambdaTaskRoleArn,
       ScenariosTable: props.scenariosTable,
       MainRegionStack: props.mainStackRegion,
+      Timestamp: props.timestamp,
     });
   }
 
@@ -143,17 +143,16 @@ export class CustomResourcesConstruct extends Construct {
     };
   }
 
-  public sendAnonymizedMetricsCR(props: SendAnonymizedMetricsCRProps) {
-    const sendAnonymizedMetrics = this.createCustomResource("AnonymizedMetric", this.customResourceLambda, {
+  public sendMetricsCR(props: SendMetricsCRProps) {
+    this.createCustomResource("Metric", this.customResourceLambda, {
       existingVPC: props.existingVpc,
       Region: Aws.REGION,
-      Resource: "AnonymizedMetric",
+      Resource: "Metric",
       SolutionId: props.solutionId,
       UUID: props.uuid,
       Version: props.solutionVersion,
+      AccountId: Aws.ACCOUNT_ID,
     });
-    const cfnSendAnonymizedMetrics = sendAnonymizedMetrics.node.defaultChild as CfnCustomResource;
-    cfnSendAnonymizedMetrics.cfnOptions.condition = props.sendAnonymizedUsageCondition;
   }
 
   public testingResourcesConfigCR(props: TestingResourcesConfigCRProps) {

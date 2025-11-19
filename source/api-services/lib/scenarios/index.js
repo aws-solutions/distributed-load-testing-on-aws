@@ -16,8 +16,15 @@ const { SFN } = require("@aws-sdk/client-sfn");
 const utils = require("solution-utils");
 const cronParser = require("cron-parser");
 
-const { HISTORY_TABLE, SCENARIOS_TABLE, SCENARIOS_BUCKET, STATE_MACHINE_ARN, TASK_CANCELER_ARN, STACK_ID } =
-  process.env;
+const {
+  HISTORY_TABLE,
+  HISTORY_TABLE_GSI_NAME,
+  SCENARIOS_TABLE,
+  SCENARIOS_BUCKET,
+  STATE_MACHINE_ARN,
+  TASK_CANCELER_ARN,
+  STACK_ID,
+} = process.env;
 
 let options = utils.getOptions({ region: process.env.AWS_REGION });
 const s3 = new S3(options);
@@ -45,15 +52,70 @@ const StatusCodes = {
  */
 class ErrorException extends Error {
   constructor(code, errMsg, statusCode = StatusCodes.BAD_REQUEST) {
-    super(statusCode, code, errMsg);
+    super(errMsg);
     this.code = code;
     this.message = errMsg;
     this.statusCode = statusCode;
   }
+
   toString() {
     return `${this.code}: ${this.message}`;
   }
 }
+
+/**
+ * Normalizes a tag by converting to lowercase, replacing spaces with hyphens,
+ * removing special characters, and cleaning up multiple hyphens
+ * @param {string} tag - The tag to normalize
+ * @returns {string} - The normalized tag
+ */
+const normalizeTag = (tag) => {
+  if (tag == null) return String(tag);
+  return tag
+    .toString()
+    .trim() // Remove leading/trailing whitespace
+    .toLowerCase() // Convert to lowercase
+    .replace(/\s+/g, "-") // Replace spaces with hyphens
+    .replace(/[^a-z0-9-]/g, "") // Remove special characters except hyphens
+    .replace(/-+/g, "-") // Replace multiple consecutive hyphens with single
+    .replace(/^-/, "") // Remove leading hyphens
+    .replace(/-$/, ""); // Remove trailing hyphens
+};
+
+/**
+ * Validates and normalizes an array of tags
+ * @param {Array} tags - Array of tags to validate
+ * @returns {Array} - Array of validated and normalized tags
+ * @throws {ErrorException} - If validation fails
+ */
+const validateTags = (tags) => {
+  if (!tags) return [];
+
+  if (!Array.isArray(tags)) {
+    throw new ErrorException("InvalidParameter", "Tags must be an array");
+  }
+
+  if (tags.length > 5) {
+    throw new ErrorException("InvalidParameter", "Maximum 5 tags allowed per scenario");
+  }
+
+  // Normalize and clean tags
+  const normalizedTags = tags
+    .map((tag) => normalizeTag(tag))
+    .filter((tag) => tag.length > 0 && tag.length <= 50);
+
+  // Remove duplicates (case-insensitive since we normalized to lowercase)
+  const uniqueTags = [...new Set(normalizedTags)];
+
+  // Validate final tag format
+  const tagRegex = /^[a-z0-9-]+$/;
+  const invalidTags = uniqueTags.filter((tag) => !tagRegex.test(tag));
+  if (invalidTags.length > 0) {
+    throw new ErrorException("InvalidParameter", `Invalid tag format: ${invalidTags.join(", ")}`);
+  }
+
+  return uniqueTags;
+};
 
 /**
  * Get URL for the regional CloudFormation template from the main CloudFormation stack exports
@@ -212,39 +274,74 @@ const getTestHistoryEntries = async (testId) => {
 };
 
 /**
- * Creates a list of all test scenarios
- * @returns {object} All created tests
+ * Creates a list of all test scenarios sorted by startTime descending
+ * @returns {object} All created tests sorted by creation time
  */
-const listTests = async () => {
+const listTests = async (filterTags = null) => {
   console.log("List tests");
 
   try {
-    const response = { Items: [] };
+    let response = [];
     const params = {
       TableName: SCENARIOS_TABLE,
-      AttributesToGet: [
-        "testId",
-        "testName",
-        "testDescription",
-        "status",
-        "startTime",
-        "nextRun",
-        "scheduleRecurrence",
-        "cronValue",
-      ],
-      ScanFilter: {
-        testId: {
-          ComparisonOperator: "NOT_CONTAINS",
-          AttributeValueList: ["region"],
-        },
+      ProjectionExpression:
+        "testId, testName, testDescription, #status, startTime, nextRun, scheduleRecurrence, cronValue, tags",
+      ExpressionAttributeNames: {
+        "#status": "status", // "status" is a reserved word in DynamoDB
       },
     };
+
+    // Add tag filtering if filterTags are provided
+    if (filterTags && filterTags.length > 0) {
+      // Normalize filter tags using the same logic as tag validation
+      const normalizedFilterTags = filterTags.map((tag) => normalizeTag(tag)).filter((tag) => tag.length > 0);
+
+      if (normalizedFilterTags.length > 0) {
+        // Use FilterExpression for tag filtering (OR logic)
+        const filterExpressions = normalizedFilterTags.map((_, index) => `contains(tags, :tag${index})`);
+        params.FilterExpression = `(${filterExpressions.join(" OR ")}) AND (NOT contains(testId, :regionStr))`;
+        params.ExpressionAttributeValues = {
+          ":regionStr": "region",
+        };
+        normalizedFilterTags.forEach((tag, index) => {
+          params.ExpressionAttributeValues[`:tag${index}`] = tag;
+        });
+      }
+    } else {
+      // No tag filtering - just exclude region entries
+      params.FilterExpression = "NOT contains(testId, :regionStr)";
+      params.ExpressionAttributeValues = {
+        ":regionStr": "region",
+      };
+    }
+
     do {
-      const testScenarios = await dynamoDB.scan(params);
-      response.Items.push(...testScenarios.Items);
-      params.ExclusiveStartKey = testScenarios.LastEvaluatedKey;
+      const result = await dynamoDB.scan(params);
+      // Ensure tags field exists for all items (backward compatibility)
+      const itemsWithTags = result.Items.map((item) => ({
+        ...item,
+        tags: item.tags || [],
+      }));
+      response.push(...itemsWithTags);
+      params.ExclusiveStartKey = result.LastEvaluatedKey;
     } while (params.ExclusiveStartKey);
-    return response;
+
+    response.sort((a, b) => {
+      const aTime = a.startTime ? new Date(a.startTime).getTime() : 0;
+      const bTime = b.startTime ? new Date(b.startTime).getTime() : 0;
+      return bTime - aTime;
+    });
+
+    for (const scenario of response) {
+      try {
+        scenario.totalTestRuns = await getTotalCount(scenario.testId);
+      } catch (err) {
+        console.error(`Error getting test run count for testId ${scenario.testId}:`, err);
+        scenario.totalTestRuns = 0;
+      }
+    }
+
+    return { Items: response };
   } catch (err) {
     console.error(err);
     throw err;
@@ -448,7 +545,7 @@ const isValidDate = (date) => {
  * @param {object} context the lambda context information
  * @returns A map of attribute values in Dynamodb after scheduled.
  */
-const scheduleTest = async (event, context) => {
+const scheduleTest = async (event, context) => { // NOSONAR
   console.log("Scheduling Test::");
   try {
     let config = JSON.parse(event.body);
@@ -465,9 +562,12 @@ const scheduleTest = async (event, context) => {
       regionalTaskDetails,
     } = config;
     cronExpiryDate = cronExpiryDate ? cronExpiryDate : "";
-    let [hour, minute] = scheduleTime.split(":");
-    let [year, month, day] = scheduleDate.split("-");
-    let nextRun = `${year}-${month}-${day} ${hour}:${minute}:00`;
+    let hour, minute, year, month, day;
+    if (scheduleTime && scheduleDate) {
+      [hour, minute] = scheduleTime.split(":");
+      [year, month, day] = scheduleDate.split("-");
+    }
+    let nextRun = scheduleTime && scheduleDate ? `${year}-${month}-${day} ${hour}:${minute}:00` : "";
     const functionName = context.functionName;
     const functionArn = context.functionArn;
     let scheduleRecurrence = recurrence ? recurrence : "";
@@ -616,7 +716,7 @@ const scheduleTest = async (event, context) => {
         cronExpiryDate,
       };
       let data = await updateTestDBEntry(updateDBData);
-      console.log(`Schedule test complete: ${JSON.stringify(data, null, 2)}`);
+      console.log(`Schedule test complete: testId=${testId}, status=scheduled`);
 
       return data.Attributes;
     } else {
@@ -665,10 +765,10 @@ const setNextRun = (scheduledTime, scheduleRecurrence = "", cronValue = "", cron
     const nextRunObj = cronNextRun(cronValue, cronExpiryDate);
     return nextRunObj.nextRun;
   }
-  if (!scheduleRecurrence) {
-    return "";
-  }
+  if (!scheduleRecurrence) return "";
+
   let newDate = new Date(scheduledTime.getTime());
+
   switch (scheduleRecurrence) {
     case "daily":
       newDate.setDate(newDate.getDate() + 1);
@@ -881,12 +981,18 @@ const mergeTestAndInfraConfiguration = async (testTaskConfigs) => {
  */
 const startStepFunctionExecution = async (stepFunctionParams) => {
   try {
-    const prefix = new Date().toISOString().replace("Z", "");
+    const testRunId = utils.generateUniqueId(10);
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/\.\d{3}Z$/, "")
+      .replace(/:/g, "-");
+    const prefix = timestamp + "_" + testRunId;
     await stepFunctions.startExecution({
       stateMachineArn: STATE_MACHINE_ARN,
       input: JSON.stringify({
         ...stepFunctionParams,
         prefix,
+        testRunId,
       }),
     });
   } catch (err) {
@@ -916,6 +1022,7 @@ const updateTestDBEntry = async (updateTestConfigs) => {
       testType,
       fileType,
       cronExpiryDate,
+      tags,
     } = updateTestConfigs;
 
     let cronValue = updateTestConfigs.cronValue || "";
@@ -926,7 +1033,7 @@ const updateTestDBEntry = async (updateTestConfigs) => {
         testId: testId,
       },
       UpdateExpression:
-        "set #n = :n, #d = :d, #tc = :tc, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #nr = :nr, #sr = :sr, #sl = :sl, #tt = :tt, #ft = :ft, #cv = :cv, #ced = :ced",
+        "set #n = :n, #d = :d, #tc = :tc, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #nr = :nr, #sr = :sr, #sl = :sl, #tt = :tt, #ft = :ft, #cv = :cv, #ced = :ced, #tg = :tg",
       ExpressionAttributeNames: {
         "#n": "testName",
         "#d": "testDescription",
@@ -943,6 +1050,7 @@ const updateTestDBEntry = async (updateTestConfigs) => {
         "#ft": "fileType",
         "#cv": "cronValue",
         "#ced": "cronExpiryDate",
+        "#tg": "tags",
       },
       ExpressionAttributeValues: {
         ":n": testName,
@@ -960,13 +1068,21 @@ const updateTestDBEntry = async (updateTestConfigs) => {
         ":ft": fileType,
         ":cv": cronValue,
         ":ced": cronExpiryDate,
+        ":tg": tags || [],
       },
       ReturnValues: "ALL_NEW",
     };
-    return dynamoDB.update(params);
+    return await dynamoDB.update(params);
   } catch (err) {
-    console.error(err);
-    throw err;
+    console.error(`Error updating test entry for testId=${updateTestConfigs.testId}: ${err.message}, Code: ${err.code || 'N/A'}`);
+    // Sanitize DynamoDB-specific errors that expose internal implementation details
+    if (err.message && (
+      err.message.includes('Number.MAX_SAFE_INTEGER') ||
+      err.message.includes('@aws-sdk/lib-dynamodb')
+    )) {
+      throw new ErrorException("InvalidParameter", "Invalid parameter value provided", StatusCodes.BAD_REQUEST);
+    }
+    throw new ErrorException("InternalError", "Failed to update test configuration", StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -975,17 +1091,22 @@ const updateTestDBEntry = async (updateTestConfigs) => {
  * Description: Formats the date to a YYYY-MM-DD HH:MM:SS format
  * @config {string} a formatted string date
  *  */
-const convertDateToString = (date) =>
-  date
+const convertDateToString = (date) => {
+  // Validate date to prevent RangeError with invalid Date objects
+  if (!date || isNaN(date.getTime())) {
+    throw new ErrorException("InvalidParameter", "Invalid date provided for conversion");
+  }
+  return date
     .toISOString()
     .replace("T", " ")
     .replace(/\.\d+Z$/, "");
+};
 
-/** 
+/**
  * Description: handle eventbridge scheduled test start time
  * @param {string} cronValue
  * @param {string} scheduleTime
-   @returns {Date} startTime
+ @returns {Date} startTime
  *  */
 const getEbSchedTestStartTime = (cronValue, scheduleTime, cronExpiryDate) => {
   if (!cronValue) {
@@ -1015,6 +1136,9 @@ const createTest = async (config, functionName) => {
     let nextRun;
     fileType = setFileType(testType, fileType);
     testId = setTestId(testId);
+
+    // Validate and normalize tags
+    const validatedTags = validateTags(config.tags);
 
     const testEntry = await getTestEntry(testId);
     if (testEntry && testEntry.nextRun) nextRun = new Date(testEntry.nextRun);
@@ -1055,7 +1179,7 @@ const createTest = async (config, functionName) => {
       },
     ];
 
-    console.log("TEST:: ", JSON.stringify(testScenario, null, 2));
+    console.log(`Test scenario created: testId=${testId}, type=${testType}, regions=${testTaskConfigs?.length}`);
 
     // 1. Write test scenario to S3
     await writeTestScenarioToS3(testTaskConfigs, testScenario, testId);
@@ -1080,7 +1204,7 @@ const createTest = async (config, functionName) => {
     };
     await startStepFunctionExecution(stepFunctionParams);
 
-    // Update DynamoDB values.
+    // Update DynamoDB values
     const updateDBData = {
       testId,
       testName,
@@ -1096,11 +1220,12 @@ const createTest = async (config, functionName) => {
       fileType,
       cronValue,
       cronExpiryDate,
+      tags: validatedTags,
     };
 
     const data = await updateTestDBEntry(updateDBData);
 
-    console.log(`Create test complete: ${JSON.stringify(data)}`);
+    console.log(`Create test complete: testId=${testId}, status=${data.Attributes?.status}`);
 
     return data.Attributes;
   } catch (err) {
@@ -1127,8 +1252,23 @@ const getRunningTasks = async (ecs, tasks, taskCluster, tasksInRegion) => {
     //get groups of 100 tasks
     params.tasks = tasks.splice(0, 100);
     describeTasksResponse = await ecs.describeTasks(params);
-    //add tasks to returned value for use in UI
-    tasksInRegion.tasks = tasksInRegion.tasks.concat(describeTasksResponse.tasks);
+    
+    // Select relevant subset of task data
+    const taskData = describeTasksResponse.tasks.map(task => ({
+      taskArn: task.taskArn,
+      lastStatus: task.lastStatus,
+      desiredStatus: task.desiredStatus,
+      startedAt: task.startedAt,
+      cpu: task.cpu,
+      memory: task.memory,
+      containers: task.containers?.map(container => ({
+        name: container.name,
+        lastStatus: container.lastStatus,
+        exitCode: container.exitCode
+      })) || []
+    }));
+    
+    tasksInRegion.tasks = tasksInRegion.tasks.concat(taskData);
   }
   return tasksInRegion;
 };
@@ -1163,19 +1303,9 @@ const getListOfTasksInRegion = async (ecs, taskCluster, testId) => {
  * @returns test run data augmented with tasks running per region, if any
  */
 const listTasksPerRegion = async (data, testId) => {
-  for (const testRegion of data.testTaskConfigs) {
-    if (testRegion.taskCluster) {
-      const region = testRegion.region;
-      let tasksInRegion = { region: region };
-      tasksInRegion.tasks = [];
-      options.region = region;
-      const ecs = new ECS(options);
-      const tasks = await getListOfTasksInRegion(ecs, testRegion.taskCluster, testId);
-      if (tasks.length !== 0) {
-        tasksInRegion = await getRunningTasks(ecs, tasks, testRegion.taskCluster, tasksInRegion);
-      }
-      data.tasksPerRegion = data.tasksPerRegion.concat(tasksInRegion);
-    } else {
+  // Process all regions in parallel using Promise.all for better performance
+  const regionalPromises = data.testTaskConfigs.map(async (testRegion) => {
+    if (!testRegion.taskCluster) {
       const errorMessage = new ErrorException(
         "InvalidInfrastructureConfiguration",
         `There is no ECS test infrastructure configured for region ${testRegion.region}`
@@ -1183,7 +1313,24 @@ const listTasksPerRegion = async (data, testId) => {
       console.log(errorMessage);
       throw errorMessage;
     }
-  }
+
+    const region = testRegion.region;
+    let tasksInRegion = { region: region, tasks: [] };
+    
+    // Create region-specific options to avoid race conditions
+    const regionalOptions = { ...options, region: region };
+    const ecs = new ECS(regionalOptions);
+    
+    const tasks = await getListOfTasksInRegion(ecs, testRegion.taskCluster, testId);
+    if (tasks.length !== 0) {
+      tasksInRegion = await getRunningTasks(ecs, tasks, testRegion.taskCluster, tasksInRegion);
+    }
+    
+    return tasksInRegion;
+  });
+
+  // Wait for all regional task fetches to complete in parallel
+  data.tasksPerRegion = await Promise.all(regionalPromises);
   return data;
 };
 
@@ -1191,8 +1338,9 @@ const listTasksPerRegion = async (data, testId) => {
  * @function getTest
  * Description: returns all data related to a specific testId
  * @testId {string} the unique id of test scenario to return.
+ * @queryParams {object} query parameters to control what data is included
  */
-const getTest = async (testId) => {
+const getTest = async (testId, queryParams = {}) => {
   console.log(`Get test details for testId: ${testId}`);
 
   try {
@@ -1200,6 +1348,17 @@ const getTest = async (testId) => {
     let data = await getTestAndRegionConfigs(testId);
 
     data.testScenario = JSON.parse(data.testScenario);
+
+    // Ensure tags field exists for backward compatibility
+    data.tags = data.tags || [];
+
+    // Add total test runs count
+    try {
+      data.totalTestRuns = await getTotalCount(testId);
+    } catch (err) {
+      console.error(`Error getting test run count for testId ${testId}:`, err);
+      data.totalTestRuns = 0;
+    }
 
     if (data.status === "running") {
       console.log(`testId: ${testId} is still running`);
@@ -1217,7 +1376,22 @@ const getTest = async (testId) => {
         throw errorMessage;
       }
     }
-    data.history = await getTestHistoryEntries(testId);
+
+    // Handle history parameter - include history unless explicitly set to false
+    const includeHistory = queryParams.history !== "false";
+    if (includeHistory) {
+      data.history = await getTestHistoryEntries(testId);
+    } else {
+      data.history = []; // Empty array when history=false
+    }
+
+    // Handle latest parameter - exclude results if latest=false
+    const includeResults = queryParams.latest !== "false";
+    if (!includeResults) {
+      data.results = {}; // Empty object when latest=false
+    }
+    // Note: results are already set in the existing data when latest=true or missing
+
     return data;
   } catch (err) {
     console.error(err);
@@ -1326,6 +1500,7 @@ const parseBatchRequests = async (testRuns) => {
 const deleteMetricFilter = async (testId, taskCluster, ecsCloudWatchLogGroup) => {
   const metrics = ["numVu", "numSucc", "numFail", "avgRt"];
   const cloudwatchLogs = new CloudWatchLogs(options);
+  const cloudwatch = new CloudWatch(options);
 
   for (let metric of metrics) {
     console.log("deleting metric filter:", `${taskCluster}-Ecs${metric}-${testId}`);
@@ -1342,6 +1517,30 @@ const deleteMetricFilter = async (testId, taskCluster, ecsCloudWatchLogGroup) =>
         throw e;
       }
     }
+  }
+  
+  // Publish updated metric filter count
+  try {
+    let metricFilters = [];
+    let params = { logGroupName: ecsCloudWatchLogGroup };
+    let response;
+    do {
+      response = await cloudwatchLogs.describeMetricFilters(params);
+      metricFilters = metricFilters.concat(response.metricFilters);
+      params.nextToken = response.nextToken;
+    } while (response.nextToken);
+    
+    await cloudwatch.putMetricData({
+      Namespace: 'distributed-load-testing',
+      MetricData: [{
+        MetricName: 'MetricFilterCount',
+        Value: metricFilters.length,
+        Dimensions: [{ Name: 'LogGroupName', Value: ecsCloudWatchLogGroup }]
+      }]
+    });
+    console.log(`Published metric filter count: ${metricFilters.length} for log group: ${ecsCloudWatchLogGroup}`);
+  } catch (error) {
+    console.warn('Failed to publish metric filter count:', error.message);
   }
 };
 
@@ -1732,10 +1931,679 @@ const getAccountFargatevCPUDetails = async () => {
   }
 };
 
+/**
+ * Parse float values from various formats (DynamoDB, string, number)
+ * @param {any} val - The value to parse
+ * @returns {number|undefined} Parsed float value or undefined
+ */
+const parseFloatValue = (val) => {
+  if (typeof val === "number") return val;
+  if (typeof val === "string") return parseFloat(val);
+  return val && val.S ? parseFloat(val.S) : undefined;
+};
+
+/**
+ * Parse integer values from various formats (DynamoDB, string, number)
+ * @param {any} val - The value to parse
+ * @returns {number|undefined} Parsed integer value or undefined
+ */
+const parseIntValue = (val) => {
+  if (typeof val === "number") return val;
+  if (typeof val === "string") return parseInt(val);
+  return val && val.N ? parseInt(val.N) : undefined;
+};
+
+/**
+ * Extract and parse the total results object from various input formats
+ * @param {object|string} results - The results object or JSON string
+ * @returns {object|null} Parsed total object or null if invalid
+ */
+const extractTotalResults = (results) => {
+  if (!results) return null;
+
+  if (typeof results === "string") {
+    try {
+      return JSON.parse(results).total;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  return results.total;
+};
+
+/**
+ * Build percentiles object from total results
+ * @param {object} total - The total results object
+ * @returns {object} Percentiles with converted millisecond values
+ */
+const buildPercentiles = (total) => {
+  const convertToMs = (val) => {
+    const parsed = parseFloatValue(val);
+    return parsed ? parsed * 1000 : undefined;
+  };
+
+  return {
+    p0: convertToMs(total.p0_0),
+    p50: convertToMs(total.p50_0),
+    p90: convertToMs(total.p90_0),
+    p95: convertToMs(total.p95_0),
+    p99: convertToMs(total.p99_0),
+    p99_9: convertToMs(total.p99_9),
+    p100: convertToMs(total.p100_0),
+  };
+};
+
+/**
+ * Calculate derived metrics from base values
+ * @param {object} total - The total results object
+ * @param {number} testDuration - Test duration in seconds
+ * @returns {object} Object with derived metrics
+ */
+const calculateDerivedMetrics = (total, testDuration) => {
+  const throughput = parseIntValue(total.throughput);
+  const bytes = parseIntValue(total.bytes);
+  const avgRt = parseFloatValue(total.avg_rt);
+  const avgLt = parseFloatValue(total.avg_lt);
+  const avgCt = parseFloatValue(total.avg_ct);
+
+  return {
+    requestsPerSecond: throughput ? throughput / testDuration : undefined,
+    avgResponseTime: avgRt ? avgRt * 1000 : undefined,
+    avgLatency: avgLt ? avgLt * 1000 : undefined,
+    avgConnectionTime: avgCt ? avgCt * 1000 : undefined,
+    avgBandwidth: bytes ? bytes / testDuration : undefined,
+  };
+};
+
+/**
+ * Extract metrics from DynamoDB results structure
+ * @param {object} results - The results object from DynamoDB
+ * @returns {object} Extracted metrics
+ */
+const extractMetrics = (results) => {
+  const total = extractTotalResults(results);
+  if (!total) return {};
+
+  const testDuration = parseIntValue(total.testDuration) || 1;
+  const derivedMetrics = calculateDerivedMetrics(total, testDuration);
+
+  return {
+    requests: parseIntValue(total.throughput),
+    success: parseIntValue(total.succ),
+    errors: parseIntValue(total.fail),
+    ...derivedMetrics,
+    percentiles: buildPercentiles(total),
+  };
+};
+
+/**
+ * Helper function to create base query parameters for history table
+ * @param {string} testId - The test ID
+ * @param {object} options - Additional options (limit, select, etc.)
+ * @returns {object} Base DynamoDB query parameters
+ */
+const createHistoryQueryParams = (testId, options = {}) => {
+  const params = {
+    TableName: HISTORY_TABLE,
+    IndexName: HISTORY_TABLE_GSI_NAME,
+    KeyConditionExpression: "#t = :t",
+    ExpressionAttributeNames: { "#t": "testId" },
+    ExpressionAttributeValues: { ":t": testId },
+    ...options,
+  };
+  return params;
+};
+
+/**
+ * Helper function to add timestamp conditions to DynamoDB query parameters
+ * @param {object} params - DynamoDB query parameters
+ * @param {string} start_timestamp - Start timestamp filter
+ * @param {string} end_timestamp - End timestamp filter
+ */
+const addTimestampConditions = (params, start_timestamp, end_timestamp) => {
+  if (start_timestamp && end_timestamp) {
+    params.KeyConditionExpression += " AND #st BETWEEN :start AND :end";
+    params.ExpressionAttributeNames["#st"] = "startTime";
+    params.ExpressionAttributeValues[":start"] = convertDateToString(new Date(start_timestamp));
+    params.ExpressionAttributeValues[":end"] = convertDateToString(new Date(end_timestamp));
+  } else if (start_timestamp) {
+    params.KeyConditionExpression += " AND #st >= :start";
+    params.ExpressionAttributeNames["#st"] = "startTime";
+    params.ExpressionAttributeValues[":start"] = convertDateToString(new Date(start_timestamp));
+  } else if (end_timestamp) {
+    params.KeyConditionExpression += " AND #st <= :end";
+    params.ExpressionAttributeNames["#st"] = "startTime";
+    params.ExpressionAttributeValues[":end"] = convertDateToString(new Date(end_timestamp));
+  }
+};
+
+/**
+ * Validate query parameters for getTestRuns function
+ * @param {object} queryParams - Query parameters to validate
+ * @returns {object} Validated and parsed parameters
+ */
+const validateTestRunsQueryParams = (queryParams) => {
+  const { limit = 20, start_timestamp, end_timestamp, latest, next_token } = queryParams;
+
+  // Validate timestamp formats if provided
+  if (start_timestamp && isNaN(Date.parse(start_timestamp))) {
+    throw new ErrorException(
+      "BAD_REQUEST",
+      "Invalid start_timestamp format. Expected ISO 8601",
+      StatusCodes.BAD_REQUEST
+    );
+  }
+  if (end_timestamp && isNaN(Date.parse(end_timestamp))) {
+    throw new ErrorException("BAD_REQUEST", "Invalid end_timestamp format. Expected ISO 8601", StatusCodes.BAD_REQUEST);
+  }
+
+  // Validate limit parameter
+  const parsedLimit = parseInt(limit);
+  if (isNaN(parsedLimit) || parsedLimit < 1 || parsedLimit > 100) {
+    throw new ErrorException("BAD_REQUEST", "Limit must be between 1 and 100", StatusCodes.BAD_REQUEST);
+  }
+
+  return { parsedLimit, start_timestamp, end_timestamp, latest, next_token };
+};
+
+/**
+ * Handle pagination token for DynamoDB queries
+ * @param {object} params - DynamoDB query parameters
+ * @param {string} next_token - Base64 encoded pagination token
+ */
+const applyPaginationToken = (params, next_token) => {
+  if (!next_token) return;
+
+  try {
+    const decodedToken = Buffer.from(next_token, "base64").toString();
+    params.ExclusiveStartKey = JSON.parse(decodedToken);
+  } catch (error) {
+    throw new ErrorException("BAD_REQUEST", "Invalid next_token format", StatusCodes.BAD_REQUEST);
+  }
+};
+
+/**
+ * Transform DynamoDB items to test run response format
+ * @param {Array} items - DynamoDB items
+ * @returns {Array} Formatted test run objects
+ */
+const formatTestRunItems = (items) =>
+  items
+    ? items.map((item) => ({
+        testRunId: item.testRunId,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        status: item.status || "complete",
+        ...extractMetrics(item.results),
+      }))
+    : [];
+
+/**
+ * Handle the latest test run query (special case for latest=true)
+ * @param {string} testId - The test scenario ID
+ * @returns {object} Response object with latest test run
+ */
+const getLatestTestRun = async (testId) => {
+  const params = createHistoryQueryParams(testId, { ScanIndexForward: false, Limit: 1 });
+  const testRuns = await dynamoDB.query(params);
+
+  return {
+    testRuns: formatTestRunItems(testRuns.Items),
+    pagination: { limit: 1, next_token: null, total_count: 1 },
+  };
+};
+
+/**
+ * Get total count for filtered results
+ * @param {string} testId - The test scenario ID
+ * @param {string} start_timestamp - Start timestamp filter
+ * @param {string} end_timestamp - End timestamp filter
+ * @returns {number} Total count of filtered results
+ */
+const getTotalCount = async (testId, start_timestamp, end_timestamp) => {
+  const countParams = createHistoryQueryParams(testId, { Select: "COUNT" });
+  addTimestampConditions(countParams, start_timestamp, end_timestamp);
+  const countResult = await dynamoDB.query(countParams);
+  return countResult.Count;
+};
+
+/**
+ * Retrieve test runs for a specific test scenario with optional filtering
+ * @param {string} testId - The test scenario ID
+ * @param {object} queryParams - Query parameters for filtering
+ * @returns {object} List of test runs with pagination and optional filtering
+ */
+const getTestRuns = async (testId, queryParams = {}) => {
+  console.log(`Get test runs for testId: ${testId}`);
+
+  try {
+    // Validate testId exists
+    const testEntry = await getTestEntry(testId);
+    if (!testEntry) {
+      throw new ErrorException("TEST_NOT_FOUND", `testId '${testId}' not found`, StatusCodes.NOT_FOUND);
+    }
+
+    // Validate and parse query parameters
+    const { parsedLimit, start_timestamp, end_timestamp, latest, next_token } =
+      validateTestRunsQueryParams(queryParams);
+
+    // Handle latest query as special case
+    if (latest === "true") {
+      return await getLatestTestRun(testId);
+    }
+
+    // Get total count for pagination (skip for latest queries)
+    const totalCount = await getTotalCount(testId, start_timestamp, end_timestamp);
+
+    // Build main query parameters
+    const params = createHistoryQueryParams(testId, { ScanIndexForward: false, Limit: parsedLimit });
+    addTimestampConditions(params, start_timestamp, end_timestamp);
+    applyPaginationToken(params, next_token);
+
+    // Execute query
+    const testRuns = await dynamoDB.query(params);
+
+    return {
+      testRuns: formatTestRunItems(testRuns.Items),
+      pagination: {
+        limit: parsedLimit,
+        next_token: testRuns.LastEvaluatedKey
+          ? Buffer.from(JSON.stringify(testRuns.LastEvaluatedKey)).toString("base64")
+          : null,
+        total_count: totalCount,
+      },
+    };
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
+};
+
+/**
+ * Retrieves a specific test run from the history table
+ * @param {string} testId - ID of the test scenario
+ * @param {string} testRunId - ID of the specific test run
+ * @returns {Promise<object>} The DynamoDB response containing the test run data
+ */
+const getTestRun = async (testId, testRunId) => {
+  console.log(`Getting testRunId ${testRunId} for testId ${testId}`);
+
+  // Validate required parameters
+  if (!testId || typeof testId !== "string" || testId.length > 128) {
+    throw new ErrorException("INVALID_PARAMETER", "testId is required", StatusCodes.BAD_REQUEST);
+  }
+
+  if (!testRunId || typeof testRunId !== "string" || testRunId.length > 128) {
+    throw new ErrorException("INVALID_PARAMETER", "testRunId is required", StatusCodes.BAD_REQUEST);
+  }
+
+  try {
+    const params = {
+      TableName: HISTORY_TABLE,
+      Key: {
+        testId: testId,
+        testRunId: testRunId,
+      },
+    };
+
+    const response = await dynamoDB.get(params);
+
+    if (!response.Item) {
+      throw new ErrorException(
+        "TESTRUN_NOT_FOUND",
+        `Test run '${testRunId}' not found for test '${testId}'`,
+        StatusCodes.NOT_FOUND
+      );
+    }
+
+    console.log(`Successfully retrieved test run ${testRunId} for test ${testId}`);
+    return response.Item;
+  } catch (err) {
+    console.error(`Error retrieving test run ${testRunId} for test ${testId}:`, err);
+
+    // Re-throw ErrorException instances (our custom errors)
+    if (err instanceof ErrorException) {
+      throw err;
+    }
+
+    // Handle DynamoDB and other unexpected errors
+    throw new ErrorException(
+      "INTERNAL_SERVER_ERROR",
+      `Failed to retrieve test run: ${err.message}`,
+      StatusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+/**
+ * Get stack information including creation time, region, and version
+ * @returns {object} Stack information with created_time, region, and version
+ */
+const getStackInfo = async () => {
+  console.log("Getting stack information");
+  try {
+    if (!STACK_ID) {
+      throw new ErrorException("STACK_NOT_FOUND", "Stack ID not available", StatusCodes.NOT_FOUND);
+    }
+
+    const response = await cloudformation.describeStacks({ StackName: STACK_ID });
+
+    if (!response.Stacks || response.Stacks.length === 0) {
+      throw new ErrorException("STACK_NOT_FOUND", "Stack not found", StatusCodes.NOT_FOUND);
+    }
+
+    const stack = response.Stacks[0];
+
+    // Try to get version from tags first, then from description
+    let version = stack.Tags?.find((tag) => tag.Key === "SolutionVersion")?.Value;
+
+    if (!version && stack.Description) {
+      const versionMatch = stack.Description.match(/v\d+\.\d+\.\d+/);
+      version = versionMatch ? versionMatch[0] : "unknown";
+    }
+
+    // Find the McpEndpoint output from the outputs array
+    const mcpEndpointOutput = stack.Outputs?.find(output => output.OutputKey === 'McpEndpoint');
+    const mcpEndpoint = mcpEndpointOutput?.OutputValue;
+
+    return {
+      created_time: stack.CreationTime.toISOString(),
+      region: stack.StackId.split(":")[3],
+      version: version || "unknown",
+      mcp_endpoint: mcpEndpoint,
+    };
+  } catch (err) {
+    console.error(err);
+    if (err.statusCode) {
+      throw err;
+    }
+    if (err.name === "AccessDenied" || err.name === "UnauthorizedOperation") {
+      throw new ErrorException(
+        "FORBIDDEN",
+        "Insufficient permissions to access stack information",
+        StatusCodes.FORBIDDEN
+      );
+    }
+    throw new ErrorException(
+      "INTERNAL_SERVER_ERROR",
+      "Failed to retrieve stack information",
+      StatusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+/**
+ * Sets a test run as the baseline for a scenario
+ * @param {string} testId the unique id of test scenario
+ * @param {string} testRunId the test run id to set as baseline
+ * @returns Success message with baseline details
+ */
+const setBaseline = async (testId, testRunId) => {
+  console.log(`Set baseline for testId: ${testId}, testRunId: ${testRunId}`);
+
+  try {
+    if (!testRunId) {
+      throw new ErrorException("INVALID_PARAMETER", "testRunId is required", StatusCodes.BAD_REQUEST);
+    }
+
+    // First, validate that the test scenario exists
+    const testEntry = await getTestEntry(testId);
+    if (!testEntry) {
+      throw new ErrorException("TEST_NOT_FOUND", `testId '${testId}' not found`, StatusCodes.NOT_FOUND);
+    }
+
+    // Validate that the testRunId exists in the history table
+    const historyParams = {
+      TableName: HISTORY_TABLE,
+      Key: {
+        testId: testId,
+        testRunId: testRunId,
+      },
+    };
+
+    const historyEntry = await dynamoDB.get(historyParams);
+    if (!historyEntry.Item) {
+      throw new ErrorException(
+        "TESTRUN_NOT_FOUND",
+        `testRunId '${testRunId}' not found for test '${testId}'`,
+        StatusCodes.NOT_FOUND
+      );
+    }
+
+    // Get current baseline if exists
+    const currentBaseline = testEntry.baselineId;
+
+    // Update the scenarios table with the new baseline
+    const updateParams = {
+      TableName: SCENARIOS_TABLE,
+      Key: {
+        testId: testId,
+      },
+      UpdateExpression: "set baselineId = :baselineId",
+      ExpressionAttributeValues: {
+        ":baselineId": testRunId,
+      },
+      ReturnValues: "ALL_NEW",
+    };
+
+    await dynamoDB.update(updateParams);
+
+    // Prepare response message
+    const response = {
+      testId: testId,
+      baselineId: testRunId,
+    };
+
+    if (currentBaseline) {
+      response.message = "Baseline updated successfully";
+      response.previousBaselineId = currentBaseline;
+      response.details = `Test run ${testRunId} is now the baseline for test ${testId}, replacing previous baseline ${currentBaseline}`;
+    } else {
+      response.message = "Baseline set successfully";
+      response.details = `Test run ${testRunId} is now the baseline for test ${testId}`;
+    }
+
+    console.log(`Set baseline complete: testId=${testId}, baselineId=${testRunId}`);
+    return response;
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
+};
+
+/**
+ * Clears the baseline for a scenario
+ * @param {string} testId the unique id of test scenario
+ * @returns Success message
+ */
+const clearBaseline = async (testId) => {
+  console.log(`Clear baseline for testId: ${testId}`);
+
+  try {
+    // First, validate that the test scenario exists
+    const testEntry = await getTestEntry(testId);
+    if (!testEntry) {
+      throw new ErrorException("TEST_NOT_FOUND", `testId '${testId}' not found`, StatusCodes.NOT_FOUND);
+    }
+
+    // Check if baseline exists
+    if (!testEntry.baselineId) {
+      throw new ErrorException(
+        "NO_BASELINE_SET",
+        `No baseline is currently set for test '${testId}'`,
+        StatusCodes.BAD_REQUEST
+      );
+    }
+
+    // Remove the baseline from the scenarios table
+    const updateParams = {
+      TableName: SCENARIOS_TABLE,
+      Key: {
+        testId: testId,
+      },
+      UpdateExpression: "remove baselineId",
+      ReturnValues: "ALL_NEW",
+    };
+
+    await dynamoDB.update(updateParams);
+
+    const response = {
+      message: "Baseline cleared successfully",
+      testId: testId,
+      details: `Baseline removed for test ${testId}`,
+    };
+
+    console.log(`Clear baseline complete: testId=${testId}`);
+    return response;
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
+};
+
+/**
+ * Deletes specific test runs for a given test scenario
+ * @param {string} testId the unique id of test scenario
+ * @param {Array} testRunIds array of test run IDs to delete
+ * @returns Object with count of deleted test runs
+ */
+const deleteTestRuns = async (testId, testRunIds) => {
+  console.log(`Delete test runs for testId: ${testId}`);
+
+  try {
+    // Validate that testId exists
+    const testEntry = await getTestEntry(testId);
+    if (!testEntry) {
+      throw new ErrorException("TEST_NOT_FOUND", `testId '${testId}' not found`, StatusCodes.NOT_FOUND);
+    }
+
+    // Validate input
+    if (!Array.isArray(testRunIds)) {
+      throw new ErrorException("BAD_REQUEST", "Request body must be an array of testRunIds", StatusCodes.BAD_REQUEST);
+    }
+
+    if (testRunIds.length === 0) {
+      return { deletedCount: 0 };
+    }
+
+    // Validate each testRunId exists before attempting deletion
+    const existingTestRunIds = [];
+    for (const testRunId of testRunIds) {
+      if (typeof testRunId !== "string") {
+        continue; // Skip non-string testRunIds silently
+      }
+
+      try {
+        const historyParams = {
+          TableName: HISTORY_TABLE,
+          Key: {
+            testId: testId,
+            testRunId: testRunId,
+          },
+        };
+        const historyEntry = await dynamoDB.get(historyParams);
+        if (historyEntry.Item) {
+          existingTestRunIds.push(testRunId);
+        }
+      } catch (error) {
+        // Skip testRunIds that cause errors (e.g., invalid format)
+        console.warn(`Skipping testRunId ${testRunId}: ${error.message}`);
+        continue;
+      }
+    }
+
+    if (existingTestRunIds.length === 0) {
+      return { deletedCount: 0 };
+    }
+
+    // Use existing batch delete functionality
+    const testRuns = createBatchRequestItems(testId, existingTestRunIds);
+    await parseBatchRequests(testRuns);
+
+    console.log(`Successfully deleted ${existingTestRunIds.length} test runs for testId: ${testId}`);
+    return { deletedCount: existingTestRunIds.length };
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
+};
+
+/**
+ * Gets the baseline for a scenario
+ * @param {string} testId the unique id of test scenario
+ * @param {boolean} includeResults whether to include test run details
+ * @returns Baseline information with optional test run details
+ */
+const getBaseline = async (testId, includeResults = false) => {
+  console.log(`Get baseline for testId: ${testId}, includeResults: ${includeResults}`);
+
+  try {
+    // First, validate that the test scenario exists
+    const testEntry = await getTestEntry(testId);
+    if (!testEntry) {
+      throw new ErrorException("TEST_NOT_FOUND", `testId '${testId}' not found`, StatusCodes.NOT_FOUND);
+    }
+
+    // Check if baseline is set
+    if (!testEntry.baselineId) {
+      const response = {
+        testId: testId,
+        baselineId: null,
+        message: "No baseline set for this test",
+      };
+
+      console.log(`Get baseline complete (no baseline): testId=${testId}`);
+      return response;
+    }
+
+    // Prepare base response
+    const response = {
+      testId: testId,
+      baselineId: testEntry.baselineId,
+      message: "Baseline retrieved successfully",
+    };
+
+    // If results are requested, fetch the baseline test run details
+    if (includeResults) {
+      const historyParams = {
+        TableName: HISTORY_TABLE,
+        Key: {
+          testId: testId,
+          testRunId: testEntry.baselineId,
+        },
+      };
+
+      const historyEntry = await dynamoDB.get(historyParams);
+      if (historyEntry.Item) {
+        response.testRunDetails = {
+          testRunId: historyEntry.Item.testRunId,
+          startTime: historyEntry.Item.startTime,
+          endTime: historyEntry.Item.endTime,
+          status: historyEntry.Item.status,
+          results: historyEntry.Item.results,
+        };
+      } else {
+        // Baseline test run not found in history (orphaned baseline)
+        console.warn(`Baseline test run ${testEntry.baselineId} not found in history for test ${testId}`);
+        response.testRunDetails = null;
+        response.warning = "Baseline test run details not found - may have been deleted";
+      }
+    }
+
+    console.log(`Get baseline complete: testId=${testId}, baselineId=${testEntry.baselineId}`);
+    return response;
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
+};
+
 module.exports = {
   listTests: listTests,
   createTest: createTest,
   getTest: getTest,
+  getTestEntry: getTestEntry,
   deleteTest: deleteTest,
   cancelTest: cancelTest,
   listTasks: listTasks,
@@ -1743,7 +2611,16 @@ module.exports = {
   getAllRegionConfigs: getAllRegionConfigs,
   getCFUrl: getCFUrl,
   getAccountFargatevCPUDetails: getAccountFargatevCPUDetails,
+  getStackInfo: getStackInfo,
   getTestDurationSeconds: getTestDurationSeconds,
+  getTestRuns: getTestRuns,
+  deleteTestRuns: deleteTestRuns,
+  getTestRun: getTestRun,
+  extractMetrics: extractMetrics,
+  setBaseline: setBaseline,
+  clearBaseline: clearBaseline,
+  getBaseline: getBaseline,
+  normalizeTag: normalizeTag,
   ErrorException: ErrorException,
   StatusCodes: StatusCodes,
 };

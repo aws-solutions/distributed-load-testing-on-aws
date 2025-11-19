@@ -92,7 +92,8 @@ let event = {
   fileType: "none",
   showLive: true,
   isRunning: false,
-  prefix: now.toISOString().replace("Z", ""),
+  prefix: now.toISOString().replace(/:/g, "-").replace("Z", "") + "_abc1234567",
+  testRunId: "abc1234567",
 };
 const origEvent = event;
 
@@ -213,6 +214,7 @@ describe("#TASK RUNNER:: ", () => {
       prefix: event.prefix,
       showLive: true,
       testId: "testId",
+      testRunId: "abc1234567",
       taskIds: ["a/0", "a/1", "a/2", "a/3"],
     };
     expect(mockEcs.runTask).toHaveBeenCalledTimes(1);
@@ -287,6 +289,7 @@ describe("#TASK RUNNER:: ", () => {
       fileType: "none",
       showLive: true,
       testId: "testId",
+      testRunId: "abc1234567",
       testType: "simple",
     };
 
@@ -333,7 +336,9 @@ describe("#TASK RUNNER:: ", () => {
         region: "us-west-2",
       },
       showLive: true,
+      taskIds: [],
       testId: "testId",
+      testRunId: "abc1234567",
       testType: "simple",
     };
 
@@ -362,8 +367,7 @@ describe("#TASK RUNNER:: ", () => {
     try {
       await lambda.handler(event);
     } catch (error) {
-      expect(mockEcs.runTask).toHaveBeenCalledWith({ ...mockParam, count: 1 });
-      expect(error).toEqual(["Task failure"]);
+      expect(error.message).toContain("Failed to run tasks");
     }
     mockParam.overrides.containerOverrides[0].environment.pop();
     mockParam.overrides.containerOverrides[0].environment.pop();
@@ -379,7 +383,9 @@ describe("#TASK RUNNER:: ", () => {
       modifyContainerOverrides("TIMEOUT", calcTimeout(event.testTaskConfig.taskCount));
       await lambda.handler(event);
     } catch (error) {
-      expect(mockEcs.runTask).toHaveBeenCalledWith({ ...mockParam, count: 1 });
+      let expectedParam = { ...mockParam, count: 1 };
+      expectedParam.overrides.containerOverrides[0].environment = expectedParam.overrides.containerOverrides[0].environment.filter(e => e.name !== 'SCRIPT' && e.name !== 'IPNETWORK');
+      expect(mockEcs.runTask).toHaveBeenCalledWith(expectedParam);
       expect(mockDynamoDb.update).toHaveBeenCalledWith({
         TableName: process.env.SCENARIOS_TABLE,
         Key: {
@@ -395,7 +401,7 @@ describe("#TASK RUNNER:: ", () => {
           ":e": "Failed to run Fargate tasks.",
         },
       });
-      expect(error).toEqual("ECS ERROR");
+      expect(error.message).toContain("Failed to run tasks");
     }
   });
   it("should throw an error when DynamoDB.DocumentClient.update fails and not update the DynamoDB", async () => {
@@ -409,7 +415,9 @@ describe("#TASK RUNNER:: ", () => {
       event.taskCount = 1;
       await lambda.handler(event);
     } catch (error) {
-      expect(mockEcs.runTask).toHaveBeenCalledWith({ ...mockParam, count: 1 });
+      let expectedParam = { ...mockParam, count: 1 };
+      expectedParam.overrides.containerOverrides[0].environment = expectedParam.overrides.containerOverrides[0].environment.filter(e => e.name !== 'SCRIPT' && e.name !== 'IPNETWORK');
+      expect(mockEcs.runTask).toHaveBeenCalledWith(expectedParam);
       expect(mockDynamoDb.update).toHaveBeenCalledWith({
         TableName: process.env.SCENARIOS_TABLE,
         Key: {

@@ -58,7 +58,7 @@ exports[`DLT API Test 1`] = `
           "rules_to_suppress": [
             {
               "id": "W11",
-              "reason": "iot:AttachPrincipalPolicy does not allow for resource specification",
+              "reason": "iot:AttachPolicy does not allow for resource specification",
             },
             {
               "id": "F10",
@@ -140,6 +140,16 @@ exports[`DLT API Test 1`] = `
                     "arn:aws:s3:::DOC-EXAMPLE-BUCKET/cloudWatchImages/*",
                   ],
                 },
+                {
+                  "Action": "s3:GetObject",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:s3:::DOC-EXAMPLE-BUCKET/results/*",
+                },
+                {
+                  "Action": "s3:ListBucket",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:s3:::DOC-EXAMPLE-BUCKET",
+                },
               ],
               "Version": "2012-10-17",
             },
@@ -149,7 +159,7 @@ exports[`DLT API Test 1`] = `
             "PolicyDocument": {
               "Statement": [
                 {
-                  "Action": "iot:AttachPrincipalPolicy",
+                  "Action": "iot:AttachPolicy",
                   "Effect": "Allow",
                   "Resource": "*",
                 },

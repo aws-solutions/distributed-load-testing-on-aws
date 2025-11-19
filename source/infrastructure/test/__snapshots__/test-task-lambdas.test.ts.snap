@@ -47,10 +47,21 @@ exports[`DLT Task Lambda Test 1`] = `
                     "ecs:DescribeTasks",
                     "ecs:TagResource",
                     "logs:PutMetricFilter",
+                    "logs:DescribeMetricFilters",
                   ],
                   "Condition": {
                     "StringEquals": {
                       "aws:ResourceTag/SolutionId": "testId",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                {
+                  "Action": "cloudwatch:PutMetricData",
+                  "Condition": {
+                    "StringEquals": {
+                      "cloudwatch:namespace": "distributed-load-testing",
                     },
                   },
                   "Effect": "Allow",
@@ -226,10 +237,172 @@ exports[`DLT Task Lambda Test 1`] = `
                     ],
                   },
                 },
+                {
+                  "Action": [
+                    "logs:DescribeMetricFilters",
+                    "logs:DeleteMetricFilter",
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:ResourceTag/SolutionId": "testId",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                {
+                  "Action": "cloudwatch:PutMetricData",
+                  "Condition": {
+                    "StringEquals": {
+                      "cloudwatch:namespace": "distributed-load-testing",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
               ],
               "Version": "2012-10-17",
             },
             "PolicyName": "TaskCancelerPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TaskRunnerLambdaFunctionsMetricFilterCleaner6CB6EDAC": {
+      "DependsOn": [
+        "TaskRunnerLambdaFunctionsMetricFilterCleanerRole672CE84C",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "Cleans up CloudWatch metric filters for completed/failed tests",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "testId",
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "TaskRunnerLambdaFunctionsMetricFilterCleanerRole672CE84C",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs20.x",
+        "Timeout": 300,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TaskRunnerLambdaFunctionsMetricFilterCleanerLambdaLogGroupC0D7DF4C": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "TaskRunnerLambdaFunctionsMetricFilterCleaner6CB6EDAC",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TaskRunnerLambdaFunctionsMetricFilterCleanerRole672CE84C": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W11",
+              "reason": "logs:DeleteMetricFilter does not support resource level permissions",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "logs:DeleteMetricFilter",
+                    "logs:DescribeMetricFilters",
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:ResourceTag/SolutionId": "testId",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                {
+                  "Action": "cloudwatch:PutMetricData",
+                  "Condition": {
+                    "StringEquals": {
+                      "cloudwatch:namespace": "distributed-load-testing",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "MetricFilterCleanerPolicy",
           },
         ],
       },
@@ -264,7 +437,7 @@ exports[`DLT Task Lambda Test 1`] = `
             ],
           ],
         },
-        "RetentionInDays": 731,
+        "RetentionInDays": 3653,
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
@@ -309,13 +482,13 @@ exports[`DLT Task Lambda Test 1`] = `
             "SCENARIOS_TABLE": {
               "Ref": "TestTable5769773A",
             },
-            "SEND_METRIC": "No",
             "SOLUTION_ID": "testId",
             "UUID": "testId",
             "VERSION": "testVersion",
           },
         },
         "Handler": "index.handler",
+        "MemorySize": 1024,
         "Role": {
           "Fn::GetAtt": [
             "TaskRunnerLambdaFunctionsLambdaResultsRole1AF5AB18",
@@ -323,7 +496,7 @@ exports[`DLT Task Lambda Test 1`] = `
           ],
         },
         "Runtime": "nodejs20.x",
-        "Timeout": 120,
+        "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -426,7 +599,7 @@ exports[`DLT Task Lambda Test 1`] = `
             ],
           ],
         },
-        "RetentionInDays": 731,
+        "RetentionInDays": 3653,
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
@@ -452,7 +625,7 @@ exports[`DLT Task Lambda Test 1`] = `
             ],
           ],
         },
-        "RetentionInDays": 731,
+        "RetentionInDays": 3653,
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
@@ -638,7 +811,7 @@ exports[`DLT Task Lambda Test 1`] = `
             ],
           ],
         },
-        "RetentionInDays": 731,
+        "RetentionInDays": 3653,
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
@@ -703,6 +876,9 @@ exports[`DLT Task Lambda Test 1`] = `
           },
           {
             "Ref": "TaskRunnerLambdaFunctionsTaskStatusRole4B498DE5",
+          },
+          {
+            "Ref": "TaskRunnerLambdaFunctionsMetricFilterCleanerRole672CE84C",
           },
         ],
       },

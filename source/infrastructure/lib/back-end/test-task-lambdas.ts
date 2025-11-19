@@ -6,7 +6,7 @@ import { Aws, CfnResource, Duration } from "aws-cdk-lib";
 import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { Effect, PolicyStatement, PolicyDocument, Role, ServicePrincipal, Policy } from "aws-cdk-lib/aws-iam";
 import { Table } from "aws-cdk-lib/aws-dynamodb";
-import { LogGroup, ILogGroup } from "aws-cdk-lib/aws-logs";
+import { LogGroup, ILogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { Solution, SOLUTIONS_METRICS_ENDPOINT } from "../../bin/solution";
@@ -42,9 +42,8 @@ export interface TestRunnerLambdasConstructProps {
   readonly scenariosDynamoDbPolicy: Policy;
   /**
    * Solution config properties.
-   * the metric URL endpoint, send anonymized usage, solution ID, version, source code bucket, and source code prefix
+   * the metric URL endpoint, solution ID, version, source code bucket, and source code prefix
    */
-  readonly sendAnonymizedUsage: string;
   readonly solution: Solution;
   readonly uuid: string;
   readonly mainStackRegion: string;
@@ -61,11 +60,13 @@ export class TestRunnerLambdasConstruct extends Construct {
   public taskCanceler: NodejsFunction;
   public taskCancelerInvokePolicy: Policy;
   public taskStatusChecker: NodejsFunction;
+  public metricFilterCleaner: NodejsFunction;
   public realTimeDataPublisher: NodejsFunction;
   public resultsParserLambdaLogGroup: ILogGroup;
   public taskRunnerLambdaLogGroup: ILogGroup;
   public taskCancelerLambdaLogGroup: ILogGroup;
   public taskStatusCheckerLambdaLogGroup: ILogGroup;
+  public metricFilterCleanerLambdaLogGroup: ILogGroup;
   public lambdaTaskRole: Role;
 
   constructor(scope: Construct, id: string, props: TestRunnerLambdasConstructProps) {
@@ -125,13 +126,13 @@ export class TestRunnerLambdasConstruct extends Construct {
       role: lambdaResultsRole,
       entry: path.join(__dirname, "../../../results-parser/index.js"),
       runtime: Runtime.NODEJS_20_X,
-      timeout: Duration.seconds(120),
+      timeout: Duration.seconds(900),
+      memorySize: 1024,
       environment: {
         HISTORY_TABLE: props.historyTable.tableName,
         METRIC_URL: SOLUTIONS_METRICS_ENDPOINT,
         SCENARIOS_BUCKET: props.scenariosBucket,
         SCENARIOS_TABLE: props.scenariosTable.tableName,
-        SEND_METRIC: props.sendAnonymizedUsage,
         SOLUTION_ID: props.solution.id,
         UUID: props.uuid,
         VERSION: props.solution.version,
@@ -140,6 +141,7 @@ export class TestRunnerLambdasConstruct extends Construct {
 
     const resultsParserLambdaLogGroup = new LogGroup(this, "ResultsParserLambdaLogGroup", {
       logGroupName: `/aws/lambda/${this.resultsParser.functionName}`,
+      retention: RetentionDays.TEN_YEARS,
     });
 
     this.resultsParserLambdaLogGroup = resultsParserLambdaLogGroup;
@@ -185,11 +187,27 @@ export class TestRunnerLambdasConstruct extends Construct {
             }),
             new PolicyStatement({
               effect: Effect.ALLOW,
-              actions: ["ecs:RunTask", "ecs:DescribeTasks", "ecs:TagResource", "logs:PutMetricFilter"],
+              actions: [
+                "ecs:RunTask",
+                "ecs:DescribeTasks",
+                "ecs:TagResource",
+                "logs:PutMetricFilter",
+                "logs:DescribeMetricFilters",
+              ],
               resources: ["*"],
               conditions: {
                 StringEquals: {
                   "aws:ResourceTag/SolutionId": props.solution.id,
+                },
+              },
+            }),
+            new PolicyStatement({
+              effect: Effect.ALLOW,
+              actions: ["cloudwatch:PutMetricData"],
+              resources: ["*"],
+              conditions: {
+                StringEquals: {
+                  "cloudwatch:namespace": "distributed-load-testing",
                 },
               },
             }),
@@ -259,6 +277,7 @@ export class TestRunnerLambdasConstruct extends Construct {
 
     const taskRunnerLambdaLogGroup = new LogGroup(this, "TaskRunnerLambdaLogGroup", {
       logGroupName: `/aws/lambda/${this.taskRunner.functionName}`,
+      retention: RetentionDays.TEN_YEARS,
     });
 
     addCfnGuardSuppression(taskRunnerLambdaLogGroup, "CLOUDWATCH_LOG_GROUP_ENCRYPTED");
@@ -308,6 +327,26 @@ export class TestRunnerLambdasConstruct extends Construct {
               actions: ["dynamodb:UpdateItem"],
               resources: [props.scenariosTable.tableArn],
             }),
+            new PolicyStatement({
+              effect: Effect.ALLOW,
+              actions: ["logs:DescribeMetricFilters", "logs:DeleteMetricFilter"],
+              resources: ["*"],
+              conditions: {
+                StringEquals: {
+                  "aws:ResourceTag/SolutionId": props.solution.id,
+                },
+              },
+            }),
+            new PolicyStatement({
+              effect: Effect.ALLOW,
+              actions: ["cloudwatch:PutMetricData"],
+              resources: ["*"],
+              conditions: {
+                StringEquals: {
+                  "cloudwatch:namespace": "distributed-load-testing",
+                },
+              },
+            }),
           ],
         }),
       },
@@ -342,6 +381,7 @@ export class TestRunnerLambdasConstruct extends Construct {
 
     const taskCancelerLambdaLogGroup = new LogGroup(this, "TaskCancellerLambdaLogGroup", {
       logGroupName: `/aws/lambda/${this.taskCanceler.functionName}`,
+      retention: RetentionDays.TEN_YEARS,
     });
 
     addCfnGuardSuppression(taskCancelerLambdaLogGroup, "CLOUDWATCH_LOG_GROUP_ENCRYPTED");
@@ -421,6 +461,7 @@ export class TestRunnerLambdasConstruct extends Construct {
 
     const taskStatusCheckerLambdaLogGroup = new LogGroup(this, "taskStatusCheckerLambdaLogGroup", {
       logGroupName: `/aws/lambda/${this.taskStatusChecker.functionName}`,
+      retention: RetentionDays.TEN_YEARS,
     });
 
     this.taskStatusCheckerLambdaLogGroup = taskStatusCheckerLambdaLogGroup;
@@ -443,5 +484,87 @@ export class TestRunnerLambdasConstruct extends Construct {
     });
 
     addCfnGuardSuppression(taskStatusCheckerLambdaLogGroup, "CLOUDWATCH_LOG_GROUP_ENCRYPTED");
+
+    // Metric Filter Cleaner Lambda
+    const metricFilterCleanerRole = new Role(this, "MetricFilterCleanerRole", {
+      assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
+      inlinePolicies: {
+        MetricFilterCleanerPolicy: new PolicyDocument({
+          statements: [
+            new PolicyStatement({
+              effect: Effect.ALLOW,
+              actions: ["logs:DeleteMetricFilter", "logs:DescribeMetricFilters"],
+              resources: ["*"],
+              conditions: {
+                StringEquals: {
+                  "aws:ResourceTag/SolutionId": props.solution.id,
+                },
+              },
+            }),
+            new PolicyStatement({
+              effect: Effect.ALLOW,
+              actions: ["cloudwatch:PutMetricData"],
+              resources: ["*"],
+              conditions: {
+                StringEquals: {
+                  "cloudwatch:namespace": "distributed-load-testing",
+                },
+              },
+            }),
+          ],
+        }),
+      },
+    });
+    metricFilterCleanerRole.attachInlinePolicy(props.cloudWatchLogsPolicy);
+
+    const metricFilterCleanerRoleResource = metricFilterCleanerRole.node.defaultChild as CfnResource;
+    metricFilterCleanerRoleResource.addMetadata("cfn_nag", {
+      rules_to_suppress: [
+        {
+          id: "W11",
+          reason: "logs:DeleteMetricFilter does not support resource level permissions",
+        },
+      ],
+    });
+
+    addCfnGuardSuppression(metricFilterCleanerRole, "IAM_NO_INLINE_POLICY_CHECK");
+
+    this.metricFilterCleaner = new NodejsFunction(this, "MetricFilterCleaner", {
+      description: "Cleans up CloudWatch metric filters for completed/failed tests",
+      role: metricFilterCleanerRole,
+      entry: path.join(__dirname, "../../../metric-filter-cleaner/index.js"),
+      runtime: Runtime.NODEJS_20_X,
+      timeout: Duration.seconds(300),
+      environment: {
+        SOLUTION_ID: props.solution.id,
+        VERSION: props.solution.version,
+      },
+    });
+
+    const metricFilterCleanerLambdaLogGroup = new LogGroup(this, "MetricFilterCleanerLambdaLogGroup", {
+      logGroupName: `/aws/lambda/${this.metricFilterCleaner.functionName}`,
+      retention: RetentionDays.TEN_YEARS,
+    });
+
+    this.metricFilterCleanerLambdaLogGroup = metricFilterCleanerLambdaLogGroup;
+    const metricFilterCleanerResource = this.metricFilterCleaner.node.defaultChild as CfnResource;
+    metricFilterCleanerResource.addMetadata("cfn_nag", {
+      rules_to_suppress: [
+        {
+          id: "W58",
+          reason: "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+        },
+        {
+          id: "W89",
+          reason: "This Lambda function does not require a VPC",
+        },
+        {
+          id: "W92",
+          reason: "Does not run concurrent executions",
+        },
+      ],
+    });
+
+    addCfnGuardSuppression(metricFilterCleanerLambdaLogGroup, "CLOUDWATCH_LOG_GROUP_ENCRYPTED");
   }
 }

@@ -32,8 +32,8 @@ const parseResults = async (eventConfigs, testId, endTime, startTime, totalDurat
       totalDuration += isNaN(duration) ? 0 : duration;
       data.push(parsedResult);
 
-      // Send anonymized metrics
-      if (process.env.SEND_METRIC === "Yes")
+      // Send operational metrics
+      try {
         await utils.sendMetric({
           Type: "TaskCompletion",
           TaskVCPU: parsedResult.taskCPU,
@@ -42,6 +42,9 @@ const parseResults = async (eventConfigs, testId, endTime, startTime, totalDurat
           TaskId: parsedResult.taskId,
           TestId: testId,
         });
+      } catch (err) {
+        console.error('Failed to send metric:', err);
+      }
     }
 
     //record regional data
@@ -62,14 +65,6 @@ const parseResults = async (eventConfigs, testId, endTime, startTime, totalDurat
     );
     finalResults[eventConfig.region].metricS3Location = metricS3Location;
     allMetrics = allMetrics.concat(taskMetrics);
-
-    //delete regional metric filter
-    await parser.deleteRegionalMetricFilter(
-      testId,
-      eventConfig.region,
-      eventConfig.taskCluster,
-      eventConfig.ecsCloudWatchLogGroup
-    );
   }
   //parse aggregate final results
   let finalResultsTotal = await parser.finalResults(testId, aggregateData);
@@ -83,7 +78,8 @@ const writeTestDataToHistoryTable = async (
   testId,
   eventConfigs,
   resultList,
-  totalDuration
+  totalDuration,
+  testRunId
 ) => {
   const { startTime, testTaskConfigs, testType, testScenario, testDescription } = scenariosTableItems;
   const { finalResults, completeTasks, allMetrics } = await parseResults(
@@ -118,6 +114,7 @@ const writeTestDataToHistoryTable = async (
     testDescription,
     testType,
     completeTasks,
+    testRunId,
   };
   await parser.putTestHistory(historyParams);
 
@@ -137,7 +134,7 @@ const getScenariosTableItems = async (testId) => {
   return ddbGetResponse.Item;
 };
 
-const getResultList = async (testId, prefix) => {
+const getResultList = async (testId, s3Prefix) => {
   const bucket = process.env.SCENARIOS_BUCKET;
   let resultList = [];
   let nextContinuationToken = undefined;
@@ -146,7 +143,7 @@ const getResultList = async (testId, prefix) => {
   do {
     const params = {
       Bucket: bucket,
-      Prefix: `results/${testId}/${prefix}`,
+      Prefix: `results/${testId}/${s3Prefix}`,
     };
 
     if (nextContinuationToken) {
@@ -207,7 +204,7 @@ const getFilesByRegion = async (resultList) => {
 };
 
 exports.handler = async (event) => {
-  console.log(JSON.stringify(event, null, 2));
+  console.log(`Parsing results: testId=${event.testId}, prefix=${event.prefix}, region=${event.testTaskConfig?.region}, testRunId=${event.testRunId}`);
   const { showLive, testId, fileType, prefix, testTaskConfig: eventConfigs, executionStart: testStartTime } = event;
   const endTime = new Date()
     .toISOString()
@@ -231,7 +228,8 @@ exports.handler = async (event) => {
           testId,
           eventConfigs,
           resultList,
-          totalDuration
+          totalDuration,
+          event.testRunId
         );
         testResult = "completed";
       } else {
@@ -241,29 +239,31 @@ exports.handler = async (event) => {
       }
     }
 
-    // Send anonymized metrics
-    if (process.env.SEND_METRIC === "Yes") {
-      const currentTime = new Date();
-      const durationMilliseconds = currentTime - new Date(testStartTime);
-      const durationSeconds = durationMilliseconds / 1000;
-      const metricsToSend = {
-        Type: "TestCompletion",
-        TestType: testType,
-        FileType: fileType || (testType === "simple" ? "none" : "script"),
-        TestResult: testResult,
-        Duration: durationSeconds,
-        TestId: testId,
-        TaskCount: eventConfigs.taskCount,
-        Concurrency: eventConfigs.concurrency,
-        LiveData: showLive,
-        Region: eventConfigs.region,
-      };
-      console.debug(`Sending metrics: ${JSON.stringify(metricsToSend)}`);
+    // Send operational metrics
+    const currentTime = new Date();
+    const durationMilliseconds = currentTime - new Date(testStartTime);
+    const durationSeconds = durationMilliseconds / 1000;
+    const metricsToSend = {
+      Type: "TestCompletion",
+      TestType: testType,
+      FileType: fileType || (testType === "simple" ? "none" : "script"),
+      TestResult: testResult,
+      Duration: durationSeconds,
+      TestId: testId,
+      TaskCount: eventConfigs.taskCount,
+      Concurrency: eventConfigs.concurrency,
+      LiveData: showLive,
+      Region: eventConfigs.region,
+    };
+    console.debug(`Sending metrics: ${JSON.stringify(metricsToSend)}`);
+    try {
       await utils.sendMetric(metricsToSend);
+    } catch (err) {
+      console.error('Failed to send metric:', err);
     }
     return "success";
   } catch (error) {
-    console.error(error);
+    console.error(`Error in results-parser for testId=${testId}: ${error.message}, Code: ${error.code || 'N/A'}`);
     if (error.message.includes("Item size has exceeded the maximum allowed size"))
       await updateScenariosTable(
         testId,
@@ -271,7 +271,7 @@ exports.handler = async (event) => {
       );
     else await updateScenariosTable(testId, `Failed to parse the results - ${error.message}`);
 
-    throw error;
+    throw new Error(`Failed to parse results: ${error.message || 'Unknown error'}`);
   }
 };
 

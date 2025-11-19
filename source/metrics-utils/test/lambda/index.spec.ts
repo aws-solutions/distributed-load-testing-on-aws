@@ -9,7 +9,7 @@ const mockMetricsHelper = {
   getMetricsData: jest.fn(),
   startQueries: jest.fn(),
   resolveQueries: jest.fn(),
-  sendAnonymousMetric: jest.fn(),
+  sendMetric: jest.fn(),
   processQueryResults: jest.fn(),
 };
 

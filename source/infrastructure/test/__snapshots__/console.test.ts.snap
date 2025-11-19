@@ -50,7 +50,7 @@ exports[`DLT API Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "python3.11",
+        "Runtime": "python3.13",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -168,6 +168,14 @@ exports[`DLT API Test 1`] = `
                 },
               ],
             },
+            {
+              "Action": [
+                "cloudfront:GetInvalidation",
+                "cloudfront:CreateInvalidation",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -209,6 +217,9 @@ exports[`DLT API Test 1`] = `
           "DefaultCacheBehavior": {
             "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
             "Compress": true,
+            "ResponseHeadersPolicyId": {
+              "Ref": "TestConsoleResourcesDLTDashboardS3ResponseHeadersPolicy2A926E5E",
+            },
             "TargetOriginId": "DLTStackTestConsoleResourcesDLTDashboardS3CloudFrontDistributionOrigin172E05260",
             "ViewerProtocolPolicy": "redirect-to-https",
           },
@@ -280,6 +291,62 @@ exports[`DLT API Test 1`] = `
         },
       },
       "Type": "AWS::CloudFront::OriginAccessControl",
+    },
+    "TestConsoleResourcesDLTDashboardS3ResponseHeadersPolicy2A926E5E": {
+      "Properties": {
+        "ResponseHeadersPolicyConfig": {
+          "Comment": "Security headers policy for DLT console",
+          "CustomHeadersConfig": {
+            "Items": [
+              {
+                "Header": "Permissions-Policy",
+                "Override": true,
+                "Value": "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+              },
+              {
+                "Header": "Cross-Origin-Resource-Policy",
+                "Override": true,
+                "Value": "same-origin",
+              },
+            ],
+          },
+          "Name": {
+            "Fn::Join": [
+              "-",
+              [
+                "DLTStack",
+                {
+                  "Ref": "AWS::Region",
+                },
+                "rhp",
+              ],
+            ],
+          },
+          "SecurityHeadersConfig": {
+            "ContentSecurityPolicy": {
+              "ContentSecurityPolicy": "default-src 'self' https://*.amazonaws.com https://*.amazoncognito.com; upgrade-insecure-requests; script-src 'self' https://*.amazonaws.com https://*.amazoncognito.com; style-src 'self' 'unsafe-inline' https://*.amazonaws.com; img-src 'self' data: https://*.amazonaws.com; font-src 'self' data:; connect-src 'self' https://*.amazonaws.com https://*.amazoncognito.com wss://*.amazonaws.com; frame-src 'self' https://*.amazonaws.com; frame-ancestors 'self' https://*.amazonaws.com; object-src 'none'; base-uri 'self'; form-action 'self' https://*.amazonaws.com;",
+              "Override": true,
+            },
+            "ContentTypeOptions": {
+              "Override": true,
+            },
+            "FrameOptions": {
+              "FrameOption": "DENY",
+              "Override": true,
+            },
+            "ReferrerPolicy": {
+              "Override": true,
+              "ReferrerPolicy": "strict-origin-when-cross-origin",
+            },
+            "StrictTransportSecurity": {
+              "AccessControlMaxAgeSec": 47304000,
+              "IncludeSubdomains": true,
+              "Override": true,
+            },
+          },
+        },
+      },
+      "Type": "AWS::CloudFront::ResponseHeadersPolicy",
     },
     "TestConsoleResourcesDLTDashboardS3S3BucketBAD21F2D": {
       "DeletionPolicy": "Retain",
@@ -426,6 +493,42 @@ exports[`DLT API Test 1`] = `
                 ],
               },
             },
+            {
+              "Action": "s3:ListBucket",
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceArn": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":cloudfront::",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":distribution/",
+                        {
+                          "Ref": "TestConsoleResourcesDLTDashboardS3CloudFrontDistribution46BCE0E5",
+                        },
+                      ],
+                    ],
+                  },
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudfront.amazonaws.com",
+              },
+              "Resource": {
+                "Fn::GetAtt": [
+                  "TestConsoleResourcesDLTDashboardS3S3BucketBAD21F2D",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -450,8 +553,14 @@ exports[`DLT API Test 1`] = `
         "DestinationBucketName": {
           "Ref": "TestConsoleResourcesDLTDashboardS3S3BucketBAD21F2D",
         },
+        "DistributionId": {
+          "Ref": "TestConsoleResourcesDLTDashboardS3CloudFrontDistribution46BCE0E5",
+        },
+        "DistributionPaths": [
+          "/*",
+        ],
         "Exclude": [
-          "assets/aws_config.js",
+          "aws-exports.json",
         ],
         "OutputObjectKeys": true,
         "Prune": true,
@@ -469,6 +578,7 @@ exports[`DLT API Test 1`] = `
         "SourceObjectKeys": [
           "Omitted to remove snapshot dependency on demo ui module hash",
         ],
+        "WaitForDistributionInvalidation": true,
       },
       "Type": "Custom::CDKBucketDeployment",
       "UpdateReplacePolicy": "Delete",

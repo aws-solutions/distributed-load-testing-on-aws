@@ -23,6 +23,10 @@ export function createTemplateWithoutS3Key(stack: Stack): Template {
       templateJson.Resources[key].Properties.Environment.Variables.SOLUTION_VERSION =
         "Omitted to remove snapshot dependency on solution version";
     }
+    if (templateJson.Resources[key].Properties?.Timestamp) {
+      templateJson.Resources[key].Properties.Timestamp =
+        "Omitted to remove snapshot dependency on timestamp";
+    }
   });
 
   // Create a new Template instance with the modified JSON

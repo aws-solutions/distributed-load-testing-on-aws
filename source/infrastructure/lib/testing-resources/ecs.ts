@@ -1,14 +1,15 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Aws, CfnResource, Tags, Fn } from "aws-cdk-lib";
-import { ContainerImage, FargateTaskDefinition, LogDriver, CfnCluster } from "aws-cdk-lib/aws-ecs";
-import { Effect, ServicePrincipal, Role, PolicyDocument, PolicyStatement } from "aws-cdk-lib/aws-iam";
-import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
+import { Aws, CfnResource, Fn, Tags } from "aws-cdk-lib";
+import { Alarm, ComparisonOperator, Metric, TreatMissingData } from "aws-cdk-lib/aws-cloudwatch";
 import { CfnSecurityGroup, CfnSecurityGroupEgress, CfnSecurityGroupIngress } from "aws-cdk-lib/aws-ec2";
+import { DockerImageAsset, Platform } from "aws-cdk-lib/aws-ecr-assets";
+import { CfnCluster, ContainerImage, FargateTaskDefinition, LogDriver } from "aws-cdk-lib/aws-ecs";
+import { Effect, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
+import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Bucket } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
-import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import * as path from "path";
 import { addCfnGuardSuppression } from "../common-resources/add-cfn-guard-suppression";
 
@@ -18,6 +19,7 @@ export interface ECSResourcesConstructProps {
   readonly securityGroupEgress: string;
   readonly solutionId: string;
   readonly stableTagCondition: string;
+  readonly buildFromSource: boolean;
 }
 
 /**
@@ -90,7 +92,7 @@ export class ECSResourcesConstruct extends Construct {
     addCfnGuardSuppression(dltTaskExecutionRole, "IAM_NO_INLINE_POLICY_CHECK");
 
     this.ecsCloudWatchLogGroup = new LogGroup(this, "DLTCloudWatchLogsGroup", {
-      retention: RetentionDays.ONE_YEAR,
+      retention: RetentionDays.TEN_YEARS,
     });
     const dltLogsGroupResource = this.ecsCloudWatchLogGroup.node.defaultChild as CfnResource;
     dltLogsGroupResource.addMetadata("cfn_nag", {
@@ -102,6 +104,26 @@ export class ECSResourcesConstruct extends Construct {
       ],
     });
     Tags.of(this.ecsCloudWatchLogGroup).add("SolutionId", props.solutionId);
+
+    // CloudWatch alarm for metric filter count approaching limit
+    const metricFilterAlarm = new Alarm(this, "MetricFilterCountAlarm", {
+      alarmName: `${Aws.STACK_NAME}-MetricFilterCount-Alarm`,
+      alarmDescription: "Alarm when metric filter count approaches the limit of 100",
+      metric: new Metric({
+        namespace: "distributed-load-testing",
+        metricName: "MetricFilterCount",
+        dimensionsMap: {
+          LogGroupName: this.ecsCloudWatchLogGroup.logGroupName,
+        },
+        statistic: "Maximum",
+      }),
+      threshold: 90,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      evaluationPeriods: 1,
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+    });
+
+    addCfnGuardSuppression(metricFilterAlarm, "CFN_NO_EXPLICIT_RESOURCE_NAMES");
 
     const dltTaskDefinition = new FargateTaskDefinition(this, "DLTTaskDefinition", {
       cpu: 2048,
@@ -123,13 +145,14 @@ export class ECSResourcesConstruct extends Construct {
           }`
         : "";
 
-    const imageUseTag = Fn.conditionIf(props.stableTagCondition, stageTagForImage, versionTagForImage).toString();
+    const imageTag = Fn.conditionIf(props.stableTagCondition, stageTagForImage, versionTagForImage).toString();
 
-    const imageAsset = imageUseTag
-      ? ContainerImage.fromRegistry(`${imageUseTag}`)
-      : new DockerImageAsset(this, "LoadTesterImage", {
+    const imageAsset = props.buildFromSource
+      ? new DockerImageAsset(this, "LoadTesterImage", {
           directory: path.join(__dirname, `../../../../deployment/ecr/${dockerRepoName}`),
-        });
+          platform: Platform.LINUX_AMD64,
+        })
+      : ContainerImage.fromRegistry(`${imageTag}`);
 
     dltTaskDefinition.addContainer("LoadTestContainer", {
       containerName: `${Aws.STACK_NAME}-load-tester`,

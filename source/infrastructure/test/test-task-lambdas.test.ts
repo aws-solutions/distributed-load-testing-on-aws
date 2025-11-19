@@ -69,7 +69,6 @@ test("DLT Task Lambda Test", () => {
     scenariosS3Policy: testS3Policy,
     subnetA: "testSubnetA",
     subnetB: "testSubnetB",
-    sendAnonymizedUsage: "No",
     solution,
     scenariosBucket: "testBucket",
     scenariosBucketArn: "testBucketArn",
@@ -94,10 +93,14 @@ test("DLT Task Lambda Test", () => {
       {
         Ref: "TaskRunnerLambdaFunctionsTaskStatusRole4B498DE5",
       },
+      {
+        Ref: "TaskRunnerLambdaFunctionsMetricFilterCleanerRole672CE84C",
+      },
     ],
   });
 
   Template.fromStack(stack).hasResourceProperties("AWS::Lambda::Function", {
+    Description: "Result parser for indexing xml test results to DynamoDB",
     Environment: {
       Variables: {
         METRIC_URL: SOLUTIONS_METRICS_ENDPOINT,
@@ -105,7 +108,6 @@ test("DLT Task Lambda Test", () => {
         SCENARIOS_TABLE: {
           Ref: "TestTable5769773A",
         },
-        SEND_METRIC: "No",
         SOLUTION_ID: solution.id,
         UUID: "testId",
         VERSION: solution.version,
@@ -116,7 +118,6 @@ test("DLT Task Lambda Test", () => {
       "Fn::GetAtt": ["TaskRunnerLambdaFunctionsLambdaResultsRole1AF5AB18", "Arn"],
     },
     Runtime: "nodejs20.x",
-    Timeout: 120,
   });
 
   Template.fromStack(stack).hasResourceProperties("AWS::IAM::Policy", {

@@ -30,6 +30,7 @@ export interface TaskRunnerStepFunctionConstructProps {
   readonly taskRunner: NodejsFunction;
   readonly resultsParser: NodejsFunction;
   readonly taskCanceler: NodejsFunction;
+  readonly metricFilterCleaner: NodejsFunction;
   readonly suffix: string;
 }
 
@@ -43,7 +44,7 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
     super(scope, id);
 
     const stepFunctionsLogGroup = new LogGroup(this, "StepFunctionsLogGroup", {
-      retention: RetentionDays.ONE_YEAR,
+      retention: RetentionDays.TEN_YEARS,
       logGroupName: `/aws/vendedlogs/states/StepFunctionsLogGroup${Aws.STACK_NAME}${props.suffix}`,
     });
     const stepFunctionsLogGroupResource = stepFunctionsLogGroup.node.defaultChild as CfnResource;
@@ -57,6 +58,18 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
     });
 
     const done = new Succeed(this, "Done");
+
+    // Cleanup metric filters after Parse Results (success or failure)
+    const cleanupMetricFilters = new LambdaInvoke(this, "Cleanup Metric Filters", {
+      lambdaFunction: props.metricFilterCleaner,
+      payload: TaskInput.fromObject({
+        "testTaskConfig.$": "$.testTaskConfig",
+        "testId.$": "$.testId",
+      }),
+      resultPath: JsonPath.DISCARD,
+    });
+    cleanupMetricFilters.next(done);
+
     const mapEnd = new Pass(this, "Map End");
     const parseResult = new LambdaInvoke(this, "Parse result", {
       lambdaFunction: props.resultsParser,
@@ -68,10 +81,13 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
         "showLive.$": "$.showLive",
         "testDuration.$": "$.testDuration",
         "prefix.$": "$.prefix",
+        "testRunId.$": "$.testRunId",
         "executionStart.$": "$$.Execution.StartTime",
       }),
+      resultPath: "$.parseResult",
     });
-    parseResult.next(done);
+    parseResult.next(cleanupMetricFilters);
+    parseResult.addCatch(cleanupMetricFilters, { resultPath: "$.error" });
 
     const checkWorkerStatus = new LambdaInvoke(this, "Check worker status", {
       lambdaFunction: props.taskStatusChecker,
@@ -127,6 +143,7 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
         "showLive.$": "$.showLive",
         "testDuration.$": "$.testDuration",
         "prefix.$": "$.prefix",
+        "testRunId.$": "$.testRunId",
       },
     });
 

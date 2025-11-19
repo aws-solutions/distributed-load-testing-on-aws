@@ -168,7 +168,7 @@ export class MetricsHelper {
     return (await Promise.all(queryIds.map((queryId: string) => this.resolveQuery(queryId)))).flat();
   }
 
-  async sendAnonymousMetric(
+  async sendMetric(
     results: MetricData,
     startTime: Date,
     endTime: Date
@@ -202,15 +202,15 @@ export class MetricsHelper {
         },
       };
 
-      console.info("Sending anonymous metric", payloadStr);
+      console.info("Sending metric", payloadStr);
       await axios.post(METRICS_ENDPOINT, payloadStr, config);
 
-      result.Message = "Anonymous data was sent successfully.";
+      result.Message = "Data was sent successfully.";
     } catch (err) {
-      console.error("Error sending anonymous metric");
+      console.error("Error sending metric");
       console.error(err);
 
-      result.Message = "Anonymous data sending failed.";
+      result.Message = "Data sending failed.";
     }
 
     return result;

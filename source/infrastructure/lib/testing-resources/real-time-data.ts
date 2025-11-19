@@ -5,7 +5,7 @@ import * as path from "path";
 import { ArnFormat, CfnResource, Duration, Stack } from "aws-cdk-lib";
 import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { Effect, PolicyStatement, PolicyDocument, Role, ServicePrincipal, Policy } from "aws-cdk-lib/aws-iam";
-import { LogGroup, FilterPattern, ILogGroup } from "aws-cdk-lib/aws-logs";
+import { LogGroup, FilterPattern, ILogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { LambdaDestination } from "aws-cdk-lib/aws-logs-destinations";
 import { Construct } from "constructs";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
@@ -70,6 +70,7 @@ export class RealTimeDataConstruct extends Construct {
 
     const realTimeDataPublisherLogGroup = new LogGroup(this, "RealTimeDataPublisherLogGroup", {
       logGroupName: `/aws/lambda/${realTimeDataPublisher.functionName}`,
+      retention: RetentionDays.TEN_YEARS,
     });
 
     this.realTimeDataPublisherLogGroup = realTimeDataPublisherLogGroup;

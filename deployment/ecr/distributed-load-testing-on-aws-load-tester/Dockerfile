@@ -1,17 +1,16 @@
-FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:c69a151043b0e0e7d0362ab283299267580f5a5a4cf08131eb61b9528eaec882
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal
 
-RUN dnf upgrade -y && \
+RUN dnf upgrade -y --refresh && \
     dnf install -y python3.11 python3.11-pip java-21-amazon-corretto bc procps jq findutils unzip && \
     dnf clean all
 
 ENV PIP_INSTALL="pip3.11 install --no-cache-dir"
 
-# install bzt and upgrade pip/setuptools, then remove vulnerable system packages
-RUN $PIP_INSTALL --upgrade pip==25.2 setuptools==80.9.0 && \
-    $PIP_INSTALL --upgrade bzt awscli h11 urllib3==2.5.0 && \
-    $PIP_INSTALL --upgrade Flask-Cors==6.0.1 && \
-    dnf remove -y python3.11-setuptools python3.11-pip && \
-    dnf clean all
+
+# install bzt
+RUN $PIP_INSTALL --upgrade pip && \
+    $PIP_INSTALL --upgrade bzt awscli setuptools==78.1.1 h11 urllib3==2.2.2 && \
+    $PIP_INSTALL --upgrade bzt
 COPY ./.bzt-rc /root/.bzt-rc
 RUN chmod 755 /root/.bzt-rc
 

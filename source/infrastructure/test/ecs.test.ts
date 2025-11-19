@@ -39,6 +39,7 @@ test("DLT ECS Test", () => {
     securityGroupEgress: "0.0.0.0/0",
     solutionId: "SO0062",
     stableTagCondition: stableTagCondition.logicalId,
+    buildFromSource: false,
   });
 
   expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();
@@ -65,7 +66,7 @@ test("DLT ECS Test", () => {
     },
   });
   Template.fromStack(stack).hasResourceProperties("AWS::Logs::LogGroup", {
-    RetentionInDays: 365,
+    RetentionInDays: 3653,
   });
   Template.fromStack(stack).hasResourceProperties("AWS::ECS::TaskDefinition", {
     Cpu: "2048",

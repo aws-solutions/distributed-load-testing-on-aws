@@ -5,3 +5,5 @@ coverage
 **/test/*
 **/build/*
 **/assets/*
+**/mcp-server/*
+**/mcp/**
