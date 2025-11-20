@@ -5,9 +5,10 @@ import { CfnResource } from "aws-cdk-lib";
 import { IConstruct } from "constructs";
 
 /**
+ * Adds a CFN Guard suppression to a resource.
  *
- * @param resource
- * @param suppression
+ * @param {IConstruct} resource - The resource to add suppression to
+ * @param {string} suppression - The suppression rule to add
  */
 export function addCfnGuardSuppression(resource: IConstruct, suppression: string): void {
   const cfnResource = resource.node.defaultChild as CfnResource;

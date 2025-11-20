@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { RemovalPolicy } from "aws-cdk-lib";
-import { AttributeType, BillingMode, Table, TableEncryption } from "aws-cdk-lib/aws-dynamodb";
-import { AnyPrincipal, Effect, Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { AttributeType, BillingMode, Table, TableEncryption, ProjectionType } from "aws-cdk-lib/aws-dynamodb";
+import { Effect, Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { BlockPublicAccess, Bucket, BucketEncryption, HttpMethods } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 import { addCfnGuardSuppression } from "../common-resources/add-cfn-guard-suppression";
@@ -29,6 +29,7 @@ export class ScenarioTestRunnerStorageConstruct extends Construct {
   public scenarioDynamoDbPolicy: Policy;
   public historyTable: Table;
   public historyDynamoDbPolicy: Policy;
+  public readonly historyTableGSIName = "testId-startTime-index";
 
   constructor(scope: Construct, id: string, props: ScenarioTestRunnerStorageConstructProps) {
     super(scope, id);
@@ -50,20 +51,6 @@ export class ScenarioTestRunnerStorageConstruct extends Construct {
         },
       ],
     });
-
-    this.scenariosBucket.addToResourcePolicy(
-      new PolicyStatement({
-        actions: ["s3:*"],
-        resources: [this.scenariosBucket.bucketArn, `${this.scenariosBucket.bucketArn}/*`],
-        effect: Effect.DENY,
-        principals: [new AnyPrincipal()],
-        conditions: {
-          Bool: {
-            "aws:SecureTransport": false,
-          },
-        },
-      })
-    );
 
     this.scenariosS3Policy = new Policy(this, "ScenariosS3Policy", {
       statements: [
@@ -96,15 +83,23 @@ export class ScenarioTestRunnerStorageConstruct extends Construct {
       },
     });
 
+    this.historyTable.addGlobalSecondaryIndex({
+      indexName: this.historyTableGSIName,
+      partitionKey: { name: "testId", type: AttributeType.STRING },
+      sortKey: { name: "startTime", type: AttributeType.STRING },
+      projectionType: ProjectionType.INCLUDE,
+      nonKeyAttributes: ["testRunId", "endTime", "status", "results"],
+    });
+
     addCfnGuardSuppression(this.historyTable, "DYNAMODB_TABLE_ENCRYPTED_KMS");
 
-    const historyDDBActions = ["dynamodb:BatchWriteItem", "dynamodb:PutItem", "dynamodb:Query"];
+    const historyDDBActions = ["dynamodb:BatchWriteItem", "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:Query"];
     this.historyDynamoDbPolicy = new Policy(this, "HistoryDynamoDbPolicy", {
       statements: [
         new PolicyStatement({
           effect: Effect.ALLOW,
           actions: historyDDBActions,
-          resources: [this.historyTable.tableArn],
+          resources: [this.historyTable.tableArn, `${this.historyTable.tableArn}/index/*`],
         }),
       ],
     });

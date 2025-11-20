@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { CloudFrontToS3 } from "@aws-solutions-constructs/aws-cloudfront-s3";
+import { Aspects, Aws, CfnResource, Duration, Fn, IAspect, Stack } from "aws-cdk-lib";
+import { ResponseHeadersPolicyProps, HeadersFrameOption, HeadersReferrerPolicy } from "aws-cdk-lib/aws-cloudfront";
 import { Bucket, IBucket } from "aws-cdk-lib/aws-s3";
-import { Construct, IConstruct } from "constructs";
 import { BucketDeployment, Source as S3Source } from "aws-cdk-lib/aws-s3-deployment";
+import { Construct, IConstruct } from "constructs";
 import * as path from "path";
-import { Aspects, CfnResource, IAspect, Stack } from "aws-cdk-lib";
 
 export interface DLTConsoleConstructProps {
   readonly s3LogsBucket: Bucket;
@@ -20,6 +21,72 @@ export class DLTConsoleConstruct extends Construct {
 
   constructor(scope: Construct, id: string, props: DLTConsoleConstructProps) {
     super(scope, id);
+
+    // ResponseHeadersPolicy names must be unique per account and limited to 128 characters
+    // Region is included in the name for multi-region deployments
+    const responseHeadersPolicyProps: ResponseHeadersPolicyProps = {
+      responseHeadersPolicyName: Fn.join("-", [
+        Stack.of(this).stackName,
+        Aws.REGION,
+        "rhp", // Short for "response headers policy" to minimize length
+      ]),
+      comment: "Security headers policy for DLT console",
+      securityHeadersBehavior: {
+        contentTypeOptions: {
+          override: true,
+        },
+
+        strictTransportSecurity: {
+          accessControlMaxAge: Duration.seconds(47304000),
+          includeSubdomains: true,
+          override: true,
+        },
+
+        // Referrer policy - safe with Cognito
+        referrerPolicy: {
+          referrerPolicy: HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
+          override: true,
+        },
+
+        frameOptions: {
+          frameOption: HeadersFrameOption.DENY,
+          override: true,
+        },
+
+        // Content Security Policy configured for AWS services and Cognito
+        contentSecurityPolicy: {
+          contentSecurityPolicy: [
+            "default-src 'self' https://*.amazonaws.com https://*.amazoncognito.com; upgrade-insecure-requests;",
+            "script-src 'self' https://*.amazonaws.com https://*.amazoncognito.com;",
+            "style-src 'self' 'unsafe-inline' https://*.amazonaws.com;",
+            "img-src 'self' data: https://*.amazonaws.com;",
+            "font-src 'self' data:;",
+            "connect-src 'self' https://*.amazonaws.com https://*.amazoncognito.com wss://*.amazonaws.com;",
+            "frame-src 'self' https://*.amazonaws.com;",
+            "frame-ancestors 'self' https://*.amazonaws.com;",
+            "object-src 'none';",
+            "base-uri 'self';",
+            "form-action 'self' https://*.amazonaws.com;",
+          ].join(" "),
+          override: true,
+        },
+      },
+      customHeadersBehavior: {
+        customHeaders: [
+          {
+            header: "Permissions-Policy",
+            value:
+              "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+            override: true,
+          },
+          {
+            header: "Cross-Origin-Resource-Policy",
+            value: "same-origin",
+            override: true,
+          },
+        ],
+      },
+    };
 
     // Create the standard region CloudFront distribution
     const dltS3CloudFrontDist = new CloudFrontToS3(this, "DLTDashboardS3", {
@@ -38,7 +105,8 @@ export class DLTConsoleConstruct extends Construct {
         logBucket: props.s3LogsBucket,
         logFilePrefix: "cloudfront-logs/",
       },
-      insertHttpSecurityHeaders: false,
+      insertHttpSecurityHeaders: false, // Keep this false since we're using custom headers
+      responseHeadersPolicyProps, // Apply custom response headers policy props at the construct level
     });
 
     this.consoleBucket = dltS3CloudFrontDist.s3BucketInterface;
@@ -46,9 +114,11 @@ export class DLTConsoleConstruct extends Construct {
     this.consoleBucketArn = dltS3CloudFrontDist.s3BucketInterface.bucketArn;
 
     new BucketDeployment(this, "DeployWebsite", {
-      sources: [S3Source.asset(path.join(__dirname, "../../../console/build"))], // build react app before cdk deploy
+      sources: [S3Source.asset(path.join(__dirname, "../../../webui/dist"))],
       destinationBucket: this.consoleBucket,
-      exclude: ["assets/aws_config.js"],
+      exclude: ["aws-exports.json"],
+      distribution: dltS3CloudFrontDist.cloudFrontWebDistribution,
+      distributionPaths: ["/*"],
     });
 
     // Add cfn_nag exception for the Lambda function created by BucketDeployment

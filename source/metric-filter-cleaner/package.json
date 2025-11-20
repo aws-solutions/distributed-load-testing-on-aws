@@ -1,0 +1,29 @@
+{
+  "name": "metric-filter-cleaner",
+  "version": "4.0.0",
+  "description": "Cleans up CloudWatch metric filters for completed/failed tests",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aws-solutions/distributed-load-testing-on-aws"
+  },
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions"
+  },
+  "main": "index.js",
+  "scripts": {
+    "clean": "rm -rf node_modules package-lock.json",
+    "test": "jest lib/*.spec.js --coverage --silent"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.758.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.758.0"
+  },
+  "devDependencies": {
+    "jest": "29.7.0"
+  },
+  "engines": {
+    "node": "^20.x"
+  }
+}

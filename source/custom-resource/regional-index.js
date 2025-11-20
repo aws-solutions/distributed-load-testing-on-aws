@@ -8,7 +8,7 @@ const storeConfig = require("./lib/config-storage");
 const iot = require("./lib/iot");
 
 exports.handler = async (event, context) => {
-  console.log(`event: ${JSON.stringify(event, null, 2)}`);
+  console.log(`Custom resource: ${event.ResourceProperties?.Resource}, RequestType: ${event.RequestType}`);
 
   const resource = event.ResourceProperties.Resource;
   const config = event.ResourceProperties;
@@ -40,7 +40,7 @@ exports.handler = async (event, context) => {
           };
         }
         break;
-      case "AnonymizedMetric":
+      case "Metric":
         await metrics.send(config, requestType);
         break;
       default:
@@ -48,7 +48,8 @@ exports.handler = async (event, context) => {
     }
     await cfn.send(event, context, "SUCCESS", responseData, resource);
   } catch (err) {
-    console.log(err, err.stack);
+    console.error(`Error in custom resource ${resource}: ${err.message}, Code: ${err.code || 'N/A'}, RequestType: ${requestType}`);
     await cfn.send(event, context, "FAILED", {}, resource);
+    throw new Error(`Custom resource ${resource} failed: ${err.message || 'Unknown error'}`);
   }
 };

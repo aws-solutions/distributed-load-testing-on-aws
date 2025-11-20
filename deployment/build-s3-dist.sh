@@ -52,7 +52,7 @@ main() {
 
     header "[Synth] CDK Project"
     cd ${source_dir}/infrastructure
-    npm ci 
+    npm ci
     npm run install:all
 
     node_modules/aws-cdk/bin/cdk synth --asset-metadata false --path-metadata false
@@ -74,9 +74,19 @@ main() {
     mv "$global_dist_dir"/*-regional.template "$regional_dist_dir"
 
     header "[Build-Console] Building console assets"
-    cd ${source_dir}/console
+    cd "$source_dir/webui/" || exit 1
+    # Remove old build assets
+    rm -rf dist/
     npm ci
-    npm run build
+    # npm run build outputs to dist/
+    GENERATE_SOURCEMAP=false INLINE_RUNTIME_CHUNK=false npm run build
+    if [ $? -eq 0 ]
+    then
+      header "UI build succeeded"
+    else
+      header "UI build FAILED"
+      exit 1
+    fi
 
     header "[CDK-Helper] Copy the Lambda Asset and Console Assets"
     pushd $cdk_out_dir
@@ -93,7 +103,7 @@ main() {
         # Only zip it if the zip file doesn't already exist
         if [ ! -f "$zipfile" ]; then
           echo "Zipping folder: $f -> $zipfile"
-          (cd "$f" && zip -r "../$zipfile" .) 
+          (cd "$f" && zip -r "../$zipfile" .)
         else
           echo "Zip file already exists: $zipfile"
         fi
@@ -106,7 +116,6 @@ main() {
       fi
     done
     popd
-
 }
 
 main "$@"

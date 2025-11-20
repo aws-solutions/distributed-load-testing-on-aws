@@ -68,25 +68,42 @@ if [ "$TEST_TYPE" != "simple" ]; then
     aws s3 cp s3://$S3_BUCKET/public/test-scenarios/$TEST_TYPE/$TEST_ID.$EXT ./ --region $MAIN_STACK_REGION
   else
     aws s3 cp s3://$S3_BUCKET/public/test-scenarios/$TEST_TYPE/$TEST_ID.zip ./ --region $MAIN_STACK_REGION
-    unzip $TEST_ID.zip
-    echo "UNZIPPED"
+    
+    # When unzipping, we want to make ensure unzipped content is in the current working directory instead of an unzipped subdirectory.
+    # This is necessary for certain files, such as a "locust.conf" file that is assumed to be in the current working directory.
+    TEMP_DIR=$(mktemp -d)
+    unzip $TEST_ID.zip -d $TEMP_DIR
+    echo "UNZIPPED to temp directory"
+    ls -l $TEMP_DIR
+    
+    # Find the parent folder and copy its contents
+    PARENT_FOLDER=$(find $TEMP_DIR -mindepth 1 -maxdepth 1 -type d | head -n 1)
+    if [ -n "$PARENT_FOLDER" ]; then
+      echo "Copying contents from $PARENT_FOLDER"
+      cp -r $PARENT_FOLDER/* ./
+    fi
+    
+    # Cleanup temp directory
+    rm -rf $TEMP_DIR
+    echo "Cleaned up temp directory"
+    
     ls -l
 
-    # If zip and locust, make sure to pick locustfile
+    # Identify the correct test file
     if [ "$TEST_TYPE" != "locust" ]; then
+      # Only looks for the first test script file.
       TEST_SCRIPT=$(find . -name "*.${EXT}" | head -n 1)
     else 
+      # If zip and locust, make sure to pick locustfile.py
       TEST_SCRIPT=$(find . -name "locustfile.py" | head -n 1)
     fi
-    # only looks for the first test script file.
-    TEST_SCRIPT=`find . -name "*.${EXT}" | head -n 1`
     echo $TEST_SCRIPT
     if [ -z "$TEST_SCRIPT" ]; then
       echo "There is no test script (.${EXT}) in the zip file."
       exit 1
     fi
 
-    sed -i -e "s|$TEST_ID.$EXT|$TEST_SCRIPT|g" test.json
+    sed -i -e "s|$TEST_ID.zip|$TEST_SCRIPT|g" test.json
 
     # copy bundled plugin jars to jmeter extension folder to make them available to jmeter
     BUNDLED_PLUGIN_DIR=`find $PWD -type d -name "plugins" | head -n 1`
@@ -201,13 +218,13 @@ if [ -f /tmp/artifacts/results.xml ]; then
   fi
 
   echo "Uploading results, bzt log, and JMeter log, out, and err files"
-  aws s3 cp /tmp/artifacts/results.xml s3://$S3_BUCKET/results/${TEST_ID}/${PREFIX}-${UUID}-${AWS_REGION}.xml --region $MAIN_STACK_REGION
-  aws s3 cp /tmp/artifacts/bzt.log s3://$S3_BUCKET/results/${TEST_ID}/bzt-${PREFIX}-${UUID}-${AWS_REGION}.log --region $MAIN_STACK_REGION
-  aws s3 cp /tmp/artifacts/$LOG_FILE s3://$S3_BUCKET/results/${TEST_ID}/${TEST_TYPE}-${PREFIX}-${UUID}-${AWS_REGION}.log --region $MAIN_STACK_REGION
-  aws s3 cp /tmp/artifacts/$OUT_FILE s3://$S3_BUCKET/results/${TEST_ID}/${TEST_TYPE}-${PREFIX}-${UUID}-${AWS_REGION}.out --region $MAIN_STACK_REGION
-  aws s3 cp /tmp/artifacts/$ERR_FILE s3://$S3_BUCKET/results/${TEST_ID}/${TEST_TYPE}-${PREFIX}-${UUID}-${AWS_REGION}.err --region $MAIN_STACK_REGION
-  aws s3 cp /tmp/artifacts/kpi.${KPI_EXT} s3://$S3_BUCKET/results/${TEST_ID}/kpi-${PREFIX}-${UUID}-${AWS_REGION}.${KPI_EXT} --region $MAIN_STACK_REGION
-
+  aws s3 cp /tmp/artifacts/results.xml s3://$S3_BUCKET/results/${TEST_ID}/${PREFIX}/${UUID}-${AWS_REGION}.xml --region $MAIN_STACK_REGION
+  aws s3 cp /tmp/artifacts/bzt.log s3://$S3_BUCKET/results/${TEST_ID}/${PREFIX}/bzt-${UUID}-${AWS_REGION}.log --region $MAIN_STACK_REGION
+  aws s3 cp /tmp/artifacts/$LOG_FILE s3://$S3_BUCKET/results/${TEST_ID}/${PREFIX}/${TEST_TYPE}-${UUID}-${AWS_REGION}.log --region $MAIN_STACK_REGION
+  aws s3 cp /tmp/artifacts/$OUT_FILE s3://$S3_BUCKET/results/${TEST_ID}/${PREFIX}/${TEST_TYPE}-${UUID}-${AWS_REGION}.out --region $MAIN_STACK_REGION
+  aws s3 cp /tmp/artifacts/$ERR_FILE s3://$S3_BUCKET/results/${TEST_ID}/${PREFIX}/${TEST_TYPE}-${UUID}-${AWS_REGION}.err --region $MAIN_STACK_REGION
+  aws s3 cp /tmp/artifacts/kpi.${KPI_EXT} s3://$S3_BUCKET/results/${TEST_ID}/${PREFIX}/kpi-${UUID}-${AWS_REGION}.${KPI_EXT} --region $MAIN_STACK_REGION
+  # maybe pass in the time 
 else
   echo "An error occurred while the test was running."
 fi

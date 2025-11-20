@@ -64,14 +64,15 @@ const mockResultParserEvent = {
   fileType: "none",
   showLive: true,
   testDuration: 60,
-  prefix: "613.75:44:12T80-20-4202",
+  prefix: "2024-01-15T14-30-25_abc1234567",
+  testRunId: "abc1234567",
 };
 
 const mockS3ListObjectResponse = {
   Contents: [
     {
       ETag: '"70ee1738b6b21e2c8a43f3a5ab0eee71"',
-      Key: "114.44:25:71T20-20-4202-a3677174-a062-4a50-bbe2-50b995a536b5-my-region-1.xml",
+      Key: "2024-01-15T14-30-25_abc1234567/a3677174-a062-4a50-bbe2-50b995a536b5-my-region-1.xml",
       LastModified: "",
       Size: 11,
       StorageClass: "STANDARD",

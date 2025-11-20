@@ -11,18 +11,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         "",
       ],
     },
-    "SendAnonymizedUsage": {
-      "Fn::Equals": [
-        {
-          "Fn::FindInMap": [
-            "Solution",
-            "Config",
-            "SendAnonymizedUsage",
-          ],
-        },
-        "Yes",
-      ],
-    },
     "UseStableTagCondition": {
       "Fn::Equals": [
         {
@@ -40,7 +28,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         "MainRegionStack": "Main_Region_Stack",
         "ScenariosBucket": "Scenarios_Bucket",
         "ScenariosTable": "Scenarios_Table",
-        "SendAnonymizedUsage": "Yes",
       },
     },
   },
@@ -602,7 +589,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         },
       },
       "Properties": {
-        "RetentionInDays": 365,
+        "RetentionInDays": 3653,
         "Tags": [
           {
             "Key": "SolutionId",
@@ -935,6 +922,46 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       },
       "Type": "AWS::IAM::Policy",
     },
+    "DLTRegionalFargateMetricFilterCountAlarm7C81B027": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CFN_NO_EXPLICIT_RESOURCE_NAMES",
+          ],
+        },
+      },
+      "Properties": {
+        "AlarmDescription": "Alarm when metric filter count approaches the limit of 100",
+        "AlarmName": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-MetricFilterCount-Alarm",
+            ],
+          ],
+        },
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "Dimensions": [
+          {
+            "Name": "LogGroupName",
+            "Value": {
+              "Ref": "DLTRegionalFargateDLTCloudWatchLogsGroupAE1278C6",
+            },
+          },
+        ],
+        "EvaluationPeriods": 1,
+        "MetricName": "MetricFilterCount",
+        "Namespace": "distributed-load-testing",
+        "Period": 300,
+        "Statistic": "Maximum",
+        "Threshold": 90,
+        "TreatMissingData": "notBreaching",
+      },
+      "Type": "AWS::CloudWatch::Alarm",
+    },
     "DLTVpcDLTFargateIG0E71BA5C": {
       "Condition": "CreateFargateVPCResources",
       "Type": "AWS::EC2::InternetGateway",
@@ -1093,7 +1120,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
             ],
           ],
         },
-        "RetentionInDays": 731,
+        "RetentionInDays": 3653,
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
@@ -1365,7 +1392,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       "Type": "AWS::IAM::Policy",
     },
     "SolutionMetricsNewEventbridgeRuleToLambdaEventsRuleBB9E5FFD": {
-      "Condition": "SendAnonymizedUsage",
       "Properties": {
         "ScheduleExpression": "cron(0 23 ? * MON *)",
         "State": "ENABLED",
@@ -1406,7 +1432,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       "Type": "AWS::Events::Rule",
     },
     "SolutionMetricsNewLambdaToSqsToLambdalambdatosqsqueue2170C89E": {
-      "Condition": "SendAnonymizedUsage",
       "DeletionPolicy": "Delete",
       "Properties": {
         "DelaySeconds": 900,
@@ -1420,7 +1445,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       "UpdateReplacePolicy": "Delete",
     },
     "SolutionMetricsNewLambdaToSqsToLambdalambdatosqsqueuePolicyBC7BA156": {
-      "Condition": "SendAnonymizedUsage",
       "Properties": {
         "PolicyDocument": {
           "Statement": [
@@ -1492,7 +1516,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       "Type": "AWS::SQS::QueuePolicy",
     },
     "SolutionMetricsNewMetricsLambda2B1B8902": {
-      "Condition": "SendAnonymizedUsage",
       "DependsOn": [
         "SolutionMetricsNewMetricsLambdaServiceRoleDefaultPolicy3AE130AC",
         "SolutionMetricsNewMetricsLambdaServiceRole3196BDF4",
@@ -1562,7 +1585,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       "Type": "AWS::Lambda::Function",
     },
     "SolutionMetricsNewMetricsLambdaAwsEventsLambdaInvokePermission1458D855B": {
-      "Condition": "SendAnonymizedUsage",
       "Properties": {
         "Action": "lambda:InvokeFunction",
         "FunctionName": {
@@ -1582,7 +1604,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       "Type": "AWS::Lambda::Permission",
     },
     "SolutionMetricsNewMetricsLambdaServiceRole3196BDF4": {
-      "Condition": "SendAnonymizedUsage",
       "Properties": {
         "AssumeRolePolicyDocument": {
           "Statement": [
@@ -1614,7 +1635,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       "Type": "AWS::IAM::Role",
     },
     "SolutionMetricsNewMetricsLambdaServiceRoleDefaultPolicy3AE130AC": {
-      "Condition": "SendAnonymizedUsage",
       "Properties": {
         "PolicyDocument": {
           "Statement": [
@@ -1666,7 +1686,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       "Type": "AWS::IAM::Policy",
     },
     "SolutionMetricsNewMetricsLambdaSqsEventSourceTestDLTRegionalStackSolutionMetricsNewLambdaToSqsToLambdalambdatosqsqueue7AE45517F5C1DE80": {
-      "Condition": "SendAnonymizedUsage",
       "Properties": {
         "EventSourceArn": {
           "Fn::GetAtt": [

@@ -1,0 +1,124 @@
+[
+  {
+    "name": "list_scenarios",
+    "description": "Retrieve a list of all available test scenarios",
+    "inputSchema": {
+      "required": [],
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_scenario_details",
+    "description": "Retrieve the test configuration and most recent test run for a single test scenario",
+    "inputSchema": {
+      "properties": {
+        "test_id": {
+          "description": "The test scenario's unique identifier",
+          "type": "string"
+        }
+      },
+      "required": [
+        "test_id"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "list_test_runs",
+    "description": "Retrieve a list of test runs for a specific test scenario, sorted newest to oldest. More detailed results for a test run can be retrieved with \"get_test_run\". Note: Only one of 'limit' or 'start_timestamp' may be provided, not both. There is a maximum limit of 30 test runs returned.",
+    "inputSchema": {
+      "properties": {
+        "test_id": {
+          "description": "The test scenario's unique identifier",
+          "type": "string"
+        },
+        "limit": {
+          "description": "The maximum number of test runs to return (e.g. if I want the 10 most recent test runs, set the limit to 10). Cannot be used with start_timestamp parameter. Must be a positive integer. Default value is 20 and maximum limit is 30.",
+          "type": "integer"
+        },
+        "start_timestamp": {
+          "description": "Return all test runs going back to start_timestamp. The date must be in ISO 8601 timestamp format (e.g. '2024-01-15T14:30:00.000Z'). Cannot be used with limit parameter. Date format is strictly validated. There is a limit of 30 test runs that can be returned.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "test_id"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_test_run",
+    "description": "Retrieve a single test run for a specific test scenario. Results will be provided with a breakdown 1/ for each region (e.g. \"us-east-1\", \"us-west-2\") that the test runs in as well as an aggregate \"total\" 2/ for each endpoint (referred to as \"label\").",
+    "inputSchema": {
+      "properties": {
+        "test_id": {
+          "description": "The test scenario's unique identifier",
+          "type": "string"
+        },
+        "test_run_id": {
+          "description": "The test run's unique identifier",
+          "type": "string"
+        }
+      },
+      "required": [
+        "test_id",
+        "test_run_id"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_latest_test_run",
+    "description": "Retrieve the most recent test run for a specific test scenario",
+    "inputSchema": {
+      "properties": {
+        "test_id": {
+          "description": "The test scenario's unique identifier",
+          "type": "string"
+        }
+      },
+      "required": [
+        "test_id"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_baseline_test_run",
+    "description": "Retrieve the baseline test run for a specific test scenario. Users are able to set a baseline run for comparisons",
+    "inputSchema": {
+      "properties": {
+        "test_id": {
+          "description": "The test scenario's unique identifier",
+          "type": "string"
+        }
+      },
+      "required": [
+        "test_id"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_test_run_artifacts",
+    "description": "Retrieve the S3 bucket name and path prefix for test run output (logs, error files, results, etc). Starting in v4.0.0, each test run's artifacts will have a unique path that includes a concatenated prefix of timestamp + test run id (\"testRunPath\" in the response object). Test runs prior to v4.0.0 will live in a shared path without clear separation (\"testScenarioPath\" in the response object). If \"testRunPath\" has no objects, try falling back to \"testScenarioPath\" for the legacy artifact storage behavior.",
+    "inputSchema": {
+      "properties": {
+        "test_id": {
+          "description": "The test scenario's unique identifier",
+          "type": "string"
+        },
+        "test_run_id": {
+          "description": "The test run's unique identifier",
+          "type": "string"
+        }
+      },
+      "required": [
+        "test_id",
+        "test_run_id"
+      ],
+      "type": "object"
+    }
+  }
+]

@@ -44,6 +44,7 @@ test("DLT API Test", () => {
     taskRunner: testLambda,
     resultsParser: testLambda,
     taskCanceler: testLambda,
+    metricFilterCleaner: testLambda,
     suffix: "abc-def-xyz",
   });
 

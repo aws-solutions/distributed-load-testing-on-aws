@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const { CloudWatch } = require("@aws-sdk/client-cloudwatch");
-const { CloudWatchLogs } = require("@aws-sdk/client-cloudwatch-logs");
 const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb");
 const { DynamoDB } = require("@aws-sdk/client-dynamodb");
 const { S3 } = require("@aws-sdk/client-s3");
@@ -87,7 +86,7 @@ function results(content, testId) {
     let labels = [];
     let result = {};
 
-    console.log(`xml to json: ${JSON.stringify(jsonData, null, 2)}`);
+    console.log(`Converted XML to JSON for testId: ${testId}`);
 
     // loop through results
     for (let resultsItem of jsonData.Group) {
@@ -305,7 +304,7 @@ async function finalResults(testId, data) {
 
   // parse all of the results to generate the final results.
   createFinalResults(all, testFinalResults);
-  console.log("Final Results: ", JSON.stringify(testFinalResults, null, 2));
+  console.log(`Final results calculated for testId: ${testId}, success=${testFinalResults.succ || 0}, failures=${testFinalResults.fail || 0}`);
   return testFinalResults;
 }
 
@@ -327,7 +326,7 @@ async function putTestHistory(historyParams) {
     const thisTestScenario = JSON.parse(testScenario);
     const succPercent = ((finalTestResults["total"].succ / finalTestResults["total"].throughput) * 100).toFixed(2);
     const history = {
-      testRunId: utils.generateUniqueId(10),
+      testRunId: historyParams.testRunId,
       startTime,
       endTime,
       results: finalTestResults,
@@ -485,25 +484,10 @@ async function createWidget(startTime, endTime, region, testId, metrics) {
   return { metricS3Location: metricS3ObjectKey, metrics: widget.metrics };
 }
 
-async function deleteRegionalMetricFilter(testId, region, taskCluster, ecsCloudWatchLogGroup) {
-  awsOptions.region = region;
-  const cloudwatchLogs = new CloudWatchLogs(awsOptions);
-  const metrics = ["numVu", "numSucc", "numFail", "avgRt"];
-  for (const metric of metrics) {
-    const deleteMetricFilterParams = {
-      filterName: `${taskCluster}-Ecs${metric}-${testId}`,
-      logGroupName: ecsCloudWatchLogGroup,
-    };
-    await cloudwatchLogs.deleteMetricFilter(deleteMetricFilterParams);
-  }
-  return "Success";
-}
-
 module.exports = {
   results,
   finalResults,
   createWidget,
-  deleteRegionalMetricFilter,
   putTestHistory,
   updateTable,
 };

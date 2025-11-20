@@ -22,8 +22,36 @@ exports[`DLT API Test 1`] = `
             "AttributeName": "testRunId",
             "AttributeType": "S",
           },
+          {
+            "AttributeName": "startTime",
+            "AttributeType": "S",
+          },
         ],
         "BillingMode": "PAY_PER_REQUEST",
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "testId-startTime-index",
+            "KeySchema": [
+              {
+                "AttributeName": "testId",
+                "KeyType": "HASH",
+              },
+              {
+                "AttributeName": "startTime",
+                "KeyType": "RANGE",
+              },
+            ],
+            "Projection": {
+              "NonKeyAttributes": [
+                "testRunId",
+                "endTime",
+                "status",
+                "results",
+              ],
+              "ProjectionType": "INCLUDE",
+            },
+          },
+        ],
         "KeySchema": [
           {
             "AttributeName": "testId",
@@ -107,40 +135,6 @@ exports[`DLT API Test 1`] = `
               "Condition": {
                 "Bool": {
                   "aws:SecureTransport": "false",
-                },
-              },
-              "Effect": "Deny",
-              "Principal": {
-                "AWS": "*",
-              },
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "TestScenarioStorageDLTScenariosBucket9A78F6FF",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      {
-                        "Fn::GetAtt": [
-                          "TestScenarioStorageDLTScenariosBucket9A78F6FF",
-                          "Arn",
-                        ],
-                      },
-                      "/*",
-                    ],
-                  ],
-                },
-              ],
-            },
-            {
-              "Action": "s3:*",
-              "Condition": {
-                "Bool": {
-                  "aws:SecureTransport": false,
                 },
               },
               "Effect": "Deny",

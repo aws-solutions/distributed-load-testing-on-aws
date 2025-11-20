@@ -1391,11 +1391,5 @@ describe("#RESULTS PARSER::", () => {
     }
   });
 
-  it("should delete metric filter on deleteRegionalMetricFilter success", async () => {
-    mockCloudWatchLogs.mockImplementationOnce(() => Promise.resolve("Success"));
 
-    await lambda.deleteRegionalMetricFilter(testId, region, taskCluster, ecsCloudWatchLogGroup);
-    expect(mockCloudWatchLogs).toHaveBeenCalledTimes(4);
-    expect(mockCloudWatchLogs).toHaveBeenCalledWith(expect.objectContaining({ logGroupName: ecsCloudWatchLogGroup }));
-  });
 });

@@ -34,6 +34,7 @@ test("DLT API Test", () => {
     ecsCloudWatchLogGroup: testLog,
     historyDynamoDbPolicy: testPolicy,
     historyTable: "testHistoryDDBTable",
+    historyTableGSIName: "testId-startTime-index",
     scenariosDynamoDbPolicy: testPolicy,
     taskCancelerInvokePolicy: testPolicy,
     scenariosS3Policy: testPolicy,
@@ -42,7 +43,6 @@ test("DLT API Test", () => {
     ecsTaskExecutionRoleArn: "arn:aws:iam::1234567890:role/MyRole-AJJHDSKSDF",
     taskRunnerStepFunctionsArn: "arn:aws:states:us-east-1:111122223333:stateMachine:HelloWorld-StateMachine",
     taskCancelerArn: "arn:aws:lambda:us-east-1:111122223333:function:HelloFunction",
-    sendAnonymizedUsage: "Yes",
     uuid: "abc123",
     solution,
   });
@@ -63,7 +63,6 @@ test("DLT API Test", () => {
         SOLUTION_ID: solution.id,
         UUID: "abc123",
         VERSION: solution.version,
-        SEND_METRIC: "Yes",
         TASK_CANCELER_ARN: "arn:aws:lambda:us-east-1:111122223333:function:HelloFunction",
         STACK_ID: {
           Ref: "AWS::StackId",

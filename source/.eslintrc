@@ -28,7 +28,7 @@
       "parserOptions": {
         "ecmaVersion": "latest",
         "sourceType": "module",
-        "project": "**/tsconfig.json"
+        "project": ["**/tsconfig.json", "**/tsconfig.spec.json"]
       },
       "rules": {
         "@typescript-eslint/no-inferrable-types": ["off", { "ignoreParameters": true, "ignoreProperties": true }],

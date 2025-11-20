@@ -2,15 +2,6 @@
 
 exports[`DLT API Test 1`] = `
 {
-  "Conditions": {
-    "condition": {
-      "Fn::If": [
-        "testCondition",
-        true,
-        false,
-      ],
-    },
-  },
   "Resources": {
     "DLTCustomResourceInfraCustomResourceLambdaA4053269": {
       "DependsOn": [
@@ -61,28 +52,6 @@ exports[`DLT API Test 1`] = `
         "Timeout": 120,
       },
       "Type": "AWS::Lambda::Function",
-    },
-    "DLTCustomResourcesAnonymizedMetric901872DA": {
-      "Condition": "condition",
-      "DeletionPolicy": "Delete",
-      "Properties": {
-        "Region": {
-          "Ref": "AWS::Region",
-        },
-        "Resource": "AnonymizedMetric",
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
-            "Arn",
-          ],
-        },
-        "SolutionId": "testId",
-        "UUID": "abc-123-def-456",
-        "Version": "testVersion",
-        "existingVPC": "false",
-      },
-      "Type": "AWS::CloudFormation::CustomResource",
-      "UpdateReplacePolicy": "Delete",
     },
     "DLTCustomResourcesConsoleConfig9F494EAB": {
       "DeletionPolicy": "Delete",
@@ -157,6 +126,30 @@ exports[`DLT API Test 1`] = `
             "Arn",
           ],
         },
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DLTCustomResourcesMetricA23693FA": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "AccountId": {
+          "Ref": "AWS::AccountId",
+        },
+        "Region": {
+          "Ref": "AWS::Region",
+        },
+        "Resource": "Metric",
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
+            "Arn",
+          ],
+        },
+        "SolutionId": "testId",
+        "UUID": "abc-123-def-456",
+        "Version": "testVersion",
+        "existingVPC": "false",
       },
       "Type": "AWS::CloudFormation::CustomResource",
       "UpdateReplacePolicy": "Delete",

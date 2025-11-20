@@ -12,6 +12,7 @@ const _config = {
   UUID: "999-999",
   Region: "testRegion",
   existingVPC: "testTest",
+  AccountId: "123456789012",
 };
 
 describe("#SEND METRICS", () => {
@@ -33,6 +34,7 @@ describe("#SEND METRICS", () => {
         Type: "Create",
         Region: _config.Region,
         ExistingVpc: _config.existingVPC,
+        AccountId: _config.AccountId,
       },
     };
     const mock = new MockAdapter(axios);

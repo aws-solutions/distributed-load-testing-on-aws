@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2025-11-19
+
+### Added
+- **MCP Server Integration** - Added the ability for AI agents to programmatically create, run, and analyze load tests through Amazon Bedrock AgentCore
+- **Live Data Visualization** - Added the ability to visualize live test data by region with auto-refresh functionality
+- **Test Results Comparison** - Added the ability to highlight differences between
+  test results and deviations from a reference baseline test
+- **Tags for Test Scenarios** - Added the ability to tag test scenarios for easier searching and grouping
+- **Downloadable Test Results** - Added the ability to download test results from the front-end
+
+### Changed
+- **User Interface** - A complete frontend rewrite built on React, the Cloudscape design system, and Redux state management
+
+### Fixed
+- **Cron Scheduling Issues** - Fixed cron expression parsing and validation
+- **Infinite Fetching** - Fixed infinite fetching of test results
+
+### Security
+- **CloudFront Security Headers** - Added security headers policy with CSP, HSTS, Permissions-Policy, and CORP
+- **Resolved Vulnerabilities** - Resolved security vulnerabilities in multiple npm and Python dependencies
+
 ## [3.4.6] - 2025-11-11
 
 ### Security
@@ -22,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- Update the distributed-load-testing-on-aws-load-tester container to address vulnerability in libexpat 
+- Update the distributed-load-testing-on-aws-load-tester container to address vulnerability in libexpat
 
 ## [3.4.3] - 2025-09-19
 

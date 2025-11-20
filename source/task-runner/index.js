@@ -156,7 +156,9 @@ const launchWorkers = async (runTaskWorkersCount, launchParams, ecs, taskIds, ta
   //get amount successfully launched
   let actualLaunched = runTaskResponse.tasks.length;
   runTaskWorkersCount = runTaskWorkersCount - actualLaunched;
-  runTaskResponse.failures.length > 0 && console.log("Failed tasks:\n", runTaskResponse.failures);
+  if (runTaskResponse.failures.length > 0) {
+    console.log(`Failed to launch ${runTaskResponse.failures.length} tasks`);
+  }
   //record task Ids
   collectTaskIds(runTaskResponse.tasks, taskIds, taskCluster);
   return runTaskWorkersCount;
@@ -223,12 +225,39 @@ const createDashboard = async (testId, ecsCloudWatchLogGroup, taskCluster, regio
     DashboardName: `EcsLoadTesting-${testId}-${region}`,
     DashboardBody: JSON.stringify(dashboardBody),
   });
+  
+  // Publish current metric filter count
+  await publishMetricFilterCount(ecsCloudWatchLogGroup, cloudwatch, cloudwatchLogs);
+};
+
+const publishMetricFilterCount = async (logGroupName, cloudwatch, cloudwatchLogs) => {
+  try {
+    let metricFilters = [];
+    let params = { logGroupName };
+    let data;
+    do {
+      data = await cloudwatchLogs.describeMetricFilters(params);
+      metricFilters = metricFilters.concat(data.metricFilters);
+      params.nextToken = data.nextToken;
+    } while (data.nextToken);
+    
+    await cloudwatch.putMetricData({
+      Namespace: 'distributed-load-testing',
+      MetricData: [{
+        MetricName: 'MetricFilterCount',
+        Value: metricFilters.length,
+        Dimensions: [{ Name: 'LogGroupName', Value: logGroupName }]
+      }]
+    });
+  } catch (error) {
+    console.warn('Failed to publish metric filter count:', error.message);
+  }
 };
 
 exports.handler = async (event, context) => {
-  console.log(JSON.stringify(event, null, 2));
+  console.log(`Starting test: testId=${event.testId}, type=${event.testType}, region=${event.testTaskConfig?.region}, taskCount=${event.testTaskConfig?.taskCount}, prefix=${event.prefix || 'none'}`);
 
-  const { testId, testType, fileType, showLive, prefix } = event;
+  const { testId, testType, fileType, showLive } = event;
   const {
     taskDefinition,
     taskCluster,
@@ -280,7 +309,7 @@ exports.handler = async (event, context) => {
             { name: "FILE_TYPE", value: fileType },
             { name: "LIVE_DATA_ENABLED", value: `live=${showLive}` },
             { name: "TIMEOUT", value: timeout.toString() },
-            { name: "PREFIX", value: prefix },
+            { name: "PREFIX", value: event.prefix },
             { name: "SCRIPT", value: "ecslistener.py" },
           ],
         },
@@ -324,12 +353,11 @@ exports.handler = async (event, context) => {
       isRunning = await multipleTasks(multipleTasksProps);
     }
     console.log("success");
-    event.prefix = prefix;
     event.isRunning = isRunning;
     taskIds.length > 0 && (event.taskIds = taskIds);
     return event;
   } catch (err) {
-    console.error(err);
+    console.error(`Error in task-runner for testId=${testId}: ${err.message}, Code: ${err.code || 'N/A'}`);
 
     // Update DynamoDB with Status FAILED and Error Message
     await dynamo.update({
@@ -346,6 +374,6 @@ exports.handler = async (event, context) => {
       },
     });
 
-    throw err;
+    throw new Error(err.message || 'Failed to run tasks');
   }
 };

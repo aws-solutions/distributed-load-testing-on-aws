@@ -50,7 +50,7 @@ const stopECSTasks = async (timeoutCount, testTaskConfig, result, runningTaskCou
 };
 
 exports.handler = async (event) => {
-  console.log(JSON.stringify(event, null, 2));
+  console.log(`Checking status: testId=${event.testId}, region=${event.testTaskConfig?.region}, prefix=${event.prefix || 'none'}, taskRunner=${event.taskRunner}`);
 
   const { testId, taskRunner } = event;
   const { region, taskCluster } = event.testTaskConfig;
@@ -111,7 +111,7 @@ exports.handler = async (event) => {
     result.isRunning = await checkTestStatus(testId, result.isRunning);
     return result;
   } catch (error) {
-    console.error(error);
+    console.error(`Error in task-status-checker for testId=${testId}: ${error.message}, Code: ${error.code || 'N/A'}`);
 
     // Update DynamoDB with Status FAILED and Error Message
     await dynamoDb.update({
@@ -128,7 +128,7 @@ exports.handler = async (event) => {
       },
     });
 
-    throw error;
+    throw new Error(`Failed to check task status: ${error.message || 'Unknown error'}`);
   }
 };
 

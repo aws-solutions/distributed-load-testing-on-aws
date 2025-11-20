@@ -40,27 +40,6 @@ const putRegionalTemplate = async (config) => {
   return "success";
 };
 
-/**
- * generate the aws exports file containing cognito and API config details.
- */
-const configFile = async (file, destBucket) => {
-  try {
-    //write exports file to the console
-    const params = {
-      Bucket: destBucket,
-      Key: "assets/aws_config.js",
-      Body: file,
-    };
-    console.log(`creating config file: ${JSON.stringify(params)}`);
-    await s3.putObject(params);
-  } catch (err) {
-    console.error(err);
-    throw err;
-  }
-  return "success";
-};
-
 module.exports = {
-  configFile: configFile,
   putRegionalTemplate: putRegionalTemplate,
 };

@@ -15,22 +15,24 @@ import {
   Stack,
   StackProps,
 } from "aws-cdk-lib";
+import { Bucket } from "aws-cdk-lib/aws-s3";
 import { Construct, IConstruct } from "constructs";
-import { DLTAPI } from "./front-end/api";
-import { CognitoAuthConstruct } from "./front-end/auth";
-import { CommonResources } from "./common-resources/common-resources";
-import { DLTConsoleConstruct } from "./front-end/console";
-import { CustomResourcesConstruct } from "./common-resources/custom-resources";
-import { ECSResourcesConstruct } from "./testing-resources/ecs";
+import { SolutionsMetrics } from "../../metrics-utils";
+import { Solution } from "../bin/solution";
 import { ScenarioTestRunnerStorageConstruct } from "./back-end/scenarios-storage";
 import { TaskRunnerStepFunctionConstruct } from "./back-end/step-functions";
 import { TestRunnerLambdasConstruct } from "./back-end/test-task-lambdas";
-import { FargateVpcConstruct } from "./testing-resources/vpc";
-import { RealTimeDataConstruct } from "./testing-resources/real-time-data";
-import { SolutionsMetrics } from "../../metrics-utils";
-import { Solution } from "../bin/solution";
-import { Bucket } from "aws-cdk-lib/aws-s3";
 import { CidrBlockCfnParameters } from "./common-resources/common-cfn-parameters";
+import { CommonResources } from "./common-resources/common-resources";
+import { CustomResourcesConstruct } from "./common-resources/custom-resources";
+import { DLTAPI } from "./front-end/api";
+import { CognitoAuthConstruct } from "./front-end/auth";
+import { DLTConsoleConstruct } from "./front-end/console";
+import { WebUIConfigConstruct } from "./front-end/webUIConfigConstruct";
+import { MCPServer } from "./mcp/mcp-infra";
+import { ECSResourcesConstruct } from "./testing-resources/ecs";
+import { RealTimeDataConstruct } from "./testing-resources/real-time-data";
+import { FargateVpcConstruct } from "./testing-resources/vpc";
 
 /**
  * CDK Aspect implementation to set up conditions to the entire Construct resources
@@ -73,6 +75,9 @@ export class DLTStack extends Stack {
 
   constructor(scope: Construct, id: string, props: DLTStackProps) {
     super(scope, id, props);
+
+    // Load context variables
+    const shouldBuildFromSource = this.node.tryGetContext("buildFromSource") === "true";
 
     // CFN template format version
     this.templateOptions.templateFormatVersion = "2010-09-09";
@@ -135,7 +140,15 @@ export class DLTStack extends Stack {
       description:
         "Automatically use the most up to date and secure image up until the next minor release. Selecting 'No' will pull the image as originally released, without any security updates.",
       type: "String",
-      default: "Yes",
+      default: "No",
+      allowedValues: ["Yes", "No"],
+    });
+
+    const deployMcpServer = new CfnParameter(this, "DeployMCPServer", {
+      description:
+        "Deploy a remote MCP server to connect AI applications to DLT. See the Implementation Guide for more details.",
+      type: "String",
+      default: "No",
       allowedValues: ["Yes", "No"],
     });
 
@@ -163,6 +176,7 @@ export class DLTStack extends Stack {
         ParameterLabels: {
           [adminName.logicalId]: { default: "* Administrator Name" },
           [adminEmail.logicalId]: { default: "* Administrator Email" },
+          [deployMcpServer.logicalId]: { default: "Deploy MCP Server" },
           [existingVpcId.logicalId]: { default: "Select an existing VPC in the region" },
           [existingSubnetA.logicalId]: { default: "Select first subnet from the existing VPC" },
           [existingSubnetB.logicalId]: { default: "Select second subnet from the existing VPC" },
@@ -207,22 +221,16 @@ export class DLTStack extends Stack {
       mapping: {
         Config: {
           CodeVersion: props.solution.version,
-          SendAnonymizedUsage: "Yes",
           SolutionId: props.solution.id,
         },
       },
     });
 
-    const sendAnonymizedUsage = solutionMapping.findInMap("Config", "SendAnonymizedUsage");
     const solutionId = solutionMapping.findInMap("Config", "SolutionId");
     const solutionVersion = solutionMapping.findInMap("Config", "CodeVersion");
     const mainStackRegion = Aws.REGION;
 
     // CFN Conditions
-    const sendAnonymizedUsageCondition = new CfnCondition(this, "SendAnonymizedUsage", {
-      expression: Fn.conditionEquals(sendAnonymizedUsage, "Yes"),
-    });
-
     const createFargateVpcResourcesCondition = new CfnCondition(this, "CreateFargateVPCResources", {
       expression: Fn.conditionEquals(existingVpcId.valueAsString, ""),
     });
@@ -233,6 +241,10 @@ export class DLTStack extends Stack {
 
     const stableTagCondition = new CfnCondition(this, "UseStableTagCondition", {
       expression: Fn.conditionEquals(stableTagging.valueAsString, "Yes"),
+    });
+
+    const deployMcpServerCondition = new CfnCondition(this, "DeployMCPServerCondition", {
+      expression: Fn.conditionEquals(deployMcpServer.valueAsString, "Yes"),
     });
 
     // Fargate VPC resources
@@ -303,6 +315,7 @@ export class DLTStack extends Stack {
       securityGroupEgress: egressCidrBlock.valueAsString,
       solutionId: props.solution.id,
       stableTagCondition: stableTagCondition.logicalId,
+      buildFromSource: shouldBuildFromSource,
     });
 
     const realTimeDataConstruct = new RealTimeDataConstruct(this, "RealTimeData", {
@@ -325,7 +338,6 @@ export class DLTStack extends Stack {
       scenariosS3Policy: dltStorage.scenariosS3Policy,
       subnetA: fargateSubnetA,
       subnetB: fargateSubnetB,
-      sendAnonymizedUsage,
       solution: props.solution,
       scenariosBucket: dltStorage.scenariosBucket.bucketName,
       scenariosBucketArn: dltStorage.scenariosBucket.bucketArn,
@@ -339,6 +351,7 @@ export class DLTStack extends Stack {
       taskRunner: stepLambdaFunctions.taskRunner,
       resultsParser: stepLambdaFunctions.resultsParser,
       taskCanceler: stepLambdaFunctions.taskCanceler,
+      metricFilterCleaner: stepLambdaFunctions.metricFilterCleaner,
       suffix,
     });
 
@@ -348,6 +361,7 @@ export class DLTStack extends Stack {
       ecsTaskExecutionRoleArn: fargateResources.taskExecutionRoleArn,
       historyDynamoDbPolicy: dltStorage.historyDynamoDbPolicy,
       historyTable: dltStorage.historyTable.tableName,
+      historyTableGSIName: dltStorage.historyTableGSIName,
       scenariosBucketName: dltStorage.scenariosBucket.bucketName,
       scenariosDynamoDbPolicy: dltStorage.scenarioDynamoDbPolicy,
       scenariosS3Policy: dltStorage.scenariosS3Policy,
@@ -355,7 +369,6 @@ export class DLTStack extends Stack {
       taskCancelerArn: stepLambdaFunctions.taskCanceler.functionArn,
       taskCancelerInvokePolicy: stepLambdaFunctions.taskCancelerInvokePolicy,
       taskRunnerStepFunctionsArn: taskRunnerStepFunctions.taskRunnerStepFunctions.stateMachineArn,
-      sendAnonymizedUsage,
       solution: props.solution,
       uuid,
     });
@@ -372,6 +385,29 @@ export class DLTStack extends Stack {
       iotPolicyName: cognitoResources.iotPolicy.ref,
     });
 
+    new WebUIConfigConstruct(this, "WebUIConfig", {
+      userPoolId: cognitoResources.cognitoUserPoolId,
+      poolClientId: cognitoResources.cognitoUserPoolClientId,
+      identityPoolId: cognitoResources.cognitoIdentityPoolId,
+      apiEndpoint: dltApi.apiEndpointPath,
+      deploymentBucket: dltConsole.consoleBucket,
+      userFilesBucket: dltStorage.scenariosBucket.bucketName,
+      userFilesBucketRegion: Aws.REGION,
+      IoTEndpoint: iotEndpoint,
+      IoTPolicy: cognitoResources.iotPolicy.ref,
+    });
+
+    const mcpServer = new MCPServer(this, "MCPServer", {
+      api: dltApi.restApi,
+      cognitoUserPool: cognitoResources.cognitoUserPool,
+      scenarioBucketName: dltStorage.scenariosBucket.bucketName,
+      solution: props.solution,
+      userPoolId: cognitoResources.cognitoUserPoolId,
+      allowedClients: [cognitoResources.cognitoUserPoolClientId],
+      uuid,
+    });
+    Aspects.of(mcpServer).add(new ConditionAspect(deployMcpServerCondition));
+
     const { DIST_OUTPUT_BUCKET, SOLUTION_NAME, VERSION, PUBLIC_ECR_REGISTRY, PUBLIC_ECR_TAG } = process.env;
     if (DIST_OUTPUT_BUCKET && SOLUTION_NAME && VERSION && PUBLIC_ECR_REGISTRY && PUBLIC_ECR_TAG) {
       const sourceBucketName = Fn.join("-", [DIST_OUTPUT_BUCKET, Aws.REGION]);
@@ -384,18 +420,9 @@ export class DLTStack extends Stack {
         scenariosTable: dltStorage.scenariosTable.tableName,
         lambdaTaskRoleArn: stepLambdaFunctions.lambdaTaskRole.roleArn,
         mainStackRegion,
+        timestamp: Date.now().toString(),
       });
     }
-    customResources.consoleConfig({
-      apiEndpoint: dltApi.apiEndpointPath,
-      cognitoIdentityPool: cognitoResources.cognitoIdentityPoolId,
-      cognitoUserPool: cognitoResources.cognitoUserPoolId,
-      cognitoUserPoolClient: cognitoResources.cognitoUserPoolClientId,
-      consoleBucket: dltConsole.consoleBucket as Bucket,
-      scenariosBucket: dltStorage.scenariosBucket.bucketName,
-      iotEndpoint,
-      iotPolicy: cognitoResources.iotPolicy.ref,
-    });
 
     customResources.testingResourcesConfigCR({
       taskCluster: fargateResources.taskClusterName,
@@ -406,13 +433,11 @@ export class DLTStack extends Stack {
       subnetB: fargateSubnetB,
     });
 
-    customResources.sendAnonymizedMetricsCR({
+    customResources.sendMetricsCR({
       existingVpc,
       solutionId,
       uuid,
       solutionVersion,
-      sendAnonymizedUsage,
-      sendAnonymizedUsageCondition,
     });
 
     // metrics
@@ -441,8 +466,11 @@ export class DLTStack extends Stack {
       identifier: "TaskStatusChecker",
     });
     solutionsMetrics.addLambdaInvocationCount({
+      functionName: stepLambdaFunctions.metricFilterCleaner.functionName,
+      identifier: "MetricFilterCleaner",
+    });
+    solutionsMetrics.addLambdaInvocationCount({
       functionName: commonResources.customResourceLambda.nodejsLambda.functionName,
-
       identifier: "CustomResourceLambda",
     });
     solutionsMetrics.addLambdaBilledDurationMemorySize({
@@ -468,6 +496,11 @@ export class DLTStack extends Stack {
     solutionsMetrics.addLambdaBilledDurationMemorySize({
       logGroups: [stepLambdaFunctions.taskStatusCheckerLambdaLogGroup],
       identifier: "TaskStatusChecker",
+    });
+
+    solutionsMetrics.addLambdaBilledDurationMemorySize({
+      logGroups: [stepLambdaFunctions.metricFilterCleanerLambdaLogGroup],
+      identifier: "MetricFilterCleaner",
     });
 
     solutionsMetrics.addLambdaBilledDurationMemorySize({
@@ -501,8 +534,6 @@ export class DLTStack extends Stack {
       taskDefinitionFamily: fargateResources.taskDefinitionFamily,
     });
 
-    Aspects.of(solutionsMetrics).add(new ConditionAspect(sendAnonymizedUsageCondition));
-
     // Outputs
     new CfnOutput(this, "Console URL", {
       description: "Web portal for DLT",
@@ -520,12 +551,33 @@ export class DLTStack extends Stack {
       description: "Common table for storing load test details",
       value: dltStorage.scenariosTable.tableName,
     });
+    new CfnOutput(this, "LambdaTaskRoleArn", {
+      description: "Lambda task role ARN for regional deployments",
+      value: stepLambdaFunctions.lambdaTaskRole.roleArn,
+    });
     new CfnOutput(this, "RegionalCFTemplate", {
       description: "S3 URL for regional CloudFormation template",
       value: dltStorage.scenariosBucket.urlForObject(
         "regional-template/distributed-load-testing-on-aws-regional.template"
       ),
       exportName: "RegionalCFTemplate",
+    });
+    new CfnOutput(this, "CognitoUserPoolID", {
+      description: "Cognito User Pool ID",
+      value: cognitoResources.cognitoUserPoolId,
+    });
+    new CfnOutput(this, "CognitoAppClientID", {
+      description: "Cognito App Client ID",
+      value: cognitoResources.cognitoUserPoolClientId,
+    });
+    new CfnOutput(this, "CognitoIdentityPoolID", {
+      description: "Cognito Identity Pool ID",
+      value: cognitoResources.cognitoIdentityPoolId,
+    });
+    new CfnOutput(this, "McpEndpoint", {
+      description: "MCP Server Endpoint",
+      value: mcpServer.gatewayUrl,
+      condition: deployMcpServerCondition,
     });
   }
 }

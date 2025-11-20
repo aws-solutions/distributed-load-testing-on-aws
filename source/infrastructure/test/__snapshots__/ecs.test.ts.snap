@@ -24,7 +24,7 @@ exports[`DLT ECS Test 1`] = `
         },
       },
       "Properties": {
-        "RetentionInDays": 365,
+        "RetentionInDays": 3653,
         "Tags": [
           {
             "Key": "SolutionId",
@@ -294,6 +294,46 @@ exports[`DLT ECS Test 1`] = `
         ],
       },
       "Type": "AWS::IAM::Policy",
+    },
+    "TestECSMetricFilterCountAlarm1FA1C5D4": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CFN_NO_EXPLICIT_RESOURCE_NAMES",
+          ],
+        },
+      },
+      "Properties": {
+        "AlarmDescription": "Alarm when metric filter count approaches the limit of 100",
+        "AlarmName": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-MetricFilterCount-Alarm",
+            ],
+          ],
+        },
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "Dimensions": [
+          {
+            "Name": "LogGroupName",
+            "Value": {
+              "Ref": "TestECSDLTCloudWatchLogsGroup505959A6",
+            },
+          },
+        ],
+        "EvaluationPeriods": 1,
+        "MetricName": "MetricFilterCount",
+        "Namespace": "distributed-load-testing",
+        "Period": 300,
+        "Statistic": "Maximum",
+        "Threshold": 90,
+        "TreatMissingData": "notBreaching",
+      },
+      "Type": "AWS::CloudWatch::Alarm",
     },
     "TestVPCD26570D8": {
       "Properties": {

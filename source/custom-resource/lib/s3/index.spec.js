@@ -50,23 +50,6 @@ describe("#S3::", () => {
     mockS3.copyObject.mockReset();
   });
 
-  it('should return "success" on ConfigFile success', async () => {
-    mockS3.putObject.mockResolvedValue({});
-
-    const response = await lambda.configFile("file", "destBucket");
-    expect(response).toEqual("success");
-  });
-
-  it('should return "ERROR" on ConfigFile failure', async () => {
-    mockS3.putObject.mockRejectedValue("ERROR");
-
-    try {
-      await lambda.configFile("file", "destBucket");
-    } catch (error) {
-      expect(error).toEqual("ERROR");
-    }
-  });
-
   it('should return "SUCCESS" on putRegionalTemplate success', async () => {
     mockS3.getObject.mockResolvedValueOnce({
       Body: {

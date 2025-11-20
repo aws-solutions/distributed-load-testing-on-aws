@@ -1,0 +1,14 @@
+/* Custom styling for the CloudScape ProgressBar component */
+[class*="awsui_percentage"] {
+  display: none !important;
+}
+[class*="awsui_progress"] {
+  flex: 1 !important;
+  margin-inline-end: 0 !important;
+  vertical-align: top !important;
+  margin-left: .25em !important;
+  margin-right: .25em !important;
+}
+[class*="awsui_progress-container"] {
+  align-items: start !important;
+}

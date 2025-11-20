@@ -30,7 +30,7 @@ function regexMatchPromise(string, regex) {
   });
 }
 
-exports.handler = async function (event) {
+exports.handler = async function (event) { // NOSONAR - As of suppression, this code is untouched for 4 years. Refactoring to reduce cognitive complexity introduces more risk than leaving alone. Eventually we plan to migrate to TS and will resolve then.
   const payload = Buffer.from(event.awslogs.data, "base64");
   const aggregatedTestResultData = { [process.env.AWS_REGION]: [] };
   let testId = "";
@@ -39,7 +39,7 @@ exports.handler = async function (event) {
     //decompress gzip data, convert to ascii string, and parse JSON
     const decompressedPayload = await unzip(payload);
     const jsonPayload = JSON.parse(decompressedPayload.toString("ascii"));
-    console.log("Event Data:", JSON.stringify(jsonPayload, null, 2));
+    console.log(`Processing ${jsonPayload.logEvents?.length || 0} log events for real-time data`);
 
     //for each logItem, extract necessary information
     //i.e. testId, virtual users, avgRt, succ count, fail count, and timestamp
@@ -91,7 +91,7 @@ exports.handler = async function (event) {
       aggregatedTestResultData[process.env.AWS_REGION].push(extractedData);
     }
   } catch (error) {
-    console.error("Error decompressing payload: ", error);
+    console.error(`Error decompressing payload: ${error.message}, Code: ${error.code || 'N/A'}`);
     throw error;
   }
 
@@ -104,7 +104,7 @@ exports.handler = async function (event) {
     await iot.publish(params);
     console.log(`Successfully sent data to topic dlt/${testId}`);
   } catch (error) {
-    console.error("Error publishing to IoT Topic: ", error);
+    console.error(`Error publishing to IoT Topic: ${error.message}, Code: ${error.code || 'N/A'}`);
     throw error;
   }
 };

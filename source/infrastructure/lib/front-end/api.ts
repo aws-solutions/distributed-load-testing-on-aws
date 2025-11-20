@@ -1,11 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import * as path from "path";
-import { Runtime } from "aws-cdk-lib/aws-lambda";
-import { Aws, ArnFormat, CfnResource, Duration, RemovalPolicy, Stack } from "aws-cdk-lib";
-import { ILogGroup, LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
-import { Effect, Policy, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
+import { ArnFormat, Aws, CfnResource, Duration, RemovalPolicy, Stack } from "aws-cdk-lib";
 import {
   AccessLogFormat,
   AuthorizationType,
@@ -23,8 +19,12 @@ import {
   RestApi,
   Stage,
 } from "aws-cdk-lib/aws-apigateway";
-import { Construct } from "constructs";
+import { Effect, Policy, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
+import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import { ILogGroup, LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
+import { Construct } from "constructs";
+import * as path from "path";
 import { Solution, SOLUTIONS_METRICS_ENDPOINT } from "../../bin/solution";
 import { addCfnGuardSuppression } from "../common-resources/add-cfn-guard-suppression";
 
@@ -42,6 +42,8 @@ export interface DLTAPIProps {
   readonly historyDynamoDbPolicy: Policy;
   // History DynamoDB table
   readonly historyTable: string;
+  // History DynamoDB table GSI name
+  readonly historyTableGSIName: string;
   // Test scenarios S3 bucket
   readonly scenariosBucketName: string;
   // Scenarios DynamoDB table policy
@@ -59,9 +61,8 @@ export interface DLTAPIProps {
 
   /**
    * Solution config properties.
-   * the metric URL endpoint, send anonymized usage, solution ID, version, source code bucket, and source code prefix
+   * the metric URL endpoint, send operational metrics, solution ID, version, source code bucket, and source code prefix
    */
-  readonly sendAnonymizedUsage: string;
   readonly solution: Solution;
   readonly uuid: string;
 }
@@ -74,6 +75,7 @@ export class DLTAPI extends Construct {
   apiEndpointPath: string;
   apiServicesLambdaRoleName: string;
   apiLambdaLogGroup: ILogGroup;
+  restApi: RestApi;
 
   constructor(scope: Construct, id: string, props: DLTAPIProps) {
     super(scope, id);
@@ -132,7 +134,7 @@ export class DLTAPI extends Construct {
             }),
             new PolicyStatement({
               effect: Effect.ALLOW,
-              actions: ["cloudformation:ListExports"],
+              actions: ["cloudformation:ListExports", "cloudformation:DescribeStacks"],
               resources: ["*"],
             }),
             new PolicyStatement({
@@ -141,6 +143,7 @@ export class DLTAPI extends Construct {
                 "ecs:ListAccountSettings",
                 "ecs:ListTasks",
                 "ecs:ListClusters",
+                "ecs:DescribeTasks",
                 "ecs:DescribeClusters",
                 "ecs:DescribeTaskDefinition",
               ],
@@ -203,10 +206,10 @@ export class DLTAPI extends Construct {
       timeout: Duration.seconds(120),
       environment: {
         HISTORY_TABLE: props.historyTable,
+        HISTORY_TABLE_GSI_NAME: props.historyTableGSIName,
         METRIC_URL: SOLUTIONS_METRICS_ENDPOINT,
         SCENARIOS_BUCKET: props.scenariosBucketName,
         SCENARIOS_TABLE: props.scenariosTableName,
-        SEND_METRIC: props.sendAnonymizedUsage,
         SOLUTION_ID: props.solution.id,
         STACK_ID: Aws.STACK_ID,
         STATE_MACHINE_ARN: props.taskRunnerStepFunctionsArn,
@@ -236,6 +239,7 @@ export class DLTAPI extends Construct {
 
     const dltApiServicesLambdaLogGroup = new LogGroup(this, "dltApiServicesLambdaLogGroup", {
       logGroupName: `/aws/lambda/${dltApiServicesLambda.functionName}`,
+      retention: RetentionDays.TEN_YEARS,
     });
     this.apiLambdaLogGroup = dltApiServicesLambdaLogGroup;
 
@@ -261,7 +265,7 @@ export class DLTAPI extends Construct {
     });
 
     const apiLogs = new LogGroup(this, "APILogs", {
-      retention: RetentionDays.ONE_YEAR,
+      retention: RetentionDays.TEN_YEARS,
       removalPolicy: RemovalPolicy.RETAIN,
     });
     const apiLogsResource = apiLogs.node.defaultChild as CfnResource;
@@ -329,6 +333,7 @@ export class DLTAPI extends Construct {
 
     this.apiId = api.restApiId;
     this.apiEndpointPath = api.url.slice(0, -1);
+    this.restApi = api;
 
     const apiAccountConfig = new CfnAccount(this, "ApiAccountConfig", {
       cloudWatchRoleArn: apiLoggingRole.roleArn,
@@ -406,11 +411,26 @@ export class DLTAPI extends Construct {
     const testIds = scenariosResource.addResource("{testId}");
     testIds.addMethod("ANY", allIntegration, allMethodOptions);
 
+    const testRunsResource = testIds.addResource("testruns");
+    testRunsResource.addMethod("ANY", allIntegration, allMethodOptions);
+
+    const testRunIdResource = testRunsResource.addResource("{testRunId}");
+    testRunIdResource.addMethod("ANY", allIntegration, allMethodOptions);
+
+    // Baseline management resource: /scenarios/{testId}/baseline
+    const baseline = testIds.addResource("baseline");
+    baseline.addMethod("GET", allIntegration, allMethodOptions);
+    baseline.addMethod("PUT", allIntegration, allMethodOptions);
+    baseline.addMethod("DELETE", allIntegration, allMethodOptions);
+
     const tasksResource = api.root.addResource("tasks");
     tasksResource.addMethod("ANY", allIntegration, allMethodOptions);
 
     const vCPUDetails = api.root.addResource("vCPUDetails");
     vCPUDetails.addMethod("ANY", allIntegration, allMethodOptions);
+
+    const stackInfoResource = api.root.addResource("stack-info");
+    stackInfoResource.addMethod("ANY", allIntegration, allMethodOptions);
 
     const invokeSourceArn = Stack.of(this).formatArn({
       service: "execute-api",

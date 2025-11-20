@@ -34,7 +34,7 @@ const getOptions = (options) => {
 };
 
 /**
- * Sends anonymized metrics.
+ * Sends operational metrics.
  * @param {{ taskCount: number, testType: string, fileType: string|undefined }} - the number of containers used for the test, the test type, and the file type
  */
 const sendMetric = async (metricData) => {
@@ -61,7 +61,7 @@ const sendMetric = async (metricData) => {
     data = await axios(params);
     return data.status;
   } catch (err) {
-    console.error(err);
+    console.error(`Error sending metric: ${err.message}, Code: ${err.code || 'N/A'}`);
   }
 };
 

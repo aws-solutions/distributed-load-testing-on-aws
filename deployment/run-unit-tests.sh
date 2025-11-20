@@ -52,7 +52,6 @@ coverage_reports_top_path=$source_dir/test/coverage-reports
 #install dependencies
 cd $source_dir
 npm run install:all
-npm run build:console
 
 #run prettier
 echo "Running prettier formatting check"
@@ -80,6 +79,20 @@ else
   exit 1
 fi
 
+# Build webui for infrastructure tests
+echo "Building webui for infrastructure tests"
+cd $source_dir/webui
+npm run build
+if [ $? -eq 0 ]
+then
+  echo "WebUI build passed"
+else
+  echo "******************************************************************************"
+  echo "WebUI build FAILED"
+  echo "******************************************************************************"
+  exit 1
+fi
+
 # Run unit tests
 echo "Running unit tests"
 
@@ -94,8 +107,10 @@ declare -a packages=(
     "task-runner"
     "results-parser"
     "task-status-checker"
-    "console"
+    "webui"
     "metrics-utils"
+    "metric-filter-cleaner"
+    "mcp-server"
 )
 
 for package in "${packages[@]}"; do

@@ -28,7 +28,7 @@ exports[`DLT API Test 1`] = `
             ],
           ],
         },
-        "RetentionInDays": 365,
+        "RetentionInDays": 3653,
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
@@ -44,7 +44,7 @@ exports[`DLT API Test 1`] = `
           "Fn::Join": [
             "",
             [
-              "{"StartAt":"Regions for testing","States":{"Regions for testing":{"Type":"Map","ResultPath":null,"Next":"Parse result","InputPath":"$","ItemsPath":"$.testTaskConfig","ItemSelector":{"testTaskConfig.$":"$$.Map.Item.Value","testId.$":"$.testId","testType.$":"$.testType","fileType.$":"$.fileType","showLive.$":"$.showLive","testDuration.$":"$.testDuration","prefix.$":"$.prefix"},"ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"Check running tests","States":{"Check running tests":{"Next":"No running tests","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
+              "{"StartAt":"Regions for testing","States":{"Regions for testing":{"Type":"Map","ResultPath":null,"Next":"Parse result","InputPath":"$","ItemsPath":"$.testTaskConfig","ItemSelector":{"testTaskConfig.$":"$$.Map.Item.Value","testId.$":"$.testId","testType.$":"$.testType","fileType.$":"$.fileType","showLive.$":"$.showLive","testDuration.$":"$.testDuration","prefix.$":"$.prefix","testRunId.$":"$.testRunId"},"ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"Check running tests","States":{"Check running tests":{"Next":"No running tests","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -110,7 +110,7 @@ exports[`DLT API Test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"Wait 1 minute - task status":{"Type":"Wait","Comment":"Wait 1 minute to check task status again","Seconds":60,"Next":"Check task status"},"Are all tasks done?":{"Type":"Choice","Choices":[{"Variable":"$.isRunning","BooleanEquals":false,"Next":"Map End"}],"Default":"Wait 1 minute - task status"},"Map End":{"Type":"Pass","End":true}}}},"Parse result":{"Next":"Done","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","Resource":"arn:",
+              "","Payload.$":"$"}},"Wait 1 minute - task status":{"Type":"Wait","Comment":"Wait 1 minute to check task status again","Seconds":60,"Next":"Check task status"},"Are all tasks done?":{"Type":"Choice","Choices":[{"Variable":"$.isRunning","BooleanEquals":false,"Next":"Map End"}],"Default":"Wait 1 minute - task status"},"Map End":{"Type":"Pass","End":true}}}},"Parse result":{"Next":"Cleanup Metric Filters","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Cleanup Metric Filters"}],"Type":"Task","ResultPath":"$.parseResult","Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -121,7 +121,18 @@ exports[`DLT API Test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload":{"testTaskConfig.$":"$.testTaskConfig","testId.$":"$.testId","testType.$":"$.testType","fileType.$":"$.fileType","showLive.$":"$.showLive","testDuration.$":"$.testDuration","prefix.$":"$.prefix","executionStart.$":"$$.Execution.StartTime"}}},"Done":{"Type":"Succeed"}}}",
+              "","Payload":{"testTaskConfig.$":"$.testTaskConfig","testId.$":"$.testId","testType.$":"$.testType","fileType.$":"$.fileType","showLive.$":"$.showLive","testDuration.$":"$.testDuration","prefix.$":"$.prefix","testRunId.$":"$.testRunId","executionStart.$":"$$.Execution.StartTime"}}},"Cleanup Metric Filters":{"Next":"Done","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":null,"Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::GetAtt": [
+                  "TestFunction22AD90FC",
+                  "Arn",
+                ],
+              },
+              "","Payload":{"testTaskConfig.$":"$.testTaskConfig","testId.$":"$.testId"}}},"Done":{"Type":"Succeed"}}}",
             ],
           ],
         },

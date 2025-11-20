@@ -1,0 +1,32 @@
+{
+  "name": "mcp-server",
+  "version": "4.0.0",
+  "description": "MCP server for Distributed Load Testing on AWS",
+  "main": "index.js",
+  "directories": {
+    "src": "src"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:check": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "type": "module",
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.27.0",
+    "aws4": "^1.13.2",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/aws4": "^1.11.6",
+    "@types/node": "^24.7.0",
+    "@vitest/coverage-v8": "^4.0.8",
+    "eslint": "^9.37.0",
+    "prettier": "^3.6.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.8"
+  }
+}

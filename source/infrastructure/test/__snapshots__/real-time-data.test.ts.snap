@@ -27,7 +27,7 @@ exports[`DLT real time data resources Test 1`] = `
             ],
           ],
         },
-        "RetentionInDays": 731,
+        "RetentionInDays": 3653,
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",

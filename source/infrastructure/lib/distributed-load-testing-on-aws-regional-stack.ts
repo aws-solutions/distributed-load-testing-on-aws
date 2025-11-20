@@ -4,30 +4,30 @@
 import {
   ArnFormat,
   Aspects,
+  Aws,
   CfnCondition,
+  CfnMapping,
   CfnOutput,
   CfnParameter,
   CfnResource,
-  CfnMapping,
   CfnRule,
   Fn,
   IAspect,
   Stack,
   StackProps,
-  Aws,
 } from "aws-cdk-lib";
-import { Construct, IConstruct } from "constructs";
-import { ECSResourcesConstruct } from "./testing-resources/ecs";
-import { CustomResourcesConstruct } from "./common-resources/custom-resources";
-import { FargateVpcConstruct } from "./testing-resources/vpc";
-import { RealTimeDataConstruct } from "./testing-resources/real-time-data";
-import { Solution } from "../bin/solution";
-import { CommonResources } from "./common-resources/common-resources";
-import { Bucket } from "aws-cdk-lib/aws-s3";
 import { Table } from "aws-cdk-lib/aws-dynamodb";
+import { Effect, Policy, PolicyStatement, Role } from "aws-cdk-lib/aws-iam";
+import { Bucket } from "aws-cdk-lib/aws-s3";
+import { Construct, IConstruct } from "constructs";
 import { SolutionsMetrics } from "../../metrics-utils";
-import { Policy, Role, PolicyStatement, Effect } from "aws-cdk-lib/aws-iam";
+import { Solution } from "../bin/solution";
 import { CidrBlockCfnParameters } from "./common-resources/common-cfn-parameters";
+import { CommonResources } from "./common-resources/common-resources";
+import { CustomResourcesConstruct } from "./common-resources/custom-resources";
+import { ECSResourcesConstruct } from "./testing-resources/ecs";
+import { RealTimeDataConstruct } from "./testing-resources/real-time-data";
+import { FargateVpcConstruct } from "./testing-resources/vpc";
 
 /**
  * CDK Aspect implementation to set up conditions to the entire Construct resources
@@ -68,6 +68,9 @@ export interface RegionalInfrastructureDLTStackProps extends StackProps {
 export class RegionalInfrastructureDLTStack extends Stack {
   constructor(scope: Construct, id: string, props: RegionalInfrastructureDLTStackProps) {
     super(scope, id, props);
+
+    // Load context variables
+    const shouldBuildFromSource = this.node.tryGetContext("buildFromSource") === "true";
 
     this.templateOptions.description = props.solution.description;
 
@@ -122,15 +125,12 @@ export class RegionalInfrastructureDLTStack extends Stack {
           MainRegionStack: "Main_Region_Stack",
           ScenariosBucket: "Scenarios_Bucket",
           ScenariosTable: "Scenarios_Table",
-          SendAnonymizedUsage: "Yes",
         },
       },
     });
-    const mainRegionLambdaTaskRoleArn = solutionMapping.findInMap("Config", "MainRegionLambdaTaskRoleArn");
-    const mainStackRegion = solutionMapping.findInMap("Config", "MainRegionStack");
-    const scenariosBucket = solutionMapping.findInMap("Config", "ScenariosBucket");
-    const scenariosTable = solutionMapping.findInMap("Config", "ScenariosTable");
-    const sendAnonymizedUsage = solutionMapping.findInMap("Config", "SendAnonymizedUsage");
+
+    const config = this.getRegionalConfig(shouldBuildFromSource, solutionMapping);
+    const { mainRegionLambdaTaskRoleArn, mainStackRegion, scenariosBucket, scenariosTable } = config;
 
     // CloudFormation metadata
     this.templateOptions.metadata = {
@@ -182,10 +182,6 @@ export class RegionalInfrastructureDLTStack extends Stack {
             "If an existing VPC Id is provided, 2 subnet ids need to be provided as well. You neglected to enter the second subnet id",
         },
       ],
-    });
-
-    const sendAnonymizedUsageCondition = new CfnCondition(this, "SendAnonymizedUsage", {
-      expression: Fn.conditionEquals(sendAnonymizedUsage, "Yes"),
     });
 
     const createFargateVpcResourcesCondition = new CfnCondition(this, "CreateFargateVPCResources", {
@@ -257,6 +253,7 @@ export class RegionalInfrastructureDLTStack extends Stack {
       scenariosS3Bucket: scenariosBucket.toString(),
       solutionId: props.solution.id,
       stableTagCondition: stableTagCondition.logicalId,
+      buildFromSource: shouldBuildFromSource,
     });
 
     const ecsPolicyName = `RegionalECRPerms-${Aws.STACK_NAME}-${Aws.REGION}`;
@@ -317,8 +314,6 @@ export class RegionalInfrastructureDLTStack extends Stack {
       taskDefinitionFamily: fargateResources.taskDefinitionFamily,
     });
 
-    Aspects.of(solutionsMetrics).add(new ConditionAspect(sendAnonymizedUsageCondition));
-
     // Outputs
     new CfnOutput(this, "ECSCloudWatchLogGroup", {
       description: "The CloudWatch log group for ECS",
@@ -328,5 +323,42 @@ export class RegionalInfrastructureDLTStack extends Stack {
       description: "Fargate task cluster",
       value: fargateResources.taskClusterName,
     });
+  }
+
+  /**
+   * Resolves regional configuration values from context (local development) or CloudFormation mapping (published template)
+   *
+   * @param {string} shouldBuildFromSource Whether building from source code locally instead of default published template
+   * @param {CfnMapping} solutionMapping The CloudFormation mapping containing default values
+   * @returns {object} Configuration object with resolved values
+   */
+  private getRegionalConfig(shouldBuildFromSource: boolean, solutionMapping: CfnMapping) {
+    // For local development: build the regional stack from source
+    const lambdaTaskRoleArnOverride = this.node.tryGetContext("lambdaTaskRoleArn");
+    const mainRegionOverride = this.node.tryGetContext("mainRegion");
+    const scenariosBucketOverride = this.node.tryGetContext("scenariosBucket");
+    const scenariosTableOverride = this.node.tryGetContext("scenariosTable");
+    if (
+      shouldBuildFromSource &&
+      lambdaTaskRoleArnOverride &&
+      mainRegionOverride &&
+      scenariosBucketOverride &&
+      scenariosTableOverride
+    ) {
+      return {
+        mainRegionLambdaTaskRoleArn: lambdaTaskRoleArnOverride,
+        mainStackRegion: mainRegionOverride,
+        scenariosBucket: scenariosBucketOverride,
+        scenariosTable: scenariosTableOverride,
+      };
+    }
+
+    // Default behavior: use mappings from published template
+    return {
+      mainRegionLambdaTaskRoleArn: solutionMapping.findInMap("Config", "MainRegionLambdaTaskRoleArn"),
+      mainStackRegion: solutionMapping.findInMap("Config", "MainRegionStack"),
+      scenariosBucket: solutionMapping.findInMap("Config", "ScenariosBucket"),
+      scenariosTable: solutionMapping.findInMap("Config", "ScenariosTable"),
+    };
   }
 }
