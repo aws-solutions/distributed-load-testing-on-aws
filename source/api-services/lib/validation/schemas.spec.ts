@@ -385,11 +385,17 @@ describe("Validation Schemas", () => {
 
     it("should validate cron expressions", () => {
       const validCronExpressions = [
-        "0 * * * *", // every hour
-        "0 9 * * 1", // 9 AM every Monday
+        "0 0 * * *", // Midnight daily
         "30 14 * * 5", // 2:30 PM every Friday
-        "0 0 1 * *", // midnight on 1st of every month
-        "15 6 * * 0", // 6:15 AM every Sunday
+        "0 9 * * 1", // 9 AM every Monday
+        "0 */4 * * *", // Every 4 hours at minute 0
+        "0 */6 * * 1-5", // Every 6 hours on weekdays
+        "30 9 * * 1-5", // 9:30 AM weekdays
+        "0 0 * * 0-6", // Midnight every day (range)
+        "0 9,12,15 * * *", // 9 AM, 12 PM, 3 PM daily
+        "30 8,17 * * 1-5", // 8:30 AM and 5:30 PM weekdays
+        "0 5,22 * * 1,2,3", // 5 AM and 10 PM on Mon/Tue/Wed
+        "15 6,18 * * 1,3,5", // 6:15 AM and 6:15 PM on Mon/Wed/Fri
       ];
 
       validCronExpressions.forEach((cronValue) => {

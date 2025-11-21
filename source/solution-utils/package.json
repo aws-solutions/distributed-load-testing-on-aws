@@ -1,6 +1,6 @@
 {
   "name": "solution-utils",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Utilities package for Distributed Load Testing on AWS",
   "license": "Apache-2.0",
   "author": {
