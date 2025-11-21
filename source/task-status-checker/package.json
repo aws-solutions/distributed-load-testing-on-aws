@@ -1,6 +1,6 @@
 {
   "name": "task-status-checker",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "checks if tasks are running or not",
   "repository": {
     "type": "git",

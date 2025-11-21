@@ -21,6 +21,11 @@ import { DateTime } from "luxon";
 import { FormData } from "../types";
 import cronParser from "cron-parser";
 
+// Cron expression validation regex (matches the pattern in api-services/lib/validation/schemas.ts)
+// Supports: minute, hour (with step values and comma lists), day-of-month, month, day-of-week (with ranges and lists)
+const CRON_EXPRESSION_REGEX =
+  /^([0-5]?\d) (\*|\*\/\d+|([01]?\d|2[0-3])(,([01]?\d|2[0-3]))*) (\*|[0-2]?\d|3[01]) (\*|[1-9]|1[0-2]) (\*|[0-6]([-,][0-6])*)$/;
+
 interface Props {
   formData: FormData;
   updateFormData: (updates: Partial<FormData>) => void;
@@ -43,6 +48,27 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
       cronDayOfWeek: dayOfWeek,
     });
   };
+
+  const cronValidationError = useMemo(() => {
+    if (formData.executionTiming !== "run-schedule") return "";
+    
+    const { cronMinutes, cronHours, cronDayOfMonth, cronMonth, cronDayOfWeek } = formData;
+    
+    // If required fields are missing, don't show regex validation error yet
+    if (!cronMinutes || !cronHours) return "";
+    
+    const dayOfMonth = cronDayOfMonth || "*";
+    const month = cronMonth || "*";
+    const dayOfWeek = cronDayOfWeek || "*";
+    
+    const cronExpression = `${cronMinutes} ${cronHours} ${dayOfMonth} ${month} ${dayOfWeek}`;
+    
+    if (!CRON_EXPRESSION_REGEX.test(cronExpression)) {
+      return "Invalid cron expression format for scheduling.";
+    }
+    
+    return "";
+  }, [formData.executionTiming, formData.cronMinutes, formData.cronHours, formData.cronDayOfMonth, formData.cronMonth, formData.cronDayOfWeek]);
 
   const expiryDateError = useMemo(() => {
     if (formData.executionTiming !== "run-schedule" || !formData.cronExpiryDate) return "";
@@ -67,7 +93,7 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
 
   const nextRun = useMemo(() => {
     const { cronMinutes, cronHours, cronDayOfMonth, cronMonth, cronDayOfWeek, cronExpiryDate } = formData;
-    if (!cronMinutes || !cronHours) return { dates: [], error: "" };
+    if (!cronMinutes || !cronHours || !cronExpiryDate) return { dates: [], error: "" };
 
     try {
       // Convert ? to * for cron-parser compatibility
@@ -104,7 +130,7 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
       return { dates, error: dates.length === 0 ? "No matching dates found" : "" };
     } catch (error) {
       console.error("Error parsing cron expression:", error);
-      return { dates: [], error: "Invalid cron expression" };
+      return { dates: [], error: "Invalid cron expression format for scheduling." };
     }
   }, [
     formData.cronMinutes,
@@ -216,8 +242,8 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
                       Daily at 9:00 AM
                     </Link>
                     <Link fontSize="body-s" onFollow={() => applyCronPattern("0", "8", "*", "*", "1-5")}>
-                      Weekdays at 8:00 AM
-                    </Link>
+                       Weekdays at 8:00 AM
+                     </Link>
                     <Link fontSize="body-s" onFollow={() => applyCronPattern("0", "17", "*", "*", "0")}>
                       Every Sunday at 5 PM
                     </Link>
@@ -231,6 +257,7 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
                 stretch
                 label="Schedule pattern"
                 description="A fine-grained schedule that runs at a specific time, such as 8:00 a.m. PST on the first Monday of every month."
+                errorText={cronValidationError || undefined}
               >
                 <Grid disableGutters gridDefinition={[{ colspan: 1 }, { colspan: 10 }, { colspan: 1 }]}>
                   <Box padding="xs">
@@ -300,7 +327,7 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
                         <FormField description={"Month"}></FormField>
                       </Box>
                       <Box padding="xxs">
-                        <FormField description={"Day of week"}></FormField>
+                        <FormField description={"Day of week (0-6)"}></FormField>
                       </Box>
                     </Grid>
                   </Box>
@@ -310,7 +337,7 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
                 </Grid>
               </FormField>
               <FormField 
-                label="Expiry date" 
+                label="Expiry date"
                 description="The date when the scheduled test should stop running"
                 errorText={expiryDateError || (showValidationErrors && !formData.cronExpiryDate ? "Expiry date is required" : undefined)}
               >

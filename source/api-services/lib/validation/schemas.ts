@@ -27,10 +27,14 @@ const isoDateString = z
 
 /**
  * Validates cron expression (Linux format: min hour day month dayOfWeek)
+ * Supports hour step values and comma lists, day-of-week ranges and lists
  */
+const CRON_EXPRESSION_REGEX =
+  /^([0-5]?\d) (\*|\*\/\d+|([01]?\d|2[0-3])(,([01]?\d|2[0-3]))*) (\*|[0-2]?\d|3[01]) (\*|[1-9]|1[0-2]) (\*|[0-6]([-,][0-6])*)$/; // NOSONAR
+
 const cronExpressionSchema = z.string().regex(
-  /^(\*|([0-5]?\d)) (\*|([01]?\d|2[0-3])) (\*|([0-2]?\d|3[01])) (\*|([1-9]|1[0-2])) (\*|[0-7])$/, // NOSONAR
-  "Invalid cron expression format. Expected 5 field cron expression (example: * * * * *)."
+  CRON_EXPRESSION_REGEX, // NOSONAR
+  "Invalid cron expression format. Hours support step values and lists. Day-of-week supports ranges and lists."
 );
 
 /**

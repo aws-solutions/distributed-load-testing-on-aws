@@ -1432,7 +1432,7 @@ describe("#SCENARIOS API:: ", () => {
         {
           CreationTime: new Date("2025-09-09T19:40:22Z"),
           StackId: "arn:aws:cloudformation:us-west-2:123456789012:stack/test-stack/12345",
-          Tags: [{ Key: "SolutionVersion", Value: "v4.0.0" }],
+          Tags: [{ Key: "SolutionVersion", Value: "v4.0.1" }],
         },
       ],
     };
@@ -1442,7 +1442,7 @@ describe("#SCENARIOS API:: ", () => {
     expect(response).toEqual({
       created_time: "2025-09-09T19:40:22.000Z",
       region: "us-west-2",
-      version: "v4.0.0",
+      version: "v4.0.1",
     });
   });
 
@@ -1468,7 +1468,7 @@ describe("#SCENARIOS API:: ", () => {
         {
           CreationTime: new Date("2025-09-09T19:40:22Z"),
           StackId: "arn:aws:cloudformation:us-east-1:123456789012:stack/test-stack/12345",
-          Description: "Distributed Load Testing Solution v4.0.0 - Creates infrastructure for load testing",
+          Description: "Distributed Load Testing Solution v4.0.1 - Creates infrastructure for load testing",
           Tags: [{ Key: "OtherTag", Value: "value" }],
         },
       ],
@@ -1479,7 +1479,7 @@ describe("#SCENARIOS API:: ", () => {
     expect(response).toEqual({
       created_time: "2025-09-09T19:40:22.000Z",
       region: "us-east-1",
-      version: "v4.0.0",
+      version: "v4.0.1",
     });
   });
 

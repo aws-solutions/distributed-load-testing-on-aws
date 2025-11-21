@@ -79,8 +79,11 @@ if [ "$TEST_TYPE" != "simple" ]; then
     # Find the parent folder and copy its contents
     PARENT_FOLDER=$(find $TEMP_DIR -mindepth 1 -maxdepth 1 -type d | head -n 1)
     if [ -n "$PARENT_FOLDER" ]; then
-      echo "Copying contents from $PARENT_FOLDER"
+      echo "Copying contents from parent folder: $PARENT_FOLDER"
       cp -r $PARENT_FOLDER/* ./
+    else
+      echo "No parent folder found, copying all contents from temp directory"
+      cp -r $TEMP_DIR/* ./
     fi
     
     # Cleanup temp directory
