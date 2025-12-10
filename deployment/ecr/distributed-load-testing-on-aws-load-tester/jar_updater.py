@@ -68,7 +68,7 @@ JMETER_COMPONENTS: Dict[str, str] = {
     "dnsjava": "dnsjava/dnsjava/3.6.1/dnsjava-3.6.1.jar",
     "xstream": "com/thoughtworks/xstream/xstream/1.4.21/xstream-1.4.21.jar",
     "http2-hpack": "org/eclipse/jetty/http2/http2-hpack/11.0.26/http2-hpack-11.0.26.jar",
-    "jetty-http": "org/eclipse/jetty/jetty-http/12.0.25/jetty-http-12.0.25.jar",
+    "jetty-http": "org/eclipse/jetty/jetty-http/11.0.26/jetty-http-11.0.26.jar",
     "http2-common": "org/eclipse/jetty/http2/http2-common/11.0.26/http2-common-11.0.26.jar",
     "kotlin-stdlib": "org/jetbrains/kotlin/kotlin-stdlib/2.1.0/kotlin-stdlib-2.1.0.jar",
     "commons-lang3": "org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar",

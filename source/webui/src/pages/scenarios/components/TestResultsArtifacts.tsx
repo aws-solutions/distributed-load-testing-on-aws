@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Container, Header, Box, SpaceBetween, ColumnLayout, Spinner, Table, Button, TextFilter } from "@cloudscape-design/components";
+import { Container, Header, Box, SpaceBetween, ColumnLayout, Spinner, Table, Button, TextFilter, Pagination } from "@cloudscape-design/components";
 import { Amplify } from "aws-amplify";
 import { list, getUrl } from "aws-amplify/storage";
 import { useState, useEffect, useMemo } from "react";
@@ -21,10 +21,12 @@ export function TestResultsArtifacts({ testRunDetails, testId }: TestResultsArti
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filteringText, setFilteringText] = useState("");
+  const [currentPageIndex, setCurrentPageIndex] = useState(1);
 
   const [actualPrefix, setActualPrefix] = useState<string>("");
   const bucketName = Amplify.getConfig().Storage?.S3?.bucket || "[bucket-name]";
   const searchPath = `results/${testId}/`;
+  const pageSize = 50;
 
   useEffect(() => {
     setLoading(true);
@@ -70,6 +72,11 @@ export function TestResultsArtifacts({ testRunDetails, testId }: TestResultsArti
     });
   }, [files, filteringText]);
 
+  const paginatedFiles = useMemo(() => {
+    const startIndex = (currentPageIndex - 1) * pageSize;
+    return filteredFiles.slice(startIndex, startIndex + pageSize);
+  }, [filteredFiles, currentPageIndex]);
+
   const renderFilesList = () => {
     if (loading) {
       return <Spinner />;
@@ -87,7 +94,7 @@ export function TestResultsArtifacts({ testRunDetails, testId }: TestResultsArti
               cell: (item) => item.split("/").pop() || item,
             },
           ]}
-          items={filteredFiles}
+          items={paginatedFiles}
           selectionType="multi"
           selectedItems={selectedItems}
           onSelectionChange={({ detail }) => setSelectedItems(detail.selectedItems)}
@@ -95,8 +102,18 @@ export function TestResultsArtifacts({ testRunDetails, testId }: TestResultsArti
           filter={
             <TextFilter
               filteringText={filteringText}
-              onChange={({ detail }) => setFilteringText(detail.filteringText)}
+              onChange={({ detail }) => {
+                setFilteringText(detail.filteringText);
+                setCurrentPageIndex(1);
+              }}
               filteringPlaceholder="Filter files"
+            />
+          }
+          pagination={
+            <Pagination
+              currentPageIndex={currentPageIndex}
+              onChange={({ detail }) => setCurrentPageIndex(detail.currentPageIndex)}
+              pagesCount={Math.ceil(filteredFiles.length / pageSize)}
             />
           }
         />
