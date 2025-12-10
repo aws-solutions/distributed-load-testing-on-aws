@@ -24,12 +24,39 @@ export const transformScenarioToFormData = (scenario: any, preserveId = false) =
   const scenarioConfig = scenarios[scenarioKey] || {};
   const request = scenarioConfig.requests?.[0] || {};
   
+  let executionTiming = "run-now";
+  let scheduleTime = "";
+  let scheduleDate = "";
+  let cronMinutes = "";
+  let cronHours = "";
+  let cronDayOfMonth = "";
+  let cronMonth = "";
+  let cronDayOfWeek = "";
+  let cronExpiryDate = "";
+  
+  if (scenario.cronValue && typeof scenario.cronValue === 'string') {
+    executionTiming = "run-schedule";
+    const cronParts = scenario.cronValue.split(" ");
+    if (cronParts.length >= 5) {
+      cronMinutes = cronParts[0];
+      cronHours = cronParts[1];
+      cronDayOfMonth = cronParts[2];
+      cronMonth = cronParts[3];
+      cronDayOfWeek = cronParts[4];
+    }
+    cronExpiryDate = scenario.cronExpiryDate || "";
+  } else if (scenario.scheduleDate && scenario.scheduleTime) {
+    executionTiming = "run-once";
+    scheduleDate = scenario.scheduleDate;
+    scheduleTime = scenario.scheduleTime;
+  }
+  
   return {
     testName: preserveId ? scenario.testName || "" : `${scenario.testName || ""} (Copy)`,
     testDescription: scenario.testDescription || "",
     testId: preserveId ? scenario.testId : generateUniqueId(VALIDATION_LIMITS.TEST_ID_LENGTH),
     testType: scenario.testType,
-    executionTiming: "run-now",
+    executionTiming,
     showLive: scenario.showLive,
     scriptFile: preserveId && scenarioConfig.script ? [new File([], scenarioConfig.script)] : [],
     fileError: "",
@@ -38,15 +65,15 @@ export const transformScenarioToFormData = (scenario: any, preserveId = false) =
     httpMethod: { label: request.method || "GET", value: request.method || "GET" },
     requestHeaders: request.headers && typeof request.headers === "object" && Object.keys(request.headers).length > 0 ? JSON.stringify(request.headers, null, 2) : "",
     bodyPayload: getBodyPayload(request.body),
-    scheduleTime: "",
-    scheduleDate: "",
-    cronMinutes: "",
-    cronHours: "",
-    cronDayOfMonth: "",
-    cronMonth: "",
-    cronDayOfWeek: "",
+    scheduleTime,
+    scheduleDate,
+    cronMinutes,
+    cronHours,
+    cronDayOfMonth,
+    cronMonth,
+    cronDayOfWeek,
     cronYear: "",
-    cronExpiryDate: "",
+    cronExpiryDate,
     regions:
       scenario.testTaskConfigs?.map((config: any) => ({
         region: config.region,

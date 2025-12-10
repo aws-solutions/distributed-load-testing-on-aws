@@ -37,15 +37,30 @@ export function ScenarioDetailsContent({ scenario_definition, isRefreshing }: { 
       console.error("Failed to open S3 location for test run results", error);
     }
   };
+  
+  const getFilename = () => {
+    let filename = scenario_definition.testScenario.scenarios[scenario_definition.testName].script;
+    
+    // Handle legacy ZIP files where the filename uses the extension for the underlying test framework instead of .zip (e.g. .jmx)
+    if (scenario_definition.fileType === "zip" && !filename.endsWith(".zip")) {
+      // Replace the file extension with .zip (e.g., test.jmx -> test.zip)
+      const extensionIndex = filename.lastIndexOf('.');
+      filename = filename.substring(0, extensionIndex) + '.zip';
+    }
+    
+    return filename;
+  };
+  
   const handleScriptDownload = async () => {
     try {
-      const filename = `${scenario_definition.testScenario.scenarios[scenario_definition.testName].script}`;
+      const filename = getFilename();
       const url = await getUrl({ path: `public/test-scenarios/${scenario_definition.testType.toLowerCase()}/${filename}` });
       window.open(url.url, "_blank");
     } catch (error) {
       console.error("Error", error);
     }
   };
+  
   const getStatusIndicator = (status: string) => {
     if (!status) 
       return "--";
@@ -104,7 +119,7 @@ export function ScenarioDetailsContent({ scenario_definition, isRefreshing }: { 
                       <Link onFollow={handleScriptDownload}>
                         <Icon name="download" />{" "}
                         <span style={{ fontWeight: "normal" }}>
-                          {scenario_definition.testScenario.scenarios[scenario_definition.testName].script}
+                          {getFilename()}
                         </span>
                       </Link>
                     ) : (

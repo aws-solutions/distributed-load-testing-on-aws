@@ -120,10 +120,12 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
       }
       
       const dates: string[] = [];
+      const offsetMinutes = new Date().getTimezoneOffset();
       while (dates.length < 5) {
-        const nextDate = interval.next().toDate();
-        if (expiryDate && nextDate > expiryDate) break;
-        const formatted = DateTime.fromJSDate(nextDate).toFormat("MMM d, yyyy, h:mm a");
+        const nextDateUTC = interval.next().toDate();
+        if (expiryDate && nextDateUTC > expiryDate) break;
+        const localTime = new Date(nextDateUTC.getTime() - offsetMinutes * 60000);
+        const formatted = DateTime.fromJSDate(localTime).toFormat("MMM d, yyyy, h:mm a");
         if (!dates.includes(formatted)) dates.push(formatted);
       }
 
@@ -256,7 +258,7 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
               <FormField
                 stretch
                 label="Schedule pattern"
-                description="A fine-grained schedule that runs at a specific time, such as 8:00 a.m. PST on the first Monday of every month."
+                description="A fine-grained schedule that runs at a specific time. Specified in UTC."
                 errorText={cronValidationError || undefined}
               >
                 <Grid disableGutters gridDefinition={[{ colspan: 1 }, { colspan: 10 }, { colspan: 1 }]}>
@@ -349,7 +351,7 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
                 />
               </FormField>
               {(nextRun.dates.length > 0 || nextRun.error) && (
-                <FormField label="Next Run Dates" errorText={nextRun.error || undefined}>
+                <FormField label="Next Runs (Local time)" errorText={nextRun.error || undefined}>
                   <Box variant="small">
                     {nextRun.dates.map((date) => (
                       <Box key={date}>• {date}</Box>

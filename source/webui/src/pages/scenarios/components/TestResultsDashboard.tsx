@@ -32,7 +32,7 @@ interface DashboardMetrics {
   successRate: string;
   successRateNum: number;
   httpErrors: Array<{
-    errorCode: number;
+    errorCode: string;
     errorCount: string;
     status: string;
     statusType: 'error' | 'success' | 'warning' | 'info' | 'in-progress' | 'stopped' | 'loading' | 'pending';
@@ -42,6 +42,23 @@ interface DashboardMetrics {
     responseTime: string;
   }>;
 }
+
+const sortHttpErrors = (a: { errorCode: string }, b: { errorCode: string }): number => {
+  const codeA = parseInt(a.errorCode, 10);
+  const codeB = parseInt(b.errorCode, 10);
+  
+  // Both are valid numbers - sort numerically
+  if (!isNaN(codeA) && !isNaN(codeB)) {
+    return codeA - codeB;
+  }
+  
+  // If one is numeric and one isn't, numeric comes first
+  if (!isNaN(codeA)) return -1;
+  if (!isNaN(codeB)) return 1;
+  
+  // Both are non-numeric - sort alphabetically
+  return a.errorCode.localeCompare(b.errorCode);
+};
 
 const formatTime = (timeInSeconds: string | number): string => {
   const time = typeof timeInSeconds === 'string' ? parseFloat(timeInSeconds) : timeInSeconds;
@@ -75,11 +92,10 @@ const calculateMetrics = (selectedRow: TableRow, testRunDetails: TestRunDetails,
     const aggregated = aggregateEndpoints(regionData.labels, testDuration);
     
     // Collect all HTTP errors from all labels
-    const allHttpErrors = new Map<number, number>();
+    const allHttpErrors = new Map<string, number>();
     regionData.labels.forEach(label => {
       label.rc?.forEach(rc => {
-        const code = parseInt(rc.code, 10);
-        allHttpErrors.set(code, (allHttpErrors.get(code) || 0) + rc.count);
+        allHttpErrors.set(rc.code, (allHttpErrors.get(rc.code) || 0) + rc.count);
       });
     });
     
@@ -90,7 +106,7 @@ const calculateMetrics = (selectedRow: TableRow, testRunDetails: TestRunDetails,
         status: 'Error',
         statusType: 'error' as const
       }))
-      .sort((a, b) => a.errorCode - b.errorCode);
+      .sort(sortHttpErrors);
     
     // Build percentiles from aggregated data
     const percentiles = [
@@ -129,11 +145,11 @@ const calculateMetrics = (selectedRow: TableRow, testRunDetails: TestRunDetails,
 
   // Calculate HTTP errors from response codes
   const httpErrors = labelData.rc?.map(rc => ({
-    errorCode: parseInt(rc.code, 10),
+    errorCode: rc.code,
     errorCount: rc.count.toString(),
     status: 'Error',
     statusType: 'error' as const
-  })).sort((a, b) => a.errorCode - b.errorCode) || [];
+  })).sort(sortHttpErrors) || [];
 
   // Build percentiles array
   const percentiles = [
