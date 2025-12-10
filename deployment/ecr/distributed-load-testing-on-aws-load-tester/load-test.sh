@@ -106,7 +106,11 @@ if [ "$TEST_TYPE" != "simple" ]; then
       exit 1
     fi
 
-    sed -i -e "s|$TEST_ID.zip|$TEST_SCRIPT|g" test.json
+    # Update test.json to reference the test script extracted from the zip.
+    # Prior to v4.0, zipped test scripts were stored with their framework's expected extension (e.g. JMeter zip would be ABCDE12345.jmx instead of ABCDE12345.zip).
+    # test.json may reference $TEST_ID.$EXT (legacy to support .jmx) or $TEST_ID.zip (current).
+    # The two sed replacements ensure either file name is correctly updated to the actual test script value.
+    sed -i -e "s|$TEST_ID.$EXT|$TEST_SCRIPT|g" -e "s|$TEST_ID.zip|$TEST_SCRIPT|g" test.json
 
     # copy bundled plugin jars to jmeter extension folder to make them available to jmeter
     BUNDLED_PLUGIN_DIR=`find $PWD -type d -name "plugins" | head -n 1`

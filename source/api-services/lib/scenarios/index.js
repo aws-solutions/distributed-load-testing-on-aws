@@ -699,6 +699,9 @@ const scheduleTest = async (event, context) => { // NOSONAR
 
     //Update DynamoDB if table was not already updated by "create" schedule step
     if (config.scheduleStep || !recurrence) {
+      // Validate and normalize tags
+      const validatedTags = validateTags(config.tags);
+      
       const updateDBData = {
         testId,
         testName: config.testName,
@@ -714,6 +717,7 @@ const scheduleTest = async (event, context) => { // NOSONAR
         fileType: config.fileType,
         cronValue,
         cronExpiryDate,
+        tags: validatedTags,
       };
       let data = await updateTestDBEntry(updateDBData);
       console.log(`Schedule test complete: testId=${testId}, status=scheduled`);

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.2] - 2025-12-09
+
+### Changed
+
+- `jetty-http` package has been reverted to a previous version to support [HTTP2](https://github.com/Blazemeter/jmeter-http2-plugin/blob/master/README.md) JMeter plugin.
+- Improvements to cron-base scheduling with clarification between UTC and local time zones.
+
+### Fixed
+
+- Resolved issues related to zipped files when migrating from v3 for v4. Load tests created in v3 should now correctly reference the existing zip test script and be downloadable from the test scenario page.
+- Fixed a bug where tags would not be saved when creating or updating a scheduled load test.
+- Fixed a bug where non-integer http status code responses would fail to render in the results dashboard.
+
+### Security
+
+- Update to address vulnerability in [CVE-2025-66418](https://nvd.nist.gov/vuln/detail/CVE-2025-66418)
+- Update to address vulnerability in [CVE-2025-66471](https://nvd.nist.gov/vuln/detail/CVE-2025-66471)
+- Upgrade to the latest Amazon Linux base image SHA256 hash
+
 ## [4.0.1] - 2025-11-21
 
 ### Security

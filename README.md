@@ -23,35 +23,49 @@ The intended audience for using this solution's features and capabilities in the
 
 ![Architecture](architecture.png)
 
-The high-level process flow for the solution components deployed with the AWS CloudFormation template is as follows:  
+Deploying this solution with the default parameters deploys the following components in your AWS account.
 
-1. A distributed load tester API, which leverages [Amazon API Gateway](https://aws.amazon.com/api-gateway) to invoke the solution's microservices ([AWS Lambda](https://aws.amazon.com/lambda) functions).
+> **Note**: AWS CloudFormation resources are created from AWS Cloud Development Kit (AWS CDK) constructs.
+
+The high-level process flow for the solution components deployed with the AWS CloudFormation template is as follows:
+
+1. A distributed load tester API leverages [Amazon API Gateway](https://aws.amazon.com/api-gateway) to invoke the solution's microservices ([AWS Lambda](https://aws.amazon.com/lambda) functions).
 
 2. The microservices provide the business logic to manage test data and run the tests.
 
-3. These microservices interact with [Amazon Simple Storage Service](https://aws.amazon.com/s3) (Amazon S3), [Amazon DynamoDB](https://aws.amazon.com/dynamodb), and [AWS Step Functions](https://aws.amazon.com/step-functions) to provide storage for the test scenario details and results and run test scenarios.
+3. These microservices interact with [Amazon Simple Storage Service](https://aws.amazon.com/s3) (Amazon S3), [Amazon DynamoDB](https://aws.amazon.com/dynamodb), and [AWS Step Functions](https://aws.amazon.com/step-functions) to store test scenario details and results and to orchestrate test execution.
 
-4. An [Amazon Virtual Private Cloud](https://aws.amazon.com/vpc) (Amazon VPC) network topology is deployed containing the solution\'s [Amazon Elastic Container Service](https://aws.amazon.com/ecs) (Amazon ECS) containers running on [AWS Fargate](https://aws.amazon.com/fargate).
+4. An [Amazon Virtual Private Cloud](https://aws.amazon.com/vpc) (Amazon VPC) network topology deploys containing the solution's [Amazon Elastic Container Service](https://aws.amazon.com/ecs) (Amazon ECS) containers running on [AWS Fargate](https://aws.amazon.com/fargate).
 
-5. The containers include the [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/) based [Open Container Initiative](https://opencontainers.org/) (OCI) compliant container image with the Taurus open-source test automation framework installed, which orchestrates load generation using Apache JMeter (default), K6, or Locust. The container image is hosted by AWS in an [Amazon Elastic Container Registry](https://aws.amazon.com/ecr) (Amazon ECR) public repository. For more information about the ECR image repository, refer to [Container image customization](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/container-image.html).
+5. The containers use an [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/) base image with the [Taurus](https://gettaurus.org/) load testing framework installed. Taurus is an open-source test automation framework that supports JMeter, K6, Locust, and other testing tools. The container image is [Open Container Initiative](https://opencontainers.org/) (OCI) compliant and hosted by AWS in an [Amazon Elastic Container Registry](https://aws.amazon.com/ecr) (Amazon ECR) public repository. For more information, refer to [Container image customization](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/container-image.html).
 
-6. A web console powered by [AWS Amplify](https://aws.amazon.com/amplify) is deployed it into an Amazon S3 bucket configured for static web hosting.
+6. A web console powered by [AWS Amplify](https://aws.amazon.com/amplify) deploys into an S3 bucket configured for static web hosting.
 
-7. [Amazon CloudFront](https://aws.amazon.com/cloudfront) provides secure, public access to the solution\'s website bucket contents.
+7. [Amazon CloudFront](https://aws.amazon.com/cloudfront) provides secure, public access to the solution's website bucket contents.
 
-8. During initial configuration, this solution also creates a default solution administrator role (IAM role) and sends an access invite to a customer-specified user email address.
+8. During initial configuration, the solution creates a default administrator role (IAM role) and sends an access invite to a customer-specified user email address.
 
-9. An [Amazon Cognito](https://aws.amazon.com/cognito) user pool manages user access to the console and the distributed load tester API.
+9. An [Amazon Cognito](https://aws.amazon.com/cognito) user pool manages user access to the console, the distributed load tester API, and the MCP Server.
 
-10. After you deploy this solution, you can use the web console to create a test scenario that defines a series of tasks.
+10. After you deploy this solution, you can use the web console or APIs to create and run test scenarios that define a series of tasks.
 
-11. The microservices use this test scenario to run Amazon ECS on AWS Fargate tasks in the Regions specified.
+11. The microservices use this test scenario to run ECS tasks on Fargate in the specified Regions.
 
-12. In addition to storing the results in Amazon S3 and DynamoDB, once the test is complete the output is logged in [Amazon CloudWatch](https://aws.amazon.com/cloudwatch).
+12. When the test completes, the solution stores results in S3 and DynamoDB and logs output in [Amazon CloudWatch](https://aws.amazon.com/cloudwatch).
 
-13. If you select the live data option, the solution sends the Amazon CloudWatch logs for the AWS Fargate tasks to a Lambda function during the test, for each Region in which the test was run.
+13. If you enable the live data option, the solution sends CloudWatch logs from the Fargate tasks to a Lambda function during the test for each Region where the test runs.
 
-14. The Lambda function then publishes the data to the corresponding topic in [AWS IoT Core](https://aws.amazon.com/iot-core) in the Region where the main stack was deployed. The web console subscribes to the topic, and you can see the data while the test runs in the web console.
+14. The Lambda function publishes the data to the corresponding topic in [AWS IoT Core](https://aws.amazon.com/iot-core) in the Region where the main stack was deployed. The web console subscribes to the topic and displays real-time data while the test runs.
+
+### MCP Server Integration (Optional)
+
+> **Note**: The following steps describe the optional MCP Server integration for AI-assisted load testing analysis. This component is only deployed if you select the MCP Server option during solution deployment.
+
+15. An MCP client (AI development tool) connects to the [AWS AgentCore Gateway](https://aws.amazon.com/bedrock/agentcore/) endpoint to access the Distributed Load Testing solution's data through the Model Context Protocol. AgentCore Gateway validates the user's Cognito authentication token to ensure authorized access to the MCP server.
+
+16. Upon successful authentication, AgentCore Gateway forwards the MCP tool request to the DLT MCP Server Lambda function. The Lambda function returns the structured data to AgentCore Gateway, which sends it back to the MCP client for AI-assisted analysis and insights.
+
+17. The Lambda function processes the request and queries the appropriate AWS resources (DynamoDB tables, S3 buckets, or CloudWatch logs) to retrieve the requested load testing data.
 
 15. An MCP client (AI development tool) connects to the [AWS AgentCore Gateway](https://aws.amazon.com/bedrock/agentcore/) endpoint to access the Distributed Load Testing solution's data through the Model Context Protocol. AgentCore Gateway validates the user's Cognito authentication token to ensure authorized access to the MCP server.
 . Upon successful authentication, AgentCore Gateway forwards the MCP tool request to the DLT MCP Server Lambda function. The Lambda function returns the structured data to AgentCore Gateway, which sends it back to the MCP client for AI-assisted analysis and insights.
@@ -110,6 +124,9 @@ A NodeJS Lambda function that checks if the Amazon ECS tasks are running or not.
 
 **source/webui**<br/>
 React-based single page application that provides the web console interface for the solution. Built with Cloudscape Design System, Redux for state management, and AWS Amplify for authentication. Authenticated through Amazon Cognito, this dashboard allows users to create tests and view results.
+
+**source/mcp-server**<br/>
+A TypeScript package that implements the Model Context Protocol (MCP) server for AI-assisted load testing analysis. Provides structured access to DLT data through AWS AgentCore Gateway.
 
 ## Local Development
 

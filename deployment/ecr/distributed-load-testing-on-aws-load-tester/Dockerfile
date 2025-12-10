@@ -1,4 +1,4 @@
-FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:c69a151043b0e0e7d0362ab283299267580f5a5a4cf08131eb61b9528eaec882
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:3f6c5a2858113e9bb6710dfccdace7dc698e83f7a012240a1d07b3a46d273999
 
 RUN dnf upgrade -y --refresh && \
     dnf install -y python3.11 python3.11-pip java-21-amazon-corretto bc procps jq findutils unzip && \
@@ -35,6 +35,11 @@ RUN rm -rf /tmp/jmeter-plugins-manager-1* && \
 
 # Add settings file to capture the output logs from bzt cli
 RUN mkdir -p /etc/bzt.d && echo '{"settings": {"artifacts-dir": "/tmp/artifacts"}}' > /etc/bzt.d/90-artifacts-dir.json
+
+# Temporary fix for CVE-2025-66418 and CVE-2025-66471 in urllib3 2.5.0
+# This must be upgraded after bzt setup to satisfy bzt requirements.txt
+# https://github.com/Blazemeter/taurus/blob/647dd34ab318b5d3060a8c6ce2e5b047a0efddd2/requirements.txt
+RUN $PIP_INSTALL 'urllib3>=2.6.0'
 
 WORKDIR /bzt-configs
 ENTRYPOINT ["./load-test.sh"]
