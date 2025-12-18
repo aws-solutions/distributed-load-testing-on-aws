@@ -41,5 +41,9 @@ RUN mkdir -p /etc/bzt.d && echo '{"settings": {"artifacts-dir": "/tmp/artifacts"
 # https://github.com/Blazemeter/taurus/blob/647dd34ab318b5d3060a8c6ce2e5b047a0efddd2/requirements.txt
 RUN $PIP_INSTALL 'urllib3>=2.6.0'
 
+# Temporary fix for CVE-2025-66221 in Werkzeug < 3.1.4
+# This must be upgraded after bzt setup to satisfy bzt requirements.txt
+RUN $PIP_INSTALL 'werkzeug>=3.1.4'
+
 WORKDIR /bzt-configs
 ENTRYPOINT ["./load-test.sh"]
