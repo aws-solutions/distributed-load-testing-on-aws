@@ -76,13 +76,18 @@ if [ "$TEST_TYPE" != "simple" ]; then
     echo "UNZIPPED to temp directory"
     ls -l $TEMP_DIR
     
-    # Find the parent folder and copy its contents
-    PARENT_FOLDER=$(find $TEMP_DIR -mindepth 1 -maxdepth 1 -type d | head -n 1)
-    if [ -n "$PARENT_FOLDER" ]; then
-      echo "Copying contents from parent folder: $PARENT_FOLDER"
+    # Check if there's exactly one directory and no files at root level
+    ROOT_DIRS=$(find $TEMP_DIR -mindepth 1 -maxdepth 1 -type d)
+    ROOT_FILES=$(find $TEMP_DIR -mindepth 1 -maxdepth 1 -type f)
+    
+    # Only unwrap if there's exactly one directory and zero files at root
+    if [ $(echo "$ROOT_DIRS" | wc -l) -eq 1 ] && [ -z "$ROOT_FILES" ]; then
+      PARENT_FOLDER=$(echo "$ROOT_DIRS")
+      echo "Single parent folder detected with no sibling files: $PARENT_FOLDER"
+      echo "Unwrapping contents from parent folder"
       cp -r $PARENT_FOLDER/* ./
     else
-      echo "No parent folder found, copying all contents from temp directory"
+      echo "Multiple items or files at root level detected, copying all contents from temp directory"
       cp -r $TEMP_DIR/* ./
     fi
     
