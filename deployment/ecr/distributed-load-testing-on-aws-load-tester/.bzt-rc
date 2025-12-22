@@ -21,7 +21,6 @@ modules:
     - jpgc-prmctl
     - jpgc-tst
     - jpgc-udp
-    - bzm-http2
     - bzm-random-csv
     plugins-manager:
       download-link: https://search.maven.org/remotecontent?filepath=kg/apc/jmeter-plugins-manager/{version}/jmeter-plugins-manager-{version}.jar
