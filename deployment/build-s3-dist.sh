@@ -42,6 +42,10 @@ main() {
     local source_dir="$project_root"/source
     local cdk_out_dir="$source_dir"/infrastructure/cdk.out
 
+    # Launch Wizard directory
+    version_without_v="${3#v}"
+    local launch_wizard_dist_dir="$deployment_dir/launch-wizard-assets/Default/${version_without_v}"
+
     header "[Init] Remove any old dist files from previous runs"
 
     rm -rf "$global_dist_dir"
@@ -116,6 +120,11 @@ main() {
       fi
     done
     popd
+
+    header "[Packing] Launch Wizard Assets"
+    cd "${launch_wizard_dist_dir}/helpPanels"
+    zip -q -r9 "${launch_wizard_dist_dir}/helpPanels.zip" .
+    cd "${deployment_dir}"
 }
 
 main "$@"

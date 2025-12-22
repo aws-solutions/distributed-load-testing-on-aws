@@ -24,6 +24,7 @@ Affected Jmeter jars:
     * http2-common will be replaced with v11.0.26
     * kotlin-stdlib will be replaced with v2.1.0
     * commons-lang3 will be replaced with v3.18.0
+    * rhino v1.7.14 will be replaced with v1.7.14.1 (fixes CVE-2025-66453)
     * commons-lang v2.5 - no fix available for CVE-2025-48924
 
 Also jmeter plugins manager will be updated to v1.11 to address CVEs and 
@@ -79,6 +80,7 @@ JMETER_COMPONENTS: Dict[str, str] = {
     "http2-common": "org/eclipse/jetty/http2/http2-common/11.0.26/http2-common-11.0.26.jar",
     "kotlin-stdlib": "org/jetbrains/kotlin/kotlin-stdlib/2.1.0/kotlin-stdlib-2.1.0.jar",
     "commons-lang3": "org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar",
+    "rhino": "org/mozilla/rhino/1.7.14.1/rhino-1.7.14.1.jar", # NOSONAR
 }
 
 # Jars to remove from the container
