@@ -19,9 +19,6 @@ Affected Jmeter jars:
     * json-path v2.7.0 will be replaced with v2.9.0
     * dnsjava v2.1.9 will be replaced with v3.6.1
     * xstream will be replaced with v1.4.21
-    * http2-hpack will be replaced with v11.0.26
-    * jetty-http will be replaced with v12.0.25
-    * http2-common will be replaced with v11.0.26
     * kotlin-stdlib will be replaced with v2.1.0
     * commons-lang3 will be replaced with v3.18.0
     * rhino v1.7.14 will be replaced with v1.7.14.1 (fixes CVE-2025-66453)
@@ -68,9 +65,6 @@ JMETER_COMPONENTS: Dict[str, str] = {
     "json-path": "com/jayway/jsonpath/json-path/2.9.0/json-path-2.9.0.jar",
     "dnsjava": "dnsjava/dnsjava/3.6.1/dnsjava-3.6.1.jar",
     "xstream": "com/thoughtworks/xstream/xstream/1.4.21/xstream-1.4.21.jar",
-    "http2-hpack": "org/eclipse/jetty/http2/http2-hpack/11.0.26/http2-hpack-11.0.26.jar",
-    "jetty-http": "org/eclipse/jetty/jetty-http/11.0.26/jetty-http-11.0.26.jar",
-    "http2-common": "org/eclipse/jetty/http2/http2-common/11.0.26/http2-common-11.0.26.jar",
     "kotlin-stdlib": "org/jetbrains/kotlin/kotlin-stdlib/2.1.0/kotlin-stdlib-2.1.0.jar",
     "commons-lang3": "org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar",
     "rhino": "org/mozilla/rhino/1.7.14.1/rhino-1.7.14.1.jar", # NOSONAR
