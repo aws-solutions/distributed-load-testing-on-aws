@@ -198,7 +198,17 @@ exports[`Distributed Load Testing stack test 1`] = `
     "RegionalCFTemplate": {
       "Description": "S3 URL for regional CloudFormation template",
       "Export": {
-        "Name": "RegionalCFTemplate",
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-RegionalCFTemplate",
+            ],
+          ],
+        },
       },
       "Value": {
         "Fn::Join": [
@@ -765,6 +775,9 @@ exports[`Distributed Load Testing stack test 1`] = `
             "SOLUTION_ID": "testId",
             "STACK_ID": {
               "Ref": "AWS::StackId",
+            },
+            "STACK_NAME": {
+              "Ref": "AWS::StackName",
             },
             "STATE_MACHINE_ARN": {
               "Ref": "DLTStepFunctionTaskRunnerStepFunctionsC295A535",
@@ -3409,7 +3422,9 @@ exports[`Distributed Load Testing stack test 1`] = `
             "Fn::Join": [
               "-",
               [
-                "TestDLTStack",
+                {
+                  "Ref": "AWS::StackName",
+                },
                 {
                   "Ref": "AWS::Region",
                 },

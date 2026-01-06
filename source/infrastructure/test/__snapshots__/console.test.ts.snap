@@ -314,7 +314,9 @@ exports[`DLT API Test 1`] = `
             "Fn::Join": [
               "-",
               [
-                "DLTStack",
+                {
+                  "Ref": "AWS::StackName",
+                },
                 {
                   "Ref": "AWS::Region",
                 },

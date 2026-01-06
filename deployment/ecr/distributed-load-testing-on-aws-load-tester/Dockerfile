@@ -6,7 +6,6 @@ RUN dnf upgrade -y --refresh && \
 
 ENV PIP_INSTALL="pip3.11 install --no-cache-dir"
 
-
 # install bzt
 RUN $PIP_INSTALL --upgrade pip && \
     $PIP_INSTALL --upgrade bzt awscli setuptools==78.1.1 h11 && \
@@ -17,6 +16,7 @@ RUN chmod 755 /root/.bzt-rc
 # install bzt tools
 RUN bzt -install-tools -o modules.install-checker.exclude=selenium,gatling,tsung,siege,ab,k6,external-results-loader,junit,testng,rspec,mocha,nunit,xunit,wdio,robot,newman,playwright
 RUN rm -rf /root/.bzt/selenium-taurus
+
 RUN mkdir /bzt-configs /tmp/artifacts
 ADD ./load-test.sh /bzt-configs/
 ADD ./*.jar /bzt-configs/
@@ -45,5 +45,17 @@ RUN $PIP_INSTALL 'urllib3>=2.6.0'
 # This must be upgraded after bzt setup to satisfy bzt requirements.txt
 RUN $PIP_INSTALL 'werkzeug>=3.1.4'
 
+# Create non-root user and set permissions
+RUN dnf install -y shadow-utils
+RUN dnf install -y sudo
+RUN groupadd sudo
+RUN useradd -m -r appuser
+RUN usermod -aG sudo appuser
+RUN echo "appuser ALL=(ALL) NOPASSWD: /usr/bin/rpm" >> /etc/sudoers
+RUN chown -R appuser:appuser /bzt-configs /tmp/artifacts /root/.bzt /root/.bzt-rc /etc/bzt.d
+RUN mv /root/.bzt /home/appuser/.bzt
+RUN mv /root/.bzt-rc /home/appuser/.bzt-rc
+    
+USER appuser
 WORKDIR /bzt-configs
 ENTRYPOINT ["./load-test.sh"]

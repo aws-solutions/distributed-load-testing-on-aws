@@ -24,6 +24,7 @@ const {
   STATE_MACHINE_ARN,
   TASK_CANCELER_ARN,
   STACK_ID,
+  STACK_NAME,
 } = process.env;
 
 let options = utils.getOptions({ region: process.env.AWS_REGION });
@@ -130,7 +131,7 @@ const getCFUrl = async () => {
       exports.push(...listExports.Exports);
       params.NextToken = listExports.NextToken;
     } while (params.NextToken);
-    const result = exports.find((entry) => entry.ExportingStackId === STACK_ID && entry.Name === "RegionalCFTemplate");
+    const result = exports.find((entry) => entry.ExportingStackId === STACK_ID && entry.Name === `${STACK_NAME || ''}-RegionalCFTemplate`);
     return result.Value;
   } catch (err) {
     console.error(err);
