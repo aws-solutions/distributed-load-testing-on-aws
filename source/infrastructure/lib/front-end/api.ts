@@ -212,6 +212,7 @@ export class DLTAPI extends Construct {
         SCENARIOS_TABLE: props.scenariosTableName,
         SOLUTION_ID: props.solution.id,
         STACK_ID: Aws.STACK_ID,
+        STACK_NAME: Aws.STACK_NAME,
         STATE_MACHINE_ARN: props.taskRunnerStepFunctionsArn,
         TASK_CANCELER_ARN: props.taskCancelerArn,
         UUID: props.uuid,

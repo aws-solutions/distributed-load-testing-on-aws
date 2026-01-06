@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.4] - 2025-01-07
+
+### Changed
+
+- Add TASK_COUNT environment variable to ECS tasks (#278)
+
+### Fixed
+
+- Prepend stack name to RegionalCFTemplate stack output and to the Cloudfront response header policy name so that those resources won't conflict when DLT is deployed in an account/region where another DLT stack already exists.
+
+### Security
+
+- Update qs package to v6.14.1 to address vulnerability in [CVE-2025-15284](https://avd.aquasec.com/nvd/cve-2025-15284)
+- Modified the load tester Docker container to run as a non-root user for improved security posture. 
+
 ## [4.0.3] - 2025-12-18
 
 ### Changed

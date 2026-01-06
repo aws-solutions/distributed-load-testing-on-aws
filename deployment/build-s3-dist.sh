@@ -43,8 +43,7 @@ main() {
     local cdk_out_dir="$source_dir"/infrastructure/cdk.out
 
     # Launch Wizard directory
-    version_without_v="${3#v}"
-    local launch_wizard_dist_dir="$deployment_dir/launch-wizard-assets/Default/${version_without_v}"
+    local launch_wizard_dir="$deployment_dir/launch-wizard-assets"
 
     header "[Init] Remove any old dist files from previous runs"
 
@@ -122,9 +121,18 @@ main() {
     popd
 
     header "[Packing] Launch Wizard Assets"
-    cd "${launch_wizard_dist_dir}/helpPanels"
-    zip -q -r9 "${launch_wizard_dist_dir}/helpPanels.zip" .
-    cd "${deployment_dir}"
+    if [ -d "${launch_wizard_dir}" ]; then
+        for profile_dir in "${launch_wizard_dir}"/*; do
+            if [ -d "${profile_dir}" ]; then
+                for version_dir in "${profile_dir}"/*; do
+                    if [ -d "${version_dir}/helpPanels" ]; then
+                        echo "Zipping helpPanels for $(basename "${profile_dir}")/$(basename "${version_dir}")"
+                        (cd "${version_dir}/helpPanels" && zip -q -r9 "${version_dir}/helpPanels.zip" .) || exit 1
+                    fi
+                done
+            fi
+        done
+    fi
 }
 
 main "$@"

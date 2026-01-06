@@ -309,6 +309,7 @@ exports.handler = async (event, context) => {
             { name: "FILE_TYPE", value: fileType },
             { name: "LIVE_DATA_ENABLED", value: `live=${showLive}` },
             { name: "TIMEOUT", value: timeout.toString() },
+            { name: "TASK_COUNT", value: taskCount.toString() },
             { name: "PREFIX", value: event.prefix },
             { name: "SCRIPT", value: "ecslistener.py" },
           ],

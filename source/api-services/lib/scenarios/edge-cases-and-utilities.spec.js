@@ -82,6 +82,7 @@ process.env.LAMBDA_ARN = "arn:of:apilambda";
 process.env.TASK_CANCELER_ARN = "arn:of:taskCanceler";
 process.env.SOLUTION_ID = "SO0062";
 process.env.STACK_ID = "arn:of:cloudformation:stack/stackName/abc-def-hij-123";
+process.env.STACK_NAME = "stackName";
 process.env.VERSION = "3.0.0";
 
 const lambda = require("./index.js");

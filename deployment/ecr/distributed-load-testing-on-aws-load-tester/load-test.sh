@@ -3,6 +3,7 @@
 # set a uuid for the results xml file name in S3
 UUID=$(cat /proc/sys/kernel/random/uuid)
 pypid=0
+echo "CURRENT_USER:: $(whoami)"
 echo "S3_BUCKET:: ${S3_BUCKET}"
 echo "TEST_ID:: ${TEST_ID}"
 echo "TEST_TYPE:: ${TEST_TYPE}"
@@ -52,8 +53,7 @@ if [ "$TEST_TYPE" != "simple" ]; then
     cp $PWD/*.jar $JMETER_LIB_PATH 
   elif [ "$TEST_TYPE" == "k6" ]; then
     curl --output /tmp/artifacts/k6.rpm https://dl.k6.io/rpm/x86_64/k6-v0.58.0-amd64.rpm
-    rpm -ivh /tmp/artifacts/k6.rpm
-    dnf install -y k6
+    sudo rpm -ivh /tmp/artifacts/k6.rpm
     rm -rf /tmp/artifacts/k6.rpm
     EXT="js"
     KPI_EXT="csv"

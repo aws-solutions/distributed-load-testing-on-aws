@@ -560,7 +560,7 @@ export class DLTStack extends Stack {
       value: dltStorage.scenariosBucket.urlForObject(
         "regional-template/distributed-load-testing-on-aws-regional.template"
       ),
-      exportName: "RegionalCFTemplate",
+      exportName: `${Aws.STACK_NAME}-RegionalCFTemplate`,
     });
     new CfnOutput(this, "CognitoUserPoolID", {
       description: "Cognito User Pool ID",
