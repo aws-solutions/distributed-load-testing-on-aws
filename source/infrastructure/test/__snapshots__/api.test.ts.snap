@@ -183,6 +183,9 @@ exports[`DLT API Test 1`] = `
             "STACK_ID": {
               "Ref": "AWS::StackId",
             },
+            "STACK_NAME": {
+              "Ref": "AWS::StackName",
+            },
             "STATE_MACHINE_ARN": "arn:aws:states:us-east-1:111122223333:stateMachine:HelloWorld-StateMachine",
             "TASK_CANCELER_ARN": "arn:aws:lambda:us-east-1:111122223333:function:HelloFunction",
             "UUID": "abc123",

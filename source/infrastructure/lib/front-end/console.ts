@@ -26,7 +26,7 @@ export class DLTConsoleConstruct extends Construct {
     // Region is included in the name for multi-region deployments
     const responseHeadersPolicyProps: ResponseHeadersPolicyProps = {
       responseHeadersPolicyName: Fn.join("-", [
-        Stack.of(this).stackName,
+        Aws.STACK_NAME,
         Aws.REGION,
         "rhp", // Short for "response headers policy" to minimize length
       ]),

@@ -124,6 +124,7 @@ let mockParam = {
           { name: "FILE_TYPE", value: "none" },
           { name: "LIVE_DATA_ENABLED", value: "live=true" },
           { name: "TIMEOUT", value: calcTimeout(event.testTaskConfig.taskCount) },
+          { name: "TASK_COUNT", value: event.testTaskConfig.taskCount.toString() },
           { name: "PREFIX", value: event.prefix },
           { name: "SCRIPT", value: "ecslistener.py" },
         ],
@@ -269,6 +270,7 @@ describe("#TASK RUNNER:: ", () => {
 
     event.testTaskConfig.taskCount = 20;
     modifyContainerOverrides("TIMEOUT", calcTimeout(event.testTaskConfig.taskCount));
+    modifyContainerOverrides("TASK_COUNT", event.testTaskConfig.taskCount.toString());
     let tasks = getTaskIds(19);
     let expectedResponse = {
       isRunning: true,
@@ -300,7 +302,7 @@ describe("#TASK RUNNER:: ", () => {
     expect(response).toEqual(expect.objectContaining(expectedResponse));
   });
   it("should return when launching leader task is successful", async () => {
-    mockParam.overrides.containerOverrides[0].environment[8].value = "ecscontroller.py";
+    modifyContainerOverrides("SCRIPT", "ecscontroller.py");
     mockParam.overrides.containerOverrides[0].environment.push({ name: "IPNETWORK", value: "" });
     let taskIds = getTaskIds(5);
     event.taskIds = taskIds;
@@ -381,6 +383,7 @@ describe("#TASK RUNNER:: ", () => {
     try {
       event.testTaskConfig.taskCount = 1;
       modifyContainerOverrides("TIMEOUT", calcTimeout(event.testTaskConfig.taskCount));
+      modifyContainerOverrides("TASK_COUNT", event.testTaskConfig.taskCount.toString());
       await lambda.handler(event);
     } catch (error) {
       let expectedParam = { ...mockParam, count: 1 };
@@ -412,7 +415,9 @@ describe("#TASK RUNNER:: ", () => {
     mockS3.putObject.mockResolvedValueOnce({});
 
     try {
-      event.taskCount = 1;
+      event.testTaskConfig.taskCount = 1;
+      modifyContainerOverrides("TIMEOUT", calcTimeout(event.testTaskConfig.taskCount));
+      modifyContainerOverrides("TASK_COUNT", event.testTaskConfig.taskCount.toString());
       await lambda.handler(event);
     } catch (error) {
       let expectedParam = { ...mockParam, count: 1 };
