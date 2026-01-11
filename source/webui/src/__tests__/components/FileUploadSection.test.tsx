@@ -73,4 +73,54 @@ describe("FileUploadSection", () => {
       fileError: "",
     });
   });
+
+  test("k6 accepts TypeScript (.ts) files when acknowledged", () => {
+    const k6FormData = { ...defaultFormData, testType: TestTypes.K6 };
+
+    render(<FileUploadSection formData={k6FormData} updateFormData={mockUpdateFormData} />);
+
+    const checkbox = screen.getByRole("checkbox");
+    fireEvent.click(checkbox);
+
+    const fileInput = screen.getByLabelText(/Choose file/i);
+    const mockFile = new File(["test content"], "test.ts", { type: "application/typescript" });
+
+    fireEvent.change(fileInput, { target: { files: [mockFile] } });
+
+    expect(mockUpdateFormData).toHaveBeenCalledWith({
+      scriptFile: [mockFile],
+      fileError: "",
+    });
+  });
+
+  test("k6 accepts both .js and .ts files", () => {
+    const k6FormData = { ...defaultFormData, testType: TestTypes.K6 };
+
+    render(<FileUploadSection formData={k6FormData} updateFormData={mockUpdateFormData} />);
+
+    const checkbox = screen.getByRole("checkbox");
+    fireEvent.click(checkbox);
+
+    const fileInput = screen.getByLabelText(/Choose file/i);
+
+    // Test .js file
+    const jsFile = new File(["js content"], "test.js", { type: "application/javascript" });
+    fireEvent.change(fileInput, { target: { files: [jsFile] } });
+
+    expect(mockUpdateFormData).toHaveBeenCalledWith({
+      scriptFile: [jsFile],
+      fileError: "",
+    });
+
+    mockUpdateFormData.mockClear();
+
+    // Test .ts file
+    const tsFile = new File(["ts content"], "test.ts", { type: "application/typescript" });
+    fireEvent.change(fileInput, { target: { files: [tsFile] } });
+
+    expect(mockUpdateFormData).toHaveBeenCalledWith({
+      scriptFile: [tsFile],
+      fileError: "",
+    });
+  });
 });
