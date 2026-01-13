@@ -1,4 +1,4 @@
-FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:3f6c5a2858113e9bb6710dfccdace7dc698e83f7a012240a1d07b3a46d273999
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:261fe8f87417b361b32182ce6dfe86d0dd784f350878939d64c31607fdcd0389
 
 RUN dnf upgrade -y --refresh && \
     dnf install -y python3.11 python3.11-pip java-21-amazon-corretto bc procps jq findutils unzip && \
