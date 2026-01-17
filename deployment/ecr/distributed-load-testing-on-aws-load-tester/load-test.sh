@@ -65,7 +65,21 @@ if [ "$TEST_TYPE" != "simple" ]; then
   fi
 
   if [ "$FILE_TYPE" != "zip" ]; then
-    aws s3 cp s3://$S3_BUCKET/public/test-scenarios/$TEST_TYPE/$TEST_ID.$EXT ./ --region $MAIN_STACK_REGION
+    # For k6, try .js first, then .ts if .js doesn't exist (k6 v0.57+ supports TypeScript natively)
+    if [ "$TEST_TYPE" == "k6" ]; then
+      if aws s3 ls s3://$S3_BUCKET/public/test-scenarios/$TEST_TYPE/$TEST_ID.js --region $MAIN_STACK_REGION 2>/dev/null; then
+        aws s3 cp s3://$S3_BUCKET/public/test-scenarios/$TEST_TYPE/$TEST_ID.js ./ --region $MAIN_STACK_REGION
+        EXT="js"
+      elif aws s3 ls s3://$S3_BUCKET/public/test-scenarios/$TEST_TYPE/$TEST_ID.ts --region $MAIN_STACK_REGION 2>/dev/null; then
+        aws s3 cp s3://$S3_BUCKET/public/test-scenarios/$TEST_TYPE/$TEST_ID.ts ./ --region $MAIN_STACK_REGION
+        EXT="ts"
+      else
+        echo "Error: No .js or .ts file found for test $TEST_ID"
+        exit 1
+      fi
+    else
+      aws s3 cp s3://$S3_BUCKET/public/test-scenarios/$TEST_TYPE/$TEST_ID.$EXT ./ --region $MAIN_STACK_REGION
+    fi
   else
     aws s3 cp s3://$S3_BUCKET/public/test-scenarios/$TEST_TYPE/$TEST_ID.zip ./ --region $MAIN_STACK_REGION
     
@@ -98,7 +112,14 @@ if [ "$TEST_TYPE" != "simple" ]; then
     ls -l
 
     # Identify the correct test file
-    if [ "$TEST_TYPE" != "locust" ]; then
+    if [ "$TEST_TYPE" == "k6" ]; then
+      # For k6, look for .js or .ts files (k6 v0.57+ supports TypeScript natively)
+      TEST_SCRIPT=$(find . -name "*.js" -o -name "*.ts" | head -n 1)
+      if [ ! -z "$TEST_SCRIPT" ]; then
+        # Update EXT based on the actual file found
+        EXT="${TEST_SCRIPT##*.}"
+      fi
+    elif [ "$TEST_TYPE" != "locust" ]; then
       # Only looks for the first test script file.
       TEST_SCRIPT=$(find . -name "*.${EXT}" | head -n 1)
     else 
