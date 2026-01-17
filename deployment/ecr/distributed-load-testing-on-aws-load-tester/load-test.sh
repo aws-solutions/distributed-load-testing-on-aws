@@ -114,7 +114,11 @@ if [ "$TEST_TYPE" != "simple" ]; then
     # Identify the correct test file
     if [ "$TEST_TYPE" == "k6" ]; then
       # For k6, look for .js or .ts files (k6 v0.57+ supports TypeScript natively)
-      TEST_SCRIPT=$(find . -name "*.js" -o -name "*.ts" | head -n 1)
+      # Prefer .js over .ts for consistency with non-zip file handling
+      TEST_SCRIPT=$(find . -name "*.js" | head -n 1)
+      if [ -z "$TEST_SCRIPT" ]; then
+        TEST_SCRIPT=$(find . -name "*.ts" | head -n 1)
+      fi
       if [ ! -z "$TEST_SCRIPT" ]; then
         # Update EXT based on the actual file found
         EXT="${TEST_SCRIPT##*.}"
