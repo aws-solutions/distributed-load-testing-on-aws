@@ -33,6 +33,10 @@ RUN rm -rf /tmp/jmeter-plugins-manager-1* && \
     rm -rf /usr/local/lib/python3.11/site-packages/setuptools-65.5.0.dist-info && \
     rm -rf /usr/local/lib/python3.11/site-packages/urllib3-1.26.17.dist-info
 
+# Remove vulnerable jaraco.context 5.3.0 vendored in setuptools (GHSA-58pv-8j8x-9vj2)
+RUN rm -rf /usr/local/lib/python3.11/site-packages/setuptools/_vendor/jaraco.context-5.3.0.dist-info && \
+    rm -rf /usr/local/lib/python3.11/site-packages/setuptools/_vendor/jaraco/context.py
+
 # Add settings file to capture the output logs from bzt cli
 RUN mkdir -p /etc/bzt.d && echo '{"settings": {"artifacts-dir": "/tmp/artifacts"}}' > /etc/bzt.d/90-artifacts-dir.json
 

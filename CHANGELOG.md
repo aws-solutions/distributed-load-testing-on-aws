@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.6] - 2026-01-22
+
+### Security
+
+- Remove jaraco.context after installing bzt in the DLT docker image in order to address vulnerabilities in [GHSA-58pv-8j8x-9vj2](https://github.com/advisories/GHSA-58pv-8j8x-9vj2). 
+
 ## [4.0.5] - 2026-01-13
 
 ### Security
