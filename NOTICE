@@ -238,12 +238,15 @@ isexe under the ISC license
 @aws-sdk/client-personalize-events under the Apache-2.0 license
 @aws-sdk/client-sso under the Apache-2.0 license
 @aws-sdk/client-sts under the Apache-2.0 license
+@aws-sdk/crc64-nvme under the Apache-2.0 license
 @aws-sdk/credential-provider-env under the Apache-2.0 license
 @aws-sdk/credential-provider-ini under the Apache-2.0 license
 @aws-sdk/credential-provider-node under the Apache-2.0 license
 @aws-sdk/credential-provider-process under the Apache-2.0 license
 @aws-sdk/credential-provider-sso under the Apache-2.0 license
 @aws-sdk/credential-provider-web-identity under the Apache-2.0 license
+@aws-sdk/credential-provider-login under the Apache-2.0 license
+@aws-sdk/dynamodb-codec under the Apache-2.0 license
 @aws-sdk/middleware-host-header under the Apache-2.0 license
 @aws-sdk/middleware-logger under the Apache-2.0 license
 @aws-sdk/middleware-recursion-detection under the Apache-2.0 license

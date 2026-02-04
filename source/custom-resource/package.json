@@ -1,6 +1,6 @@
 {
   "name": "custom-resource",
-  "version": "4.0.7",
+  "version": "4.0.8",
   "description": "cfn custom resources for distributed load testing on AWS workflow",
   "repository": {
     "type": "git",
@@ -20,10 +20,10 @@
     "axios": "^1.8.3",
     "js-yaml": "^4.1.0",
     "solution-utils": "file:../solution-utils",
-    "@aws-sdk/client-dynamodb": "^3.758.0",
-    "@aws-sdk/client-iot": "^3.758.0",
-    "@aws-sdk/client-s3": "^3.758.0",
-    "@aws-sdk/lib-dynamodb": "3.786.0",
+    "@aws-sdk/client-dynamodb": "^3.981.0",
+    "@aws-sdk/client-iot": "^3.981.0",
+    "@aws-sdk/client-s3": "^3.981.0",
+    "@aws-sdk/lib-dynamodb": "3.981.0",
     "uuid": "^8.3.1"
   },
   "devDependencies": {

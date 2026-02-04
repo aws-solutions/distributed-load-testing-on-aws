@@ -4,7 +4,7 @@
     "@aws-cdk/core:stackRelativeExports": false,
     "@aws-cdk/aws-cloudfront:defaultSecurityPolicyTLSv1.2_2021": false,
     "solutionId": "SO0062",
-    "solutionVersion": "custom-v4.0.7",
+    "solutionVersion": "custom-v4.0.8",
     "solutionName": "distributed-load-testing-on-aws"
   }
 }

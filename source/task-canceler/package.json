@@ -1,6 +1,6 @@
 {
   "name": "task-canceler",
-  "version": "4.0.7",
+  "version": "4.0.8",
   "description": "Triggered by api-services lambda function, cancels ecs tasks",
   "repository": {
     "type": "git",
@@ -17,11 +17,11 @@
     "test": "jest lib/*.spec.js --coverage --silent"
   },
   "dependencies": {
-    "@aws-sdk/client-cloudwatch": "^3.758.0",
-    "@aws-sdk/client-cloudwatch-logs": "^3.758.0",
-    "@aws-sdk/client-ecs": "^3.758.0",
-    "@aws-sdk/client-dynamodb": "^3.758.0",
-    "@aws-sdk/lib-dynamodb": "^3.758.0",
+    "@aws-sdk/client-cloudwatch": "^3.981.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.981.0",
+    "@aws-sdk/client-ecs": "^3.981.0",
+    "@aws-sdk/client-dynamodb": "^3.981.0",
+    "@aws-sdk/lib-dynamodb": "^3.981.0",
     "solution-utils": "file:../solution-utils"
   },
   "devDependencies": {

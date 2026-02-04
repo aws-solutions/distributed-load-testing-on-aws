@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.8] - 2026-02-04
+
+### Security
+
+- Upgrade aws-sdk to v3.981.0 to address vulnerability in [CVE-2026-25128](https://avd.aquasec.com/nvd/2026/cve-2026-25128/)
+
 ## [4.0.7] - 2026-01-29
 
 ### Added
@@ -19,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- Remove jaraco.context after installing bzt in the DLT docker image in order to address vulnerabilities in [GHSA-58pv-8j8x-9vj2](https://github.com/advisories/GHSA-58pv-8j8x-9vj2). 
+- Remove jaraco.context after installing bzt in the DLT docker image in order to address vulnerabilities in [GHSA-58pv-8j8x-9vj2](https://github.com/advisories/GHSA-58pv-8j8x-9vj2).
 
 ## [4.0.5] - 2026-01-13
 
@@ -41,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - Update qs package to v6.14.1 to address vulnerability in [CVE-2025-15284](https://avd.aquasec.com/nvd/cve-2025-15284)
-- Modified the load tester Docker container to run as a non-root user for improved security posture. 
+- Modified the load tester Docker container to run as a non-root user for improved security posture.
 
 ## [4.0.3] - 2025-12-18
 

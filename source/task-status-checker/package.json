@@ -1,6 +1,6 @@
 {
   "name": "task-status-checker",
-  "version": "4.0.7",
+  "version": "4.0.8",
   "description": "checks if tasks are running or not",
   "repository": {
     "type": "git",
@@ -17,10 +17,10 @@
     "test": "jest lib/*.spec.js --coverage --silent"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.758.0",
-    "@aws-sdk/client-ecs": "^3.758.0",
-    "@aws-sdk/client-lambda": "^3.758.0",
-    "@aws-sdk/lib-dynamodb": "3.786.0",
+    "@aws-sdk/client-dynamodb": "^3.981.0",
+    "@aws-sdk/client-ecs": "^3.981.0",
+    "@aws-sdk/client-lambda": "^3.981.0",
+    "@aws-sdk/lib-dynamodb": "3.981.0",
     "solution-utils": "file:../solution-utils"
   },
   "devDependencies": {

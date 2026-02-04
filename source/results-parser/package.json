@@ -1,6 +1,6 @@
 {
   "name": "results-parser",
-  "version": "4.0.7",
+  "version": "4.0.8",
   "description": "result parser for indexing xml test results to DynamoDB",
   "repository": {
     "type": "git",
@@ -20,11 +20,11 @@
     "axios": "^1.8.3",
     "solution-utils": "file:../solution-utils",
     "xml-js": "^1.6.11",
-    "@aws-sdk/lib-dynamodb": "^3.758.0",
-    "@aws-sdk/client-dynamodb": "^3.758.0",
-    "@aws-sdk/client-s3": "^3.758.0",
-    "@aws-sdk/client-cloudwatch": "^3.758.0",
-    "@aws-sdk/client-cloudwatch-logs": "^3.758.0"
+    "@aws-sdk/lib-dynamodb": "^3.981.0",
+    "@aws-sdk/client-dynamodb": "^3.981.0",
+    "@aws-sdk/client-s3": "^3.981.0",
+    "@aws-sdk/client-cloudwatch": "^3.981.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.981.0"
   },
   "devDependencies": {
     "axios-mock-adapter": "1.19.0",
