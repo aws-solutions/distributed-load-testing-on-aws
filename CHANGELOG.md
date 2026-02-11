@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.9] - 2026-02-11
+
+### Changed
+
+- Increased JMeter heap size for improved test stability
+
+### Security
+
+- Updated Docker base image (amazonlinux:2023-minimal) to latest digest to address HIGH severity vulnerabilities in curl, libcurl, gnupg2, libgcrypt, gnutls, systemd, and nettle
+- Updated Docker base image (amazonlinux:2023-minimal) to address vulnerabilities in:
+  - [CVE-2025-15467](https://nvd.nist.gov/vuln/detail/CVE-2025-15467) (openssl)
+  - [CVE-2026-21945](https://nvd.nist.gov/vuln/detail/CVE-2026-21945) (java-21-amazon-corretto)
+  - [CVE-2026-21932](https://nvd.nist.gov/vuln/detail/CVE-2026-21932) (java-21-amazon-corretto)
+  - [CVE-2026-21441](https://nvd.nist.gov/vuln/detail/CVE-2026-21441) (python3.11-pip)
+  - [CVE-2025-61731](https://nvd.nist.gov/vuln/detail/CVE-2025-61731) (libcap)
+  - [CVE-2025-13151](https://nvd.nist.gov/vuln/detail/CVE-2025-13151) (libtasn1)
+  - [CVE-2025-68973](https://nvd.nist.gov/vuln/detail/CVE-2025-68973) (gnupg2-minimal)
+  - [CVE-2025-68119](https://nvd.nist.gov/vuln/detail/CVE-2025-68119) (libcap)
+- Upgraded axios to 1.13.5 to address denial-of-service vulnerability in [CVE-2026-25639](https://nvd.nist.gov/vuln/detail/CVE-2026-25639)
+- Pinned @aws-amplify/ui-react to version 6.13.2 and added lodash override (^4.17.23) to address prototype pollution vulnerability in [CVE-2020-8203](https://nvd.nist.gov/vuln/detail/CVE-2020-8203)
+
 ## [4.0.8] - 2026-02-04
 
 ### Security

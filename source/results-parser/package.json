@@ -1,6 +1,6 @@
 {
   "name": "results-parser",
-  "version": "4.0.8",
+  "version": "4.0.9",
   "description": "result parser for indexing xml test results to DynamoDB",
   "repository": {
     "type": "git",
@@ -17,7 +17,7 @@
     "test": "jest --coverage --silent"
   },
   "dependencies": {
-    "axios": "^1.8.3",
+    "axios": "^1.13.5",
     "solution-utils": "file:../solution-utils",
     "xml-js": "^1.6.11",
     "@aws-sdk/lib-dynamodb": "^3.981.0",

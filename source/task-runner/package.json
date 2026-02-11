@@ -1,6 +1,6 @@
 {
   "name": "task-runner",
-  "version": "4.0.8",
+  "version": "4.0.9",
   "description": "Triggered by Step Functions, runs ecs task Definitions",
   "repository": {
     "type": "git",

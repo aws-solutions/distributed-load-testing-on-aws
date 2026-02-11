@@ -162,6 +162,9 @@ export class ECSResourcesConstruct extends Construct {
         streamPrefix: "load-testing",
         logGroup: this.ecsCloudWatchLogGroup,
       }),
+      environment: {
+        JVM_ARGS: "-Xms1g -Xmx3g",
+      },
     });
     Tags.of(dltTaskDefinition).add("SolutionId", props.solutionId);
     this.taskDefinitionArn = dltTaskDefinition.taskDefinitionArn;

@@ -114,6 +114,12 @@ exports[`DLT ECS Test 1`] = `
       "Properties": {
         "ContainerDefinitions": [
           {
+            "Environment": [
+              {
+                "Name": "JVM_ARGS",
+                "Value": "-Xms1g -Xmx3g",
+              },
+            ],
             "Essential": true,
             "Image": {
               "Fn::If": [

@@ -1,6 +1,6 @@
 {
   "name": "solution-utils",
-  "version": "4.0.8",
+  "version": "4.0.9",
   "description": "Utilities package for Distributed Load Testing on AWS",
   "license": "Apache-2.0",
   "author": {
@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "nanoid": "^3.1.25",
-    "axios": "^1.8.3"
+    "axios": "^1.13.5"
   },
   "devDependencies": {
     "jest": "29.7.0",
