@@ -55,6 +55,8 @@ test("DLT API Test", () => {
     solutionId: "testId",
     uuid: "abc-123-def-456",
     solutionVersion: "testVersion",
+    autoUpdateContainerImage: "Yes",
+    deployMcpServer: "No",
   });
 
   expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();

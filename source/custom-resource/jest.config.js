@@ -2,8 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 module.exports = {
-  roots: ["<rootDir>/lib"],
+  roots: ["<rootDir>"],
   testMatch: ["**/*.spec.js"],
-  collectCoverageFrom: ["**/*.js"],
+  collectCoverageFrom: [
+    "**/*.js",
+    "!**/node_modules/**",
+    "!**/coverage/**",
+    "!jest.config.js",
+    "!**/*.spec.js"
+  ],
   coverageReporters: ["text", "clover", "json", ["lcov", { projectRoot: "../../" }]],
 };

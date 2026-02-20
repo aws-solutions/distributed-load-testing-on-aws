@@ -1924,6 +1924,14 @@ node-fetch under the MIT license
 exit under the MIT license
 @rollup/rollup-linux-loong64-gnu under the MIT license
 @rollup/rollup-win32-x64-gnu under the MIT license
+@material/material-color-utilities under the Apache-2.0 license
+@rollup/rollup-linux-loong64-musl under the MIT license
+@rollup/rollup-linux-ppc64-musl under the MIT license
+@rollup/rollup-openbsd-x64 under the MIT license
+@inquirer/ansi under the MIT license
+tagged-tag under the MIT license
+until-async under the MIT license
+generator-function under the MIT license
 
 
 

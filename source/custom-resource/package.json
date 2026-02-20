@@ -1,6 +1,6 @@
 {
   "name": "custom-resource",
-  "version": "4.0.9",
+  "version": "4.0.10",
   "description": "cfn custom resources for distributed load testing on AWS workflow",
   "repository": {
     "type": "git",
@@ -14,17 +14,16 @@
   "main": "index.js",
   "scripts": {
     "clean": "rm -rf node_modules package-lock.json",
-    "test": "jest lib/**/*.spec.js --coverage --silent"
+    "test": "jest --coverage --silent"
   },
   "dependencies": {
     "axios": "^1.13.5",
     "js-yaml": "^4.1.0",
     "solution-utils": "file:../solution-utils",
-    "@aws-sdk/client-dynamodb": "^3.981.0",
-    "@aws-sdk/client-iot": "^3.981.0",
-    "@aws-sdk/client-s3": "^3.981.0",
-    "@aws-sdk/lib-dynamodb": "3.981.0",
-    "uuid": "^8.3.1"
+    "@aws-sdk/client-dynamodb": "^3.993.0",
+    "@aws-sdk/client-iot": "^3.993.0",
+    "@aws-sdk/client-s3": "^3.993.0",
+    "@aws-sdk/lib-dynamodb": "^3.993.0"
   },
   "devDependencies": {
     "axios-mock-adapter": "1.19.0",

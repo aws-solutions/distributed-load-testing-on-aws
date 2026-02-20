@@ -3,6 +3,7 @@
 
 // build an array of breadcrumb items, one for each element of the given path
 import { BreadcrumbGroupProps } from "@cloudscape-design/components";
+import { formatToLocalTime } from "../../utils/dateUtils";
 
 /**
  * 
@@ -59,22 +60,14 @@ const pathLabels: Record<string, string> = {
  * @returns Formatted date string in local time (e.g., "Nov 10, 2025, 4:07 PM")
  */
 function formatDate(isoString: string): string {
-  try {
-    const date = new Date(isoString);
-    const dateStr = date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
-    const timeStr = date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-    return `${dateStr}, ${timeStr}`;
-  } catch {
-    return isoString; // Fallback to original string if parsing fails
-  }
+  return formatToLocalTime(isoString, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
 }
 
 /**

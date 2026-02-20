@@ -3,6 +3,7 @@
 
 import { LabelMetrics, TableRow, TestResults, TestRunDetails } from "../types/testResults";
 import { AggregateMetrics, ViewMode } from "../types/viewMode";
+import { formatToLocalTime } from "../../../utils/dateUtils";
 
 /**
  * Aggregates all endpoint metrics into a single combined metric set, used to visualize the Overall tab.
@@ -150,7 +151,7 @@ function transformToOverall(testRun: TestRunDetails): TableRow[] {
   return [
     {
       id: "overall-aggregate",
-      run: new Date(testRun.startTime).toLocaleString(),
+      run: formatToLocalTime(testRun.startTime),
       region: "total",
       testLabel: "--",
       requests: aggregated.requests,
@@ -190,7 +191,7 @@ function transformToByEndpoint(testRun: TestRunDetails): TableRow[] {
     
     tableData.push({
       id: `total-${label.label}-${labelIndex}`,
-      run: new Date(testRun.startTime).toLocaleString(),
+      run: formatToLocalTime(testRun.startTime),
       region: "total",
       testLabel: label.label,
       requests: label.throughput,
@@ -233,7 +234,7 @@ function transformToByRegion(testRun: TestRunDetails): TableRow[] {
       
       tableData.push({
         id: `${regionKey}-${label.label}-${labelIndex}`,
-        run: new Date(testRun.startTime).toLocaleString(),
+        run: formatToLocalTime(testRun.startTime),
         region: regionKey,
         testLabel: label.label,
         requests: label.throughput,

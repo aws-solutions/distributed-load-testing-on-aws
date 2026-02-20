@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.10] - 2026-02-23
+
+### Added
+
+- Add support for k6 typescript scripts (#282)
+
+### Changed
+
+- Include CloudFormation parameters AutoUpdateContainerImage and DeployMcpServer in usage telemetry
+
+### Fixed
+
+- Remove conditions that disable the Auto Refresh button in the front-end
+- Fix timezone conversion defects in the front-end
+- Add HEAD permission to CORS to fix multi-part uploads (#293)
+
+### Security
+
+- Upgrade aws-sdk to resolve fast-xml-parser [CVE-2026-26278](https://avd.aquasec.com/nvd/cve-2026-26278)
+- Replace uuid package with native crypto.randomUUID in order to comply with RFC 4122.
+
 ## [4.0.9] - 2026-02-11
 
 ### Changed

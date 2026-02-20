@@ -9,6 +9,7 @@ import {
   SpaceBetween,
   Table
 } from "@cloudscape-design/components";
+import { formatToLocalTime } from "../../../utils/dateUtils";
 import { TestRunDetails } from "../types/testResults";
 
 interface ScenarioMetadataProps {
@@ -20,22 +21,16 @@ interface ScenarioMetadataProps {
 export function ScenarioMetadata({ testRun, testId, testRunId }: ScenarioMetadataProps) {
   // Helper function to format timestamps to local time
   const formatTimestamp = (timestamp: string) => {
-    if (!timestamp) return '-';
-    try {
-      const date = new Date(timestamp);
-      return date.toLocaleString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
-      });
-    } catch {
-      return timestamp;
-    }
+    return formatToLocalTime(timestamp, {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
   };
 
   // Helper function to get execution details

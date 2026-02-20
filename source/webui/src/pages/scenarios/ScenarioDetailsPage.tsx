@@ -84,8 +84,8 @@ export default function ScenarioDetailsPage() {
       progressRef.current = null;
     }
     
-    // Only start timer if auto-refresh is enabled AND scenario is running
-    if (isAutoRefreshEnabled && scenario?.status === "running") {
+    // Start timer if auto-refresh is enabled (regardless of scenario status)
+    if (isAutoRefreshEnabled) {
       setProgress(0);
       
       // Update progress every 100ms
@@ -114,7 +114,7 @@ export default function ScenarioDetailsPage() {
         }
       }, 100);
     } else {
-      // Reset progress when auto-refresh is disabled or test is not running
+      // Reset progress when auto-refresh is disabled
       setProgress(0);
     }
     
@@ -125,7 +125,7 @@ export default function ScenarioDetailsPage() {
         progressRef.current = null;
       }
     };
-  }, [isAutoRefreshEnabled, scenario?.status, currentInterval, refetch, refreshTrigger]);
+  }, [isAutoRefreshEnabled, currentInterval, refetch, refreshTrigger]);
 
 
   const handleManualRefresh = async () => {
@@ -250,7 +250,7 @@ export default function ScenarioDetailsPage() {
                     >
                       Auto Refresh
                     </ButtonDropdown>
-                    {isAutoRefreshEnabled && scenario?.status === "running" && (
+                    {isAutoRefreshEnabled && (
                       <ProgressBar 
                         status="in-progress"
                         value={progress}

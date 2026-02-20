@@ -3803,6 +3803,12 @@ exports[`Distributed Load Testing stack test 1`] = `
         "AccountId": {
           "Ref": "AWS::AccountId",
         },
+        "AutoUpdateContainerImage": {
+          "Ref": "UseStableTagging",
+        },
+        "DeployMcpServer": {
+          "Ref": "DeployMCPServer",
+        },
         "Region": {
           "Ref": "AWS::Region",
         },
@@ -5639,6 +5645,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                 "GET",
                 "POST",
                 "PUT",
+                "HEAD",
               ],
               "AllowedOrigins": [
                 {

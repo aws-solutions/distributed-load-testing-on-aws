@@ -7,16 +7,16 @@ import { TableColumn } from "./types";
 
 // Utility functions for test scenario form operations
 
-export const getFileExtension = (testType: string): string => {
+export const getFileExtension = (testType: string): string[] => {
   switch (testType) {
     case "jmeter":
-      return ".jmx";
+      return [".jmx"];
     case "k6":
-      return ".js";
+      return [".ts", ".js"];
     case "locust":
-      return ".py";
+      return [".py"];
     default:
-      return "";
+      return [];
   }
 };
 

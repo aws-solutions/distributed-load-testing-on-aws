@@ -438,6 +438,8 @@ export class DLTStack extends Stack {
       solutionId,
       uuid,
       solutionVersion,
+      autoUpdateContainerImage: stableTagging.valueAsString,
+      deployMcpServer: deployMcpServer.valueAsString,
     });
 
     // metrics

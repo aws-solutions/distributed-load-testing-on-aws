@@ -18,7 +18,7 @@
   "dependencies": {
     "@aws-amplify/pubsub": "^6.1.63",
     "@aws-amplify/ui-react": "6.13.2",
-    "@aws-sdk/client-iot": "^3.981.0",
+    "@aws-sdk/client-iot": "^3.993.0",
     "@cloudscape-design/components": "3.0.1048",
     "@cloudscape-design/design-tokens": "^3.0.36",
     "@cloudscape-design/global-styles": "^1.0.27",
@@ -38,7 +38,6 @@
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.12.0",
     "sinon": "^21.0.0",
-    "uuid": "^11.1.0",
     "web-vitals": "^5.1.0"
   },
   "devDependencies": {
@@ -49,7 +48,6 @@
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
     "@types/sinon": "^17.0.3",
-    "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.39.0",
     "@typescript-eslint/parser": "^8.39.0",
     "@vitejs/plugin-react-swc": "^3.6.0",
@@ -78,6 +76,7 @@
     "workerDirectory": "public"
   },
   "overrides": {
+    "fast-xml-parser": "^5.3.6",
     "lodash": "^4.17.23"
   }
 }
