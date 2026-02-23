@@ -20,6 +20,13 @@ export const FileUploadSection = ({ formData, updateFormData, showValidationErro
 
   const isFileRequired = formData.scriptFile?.length === 0;
 
+  // Helper function to format extensions array for display
+  const formatExtensions = (extensions: string[]): string => {
+    if (extensions.length === 0) return "";
+    if (extensions.length === 1) return extensions[0];
+    return extensions.join(", ");
+  };
+
   useEffect(() => {
     // If a script file has already been specified then
     // we know the K6 license has already been acknowledged.
@@ -54,8 +61,8 @@ export const FileUploadSection = ({ formData, updateFormData, showValidationErro
         </Checkbox>
       )}
       <FormField
-        label={`${getFileExtension(formData.testType)} or .zip file`}
-        description={`You can choose either a ${getFileExtension(formData.testType)} file or a .zip file. Choose .zip file if you have any files to upload other than a ${getFileExtension(formData.testType)} script file.`}
+        label={`${formatExtensions(getFileExtension(formData.testType))} or .zip file`}
+        description={`You can choose either a ${formatExtensions(getFileExtension(formData.testType))} file or a .zip file. Choose .zip file if you have any files to upload other than a ${formatExtensions(getFileExtension(formData.testType))} script file.`}
         errorText={
           formData.fileError || (showValidationErrors && isFileRequired ? "File upload is required" : undefined)
         }
@@ -84,9 +91,9 @@ export const FileUploadSection = ({ formData, updateFormData, showValidationErro
               }
 
               const fileName = file.name.toLowerCase();
-              const isValidType = fileName.endsWith(expectedExt.toLowerCase()) || fileName.endsWith(".zip");
+              const isValidType = expectedExt.some(ext => fileName.endsWith(ext)) || fileName.endsWith(".zip");
               if (!isValidType) {
-                errorMessage = `File must be ${expectedExt} or .zip format`;
+                errorMessage = `File must be ${formatExtensions(expectedExt)} or .zip format`;
                 return false;
               }
 
@@ -99,7 +106,7 @@ export const FileUploadSection = ({ formData, updateFormData, showValidationErro
             });
           }}
           value={formData.scriptFile}
-          accept={`${getFileExtension(formData.testType)},.zip`}
+          accept={`${getFileExtension(formData.testType).join(',')},.zip`}
           i18nStrings={{
             uploadButtonText: () => "Choose file",
             removeFileAriaLabel: (fileIndex) => `Remove file ${fileIndex + 1}`,

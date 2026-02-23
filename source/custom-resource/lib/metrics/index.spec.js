@@ -13,6 +13,8 @@ const _config = {
   Region: "testRegion",
   existingVPC: "testTest",
   AccountId: "123456789012",
+  AutoUpdateContainerImage: "Yes",
+  DeployMcpServer: "No",
 };
 
 describe("#SEND METRICS", () => {
@@ -35,6 +37,8 @@ describe("#SEND METRICS", () => {
         Region: _config.Region,
         ExistingVpc: _config.existingVPC,
         AccountId: _config.AccountId,
+        AutoUpdateContainerImage: _config.AutoUpdateContainerImage,
+        DeployMcpServer: _config.DeployMcpServer,
       },
     };
     const mock = new MockAdapter(axios);

@@ -136,6 +136,8 @@ exports[`DLT API Test 1`] = `
         "AccountId": {
           "Ref": "AWS::AccountId",
         },
+        "AutoUpdateContainerImage": "Yes",
+        "DeployMcpServer": "No",
         "Region": {
           "Ref": "AWS::Region",
         },

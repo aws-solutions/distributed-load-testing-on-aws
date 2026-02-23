@@ -5,7 +5,6 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import { get } from "aws-amplify/api";
 import { ApiEndpoints } from "./solutionApi.ts";
 import { addNotification } from "./notificationsSlice.ts";
-import { v4 } from "uuid";
 
 export const fetchUser = createAsyncThunk<any, void>("user/fetchUser", async (_, thunkAPI): Promise<any> => {
   try {
@@ -18,7 +17,7 @@ export const fetchUser = createAsyncThunk<any, void>("user/fetchUser", async (_,
   } catch {
     thunkAPI.dispatch(
       addNotification({
-        id: v4(),
+        id: crypto.randomUUID(),
         content: "Failed to load user data",
         type: "error",
       })

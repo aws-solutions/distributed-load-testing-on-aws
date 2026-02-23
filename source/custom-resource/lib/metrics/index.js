@@ -16,6 +16,8 @@ const send = async (config, type) => {
         Region: config.Region,
         ExistingVpc: config.existingVPC,
         AccountId: config.AccountId,
+        AutoUpdateContainerImage: config.AutoUpdateContainerImage,
+        DeployMcpServer: config.DeployMcpServer,
       },
     };
     const params = {

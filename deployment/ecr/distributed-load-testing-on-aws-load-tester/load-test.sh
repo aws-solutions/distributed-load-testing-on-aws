@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Configure AWS CLI for better retry behavior at scale
+export AWS_RETRY_MODE=adaptive  # Uses jitter and token bucket for distributed retries
+export AWS_MAX_ATTEMPTS=10      # Increase attempts for high-scale scenarios (2000+ containers)
+
 # set a uuid for the results xml file name in S3
 UUID=$(cat /proc/sys/kernel/random/uuid)
 pypid=0
@@ -133,7 +137,33 @@ if [ "$TEST_TYPE" != "simple" ]; then
   fi
 
   if [ "$FILE_TYPE" != "zip" ]; then
-    aws s3 cp s3://$S3_BUCKET/public/test-scenarios/$TEST_TYPE/$TEST_ID.$EXT ./ --region $MAIN_STACK_REGION
+    # For k6, try .ts first, then .js if .ts doesn't exist (k6 v0.57+ supports TypeScript natively)
+    if [ "$TEST_TYPE" == "k6" ]; then
+      # Try .ts first (suppress expected 404 error)
+      if aws s3 cp s3://$S3_BUCKET/public/test-scenarios/$TEST_TYPE/$TEST_ID.ts ./ \
+         --region $MAIN_STACK_REGION 2>/dev/null; then
+        EXT="ts"
+        echo "Downloaded k6 test script: $TEST_ID.ts"
+        
+      # Try .js as fallback
+      elif aws s3 cp s3://$S3_BUCKET/public/test-scenarios/$TEST_TYPE/$TEST_ID.js ./ \
+           --region $MAIN_STACK_REGION 2>/dev/null; then
+        EXT="js"
+        echo "Downloaded k6 test script: $TEST_ID.js"
+        
+      # Both failed - show error
+      else
+        echo "[ERROR] No .ts or .js file found for test $TEST_ID"
+        exit 1
+      fi
+    else
+      if ! aws s3 cp s3://$S3_BUCKET/public/test-scenarios/$TEST_TYPE/$TEST_ID.$EXT ./ \
+           --region $MAIN_STACK_REGION; then
+        echo "[ERROR] Failed to download test file $TEST_ID.$EXT"
+        exit 1
+      fi
+      echo "Downloaded test script: $TEST_ID.$EXT"
+    fi
   else
     aws s3 cp s3://$S3_BUCKET/public/test-scenarios/$TEST_TYPE/$TEST_ID.zip ./ --region $MAIN_STACK_REGION
     
@@ -166,7 +196,17 @@ if [ "$TEST_TYPE" != "simple" ]; then
     ls -l
 
     # Identify the correct test file
-    if [ "$TEST_TYPE" != "locust" ]; then
+    if [ "$TEST_TYPE" == "k6" ]; then
+      # For k6, look for .ts or .js files (k6 v0.57+ supports TypeScript natively)
+      TEST_SCRIPT=$(find . -name "*.ts" | head -n 1)
+      if [ -z "$TEST_SCRIPT" ]; then
+        TEST_SCRIPT=$(find . -name "*.js" | head -n 1)
+      fi
+      if [ ! -z "$TEST_SCRIPT" ]; then
+        # Update EXT based on the actual file found
+        EXT="${TEST_SCRIPT##*.}"
+      fi
+    elif [ "$TEST_TYPE" != "locust" ]; then
       # Only looks for the first test script file.
       TEST_SCRIPT=$(find . -name "*.${EXT}" | head -n 1)
     else 

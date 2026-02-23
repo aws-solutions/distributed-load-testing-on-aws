@@ -23,6 +23,8 @@ export interface SendMetricsCRProps {
   readonly solutionId: string;
   readonly solutionVersion: string;
   readonly uuid: string;
+  readonly autoUpdateContainerImage: string;
+  readonly deployMcpServer?: string;
 }
 
 export interface TestingResourcesConfigCRProps {
@@ -152,6 +154,8 @@ export class CustomResourcesConstruct extends Construct {
       UUID: props.uuid,
       Version: props.solutionVersion,
       AccountId: Aws.ACCOUNT_ID,
+      AutoUpdateContainerImage: props.autoUpdateContainerImage,
+      DeployMcpServer: props.deployMcpServer,
     });
   }
 

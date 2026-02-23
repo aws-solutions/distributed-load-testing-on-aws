@@ -13,8 +13,8 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.658.1",
-    "ajv": "^8.16.0",
+    "@aws-sdk/client-s3": "^3.993.0",
+    "ajv": "^8.18.0",
     "aws4-axios": "^3.3.0",
     "axios": "^1.13.5",
     "cypress": "^13.9.0"
@@ -38,7 +38,7 @@
   },
   "overrides": {
     "form-data": "4.0.4",
-    "qs": "^6.14.1"
+    "qs": "^6.14.2"
   },
   "jest": {
     "moduleFileExtensions": [

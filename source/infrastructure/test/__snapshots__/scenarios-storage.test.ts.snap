@@ -94,6 +94,7 @@ exports[`DLT API Test 1`] = `
                 "GET",
                 "POST",
                 "PUT",
+                "HEAD",
               ],
               "AllowedOrigins": [
                 "test.exampledomain.com",

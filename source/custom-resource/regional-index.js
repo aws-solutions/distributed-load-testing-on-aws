@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const uuid = require("uuid");
+const crypto = require("crypto");
 const cfn = require("./lib/cfn");
 const metrics = require("./lib/metrics");
 const storeConfig = require("./lib/config-storage");
@@ -27,8 +27,8 @@ exports.handler = async (event, context) => {
       case "UUID":
         if (requestType === "Create") {
           responseData = {
-            UUID: uuid.v4(),
-            SUFFIX: uuid.v4().slice(-10),
+            UUID: crypto.randomUUID(),
+            SUFFIX: crypto.randomUUID().slice(-10),
           };
         }
         break;

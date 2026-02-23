@@ -7,13 +7,13 @@ import { TestTypes } from "../../pages/scenarios/constants";
 const getFileExtension = (testType: string) => {
   switch (testType) {
     case TestTypes.JMETER:
-      return ".jmx";
+      return [".jmx"];
     case TestTypes.K6:
-      return ".js";
+      return [".ts", ".js"];
     case TestTypes.LOCUST:
-      return ".py";
+      return [".py"];
     default:
-      return "";
+      return [];
   }
 };
 
@@ -29,10 +29,10 @@ const validateFileSize = (files: File[]) => {
 
 describe("getFileExtension", () => {
   test("returns correct extensions", () => {
-    expect(getFileExtension("jmeter")).toBe(".jmx");
-    expect(getFileExtension("k6")).toBe(".js");
-    expect(getFileExtension("locust")).toBe(".py");
-    expect(getFileExtension("unknown")).toBe("");
+    expect(getFileExtension("jmeter")).toEqual([".jmx"]);
+    expect(getFileExtension("k6")).toEqual([".ts", ".js"]);
+    expect(getFileExtension("locust")).toEqual([".py"]);
+    expect(getFileExtension("unknown")).toEqual([]);
   });
 });
 
