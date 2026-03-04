@@ -25,6 +25,9 @@ Affected Jmeter jars:
     * kotlin-stdlib will be replaced with v2.1.0
     * commons-lang3 will be replaced with v3.18.0
     * rhino v1.7.14 will be replaced with v1.7.14.1 (fixes CVE-2025-66453)
+    * jackson-core v2.16.1 will be replaced with v2.18.6 (fixes GHSA-72hv-8253-57qq)
+    * jackson-databind v2.16.1 will be replaced with v2.18.6
+    * jackson-annotations v2.16.1 will be replaced with v2.18.6
     * commons-lang v2.5 - no fix available for CVE-2025-48924
 
 Also jmeter plugins manager will be updated to v1.11 to address CVEs and 
@@ -74,6 +77,9 @@ JMETER_COMPONENTS: Dict[str, str] = {
     "kotlin-stdlib": "org/jetbrains/kotlin/kotlin-stdlib/2.1.0/kotlin-stdlib-2.1.0.jar",
     "commons-lang3": "org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar",
     "rhino": "org/mozilla/rhino/1.7.14.1/rhino-1.7.14.1.jar", # NOSONAR
+    "jackson-core": "com/fasterxml/jackson/core/jackson-core/2.18.6/jackson-core-2.18.6.jar",
+    "jackson-databind": "com/fasterxml/jackson/core/jackson-databind/2.18.6/jackson-databind-2.18.6.jar",
+    "jackson-annotations": "com/fasterxml/jackson/core/jackson-annotations/2.18.6/jackson-annotations-2.18.6.jar",
 }
 
 # Jars to remove from the container

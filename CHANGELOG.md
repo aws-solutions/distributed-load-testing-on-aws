@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.11] - 2026-03-05
+
+### Security
+
+- Upgrade npm dependencies to address vulnerabilities in minimatch and rollup.
+- Upgrade jackson-core, jackson-databind, and jackson-annotations to 2.18.6 to address [GHSA-72hv-8253-57qq](https://github.com/advisories/GHSA-72hv-8253-57qq)
+
 ## [4.0.10] - 2026-02-23
 
 ### Added
