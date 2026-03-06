@@ -867,6 +867,7 @@ proxy-from-env under the MIT license
 is-buffer under the MIT license
 @aws-sdk/core under the Apache-2.0 license
 @smithy/core under the Apache-2.0 license
+fast-xml-builder under the MIT license
 fast-xml-parser under the MIT license
 strnum under the MIT license
 @aws-sdk/credential-provider-http under the Apache-2.0 license
@@ -890,6 +891,7 @@ universalify under the MIT license
 yaml under the ISC license
 @aws-cdk/asset-awscli-v1 under the Apache-2.0 license
 @aws-cdk/asset-node-proxy-agent-v6 under the Apache-2.0 license
+@aws-cdk/cloud-assembly-api under the Apache-2.0 license
 @aws-cdk/cloud-assembly-schema under the Apache-2.0 license
 @aws-solutions-constructs/core under the Apache-2.0 license
 deep-diff under the MIT license
@@ -1065,7 +1067,6 @@ create-require under the MIT license
 diff under the BSD-3-Clause license
 v8-compile-cache-lib under the MIT license
 yn under the MIT license
-@aws-cdk/aws-servicecatalogappregistry-alpha under the Apache-2.0 license
 code-point-at under the MIT license
 delegates under the MIT license
 number-is-nan under the MIT license

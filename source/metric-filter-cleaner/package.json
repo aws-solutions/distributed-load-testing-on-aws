@@ -1,6 +1,6 @@
 {
   "name": "metric-filter-cleaner",
-  "version": "4.0.10",
+  "version": "4.0.11",
   "description": "Cleans up CloudWatch metric filters for completed/failed tests",
   "repository": {
     "type": "git",

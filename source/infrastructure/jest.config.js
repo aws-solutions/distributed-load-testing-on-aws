@@ -4,5 +4,6 @@ module.exports = {
   transform: {
     "^.+\\.tsx?$": "ts-jest",
   },
+  maxWorkers: "50%",
   coverageReporters: ["text", "clover", "json", ["lcov", { projectRoot: "../.." }]],
 };

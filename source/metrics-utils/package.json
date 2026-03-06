@@ -1,6 +1,6 @@
 {
   "name": "metrics-utils",
-  "version": "4.0.10",
+  "version": "4.0.11",
   "main": "index.ts",
   "license": "Apache-2.0",
   "description": "Distributed Load Testing on AWS Ops Metrics",
@@ -31,14 +31,13 @@
     "@aws-sdk/client-cloudwatch": "^3.993.0",
     "@aws-sdk/client-cloudwatch-logs": "^3.993.0",
     "@aws-sdk/client-sqs": "^3.993.0",
-    "@aws-solutions-constructs/aws-eventbridge-lambda": "2.86.0",
-    "@aws-solutions-constructs/aws-lambda-sqs-lambda": "2.86.0",
+    "@aws-solutions-constructs/aws-eventbridge-lambda": "^2.100.1",
+    "@aws-solutions-constructs/aws-lambda-sqs-lambda": "^2.100.1",
     "@types/aws-lambda": "^8.10.143",
     "axios": "^1.13.5",
     "esbuild": "^0.25.5"
   },
   "overrides": {
-    "form-data": "4.0.4",
-    "aws-cdk-lib": "2.223.0"
+    "form-data": "4.0.4"
   }
 }
