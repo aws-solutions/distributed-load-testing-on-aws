@@ -18,6 +18,8 @@ interface CloudFormationEvent {
     UserFilesBucketRegion: string;
     IoTEndpoint: string;
     IoTPolicy: string;
+    OAuthDomain?: string;
+    OAuthRedirectUrl?: string;
   };
   PhysicalResourceId?: string;
 }
@@ -44,11 +46,13 @@ export const handler = async (event: CloudFormationEvent): Promise<CloudFormatio
     UserFilesBucketRegion,
     IoTEndpoint,
     IoTPolicy,
+    OAuthDomain,
+    OAuthRedirectUrl,
   } = ResourceProperties;
 
   try {
     if (RequestType === "Create" || RequestType === "Update") {
-      const awsExports = {
+      const awsExports: Record<string, string> = {
         UserPoolId,
         PoolClientId,
         IdentityPoolId,
@@ -58,6 +62,9 @@ export const handler = async (event: CloudFormationEvent): Promise<CloudFormatio
         IoTEndpoint,
         IoTPolicy,
       };
+
+      if (OAuthDomain) awsExports.OAuthDomain = OAuthDomain;
+      if (OAuthRedirectUrl) awsExports.OAuthRedirectUrl = OAuthRedirectUrl;
 
       await s3Client.send(
         new PutObjectCommand({

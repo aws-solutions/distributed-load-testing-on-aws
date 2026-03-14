@@ -3,9 +3,23 @@
 
 import { TopNavigation, TopNavigationProps } from "@cloudscape-design/components";
 import { useAuthenticator } from "@aws-amplify/ui-react";
+import { fetchAuthSession } from "aws-amplify/auth";
+import { useState, useEffect } from "react";
 
 export default function TopNavigationBar() {
   const { user, signOut } = useAuthenticator();
+  const [displayName, setDisplayName] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchAuthSession()
+      .then((session) => {
+        const payload = session.tokens?.idToken?.payload;
+        if (payload) {
+          setDisplayName((payload.name as string) || (payload.email as string) || null);
+        }
+      })
+      .catch(() => {});
+  }, [user]);
 
   const solutionIdentity: TopNavigationProps.Identity = {
     href: "/",
@@ -20,7 +34,7 @@ export default function TopNavigationBar() {
   const utilities: TopNavigationProps.Utility[] = [
     {
       type: "menu-dropdown",
-      text: user.username ?? "User",
+      text: displayName ?? user.username ?? "User",
       iconName: "user-profile",
       items: [
         {

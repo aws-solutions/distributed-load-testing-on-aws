@@ -41,6 +41,17 @@ getRuntimeConfig().then((json) => {
         userPoolId: json.UserPoolId,
         userPoolClientId: json.PoolClientId,
         identityPoolId: json.IdentityPoolId,
+        ...(json.OAuthDomain && {
+          loginWith: {
+            oauth: {
+              domain: json.OAuthDomain,
+              scopes: ["email", "openid", "profile"],
+              redirectSignIn: [json.OAuthRedirectUrl],
+              redirectSignOut: [json.OAuthRedirectUrl],
+              responseType: "code",
+            },
+          },
+        }),
       },
     },
     API: {
