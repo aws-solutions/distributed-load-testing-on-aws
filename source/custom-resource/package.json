@@ -1,6 +1,6 @@
 {
   "name": "custom-resource",
-  "version": "4.0.11",
+  "version": "4.0.12",
   "description": "cfn custom resources for distributed load testing on AWS workflow",
   "repository": {
     "type": "git",
@@ -34,6 +34,7 @@
   },
   "readme": "./README.md",
   "overrides": {
-    "form-data": "4.0.4"
+    "form-data": "4.0.4",
+    "fast-xml-parser": ">=5.5.6"
   }
 }

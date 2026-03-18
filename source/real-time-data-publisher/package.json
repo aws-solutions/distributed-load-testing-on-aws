@@ -1,6 +1,6 @@
 {
   "name": "real-time-data-publisher",
-  "version": "4.0.11",
+  "version": "4.0.12",
   "description": "Publishes real time test data to an IoT endpoint",
   "repository": {
     "type": "git",
@@ -28,5 +28,8 @@
   "engines": {
     "node": "^20.x"
   },
-  "readme": "./README.md"
+  "readme": "./README.md",
+  "overrides": {
+    "fast-xml-parser": ">=5.5.6"
+  }
 }

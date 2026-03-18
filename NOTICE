@@ -585,6 +585,7 @@ p-locate under the MIT license
 p-limit under the MIT license
 yocto-queue under the MIT license
 path-exists under the MIT license
+path-expression-matcher under the MIT license
 glob-parent under the ISC license
 is-glob under the MIT license
 is-extglob under the MIT license
