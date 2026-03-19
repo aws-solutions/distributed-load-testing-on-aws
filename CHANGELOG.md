@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.12] - 2026-03-19
+
+### Security
+
+- Updated Docker base image (amazonlinux:2023-minimal) to latest digest to incorporate latest OS-level security patches
+- Regenerated package-lock.json files to pull in latest dependency resolutions, including:
+  - Upgraded fast-xml-parser from 5.3.6 to 5.5.6 via npm overrides to address [GHSA-8gc5-j5rx-235r](https://github.com/advisories/GHSA-8gc5-j5rx-235r), [CVE-2026-27942](https://nvd.nist.gov/vuln/detail/CVE-2026-27942), [CVE-2026-25896](https://nvd.nist.gov/vuln/detail/CVE-2026-25896), and [CVE-2026-25128](https://nvd.nist.gov/vuln/detail/CVE-2026-25128)
+  - Upgraded undici from 7.20.0 to 7.24.4 to address [CVE-2026-22036](https://nvd.nist.gov/vuln/detail/CVE-2026-22036) and [CVE-2026-1525](https://nvd.nist.gov/vuln/detail/CVE-2026-1525)
+  - Upgraded @aws-sdk/xml-builder to 3.972.11 and @smithy/types to 4.13.1
+
 ## [4.0.11] - 2026-03-05
 
 ### Security

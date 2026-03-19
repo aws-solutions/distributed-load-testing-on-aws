@@ -1,6 +1,6 @@
 {
   "name": "solution-utils",
-  "version": "4.0.11",
+  "version": "4.0.12",
   "description": "Utilities package for Distributed Load Testing on AWS",
   "license": "Apache-2.0",
   "author": {
@@ -24,6 +24,7 @@
     "node": "^20.x"
   },
   "overrides": {
-    "form-data": "4.0.4"
+    "form-data": "4.0.4",
+    "fast-xml-parser": ">=5.5.6"
   }
 }
