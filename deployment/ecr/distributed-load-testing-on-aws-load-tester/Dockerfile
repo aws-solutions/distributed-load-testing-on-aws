@@ -7,9 +7,13 @@ RUN dnf upgrade -y --refresh && \
 ENV PIP_INSTALL="pip3.11 install --no-cache-dir"
 
 # install bzt
+# Pin urwid<4 — urwid 4.0.0 (2026-03-30) removed urwid.decoration module,
+# breaking Taurus/bzt which imports it at startup. bzt requires urwid>=3.0.2.
+# https://github.com/Blazemeter/taurus/issues/1972
+# https://github.com/Blazemeter/taurus/blob/master/requirements.txt
 RUN $PIP_INSTALL --upgrade pip && \
-    $PIP_INSTALL --upgrade bzt awscli setuptools h11 && \
-    $PIP_INSTALL --upgrade bzt
+    $PIP_INSTALL --upgrade 'urwid==3.0.5' bzt awscli setuptools h11 && \
+    $PIP_INSTALL --upgrade 'urwid==3.0.5' bzt
 COPY ./.bzt-rc /root/.bzt-rc
 RUN chmod 755 /root/.bzt-rc
 
@@ -19,7 +23,6 @@ RUN rm -rf /root/.bzt/selenium-taurus
 
 RUN mkdir /bzt-configs /tmp/artifacts
 ADD ./load-test.sh /bzt-configs/
-ADD ./*.jar /bzt-configs/
 ADD ./*.py /bzt-configs/
 
 RUN chmod 755 /bzt-configs/load-test.sh

@@ -1,5 +1,6 @@
 {
   "name": "webui",
+  "version": "4.0.13",
   "private": true,
   "type": "module",
   "author": {
