@@ -339,37 +339,39 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
                 "dynamodb:DescribeTable",
               ],
               "Effect": "Allow",
-              "Resource": {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:",
-                    {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":dynamodb:",
-                    {
-                      "Fn::FindInMap": [
-                        "Solution",
-                        "Config",
-                        "MainRegionStack",
-                      ],
-                    },
-                    ":",
-                    {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":table/",
-                    {
-                      "Fn::FindInMap": [
-                        "Solution",
-                        "Config",
-                        "ScenariosTable",
-                      ],
-                    },
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":dynamodb:",
+                      {
+                        "Fn::FindInMap": [
+                          "Solution",
+                          "Config",
+                          "MainRegionStack",
+                        ],
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":table/",
+                      {
+                        "Fn::FindInMap": [
+                          "Solution",
+                          "Config",
+                          "ScenariosTable",
+                        ],
+                      },
+                    ],
                   ],
-                ],
-              },
+                },
+              ],
             },
             {
               "Action": [
@@ -377,37 +379,39 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
                 "dynamodb:GetShardIterator",
               ],
               "Effect": "Allow",
-              "Resource": {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:",
-                    {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":dynamodb:",
-                    {
-                      "Fn::FindInMap": [
-                        "Solution",
-                        "Config",
-                        "MainRegionStack",
-                      ],
-                    },
-                    ":",
-                    {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":table/",
-                    {
-                      "Fn::FindInMap": [
-                        "Solution",
-                        "Config",
-                        "ScenariosTable",
-                      ],
-                    },
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":dynamodb:",
+                      {
+                        "Fn::FindInMap": [
+                          "Solution",
+                          "Config",
+                          "MainRegionStack",
+                        ],
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":table/",
+                      {
+                        "Fn::FindInMap": [
+                          "Solution",
+                          "Config",
+                          "ScenariosTable",
+                        ],
+                      },
+                    ],
                   ],
-                ],
-              },
+                },
+              ],
             },
           ],
           "Version": "2012-10-17",

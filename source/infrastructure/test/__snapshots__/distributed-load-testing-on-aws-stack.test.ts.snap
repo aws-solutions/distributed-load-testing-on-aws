@@ -3112,12 +3112,14 @@ exports[`Distributed Load Testing stack test 1`] = `
                 "dynamodb:DescribeTable",
               ],
               "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
-                  "Arn",
-                ],
-              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+                    "Arn",
+                  ],
+                },
+              ],
             },
             {
               "Action": [
@@ -3125,12 +3127,14 @@ exports[`Distributed Load Testing stack test 1`] = `
                 "dynamodb:GetShardIterator",
               ],
               "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
-                  "Arn",
-                ],
-              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+                    "Arn",
+                  ],
+                },
+              ],
             },
             {
               "Action": [
