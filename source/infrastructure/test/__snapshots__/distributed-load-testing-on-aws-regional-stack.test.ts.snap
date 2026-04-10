@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`Distributed Load Testing Regional stack test 1`] = `
 {
@@ -1230,7 +1230,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs24.x",
         "Timeout": 180,
       },
       "Type": "AWS::Lambda::Function",
@@ -1363,7 +1363,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs24.x",
         "Timeout": 120,
       },
       "Type": "AWS::Lambda::Function",
@@ -1620,7 +1620,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs24.x",
         "Timeout": 60,
       },
       "Type": "AWS::Lambda::Function",

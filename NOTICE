@@ -512,6 +512,39 @@ anymatch under the ISC license
 arg under the MIT license
 aria-hidden under the MIT license
 aria-query under the Apache-2.0 license
+@es-joy/resolve.exports under the MIT license
+object-deep-merge under the MIT license
+to-valid-identifier under the MIT license
+@sindresorhus/base62 under the MIT license
+reserved-identifiers under the MIT license
+exit-x under the MIT license
+@jest/snapshot-utils under the MIT license
+unrs-resolver under the MIT license
+napi-postinstall under the MIT license
+@unrs/resolver-binding-android-arm-eabi under the MIT license
+@unrs/resolver-binding-android-arm64 under the MIT license
+@unrs/resolver-binding-darwin-arm64 under the MIT license
+@unrs/resolver-binding-darwin-x64 under the MIT license
+@unrs/resolver-binding-freebsd-x64 under the MIT license
+@unrs/resolver-binding-linux-arm-gnueabihf under the MIT license
+@unrs/resolver-binding-linux-arm-musleabihf under the MIT license
+@unrs/resolver-binding-linux-arm64-gnu under the MIT license
+@unrs/resolver-binding-linux-arm64-musl under the MIT license
+@unrs/resolver-binding-linux-ppc64-gnu under the MIT license
+@unrs/resolver-binding-linux-riscv64-gnu under the MIT license
+@unrs/resolver-binding-linux-riscv64-musl under the MIT license
+@unrs/resolver-binding-linux-s390x-gnu under the MIT license
+@unrs/resolver-binding-linux-x64-gnu under the MIT license
+@unrs/resolver-binding-linux-x64-musl under the MIT license
+@unrs/resolver-binding-wasm32-wasi under the MIT license
+@napi-rs/wasm-runtime under the MIT license
+@emnapi/core under the MIT license
+@emnapi/wasi-threads under the MIT license
+@emnapi/runtime under the MIT license
+@tybys/wasm-util under the MIT license
+@unrs/resolver-binding-win32-arm64-msvc under the MIT license
+@unrs/resolver-binding-win32-ia32-msvc under the MIT license
+@unrs/resolver-binding-win32-x64-msvc under the MIT license
 @babel/code-frame under the MIT license.
 @babel/compat-data under the MIT license.
 @babel/core under the MIT license.
@@ -1934,6 +1967,7 @@ exit under the MIT license
 tagged-tag under the MIT license
 until-async under the MIT license
 generator-function under the MIT license
+node-exports-info under the MIT license
 
 
 

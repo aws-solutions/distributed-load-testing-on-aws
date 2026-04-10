@@ -127,7 +127,7 @@ For developers working on the solution locally, this section provides step-by-st
 
 ### Prerequisites
 
-- Node.js 20.x or later
+- Node.js 24.x or later
 - AWS CLI configured with appropriate credentials
 - Docker (for container image builds)
 
@@ -255,8 +255,6 @@ chmod +x ./run-unit-tests.sh
 ./run-unit-tests.sh
 ```
 
-**Integration Tests**: The solution provides both API integration tests and end-to-end console tests. For detailed instructions on running integration tests against a deployed stack, see the [integration tests README](source/integration-tests/README.md).
-
 ## Creating a custom build
 
 The solution can be deployed through the CloudFormation template available on the solution home page: [Distributed Load Testing](https://aws.amazon.com/solutions/implementations/distributed-load-testing-on-aws/).
@@ -265,7 +263,7 @@ To make changes to the solution, download or clone this repository, update the s
 
 ### Prerequisites
 
-- Node.js 20.x or later
+- Node.js 24.x or later
 - S3 bucket that includes the AWS region as a suffix in the name. For example, `my-bucket-us-east-1`. The bucket and CloudFormation stack must be in the same region. The solution's CloudFormation template will expect the source code to be located in a bucket matching that name.
 
 ### Running unit tests for customization

@@ -1,6 +1,6 @@
 {
   "name": "solution-utils",
-  "version": "4.0.13",
+  "version": "4.0.14",
   "description": "Utilities package for Distributed Load Testing on AWS",
   "license": "Apache-2.0",
   "author": {
@@ -21,7 +21,7 @@
     "axios-mock-adapter": "1.19.0"
   },
   "engines": {
-    "node": "^20.x"
+    "node": "^24.x"
   },
   "overrides": {
     "form-data": "4.0.4",

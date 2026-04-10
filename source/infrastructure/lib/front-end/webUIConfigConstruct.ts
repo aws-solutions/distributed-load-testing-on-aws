@@ -45,7 +45,7 @@ export class WebUIConfigConstruct extends Construct {
     super(scope, id);
 
     const awsExportsLambda = new NodejsFunction(this, "AwsExportsLambda", {
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       handler: "handler",
       timeout: Duration.minutes(5),
       entry: "lambda/aws-exports-handler/index.ts",
