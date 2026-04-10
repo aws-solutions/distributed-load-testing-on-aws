@@ -68,7 +68,7 @@ export class CustomResourceLambda extends Construct implements ICustomResourceLa
       handler: "index.handler",
       role: customResourceRole,
       entry: path.join(__dirname, `../../../custom-resource/${stackType}-index.js`),
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       timeout: Duration.seconds(120),
       environment: {
         METRIC_URL: SOLUTIONS_METRICS_ENDPOINT,

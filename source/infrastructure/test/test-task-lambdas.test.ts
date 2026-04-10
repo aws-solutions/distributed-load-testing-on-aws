@@ -117,7 +117,7 @@ test("DLT Task Lambda Test", () => {
     Role: {
       "Fn::GetAtt": ["TaskRunnerLambdaFunctionsLambdaResultsRole1AF5AB18", "Arn"],
     },
-    Runtime: "nodejs20.x",
+    Runtime: "nodejs24.x",
   });
 
   Template.fromStack(stack).hasResourceProperties("AWS::IAM::Policy", {

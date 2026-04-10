@@ -125,7 +125,7 @@ export class TestRunnerLambdasConstruct extends Construct {
       description: "Result parser for indexing xml test results to DynamoDB",
       role: lambdaResultsRole,
       entry: path.join(__dirname, "../../../results-parser/index.js"),
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       timeout: Duration.seconds(900),
       memorySize: 1024,
       environment: {
@@ -271,7 +271,7 @@ export class TestRunnerLambdasConstruct extends Construct {
         VERSION: props.solution.version,
         MAIN_STACK_REGION: props.mainStackRegion,
       },
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       timeout: Duration.seconds(900),
     });
 
@@ -369,7 +369,7 @@ export class TestRunnerLambdasConstruct extends Construct {
       description: "Stops ECS task",
       role: taskCancelerRole,
       entry: path.join(__dirname, "../../../task-canceler/index.js"),
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       timeout: Duration.seconds(300),
       environment: {
         METRIC_URL: SOLUTIONS_METRICS_ENDPOINT,
@@ -449,7 +449,7 @@ export class TestRunnerLambdasConstruct extends Construct {
       description: "Task status checker",
       role: taskStatusCheckerRole,
       entry: path.join(__dirname, "../../../task-status-checker/index.js"),
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       timeout: Duration.seconds(180),
       environment: {
         SCENARIOS_TABLE: props.scenariosTable.tableName,
@@ -533,7 +533,7 @@ export class TestRunnerLambdasConstruct extends Construct {
       description: "Cleans up CloudWatch metric filters for completed/failed tests",
       role: metricFilterCleanerRole,
       entry: path.join(__dirname, "../../../metric-filter-cleaner/index.js"),
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       timeout: Duration.seconds(300),
       environment: {
         SOLUTION_ID: props.solution.id,

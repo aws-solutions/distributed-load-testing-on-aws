@@ -130,7 +130,7 @@ export class MCPServer extends Construct {
       description: "MCP Tool Lambda Function",
       role: mcpToolLambdaRole,
       entry: path.join(__dirname, "../../../mcp-server/src/index.ts"),
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       timeout: Duration.seconds(60),
       memorySize: 512,
       environment: {

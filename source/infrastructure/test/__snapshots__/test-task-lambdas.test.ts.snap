@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`DLT Task Lambda Test 1`] = `
 {
@@ -312,7 +312,7 @@ exports[`DLT Task Lambda Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs24.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -495,7 +495,7 @@ exports[`DLT Task Lambda Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs24.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -573,7 +573,7 @@ exports[`DLT Task Lambda Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs24.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -678,7 +678,7 @@ exports[`DLT Task Lambda Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs24.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -735,7 +735,7 @@ exports[`DLT Task Lambda Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs24.x",
         "Timeout": 180,
       },
       "Type": "AWS::Lambda::Function",
