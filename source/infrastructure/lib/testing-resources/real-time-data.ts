@@ -58,7 +58,7 @@ export class RealTimeDataConstruct extends Construct {
       handler: "index.handler",
       role: realTimeDataPublisherRole,
       entry: path.join(__dirname, "../../../real-time-data-publisher/index.js"),
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       timeout: Duration.seconds(180),
       environment: {
         MAIN_REGION: props.mainRegion,

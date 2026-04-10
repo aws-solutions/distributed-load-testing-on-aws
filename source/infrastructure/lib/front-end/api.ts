@@ -202,7 +202,7 @@ export class DLTAPI extends Construct {
     const dltApiServicesLambda = new NodejsFunction(this, "DLTAPIServicesLambdaNew", {
       description: "API microservices for creating, updating, listing and deleting test scenarios",
       entry: path.join(__dirname, "../../../api-services/index.js"),
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       timeout: Duration.seconds(120),
       environment: {
         HISTORY_TABLE: props.historyTable,

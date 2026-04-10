@@ -29,7 +29,7 @@ test("DLT API Test", () => {
       },
     },
     Handler: "index.handler",
-    Runtime: "nodejs20.x",
+    Runtime: "nodejs24.x",
     Timeout: 120,
   });
 });

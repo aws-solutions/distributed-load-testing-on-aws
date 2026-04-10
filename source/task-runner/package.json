@@ -1,6 +1,6 @@
 {
   "name": "task-runner",
-  "version": "4.0.13",
+  "version": "4.0.14",
   "description": "Triggered by Step Functions, runs ecs task Definitions",
   "repository": {
     "type": "git",
@@ -30,7 +30,7 @@
     "jest": "29.7.0"
   },
   "engines": {
-    "node": "^20.x"
+    "node": "^24.x"
   },
   "readme": "./README.md",
   "overrides": {

@@ -1,6 +1,6 @@
 {
   "name": "webui",
-  "version": "4.0.13",
+  "version": "4.0.14",
   "private": true,
   "type": "module",
   "author": {
@@ -25,7 +25,7 @@
     "@cloudscape-design/global-styles": "^1.0.27",
     "@reduxjs/toolkit": "^2.8.2",
     "@types/jszip": "^3.4.0",
-    "@types/node": "24.2.0",
+    "@types/node": "^24.11.0",
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
     "aws-amplify": "^6.3.2",
@@ -70,7 +70,7 @@
     "prettier": "^3.2.5",
     "typescript": "^5.4.5",
     "undici": "^7.16.0",
-    "vite": "7.1.11",
+    "vite": "^7.1.11",
     "vitest": "^3.2.4"
   },
   "msw": {
