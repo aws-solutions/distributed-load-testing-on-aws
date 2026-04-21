@@ -58,14 +58,19 @@ export const UserContextProvider = (props: { children: ReactNode }) => {
         ...responseUser,
       });
       try {
-        const userAttributesOutput = await fetchUserAttributes();
-        setEmail(userAttributesOutput.email ?? null);
-
-        // Attach IoT policy when user is authenticated
+        // Attach IoT policy first — fetchUserAttributes may fail for federated users
+        // and must not block IoT setup needed for real-time metrics
         const response = await fetch("/aws-exports.json");
         const config = await response.json();
         if (config.IoTPolicy) {
           await attachIoTPolicy(config.IoTPolicy);
+        }
+
+        try {
+          const userAttributesOutput = await fetchUserAttributes();
+          setEmail(userAttributesOutput.email ?? null);
+        } catch (attrError) {
+          console.log("fetchUserAttributes failed (expected for federated users):", attrError);
         }
       } catch (e) {
         console.log(e);
