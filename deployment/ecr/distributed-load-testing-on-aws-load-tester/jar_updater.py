@@ -30,6 +30,11 @@ Affected Jmeter jars:
     * jackson-annotations v2.16.1 will be replaced with v2.18.6
     * commons-lang v2.5 - no fix available for CVE-2025-48924
 
+    * log4j-core v2.22.1 will be replaced with v2.25.4
+    * log4j-api v2.22.1 will be replaced with v2.25.4
+    * log4j-1.2-api v2.22.1 will be replaced with v2.25.4
+    * log4j-slf4j-impl v2.22.1 will be replaced with v2.25.4
+
 Also jmeter plugins manager will be updated to v1.11 to address CVEs and 
 cmdrunner will be updated to v2.3 to accommodate with plugins manager.
 """
@@ -80,6 +85,10 @@ JMETER_COMPONENTS: Dict[str, str] = {
     "jackson-core": "com/fasterxml/jackson/core/jackson-core/2.18.6/jackson-core-2.18.6.jar",
     "jackson-databind": "com/fasterxml/jackson/core/jackson-databind/2.18.6/jackson-databind-2.18.6.jar",
     "jackson-annotations": "com/fasterxml/jackson/core/jackson-annotations/2.18.6/jackson-annotations-2.18.6.jar",
+    "log4j-core": "org/apache/logging/log4j/log4j-core/2.25.4/log4j-core-2.25.4.jar",
+    "log4j-api": "org/apache/logging/log4j/log4j-api/2.25.4/log4j-api-2.25.4.jar",
+    "log4j-1.2-api": "org/apache/logging/log4j/log4j-1.2-api/2.25.4/log4j-1.2-api-2.25.4.jar",
+    "log4j-slf4j-impl": "org/apache/logging/log4j/log4j-slf4j-impl/2.25.4/log4j-slf4j-impl-2.25.4.jar",
 }
 
 # Jars to remove from the container

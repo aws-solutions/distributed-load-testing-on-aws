@@ -34,12 +34,14 @@ screenshots
 videos
 
 # solution metrics utils.
-source/metrics-utils/*.js
-!source/metrics-utils/jest.config.js
+source/metrics-utils/index.js
 source/metrics-utils/*.d.ts
 source/metrics-utils/**/*.d.ts
-source/metrics-utils/**/*.js
+source/metrics-utils/*/**/*.js
 source/metrics-utils/dist/
 
 # webui public directory
 source/webui/public/
+
+# coverage reports
+source/coverage-reports/
