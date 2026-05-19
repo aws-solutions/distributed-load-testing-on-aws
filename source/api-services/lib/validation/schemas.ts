@@ -12,11 +12,15 @@ import { z } from "zod";
 // ============================================================================
 
 /**
- * Validates that a string is a valid AWS region format
+ * Validates that a string is a valid AWS region format.
+ * Supports commercial (us-west-2), GovCloud (us-gov-west-1), and other partitions.
  */
 const regionSchema = z
   .string()
-  .regex(/^[a-z]{2}-[a-z]+-\d$/, "Invalid region format (expected: us-west-2, eu-central-1, etc.)");
+  .regex(
+    /^[a-z]{2}(-gov)?-[a-z]+-\d$/,
+    "Invalid region format (expected: us-west-2, us-gov-west-1, eu-central-1, etc.)"
+  );
 
 /**
  * Validates ISO 8601 date string
@@ -30,7 +34,7 @@ const isoDateString = z
  * Supports hour step values and comma lists, day-of-week ranges and lists
  */
 const CRON_EXPRESSION_REGEX =
-  /^([0-5]?\d) (\*|\*\/\d+|([01]?\d|2[0-3])(,([01]?\d|2[0-3]))*) (\*|[0-2]?\d|3[01]) (\*|[1-9]|1[0-2]) (\*|[0-6]([-,][0-6])*)$/; // NOSONAR
+  /^([0-5]?\d) (\*|\*\/\d+|([01]?\d|2[0-3])(,([01]?\d|2[0-3]))*) (\*|[1-9]|[12]\d|3[01]) (\*|[1-9]|1[0-2]) (\*|[0-6]([-,][0-6])*)$/; // NOSONAR
 
 const cronExpressionSchema = z.string().regex(
   CRON_EXPRESSION_REGEX, // NOSONAR
@@ -398,7 +402,15 @@ export const createTestSchema = z
     recurrence: z.enum(["daily", "weekly", "biweekly", "monthly"]).optional(),
     cronValue: cronExpressionSchema.optional(),
     cronExpiryDate: scheduleDateSchema.optional(),
+    scheduleTimezone: z.string().max(64, "scheduleTimezone must not exceed 64 characters").optional(),
     eventBridge: z.string().optional(),
+    healthyThreshold: z
+      .number()
+      .int("healthyThreshold must be an integer")
+      .min(0, "healthyThreshold must be between 0 and 100")
+      .max(100, "healthyThreshold must be between 0 and 100")
+      .optional()
+      .default(90),
   })
   .passthrough() // Allow additional fields for backward compatibility
   .superRefine((data, ctx: z.RefinementCtx) => {

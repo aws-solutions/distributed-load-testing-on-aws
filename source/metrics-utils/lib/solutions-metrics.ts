@@ -7,12 +7,12 @@ import { Construct } from "constructs";
 import { Schedule } from "aws-cdk-lib/aws-events";
 import { PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { EventbridgeToLambda } from "@aws-solutions-constructs/aws-eventbridge-lambda";
-import { Runtime } from "aws-cdk-lib/aws-lambda";
+import { Architecture, Runtime } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 
 import { LambdaToSqsToLambda } from "@aws-solutions-constructs/aws-lambda-sqs-lambda";
 import { MetricDataQuery } from "@aws-sdk/client-cloudwatch";
-import { ILogGroup, ILogGroupRef, QueryDefinition, QueryDefinitionProps, QueryString } from "aws-cdk-lib/aws-logs";
+import { ILogGroup, QueryDefinition, QueryDefinitionProps, QueryString } from "aws-cdk-lib/aws-logs";
 import { ExecutionDay, MetricDataProps, SolutionsMetricProps } from "../lambda/helpers/types";
 import {
   addLambdaBilledDurationMemorySize,
@@ -37,7 +37,10 @@ export class SolutionsMetrics extends Construct {
     this.metricsLambdaFunction = new NodejsFunction(this, "MetricsLambda", {
       description: "Metrics util",
       entry: path.join(__dirname, "../lambda/index.ts"),
+      projectRoot: path.join(__dirname, ".."),
+      depsLockFilePath: path.join(__dirname, "../package-lock.json"),
       runtime: Runtime.NODEJS_24_X,
+      architecture: Architecture.ARM_64,
       timeout: Duration.seconds(60),
       memorySize: 128,
       environment: {
@@ -46,6 +49,7 @@ export class SolutionsMetrics extends Construct {
         SOLUTION_NAME: scope.node.tryGetContext("solutionName"),
         SOLUTION_VERSION: scope.node.tryGetContext("solutionVersion"),
         UUID: props.uuid ?? "",
+        ACCOUNT_ID: Aws.ACCOUNT_ID,
         EXECUTION_DAY: props.executionDay ? props.executionDay : ExecutionDay.MONDAY,
       },
     });
@@ -135,10 +139,7 @@ export class SolutionsMetrics extends Construct {
       this.existingMetricIdentifiers.add(metricIdentifier);
     });
 
-    queryDefinitionProps.logGroups?.map((logGroup: ILogGroupRef) =>
-      // Cast to ILogGroup since we need the grant() method which isn't on ILogGroupRef
-      // The actual objects passed will be ILogGroup instances
-      // see https://github.com/aws/aws-cdk/releases/tag/v2.235.0
+    queryDefinitionProps.logGroups?.map((logGroup) =>
       (logGroup as ILogGroup).grant(this.metricsLambdaFunction, "logs:StartQuery", "logs:GetQueryResults")
     );
     this.metricsLambdaFunction.addToRolePolicy(

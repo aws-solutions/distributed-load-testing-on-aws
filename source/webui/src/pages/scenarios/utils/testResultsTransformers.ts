@@ -151,7 +151,7 @@ function transformToOverall(testRun: TestRunDetails): TableRow[] {
   return [
     {
       id: "overall-aggregate",
-      run: formatToLocalTime(testRun.startTime),
+      run: formatToLocalTime(testRun.startTime, { timeZoneName: "short" }),
       region: "total",
       testLabel: "--",
       requests: aggregated.requests,
@@ -191,7 +191,7 @@ function transformToByEndpoint(testRun: TestRunDetails): TableRow[] {
     
     tableData.push({
       id: `total-${label.label}-${labelIndex}`,
-      run: formatToLocalTime(testRun.startTime),
+      run: formatToLocalTime(testRun.startTime, { timeZoneName: "short" }),
       region: "total",
       testLabel: label.label,
       requests: label.throughput,
@@ -234,7 +234,7 @@ function transformToByRegion(testRun: TestRunDetails): TableRow[] {
       
       tableData.push({
         id: `${regionKey}-${label.label}-${labelIndex}`,
-        run: formatToLocalTime(testRun.startTime),
+        run: formatToLocalTime(testRun.startTime, { timeZoneName: "short" }),
         region: regionKey,
         testLabel: label.label,
         requests: label.throughput,

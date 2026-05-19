@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useNavigate } from "react-router-dom";
-import { get, del } from "aws-amplify/api";
+import { get, post } from "aws-amplify/api";
 import { ScenarioDefinition } from "../types";
 import { useDeleteScenarioMutation } from "../../../store/scenariosApiSlice";
 
@@ -37,8 +37,7 @@ export const useScenarioActions = () => {
 
   const cancelTestRun = async (testId: string) => {
     try {
-      await del({ apiName: "solution-api", path: `/scenarios/${testId}` }).response;
-      // Return success to allow parent component to handle refresh
+      await post({ apiName: "solution-api", path: `/scenarios/${testId}`, options: { body: { action: "stop" } } }).response;
       return { success: true };
     } catch (error) {
       console.error('Failed to cancel test run:', error);

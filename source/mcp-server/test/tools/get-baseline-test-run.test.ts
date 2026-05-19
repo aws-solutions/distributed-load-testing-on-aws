@@ -1,21 +1,26 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { AgentCoreEvent } from "../../src/lib/common.js";
 import { AppError } from "../../src/lib/errors.js";
-import type { HttpResponse, IAMHttpClient } from "../../src/lib/http-client.js";
+import type { HttpResponse } from "../../src/lib/http-client.js";
 import { handleGetBaselineTestRun } from "../../src/tools/get-baseline-test-run.js";
+import {
+  createMockHttpClient,
+  expectGetCalledWith,
+  mockErrorResponse,
+  mockNetworkError,
+  mockSuccessResponse,
+  type MockHttpClient,
+} from "../test-utils.js";
 
 describe("handleGetBaselineTestRun", () => {
-  let mockHttpClient: IAMHttpClient;
+  let mockHttpClient: MockHttpClient;
   const apiEndpoint = "https://api.example.com";
 
   beforeEach(() => {
-    mockHttpClient = {
-      get: vi.fn(),
-      request: vi.fn(),
-    } as any;
+    mockHttpClient = createMockHttpClient();
   });
 
   describe("Successful requests", () => {
@@ -27,13 +32,7 @@ describe("handleGetBaselineTestRun", () => {
         results: { avgResponseTime: 200 },
       };
 
-      const mockResponse: HttpResponse = {
-        statusCode: 200,
-        body: JSON.stringify(mockBaseline),
-        headers: {},
-      };
-
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+      mockSuccessResponse(mockHttpClient, mockBaseline);
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",
@@ -41,28 +40,18 @@ describe("handleGetBaselineTestRun", () => {
 
       const result = await handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event);
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith(
-        `${apiEndpoint}/scenarios/test-12345/baseline`
-      );
+      expectGetCalledWith(mockHttpClient, `${apiEndpoint}/scenarios/test-12345/baseline`);
       expect(result).toEqual(mockBaseline);
     });
 
     it("should handle baseline with alphanumeric and dash characters", async () => {
-      const mockResponse: HttpResponse = {
-        statusCode: 200,
-        body: JSON.stringify({ testId: "abc-123-xy", testRunId: "baseline-1" }),
-        headers: {},
-      };
-
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+      mockSuccessResponse(mockHttpClient, { testId: "abc-123-xy", testRunId: "baseline-1" });
 
       const event: AgentCoreEvent = {
         test_id: "abc-123-xy",
       };
 
-      await expect(
-        handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)
-      ).resolves.toBeDefined();
+      await expect(handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)).resolves.toBeDefined();
     });
   });
 
@@ -70,9 +59,7 @@ describe("handleGetBaselineTestRun", () => {
     it("should throw AppError for missing test_id", async () => {
       const event: AgentCoreEvent = {};
 
-      await expect(handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
+      await expect(handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
 
       try {
         await handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event);
@@ -87,9 +74,7 @@ describe("handleGetBaselineTestRun", () => {
         test_id: "short",
       };
 
-      await expect(handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
+      await expect(handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
 
       try {
         await handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event);
@@ -104,9 +89,7 @@ describe("handleGetBaselineTestRun", () => {
         test_id: "test_12345",
       };
 
-      await expect(handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
+      await expect(handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
 
       try {
         await handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event);
@@ -119,24 +102,14 @@ describe("handleGetBaselineTestRun", () => {
 
   describe("Error handling", () => {
     it("should throw AppError when API returns non-200 status", async () => {
-      const mockResponse: HttpResponse = {
-        statusCode: 404,
-        body: "Baseline not found",
-        headers: {},
-      };
-
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+      mockErrorResponse(mockHttpClient, 404, "Baseline not found");
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",
       };
 
-      await expect(handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
-      await expect(handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        "Baseline not found"
-      );
+      await expect(handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
+      await expect(handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow("Baseline not found");
 
       try {
         await handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event);
@@ -146,21 +119,13 @@ describe("handleGetBaselineTestRun", () => {
     });
 
     it("should throw AppError with 404 when baseline data is null", async () => {
-      const mockResponse: HttpResponse = {
-        statusCode: 200,
-        body: JSON.stringify(null),
-        headers: {},
-      };
-
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+      mockSuccessResponse(mockHttpClient, null);
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",
       };
 
-      await expect(handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
+      await expect(handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
       await expect(handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
         "Baseline test run not found: test-12345"
       );
@@ -173,15 +138,13 @@ describe("handleGetBaselineTestRun", () => {
     });
 
     it("should throw AppError with 500 when HTTP client throws", async () => {
-      vi.mocked(mockHttpClient.get).mockRejectedValue(new Error("Network error"));
+      mockNetworkError(mockHttpClient, "Network error");
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",
       };
 
-      await expect(handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
+      await expect(handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
       await expect(handleGetBaselineTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
         "Internal request failed"
       );
@@ -200,7 +163,7 @@ describe("handleGetBaselineTestRun", () => {
         headers: {},
       };
 
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+      mockHttpClient.get.mockResolvedValue(mockResponse);
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",

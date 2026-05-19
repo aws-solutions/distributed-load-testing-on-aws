@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Construct } from "constructs";
-import { Runtime } from "aws-cdk-lib/aws-lambda";
+import { Architecture, Runtime } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { Effect, Policy, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import { ArnFormat, CfnResource, Duration, Stack } from "aws-cdk-lib";
@@ -68,7 +68,10 @@ export class CustomResourceLambda extends Construct implements ICustomResourceLa
       handler: "index.handler",
       role: customResourceRole,
       entry: path.join(__dirname, `../../../custom-resource/${stackType}-index.js`),
+      projectRoot: path.join(__dirname, "../../../custom-resource"),
+      depsLockFilePath: path.join(__dirname, "../../../custom-resource/package-lock.json"),
       runtime: Runtime.NODEJS_24_X,
+      architecture: Architecture.ARM_64,
       timeout: Duration.seconds(120),
       environment: {
         METRIC_URL: SOLUTIONS_METRICS_ENDPOINT,

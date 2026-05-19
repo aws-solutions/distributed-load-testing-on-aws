@@ -16,15 +16,17 @@ import {
 import { fetchAuthSession } from "aws-amplify/auth";
 import { useContext, useEffect, useState } from "react";
 import { UserContext } from "../../contexts/UserContext";
-import { useGetStackInfoQuery } from "../../store/stackInfoApiSlice";
+import { STACK_INFO_CACHE_SECONDS, useGetStackInfoQuery } from "../../store/stackInfoApiSlice";
+import { usePageLoadMetric } from "../../hooks/usePageLoadMetric";
 
 export default function McpServerPage() {
   const { user } = useContext(UserContext);
-  const { data: stackInfo } = useGetStackInfoQuery();
+  const { data: stackInfo } = useGetStackInfoQuery(undefined, { refetchOnMountOrArgChange: STACK_INFO_CACHE_SECONDS });
   const [accessToken, setAccessToken] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
   const [authChecked, setAuthChecked] = useState<boolean>(false);
+  usePageLoadMetric("McpServer", { dataReady: !loading && !!stackInfo && !error, extra: { McpEnabled: stackInfo?.mcp_endpoint ? "true" : "false" } });
   const [tokenInfo, setTokenInfo] = useState<{
     issuedAt: Date;
     expiresAt: Date;

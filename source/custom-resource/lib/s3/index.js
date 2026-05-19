@@ -40,6 +40,25 @@ const putRegionalTemplate = async (config) => {
   return "success";
 };
 
+/**
+ * Copy JMeter bundle from source to destination bucket
+ */
+const copyJMeterBundle = async (config) => {
+  try {
+    const copyParams = {
+      CopySource: `${config.SrcBucket}/${config.SrcPath}/jmeter-bundle.tgz`,
+      Bucket: config.DestBucket,
+      Key: "frameworks/jmeter/jmeter-bundle.tgz",
+    };
+    await s3.copyObject(copyParams);
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
+  return "success";
+};
+
 module.exports = {
   putRegionalTemplate: putRegionalTemplate,
+  copyJMeterBundle: copyJMeterBundle,
 };

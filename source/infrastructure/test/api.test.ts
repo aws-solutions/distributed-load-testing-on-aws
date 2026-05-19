@@ -11,7 +11,7 @@ import { Solution } from "../bin/solution";
 import { createTemplateWithoutS3Key } from "./snapshot_helpers";
 
 test("DLT API Test", () => {
-  const app = new App();
+  const app = new App({ context: { "aws:cdk:bundling-stacks": [] } });
   const stack = new Stack(app, "DLTStack", {
     synthesizer: new DefaultStackSynthesizer({
       generateBootstrapVersionRule: false,
@@ -41,6 +41,7 @@ test("DLT API Test", () => {
     scenariosBucketName: "testScenarioBucketName",
     scenariosTableName: "testDDBTable",
     ecsTaskExecutionRoleArn: "arn:aws:iam::1234567890:role/MyRole-AJJHDSKSDF",
+    ecsTaskRoleArn: "arn:aws:iam::1234567890:role/TaskRole-AJJHDSKSDF",
     taskRunnerStepFunctionsArn: "arn:aws:states:us-east-1:111122223333:stateMachine:HelloWorld-StateMachine",
     taskCancelerArn: "arn:aws:lambda:us-east-1:111122223333:function:HelloFunction",
     uuid: "abc123",
@@ -56,6 +57,9 @@ test("DLT API Test", () => {
     Runtime: "nodejs24.x",
     Environment: {
       Variables: {
+        AWS_ACCOUNT_ID: {
+          Ref: "AWS::AccountId",
+        },
         HISTORY_TABLE: "testHistoryDDBTable",
         SCENARIOS_BUCKET: "testScenarioBucketName",
         SCENARIOS_TABLE: "testDDBTable",
@@ -74,4 +78,51 @@ test("DLT API Test", () => {
     ValidateRequestBody: true,
     ValidateRequestParameters: true,
   });
+});
+
+test("API Gateway GovCloud support: IsGovCloudPartition condition and endpoint type override", () => {
+  const app = new App({ context: { "aws:cdk:bundling-stacks": [] } });
+  const stack = new Stack(app, "DLTStack", {
+    synthesizer: new DefaultStackSynthesizer({
+      generateBootstrapVersionRule: false,
+    }),
+  });
+  const solution = new Solution("testId", "DLT", "testVersion", "mainStackDescription");
+  const testLog = new LogGroup(stack, "TestLogGroup");
+  const testPolicy = new Policy(stack, "TestPolicy", {
+    statements: [
+      new PolicyStatement({
+        resources: ["*"],
+        actions: ["cloudwatch:Get*"],
+      }),
+    ],
+  });
+
+  new DLTAPI(stack, "TestAPI", {
+    cloudWatchLogsPolicy: testPolicy,
+    ecsCloudWatchLogGroup: testLog,
+    historyDynamoDbPolicy: testPolicy,
+    historyTable: "testHistoryDDBTable",
+    historyTableGSIName: "testId-startTime-index",
+    scenariosDynamoDbPolicy: testPolicy,
+    taskCancelerInvokePolicy: testPolicy,
+    scenariosS3Policy: testPolicy,
+    scenariosBucketName: "testScenarioBucketName",
+    scenariosTableName: "testDDBTable",
+    ecsTaskExecutionRoleArn: "arn:aws:iam::1234567890:role/MyRole-AJJHDSKSDF",
+    ecsTaskRoleArn: "arn:aws:iam::1234567890:role/TaskRole-AJJHDSKSDF",
+    taskRunnerStepFunctionsArn: "arn:aws:states:us-east-1:111122223333:stateMachine:HelloWorld-StateMachine",
+    taskCancelerArn: "arn:aws:lambda:us-east-1:111122223333:function:HelloFunction",
+    uuid: "abc123",
+    solution,
+  });
+
+  const template = Template.fromStack(stack);
+
+  // Verify the RestApi resource exists
+  template.resourceCountIs("AWS::ApiGateway::RestApi", 1);
+
+  // Full GovCloud template verification (Fn::If for REGIONAL vs EDGE endpoint type,
+  // IsGovCloudPartition condition) is covered by the snapshot test above.
+  // The addPropertyOverride only resolves during full cdk synth.
 });

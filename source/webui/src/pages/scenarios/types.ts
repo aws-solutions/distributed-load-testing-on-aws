@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { TestStatus } from "./constants";
 import { TestTypes } from "./constants";
 
 // TypeScript interfaces for form data
@@ -34,11 +35,14 @@ export interface FormData {
   cronMonth: string;
   cronDayOfWeek: string;
   cronExpiryDate: string;
+  scheduleTimezone: string;
   regions: RegionConfig[];
   rampUpUnit: string;
   rampUpValue: string;
   holdForUnit: string;
   holdForValue: string;
+  healthyThreshold: string;
+  k6LicenseAcknowledged: boolean;
 }
 
 export interface Option {
@@ -48,19 +52,19 @@ export interface Option {
 
 // Scenario Definition interfaces
 
-export interface Task {
-  lastStatus: "RUNNING" | "PENDING" | "PROVISIONING" | "STOPPED";
-  taskArn?: string;
-  taskDefinitionArn?: string;
-  clusterArn?: string;
-  createdAt?: string;
-  startedAt?: string;
-  stoppedAt?: string;
-}
-
+/**
+ * Aggregate ECS task counts for a single region, as returned by describeServices.
+ * Designed to align with a future @amzn/dlt-common shared type.
+ *
+ * describeServices provides running, pending, and desired counts. It does not
+ * report stopped or provisioning counts. Stopped task counts come from
+ * taskFailureCount on the scenario record (tracked by the Task Failure Handler).
+ */
 export interface TasksPerRegion {
   region: string;
-  tasks: Task[];
+  running: number;
+  pending: number;
+  desired: number;
 }
 
 export interface TestTaskConfig {
@@ -77,6 +81,7 @@ export interface TestRun {
   startTime: string;
   endTime?: string;
   status?: "running" | "complete" | "failed" | "cancelled";
+  scheduleTimezone?: string;
   requests?: number;
   success?: number;
   errors?: number;
@@ -123,7 +128,8 @@ export interface ScenarioDefinition {
   testName: string;
   testDescription: string;
   testType: string;
-  status: "running" | "complete" | "failed" | "cancelled" | "scheduled" | "cancelling";
+  status: TestStatus;
+  errorReason?: string;
   testTaskConfigs: TestTaskConfig[];
   tasksPerRegion?: TasksPerRegion[];
   startTime?: string;
@@ -132,13 +138,33 @@ export interface ScenarioDefinition {
   scheduleRecurrence?: string;
   cronValue?: string;
   cronExpiryDate?: string;
+  scheduleTimezone?: string;
   showLive?: boolean;
   fileType?: string;
   tags?: string[];
+   
   testScenario?: any;
   history?: TestRun[];
   results?: Record<string, unknown>;
   totalTestRuns?: number;
+  /**
+   * Count of ECS tasks that exited unexpectedly during the current test run.
+   * Tracked by the Task Failure Handler via atomic DynamoDB increments.
+   * Used by the frontend as the "stopped" count in the task status table,
+   * since describeServices does not report stopped task counts.
+   */
+  taskFailureCount?: number;
   // Allow additional fields for API extensibility
   [key: string]: unknown;
+}
+
+export interface TaskStatusItem {
+  readonly region: string;
+  readonly running: number;
+  readonly pending: number;
+  readonly provisioning: number;
+  readonly stopped: number;
+  readonly desired: number;
+  readonly concurrency: number;
+  readonly regionStatus: "Ready" | "Provisioning" | "Degraded" | "Stopping";
 }

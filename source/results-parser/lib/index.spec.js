@@ -50,7 +50,9 @@ describe("Handler", () => {
   });
   const successfulMocks = () => {
     mockDDBDocumentClient.update.mockImplementation(() => Promise.resolve(""));
-    mockDDBDocumentClient.get.mockImplementation(() => Promise.resolve({ Item: {} }));
+    mockDDBDocumentClient.get.mockImplementation(() =>
+      Promise.resolve({ Item: { startTime: "2024-01-15 14:30:25", scheduleTimezone: "UTC" } })
+    );
     mockS3.listObjectsV2.mockImplementation(() => Promise.resolve(mockS3ListObjectResponse));
     mockS3.getObject.mockImplementation(() =>
       Promise.resolve({
@@ -61,7 +63,6 @@ describe("Handler", () => {
     );
     mockParser.results.mockReturnValue({});
     mockParser.finalResults.mockReturnValue({ metricLocation: "" });
-    mockParser.createWidget.mockReturnValue({});
   };
 
   it("test handler for successful invocation", async () => {

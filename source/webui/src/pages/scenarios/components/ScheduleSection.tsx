@@ -11,6 +11,7 @@ import {
   FormField,
   Header,
   RadioGroup,
+  Select,
   SpaceBetween,
   Input,
   Grid,
@@ -18,13 +19,29 @@ import {
 } from "@cloudscape-design/components";
 import { useMemo } from "react";
 import { DateTime } from "luxon";
+import { getTimeZones } from "@vvo/tzdb";
 import { FormData } from "../types";
-import cronParser from "cron-parser";
+import { CronExpressionParser, CronExpressionOptions } from "cron-parser";
+import { validateExpiryDate } from "../../../utils/dateValidation";
+import { validateCronFields } from "../../../utils/cronValidation";
 
-// Cron expression validation regex (matches the pattern in api-services/lib/validation/schemas.ts)
-// Supports: minute, hour (with step values and comma lists), day-of-month, month, day-of-week (with ranges and lists)
-const CRON_EXPRESSION_REGEX =
-  /^([0-5]?\d) (\*|\*\/\d+|([01]?\d|2[0-3])(,([01]?\d|2[0-3]))*) (\*|[0-2]?\d|3[01]) (\*|[1-9]|1[0-2]) (\*|[0-6]([-,][0-6])*)$/;
+
+/**
+ * Build timezone dropdown options from @vvo/tzdb getTimeZones.
+ * Uses currentTimeFormat which reflects the current DST offset.
+ */
+const timeZonesWithUtc = getTimeZones({ includeUtc: true });
+
+const timezoneOptions = timeZonesWithUtc.map((tz) => {
+  const totalMinutes = tz.currentTimeOffsetInMinutes;
+  const sign = totalMinutes >= 0 ? "+" : "-";
+  const hours = String(Math.floor(Math.abs(totalMinutes) / 60)).padStart(2, "0");
+  const minutes = String(Math.abs(totalMinutes) % 60).padStart(2, "0");
+  return {
+    label: `(UTC${sign}${hours}:${minutes}) ${tz.name}`,
+    value: tz.name,
+  };
+});
 
 interface Props {
   formData: FormData;
@@ -33,13 +50,7 @@ interface Props {
 }
 
 export const ScheduleSection = ({ formData, updateFormData, showValidationErrors }: Props) => {
-  const applyCronPattern = (
-    minutes: string,
-    hours: string,
-    dayOfMonth: string,
-    month: string,
-    dayOfWeek: string
-  ) => {
+  const applyCronPattern = (minutes: string, hours: string, dayOfMonth: string, month: string, dayOfWeek: string) => {
     updateFormData({
       cronMinutes: minutes,
       cronHours: hours,
@@ -51,49 +62,37 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
 
   const cronValidationError = useMemo(() => {
     if (formData.executionTiming !== "run-schedule") return "";
-    
+
     const { cronMinutes, cronHours, cronDayOfMonth, cronMonth, cronDayOfWeek } = formData;
-    
+
     // If required fields are missing, don't show regex validation error yet
     if (!cronMinutes || !cronHours) return "";
-    
-    const dayOfMonth = cronDayOfMonth || "*";
-    const month = cronMonth || "*";
-    const dayOfWeek = cronDayOfWeek || "*";
-    
-    const cronExpression = `${cronMinutes} ${cronHours} ${dayOfMonth} ${month} ${dayOfWeek}`;
-    
-    if (!CRON_EXPRESSION_REGEX.test(cronExpression)) {
-      return "Invalid cron expression format for scheduling.";
-    }
-    
-    return "";
-  }, [formData.executionTiming, formData.cronMinutes, formData.cronHours, formData.cronDayOfMonth, formData.cronMonth, formData.cronDayOfWeek]);
+
+    // Treat empty strings as incomplete input — do not default to "*"
+    if (cronDayOfMonth === "" || cronMonth === "" || cronDayOfWeek === "") return "";
+
+    return validateCronFields({ cronMinutes, cronHours, cronDayOfMonth, cronMonth, cronDayOfWeek });
+  }, [
+    formData.executionTiming,
+    formData.cronMinutes,
+    formData.cronHours,
+    formData.cronDayOfMonth,
+    formData.cronMonth,
+    formData.cronDayOfWeek,
+  ]);
 
   const expiryDateError = useMemo(() => {
     if (formData.executionTiming !== "run-schedule" || !formData.cronExpiryDate) return "";
-    try {
-      const dateParts = formData.cronExpiryDate.split(/[-/]/);
-      if (dateParts.length !== 3) return "Invalid date format";
-      
-      const year = parseInt(dateParts[0]);
-      const month = parseInt(dateParts[1]);
-      const day = parseInt(dateParts[2]);
-      
-      if (isNaN(year) || isNaN(month) || isNaN(day)) return "Invalid date format";
-      
-      const expiryDate = new Date(year, month - 1, day, 23, 59, 59, 999);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      return expiryDate < today ? "Expiry date must be in the future" : "";
-    } catch {
-      return "Invalid date format";
-    }
+    return validateExpiryDate(formData.cronExpiryDate).errorMessage;
   }, [formData.cronExpiryDate, formData.executionTiming]);
 
   const nextRun = useMemo(() => {
-    const { cronMinutes, cronHours, cronDayOfMonth, cronMonth, cronDayOfWeek, cronExpiryDate } = formData;
+    const { cronMinutes, cronHours, cronDayOfMonth, cronMonth, cronDayOfWeek, cronExpiryDate, scheduleTimezone } =
+      formData;
     if (!cronMinutes || !cronHours || !cronExpiryDate) return { dates: [], error: "" };
+
+    // Prevent computation when fields are empty strings
+    if (cronDayOfMonth === "" || cronMonth === "" || cronDayOfWeek === "") return { dates: [], error: "" };
 
     try {
       // Convert ? to * for cron-parser compatibility
@@ -103,10 +102,10 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
       // Build Linux cron expression (5 fields)
       const cronExpression = `${cronMinutes} ${cronHours} ${dayOfMonth} ${cronMonth} ${dayOfWeek}`;
 
-      // Parse using cron-parser
-      const interval = cronParser.parse(cronExpression);
-      let expiryDate = null;
-      
+      // Use the selected schedule timezone for cron parsing
+      const parserOptions: CronExpressionOptions = { tz: scheduleTimezone || "UTC" };
+
+      // Configure expiration for the cron parser
       if (cronExpiryDate) {
         const dateParts = cronExpiryDate.split(/[-/]/);
         if (dateParts.length === 3) {
@@ -114,20 +113,24 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
           const month = parseInt(dateParts[1]);
           const day = parseInt(dateParts[2]);
           if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-            expiryDate = new Date(year, month - 1, day, 23, 59, 59, 999);
+            const expiryDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+            parserOptions.endDate = expiryDate;
           }
         }
       }
-      
-      const dates: string[] = [];
-      const offsetMinutes = new Date().getTimezoneOffset();
-      while (dates.length < 5) {
-        const nextDateUTC = interval.next().toDate();
-        if (expiryDate && nextDateUTC > expiryDate) break;
-        const localTime = new Date(nextDateUTC.getTime() - offsetMinutes * 60000);
-        const formatted = DateTime.fromJSDate(localTime).toFormat("MMM d, yyyy, h:mm a");
-        if (!dates.includes(formatted)) dates.push(formatted);
-      }
+
+      // Parse using cron-parser
+      const interval = CronExpressionParser.parse(cronExpression, parserOptions);
+
+      // Take maximum of 5 scheduled times or until expire, whichever is fewer.
+      const dates: string[] = interval.take(5).map((nextDate) => {
+        const nextDateObj = nextDate.toDate();
+
+        // Convert to the user's local browser timezone for display
+        const localDateTime = DateTime.fromJSDate(nextDateObj).setZone("local");
+        const formatted = localDateTime.toFormat("MMM d, yyyy, h:mm a");
+        return formatted;
+      });
 
       return { dates, error: dates.length === 0 ? "No matching dates found" : "" };
     } catch (error) {
@@ -141,6 +144,7 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
     formData.cronMonth,
     formData.cronDayOfWeek,
     formData.cronExpiryDate,
+    formData.scheduleTimezone,
   ]);
 
   return (
@@ -200,26 +204,32 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
               <FormField
                 stretch
                 label="Run Once"
-                description="Select the time of day and date when the load test should start running (browser time)."
+                description="Select the time of day and date when the load test should start running in the selected timezone."
               >
                 <Grid gridDefinition={[{ colspan: 6 }, { colspan: 6 }]}>
-                  <FormField 
-                    label="Run time" 
+                  <FormField
+                    label="Run time"
                     constraintText="Time must be in 24-hour format"
-                    errorText={showValidationErrors && !formData.scheduleTime?.trim() ? "Run time is required" : undefined}
+                    errorText={
+                      showValidationErrors && !formData.scheduleTime?.trim() ? "Run time is required" : undefined
+                    }
                   >
                     <Input
+                      data-cy="schedule-time-input"
                       value={formData.scheduleTime}
                       onChange={({ detail }) => updateFormData({ scheduleTime: detail.value })}
                       placeholder="00:00"
                       invalid={showValidationErrors && !formData.scheduleTime?.trim()}
                     />
                   </FormField>
-                  <FormField 
+                  <FormField
                     label="Run date"
-                    errorText={showValidationErrors && !formData.scheduleDate?.trim() ? "Run date is required" : undefined}
+                    errorText={
+                      showValidationErrors && !formData.scheduleDate?.trim() ? "Run date is required" : undefined
+                    }
                   >
                     <DatePicker
+                      data-cy="schedule-date-picker"
                       value={formData.scheduleDate}
                       onChange={({ detail }) => updateFormData({ scheduleDate: detail.value })}
                       placeholder="YYYY/MM/DD"
@@ -227,6 +237,15 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
                     />
                   </FormField>
                 </Grid>
+              </FormField>
+              <FormField label="Timezone" description="The timezone for the scheduled run.">
+                <Select
+                  selectedOption={timezoneOptions.find((opt) => opt.value === formData.scheduleTimezone) || null}
+                  onChange={({ detail }) => updateFormData({ scheduleTimezone: detail.selectedOption.value ?? "UTC" })}
+                  options={timezoneOptions}
+                  filteringType="auto"
+                  placeholder="Select a timezone"
+                />
               </FormField>
             </SpaceBetween>
           </Container>
@@ -244,8 +263,8 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
                       Daily at 9:00 AM
                     </Link>
                     <Link fontSize="body-s" onFollow={() => applyCronPattern("0", "8", "*", "*", "1-5")}>
-                       Weekdays at 8:00 AM
-                     </Link>
+                      Weekdays at 8:00 AM
+                    </Link>
                     <Link fontSize="body-s" onFollow={() => applyCronPattern("0", "17", "*", "*", "0")}>
                       Every Sunday at 5 PM
                     </Link>
@@ -258,7 +277,7 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
               <FormField
                 stretch
                 label="Schedule pattern"
-                description="A fine-grained schedule that runs at a specific time. Specified in UTC."
+                description={`A fine-grained schedule that runs at a specific time in the selected timezone.`}
                 errorText={cronValidationError || undefined}
               >
                 <Grid disableGutters gridDefinition={[{ colspan: 1 }, { colspan: 10 }, { colspan: 1 }]}>
@@ -338,24 +357,41 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
                   </Box>
                 </Grid>
               </FormField>
-              <FormField 
+              <FormField
                 label="Expiry date"
                 description="The date when the scheduled test should stop running"
-                errorText={expiryDateError || (showValidationErrors && !formData.cronExpiryDate ? "Expiry date is required" : undefined)}
+                errorText={
+                  expiryDateError ||
+                  (showValidationErrors && !formData.cronExpiryDate ? "Expiry date is required" : undefined)
+                }
               >
                 <DatePicker
+                  data-cy="cron-expiry-date-picker"
                   value={formData.cronExpiryDate}
                   onChange={({ detail }) => updateFormData({ cronExpiryDate: detail.value })}
                   placeholder="YYYY/MM/DD"
                   invalid={!!expiryDateError || (showValidationErrors && !formData.cronExpiryDate)}
                 />
               </FormField>
-              {(nextRun.dates.length > 0 || nextRun.error) && (
-                <FormField label="Next Runs (Local time)" errorText={nextRun.error || undefined}>
+              <FormField
+                label="Timezone"
+                description="The timezone for the cron schedule. DST adjustments are handled automatically."
+              >
+                <Select
+                  selectedOption={timezoneOptions.find((opt) => opt.value === formData.scheduleTimezone) || null}
+                  onChange={({ detail }) => updateFormData({ scheduleTimezone: detail.selectedOption.value ?? "UTC" })}
+                  options={timezoneOptions}
+                  filteringType="auto"
+                  placeholder="Select a timezone"
+                />
+              </FormField>
+              {(cronValidationError || nextRun.dates.length > 0 || nextRun.error) && (
+                <FormField label="Next Runs (Local time)" errorText={!cronValidationError ? nextRun.error || undefined : undefined}>
                   <Box variant="small">
-                    {nextRun.dates.map((date) => (
-                      <Box key={date}>• {date}</Box>
-                    ))}
+                    {!cronValidationError &&
+                      nextRun.dates.map((date, index) => (
+                        <Box key={index}>• {date}</Box>
+                      ))}
                   </Box>
                 </FormField>
               )}

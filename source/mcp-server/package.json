@@ -1,6 +1,7 @@
 {
-  "name": "mcp-server",
-  "version": "4.0.0",
+  "name": "@amzn/dlt-mcp-server",
+  "version": "0.0.0",
+  "private": true,
   "description": "MCP server for Distributed Load Testing on AWS",
   "main": "index.js",
   "directories": {
@@ -20,13 +21,6 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@types/aws4": "^1.11.6",
-    "@types/node": "^24.7.0",
-    "@vitest/coverage-v8": "^4.0.8",
-    "eslint": "^9.37.0",
-    "prettier": "^3.6.2",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.8"
+    "@types/aws4": "^1.11.6"
   }
 }

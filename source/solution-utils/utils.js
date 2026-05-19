@@ -33,6 +33,8 @@ const getOptions = (options) => {
   return options;
 };
 
+const METRIC_SCHEMA_VERSION = 1;
+
 /**
  * Sends operational metrics.
  * @param {{ taskCount: number, testType: string, fileType: string|undefined }} - the number of containers used for the test, the test type, and the file type
@@ -47,6 +49,8 @@ const sendMetric = async (metricData) => {
       // Date and time instant in a java.sql.Timestamp compatible format
       TimeStamp: new Date().toISOString().replace("T", " ").replace("Z", ""),
       Version: process.env.VERSION,
+      MetricSchemaVersion: METRIC_SCHEMA_VERSION,
+      ...(process.env.AWS_ACCOUNT_ID && { AccountId: process.env.AWS_ACCOUNT_ID }),
       Data: metricData,
     };
     const params = {

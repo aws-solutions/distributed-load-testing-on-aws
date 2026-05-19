@@ -93,7 +93,13 @@ export class ScenarioTestRunnerStorageConstruct extends Construct {
 
     addCfnGuardSuppression(this.historyTable, "DYNAMODB_TABLE_ENCRYPTED_KMS");
 
-    const historyDDBActions = ["dynamodb:BatchWriteItem", "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:Query"];
+    const historyDDBActions = [
+      "dynamodb:BatchWriteItem",
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+      "dynamodb:UpdateItem",
+      "dynamodb:Query",
+    ];
     this.historyDynamoDbPolicy = new Policy(this, "HistoryDynamoDbPolicy", {
       statements: [
         new PolicyStatement({

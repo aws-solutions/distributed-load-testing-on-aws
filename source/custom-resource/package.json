@@ -1,6 +1,6 @@
 {
   "name": "custom-resource",
-  "version": "4.0.16",
+  "version": "4.1.0",
   "description": "cfn custom resources for distributed load testing on AWS workflow",
   "repository": {
     "type": "git",
@@ -23,7 +23,11 @@
     "@aws-sdk/client-dynamodb": "^3.993.0",
     "@aws-sdk/client-iot": "^3.993.0",
     "@aws-sdk/client-s3": "^3.993.0",
-    "@aws-sdk/lib-dynamodb": "^3.993.0"
+    "@aws-sdk/client-scheduler": "^3.1008.0",
+    "@aws-sdk/lib-dynamodb": "^3.993.0",
+    "@aws-sdk/client-cloudfront": "^3.993.0",
+    "@aws-sdk/client-cloudformation": "^3.993.0",
+    "@aws-sdk/client-cloudwatch-events": "^3.993.0"
   },
   "devDependencies": {
     "axios-mock-adapter": "1.19.0",

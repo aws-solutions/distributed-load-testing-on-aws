@@ -6,7 +6,6 @@ import { IConstruct } from "constructs";
 
 /**
  * Adds a CFN Guard suppression to a resource.
- *
  * @param {IConstruct} resource - The resource to add suppression to
  * @param {string} suppression - The suppression rule to add
  */

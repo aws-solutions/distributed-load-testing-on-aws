@@ -1,18 +1,17 @@
 // Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Template } from "aws-cdk-lib/assertions";
 import { App, DefaultStackSynthesizer, Stack } from "aws-cdk-lib";
-import { TestRunnerLambdasConstruct } from "../lib/back-end/test-task-lambdas";
-import { Effect, Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
-import { LogGroup } from "aws-cdk-lib/aws-logs";
+import { Match, Template } from "aws-cdk-lib/assertions";
 import { AttributeType, Table } from "aws-cdk-lib/aws-dynamodb";
-import { Solution, SOLUTIONS_METRICS_ENDPOINT } from "../bin/solution";
+import { Effect, Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import { Solution, SOLUTIONS_METRICS_ENDPOINT } from "../bin/solution";
+import { TestRunnerLambdasConstruct } from "../lib/back-end/test-task-lambdas";
 import { createTemplateWithoutS3Key } from "./snapshot_helpers";
 
 test("DLT Task Lambda Test", () => {
-  const app = new App();
+  const app = new App({ context: { "aws:cdk:bundling-stacks": [] } });
   const stack = new Stack(app, "DLTStack", {
     synthesizer: new DefaultStackSynthesizer({
       generateBootstrapVersionRule: false,
@@ -48,8 +47,6 @@ test("DLT Task Lambda Test", () => {
     ],
   });
 
-  const testLogGroup = new LogGroup(stack, "TestLogsGroup");
-
   const testTable = new Table(stack, "TestTable", {
     partitionKey: {
       name: "id",
@@ -61,8 +58,8 @@ test("DLT Task Lambda Test", () => {
     cloudWatchLogsPolicy: testPolicy,
     scenariosDynamoDbPolicy: testDBPolicy,
     ecsTaskExecutionRoleArn: "arn:aws:iam:us-east-1:111122223333:roleArn",
+    ecsTaskRoleArn: "arn:aws:iam:us-east-1:111122223333:roleTaskArn",
     ecsCluster: "testCluster",
-    ecsTaskDefinition: "testTaskDefinition",
     ecsTaskSecurityGroup: "testSecurityGroup",
     historyTable: testTable,
     historyDynamoDbPolicy: testDBPolicy,
@@ -75,12 +72,13 @@ test("DLT Task Lambda Test", () => {
     scenariosTable: testTable,
     uuid: "testId",
     mainStackRegion: "us-east-1",
+    ecsCloudWatchLogGroup: "/ecs/dlt-load-tester",
   });
   expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();
 
   Template.fromStack(stack).hasResourceProperties("AWS::IAM::Policy", {
     PolicyDocument: testPolicy.document.toJSON(),
-    Roles: [
+    Roles: Match.arrayWith([
       {
         Ref: "TaskRunnerLambdaFunctionsLambdaResultsRole1AF5AB18",
       },
@@ -94,15 +92,18 @@ test("DLT Task Lambda Test", () => {
         Ref: "TaskRunnerLambdaFunctionsTaskStatusRole4B498DE5",
       },
       {
-        Ref: "TaskRunnerLambdaFunctionsMetricFilterCleanerRole672CE84C",
+        Ref: "TaskRunnerLambdaFunctionsTestCleanupRole5D7EE947",
       },
-    ],
+    ]),
   });
 
   Template.fromStack(stack).hasResourceProperties("AWS::Lambda::Function", {
     Description: "Result parser for indexing xml test results to DynamoDB",
     Environment: {
       Variables: {
+        AWS_ACCOUNT_ID: {
+          Ref: "AWS::AccountId",
+        },
         METRIC_URL: SOLUTIONS_METRICS_ENDPOINT,
         SCENARIOS_BUCKET: "testBucket",
         SCENARIOS_TABLE: {
@@ -149,4 +150,10 @@ test("DLT Task Lambda Test", () => {
   expect(testFunctions.taskCanceler).toBeInstanceOf(NodejsFunction);
   expect(testFunctions.taskCancelerInvokePolicy).toBeInstanceOf(Policy);
   expect(testFunctions.taskStatusChecker).toBeInstanceOf(NodejsFunction);
+  expect(testFunctions.stabilizationChecker).toBeInstanceOf(NodejsFunction);
+  expect(testFunctions.startCommand).toBeInstanceOf(NodejsFunction);
+  expect(testFunctions.regionalSync).toBeInstanceOf(NodejsFunction);
+  expect(testFunctions.taskFailureHandler).toBeInstanceOf(NodejsFunction);
+  expect(testFunctions.orphanCleanup).toBeInstanceOf(NodejsFunction);
+  expect(testFunctions.sfnFailureHandler).toBeInstanceOf(NodejsFunction);
 });

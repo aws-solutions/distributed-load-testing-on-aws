@@ -75,6 +75,7 @@ export const ReviewAndCreateStep = ({ formData, updateFormData, onEdit, onCancel
                 cron ({formData.cronMinutes} {formData.cronHours} {formData.cronDayOfMonth} {formData.cronMonth}{" "}
                 {formData.cronDayOfWeek})
               </div>
+              <div>{formData.scheduleTimezone}</div>
             </div>
           )}
         </div>

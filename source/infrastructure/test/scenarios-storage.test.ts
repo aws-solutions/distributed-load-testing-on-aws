@@ -7,7 +7,7 @@ import { Bucket } from "aws-cdk-lib/aws-s3";
 import { createTemplateWithoutS3Key } from "./snapshot_helpers";
 
 test("DLT API Test", () => {
-  const app = new App();
+  const app = new App({ context: { "aws:cdk:bundling-stacks": [] } });
   const stack = new Stack(app, "DLTStack", {
     synthesizer: new DefaultStackSynthesizer({
       generateBootstrapVersionRule: false,

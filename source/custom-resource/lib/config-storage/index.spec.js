@@ -33,8 +33,10 @@ const testingResourcesConfig = {
   subnetB: "subnet-testB",
   taskSecurityGroup: "testFargateSG",
   taskDefinition: "testFargateTestDefinition",
-  taskImage: "test-load-tester",
   taskCluster: "testCluster",
+  taskRoleArn: "arn:aws:iam::123456789012:role/test-task-role",
+  executionRoleArn: "arn:aws:iam::123456789012:role/test-execution-role",
+  stackId: "arn:aws:cloudformation:us-west-2:123456789012:stack/regional-stack/guid",
 };
 
 const deletedTestingResourcesConfig = {
@@ -44,9 +46,9 @@ const deletedTestingResourcesConfig = {
   subnetA: "",
   subnetB: "",
   taskSecurityGroup: "",
-  taskDefinition: "",
-  taskImage: "",
   taskCluster: "",
+  taskRoleArn: "",
+  executionRoleArn: "",
 };
 
 describe("#Write Configs::", () => {
@@ -80,6 +82,19 @@ describe("#Write Configs::", () => {
         Item: expect.objectContaining(testingResourcesConfig),
       });
     }
+  });
+
+  it("should write stackId to DynamoDB when provided", async () => {
+    mockDynamoDb.put.mockResolvedValue({});
+
+    await lambda.testingResourcesConfigFile(testingResourcesConfig);
+    expect(mockDynamoDb.put).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Item: expect.objectContaining({
+          stackId: "arn:aws:cloudformation:us-west-2:123456789012:stack/regional-stack/guid",
+        }),
+      })
+    );
   });
 });
 

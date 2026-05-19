@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-05-13
+
+### Added
+
+- **Task Orchestration Rewrite** - Replaced the legacy step function orchestration with a new multi-region parallel architecture using Map states, EventBridge-routed failure handling, a regional sync barrier, fast failure detection for Taurus and JVM errors, and structured JSON logging in ECS tasks
+- **Command-Line Interface (CLI)** - Added a TypeScript CLI for headless interaction with the DLT solution, supporting browser-based and token-based authentication, baseline comparison with semantic coloring, batch start, and single-file portable bundle via esbuild
+- **ALB + ECS Web Console Deployment** - Added an alternative deployment option that hosts the web console on ALB with ECS Fargate via an nginx container, enabling deployment in restricted network environments
+- **Headless Deployment Option** - Added an API-only deployment stack with no web console, designed for CLI and MCP-driven workflows
+- **Partition-Aware Resource References** - Added partition-aware ARN construction and service endpoint resolution to support deployment in non-standard AWS partitions
+- **Timezone-Aware Scheduling** - Added timezone selection to cron-based scheduling so users can schedule tests in their local timezone rather than UTC only
+- **Cognito Hosted UI Authentication** - Added Cognito Hosted UI with UUID-based domain prefix, OAuth code flow, branded login page, and CloudWatch logging for the user pool
+- **Version Compatibility Checks** - Added a version compatibility file that blocks and displays incompatible test runs when regional stacks are on a different version than the primary stack
+- **New Version Notification** - Added a notification banner in the UI when a newer DLT version is available
+- **Cancelled Test Run History** - Added cancelled test runs to the history table, now visible from the UI
+
+### Changed
+
+- **ARM64 Lambda Architecture** - Migrated all Lambda functions from x86_64 to ARM64 (Graviton2) for improved cost-performance
+- **Backwards Compatibility (v3 to v4)** - Implemented a custom resource to migrate scheduled test payloads when upgrading from v3 to v4
+- **Stack Tag Propagation** - Propagated stack-level CloudFormation tags to ECS tasks
+- **Improved Cron Validation** - Replaced generic cron errors with field-specific error messages and corrected expiry date comparison to use end-of-day UTC
+- **Improved Traffic Shape Validation** - Replaced single generic error with multiple granular error messages for traffic shape configuration
+
+### Fixed
+
+- **Premature Terminal States** - Deferred terminal status write to the final step function step to prevent tests from appearing complete before cleanup finishes
+- **Scenario Deletion Safety** - Prevented scenario deletion while tests are in a non-terminal state; reject delete requests for running or cancelling scenarios with 409 Conflict
+- **Race Condition in Scenario Creation** - Fixed a race condition that produced empty test scenarios
+- **Regional Stack Crash** - Fixed unhandled TypeError on a deleted regional stack
+- **Edit Scenario with Special Characters** - Fixed form population failure when editing scenarios containing special characters
+- **Cancel Test Endpoint** - Fixed the web UI to use the correct API endpoint for the cancel test action
+- **Auth Redirect Loops** - Fixed stale OAuth callback params and auth redirect race conditions
+- **Result File Handling** - Updated test orchestration to handle result files in cases of task failures
+- **EventBridge Rule Cleanup** - Cleaned up EventBridge rules created by scheduled tests as part of stack deletion, preventing orphaned rules
+
+### Security
+
+- **WAF Protection** - Added WAF WebACL with AWS managed rule groups for the ALB+ECS deployment
+- **Cognito Refresh Token Rotation** - Enabled refresh token rotation to limit token reuse
+- **Non-Root Web Console Container** - Configured the nginx-based web console container to run as a non-root user
+- **CSP Hardening** - Reduced wildcards in Content Security Policy for CloudFront and dynamically generated CSP for ALB-ECS deployments
+- **IoT Policy Scoping** - Scoped down overly permissive IoT policy to least-privilege
+- **ECS Task Role Separation** - Split the shared ECS execution role into a dedicated task role scoped to only what the container workload requires
+- **OAuth Scope Reduction** - Removed the overly permissive aws.cognito.signin.user.admin OAuth scope
+- **Container Base Images** - Pinned both the load tester (amazonlinux:2023-minimal) and web console (nginx:alpine) container images to latest security-patched digests
+
 ## [4.0.16] - 2026-05-01
 
 ### Security

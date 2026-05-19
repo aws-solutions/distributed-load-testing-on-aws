@@ -11,6 +11,54 @@ const {
 } = require("./lib/validation");
 
 /**
+ * Send create/update metric for a scenario. Awaited from handleScenarios;
+ *
+ * @param {object} params
+ * @param {object|null} params.existingEntry - DynamoDB item for the test before the write, or null if new
+ * @param {object} params.data - Response from createTest/scheduleTest (must include testId)
+ * @param {object} params.config - Parsed request body with test configuration
+ * @param {string} params.userAgent - Caller's User-Agent header
+ */
+const sendScenarioWriteMetric = async ({ existingEntry, data, config, userAgent }) => {
+  try {
+    const isUpdate = existingEntry != null;
+    const fieldsChanged = isUpdate ? scenarios.computeChangedFields(existingEntry, config) : undefined;
+    const concurrencyTotal = (config.testTaskConfigs || []).reduce((sum, t) => sum + (parseInt(t.concurrency) || 0), 0);
+    const holdFor = config.testScenario?.execution?.[0]?.["hold-for"];
+    const rampUp = config.testScenario?.execution?.[0]?.["ramp-up"];
+    const estimatedDuration = scenarios.getTestDurationSeconds(holdFor) + scenarios.getTestDurationSeconds(rampUp);
+    const testRunCount = await scenarios.getTestRunCount(data.testId);
+    const taskCountPerRegion = {};
+    for (const tc of config.testTaskConfigs || []) {
+      taskCountPerRegion[tc.region] = tc.taskCount;
+    }
+    const metric = {
+      Type: isUpdate ? "TestUpdate" : "TestCreate",
+      TestType: config.testType,
+      FileType: config.fileType || (config.testType === "simple" ? "none" : "script"),
+      TaskCountPerRegion: taskCountPerRegion,
+      TestId: data.testId,
+      TestRunNumber: testRunCount,
+      HasBaseline: data?.baselineId ? "true" : "false",
+      ConcurrencyTotal: concurrencyTotal,
+      EstimatedDuration: estimatedDuration,
+      TestScheduleStep: config.scheduleStep,
+      HoldFor: holdFor,
+      RampUp: rampUp,
+      CronValue: config.cronValue,
+      TestEventBridgeScheduled: config.eventBridge,
+      UserAgent: userAgent,
+    };
+    if (fieldsChanged) {
+      metric.FieldsChanged = fieldsChanged;
+    }
+    await utils.sendMetric(metric);
+  } catch (err) {
+    console.error("Failed to send metric:", err);
+  }
+};
+
+/**
  * API Manager Class that gets API path and their method
  * and calls the appropriate handler function to handle the request
  */
@@ -47,15 +95,6 @@ class APIHandler {
     throw this.errorMsg;
   }
 
-  // Helper method to prepare task count metrics
-  prepareTaskCountMetrics(config) {
-    let taskCountObj = {};
-    for (const taskConfig of config.testTaskConfigs) {
-      taskCountObj[taskConfig.region] = taskConfig.taskCount;
-    }
-    return taskCountObj;
-  }
-
   // Handle the /scenarios endpoint
   async handleScenarios(config, queryParams, body, functionName, functionArn, userAgent) {
     let data;
@@ -70,6 +109,15 @@ class APIHandler {
         return await scenarios.listTests(filterTags);
       }
       case "POST": {
+        // Look up existing entry before dispatching — both createTest and
+        // scheduleTest overwrite DDB, so we must read first to detect updates.
+        let existingEntry = null;
+        try {
+          existingEntry = config.testId ? await scenarios.getTestEntry(config.testId) : null;
+        } catch (err) {
+          console.error("Failed to fetch existing entry for metric:", err);
+        }
+
         if (config.scheduleStep) {
           // Handle scheduling test
           data = await scenarios.scheduleTest(
@@ -89,23 +137,7 @@ class APIHandler {
           data = await scenarios.createTest(config, functionName);
         }
 
-        try {
-          await utils.sendMetric({
-            Type: "TestCreate",
-            TestType: config.testType,
-            FileType: config.fileType || (config.testType === "simple" ? "none" : "script"),
-            TaskCountPerRegion: this.prepareTaskCountMetrics(config),
-            TestId: data.testId,
-            TestScheduleStep: config.scheduleStep,
-            HoldFor: config.testScenario?.execution?.[0]?.["hold-for"],
-            RampUp: config.testScenario?.execution?.[0]?.["ramp-up"],
-            CronValue: config.cronValue,
-            TestEventBridgeScheduled: config.eventBridge,
-            UserAgent: userAgent,
-          });
-        } catch (err) {
-          console.error("Failed to send metric:", err);
-        }
+        await sendScenarioWriteMetric({ existingEntry, data, config, userAgent });
         return data;
       }
       default:
@@ -127,22 +159,31 @@ class APIHandler {
           console.error("Failed to send metric:", err);
         }
         return scenarios.getTest(testId, queryParams);
-      case "POST":
+      case "POST": {
+        const cancelResult = await scenarios.cancelTest(testId);
         try {
           await utils.sendMetric({
             Type: "CancelTest",
             TestId: testId,
+            TestType: cancelResult.testType,
+            RunDuration: cancelResult.runDuration,
+            TasksLaunched: cancelResult.tasksLaunched,
+            TasksCompleted: cancelResult.tasksCompleted,
+            HadResults: cancelResult.hadResults ? "true" : "false",
             UserAgent: userAgent,
           });
         } catch (err) {
           console.error("Failed to send metric:", err);
         }
-        return scenarios.cancelTest(testId);
+        return cancelResult.status;
+      }
       case "DELETE":
         try {
+          const testRunCount = await scenarios.getTestRunCount(testId);
           await utils.sendMetric({
             Type: "DeleteTest",
             TestId: testId,
+            TestRuns: testRunCount ?? 0,
             UserAgent: userAgent,
           });
         } catch (err) {
@@ -480,8 +521,8 @@ exports.handler = async (event, context) => { // NOSONAR
     response = createResponse(err.toString(), err.statusCode || scenarios.StatusCodes.BAD_REQUEST);
   }
 
-  console.log(response);
   return response;
 };
 
 exports.validateConfig = validateConfig;
+exports.sendScenarioWriteMetric = sendScenarioWriteMetric;

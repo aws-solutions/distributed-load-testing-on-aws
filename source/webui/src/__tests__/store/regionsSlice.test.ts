@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { configureStore } from "@reduxjs/toolkit";
 import { server, MOCK_SERVER_URL } from "../server";
 import { http, HttpResponse, delay } from "msw";
-import { regionsSlice, regionsApiSlice, setRegionsData } from "../../store/regionsSlice";
+import { regionsSlice, regionsApiSlice, setRegionNames } from "../../store/regionsSlice";
 import { solutionApi, ApiEndpoints } from "../../store/solutionApi";
 
 const createTestStore = () =>
@@ -21,33 +21,33 @@ describe("regionsSlice", () => {
   describe("reducers", () => {
     it("should return initial state", () => {
       const state = regionsSlice.reducer(undefined, { type: "unknown" });
-      expect(state).toEqual({ data: null });
+      expect(state).toEqual({ regionNames: null, regionalStacks: null });
     });
 
-    it("should handle setRegionsData with valid data", () => {
-      const initialState = { data: null };
+    it("should handle setRegionNames with valid data", () => {
+      const initialState = { regionNames: null, regionalStacks: null };
       const regions = ["us-east-1", "us-west-2", "eu-west-1"];
-      const action = setRegionsData(regions);
+      const action = setRegionNames(regions);
       const newState = regionsSlice.reducer(initialState, action);
 
-      expect(newState.data).toEqual(regions);
+      expect(newState.regionNames).toEqual(regions);
     });
 
-    it("should handle setRegionsData with empty array", () => {
-      const initialState = { data: ["us-east-1"] };
-      const action = setRegionsData([]);
+    it("should handle setRegionNames with empty array", () => {
+      const initialState = { regionNames: ["us-east-1"], regionalStacks: null };
+      const action = setRegionNames([]);
       const newState = regionsSlice.reducer(initialState, action);
 
-      expect(newState.data).toEqual([]);
+      expect(newState.regionNames).toEqual([]);
     });
 
-    it("should handle setRegionsData overwriting existing data", () => {
-      const initialState = { data: ["us-east-1", "us-west-2"] };
+    it("should handle setRegionNames overwriting existing data", () => {
+      const initialState = { regionNames: ["us-east-1", "us-west-2"], regionalStacks: null };
       const newRegions = ["eu-west-1", "ap-southeast-1"];
-      const action = setRegionsData(newRegions);
+      const action = setRegionNames(newRegions);
       const newState = regionsSlice.reducer(initialState, action);
 
-      expect(newState.data).toEqual(newRegions);
+      expect(newState.regionNames).toEqual(newRegions);
     });
   });
 
@@ -60,7 +60,11 @@ describe("regionsSlice", () => {
 
     it("should fetch regions successfully", async () => {
       const mockRegions = {
-        regions: [{ region: "us-east-1" }, { region: "us-west-2" }, { region: "eu-west-1" }],
+        regions: [
+          { region: "us-east-1", version: "v4.0.0", compatible: true, deploymentDate: "2025-01-15T00:00:00.000Z" },
+          { region: "us-west-2", version: "v4.0.0", compatible: true, deploymentDate: "2025-01-15T00:00:00.000Z" },
+          { region: "eu-west-1", version: "v4.0.0", compatible: true, deploymentDate: "2025-01-15T00:00:00.000Z" },
+        ],
       };
 
       server.use(
@@ -72,12 +76,14 @@ describe("regionsSlice", () => {
 
       const promise = store.dispatch(regionsApiSlice.endpoints.getRegions.initiate());
 
-      expect(store.getState().regions.data).toBeNull();
+      expect(store.getState().regions.regionNames).toBeNull();
+      expect(store.getState().regions.regionalStacks).toBeNull();
 
       const result = await promise;
 
       expect(result.data).toEqual(mockRegions);
-      expect(store.getState().regions.data).toEqual(["us-east-1", "us-west-2", "eu-west-1"]);
+      expect(store.getState().regions.regionNames).toEqual(["us-east-1", "us-west-2", "eu-west-1"]);
+      expect(store.getState().regions.regionalStacks).toEqual(mockRegions.regions);
     });
 
     it("should handle empty regions response", async () => {
@@ -86,7 +92,8 @@ describe("regionsSlice", () => {
       const promise = store.dispatch(regionsApiSlice.endpoints.getRegions.initiate());
       await promise;
 
-      expect(store.getState().regions.data).toEqual([]);
+      expect(store.getState().regions.regionNames).toEqual([]);
+      expect(store.getState().regions.regionalStacks).toEqual([]);
     });
 
     it("should handle malformed response", async () => {
@@ -97,7 +104,8 @@ describe("regionsSlice", () => {
       const promise = store.dispatch(regionsApiSlice.endpoints.getRegions.initiate());
       await promise;
 
-      expect(store.getState().regions.data).toEqual([]);
+      expect(store.getState().regions.regionNames).toEqual([]);
+      expect(store.getState().regions.regionalStacks).toEqual([]);
     });
   });
 
@@ -110,7 +118,10 @@ describe("regionsSlice", () => {
 
     it("should handle multiple concurrent requests", async () => {
       const mockRegions = {
-        regions: [{ region: "us-east-1" }, { region: "us-west-2" }],
+        regions: [
+          { region: "us-east-1", version: "v4.0.0", compatible: true, deploymentDate: "2025-01-15T00:00:00.000Z" },
+          { region: "us-west-2", version: "v4.0.0", compatible: true, deploymentDate: "2025-01-15T00:00:00.000Z" },
+        ],
       };
 
       server.use(
@@ -131,26 +142,32 @@ describe("regionsSlice", () => {
         expect(result.data).toEqual(mockRegions);
       });
 
-      expect(store.getState().regions.data).toEqual(["us-east-1", "us-west-2"]);
+      expect(store.getState().regions.regionNames).toEqual(["us-east-1", "us-west-2"]);
+      expect(store.getState().regions.regionalStacks).toEqual(mockRegions.regions);
     });
 
     it("should maintain state consistency across API calls", async () => {
       const firstResponse = {
-        regions: [{ region: "us-east-1" }],
+        regions: [{ region: "us-east-1", version: "v4.0.0", compatible: true, deploymentDate: "2025-01-15T00:00:00.000Z" }],
       };
       const secondResponse = {
-        regions: [{ region: "eu-west-1" }, { region: "ap-southeast-1" }],
+        regions: [
+          { region: "eu-west-1", version: "v4.0.0", compatible: true, deploymentDate: "2025-01-15T00:00:00.000Z" },
+          { region: "ap-southeast-1", version: "v4.0.0", compatible: true, deploymentDate: "2025-01-15T00:00:00.000Z" },
+        ],
       };
 
       server.use(http.get(`${MOCK_SERVER_URL}${ApiEndpoints.REGIONS}`, () => HttpResponse.json(firstResponse)));
 
       await store.dispatch(regionsApiSlice.endpoints.getRegions.initiate());
-      expect(store.getState().regions.data).toEqual(["us-east-1"]);
+      expect(store.getState().regions.regionNames).toEqual(["us-east-1"]);
+      expect(store.getState().regions.regionalStacks).toEqual(firstResponse.regions);
 
       server.use(http.get(`${MOCK_SERVER_URL}${ApiEndpoints.REGIONS}`, () => HttpResponse.json(secondResponse)));
 
       await store.dispatch(regionsApiSlice.endpoints.getRegions.initiate());
-      expect(store.getState().regions.data).toEqual(["eu-west-1", "ap-southeast-1"]);
+      expect(store.getState().regions.regionNames).toEqual(["eu-west-1", "ap-southeast-1"]);
+      expect(store.getState().regions.regionalStacks).toEqual(secondResponse.regions);
     });
   });
 });

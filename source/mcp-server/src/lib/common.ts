@@ -8,9 +8,7 @@ import { AppError } from "./errors.js";
  * Event objects will include tool parameters and are specific to the tool being invoked.
  * Each tool will perform its own validation.
  */
-export interface AgentCoreEvent {
-  [key: string]: unknown;
-}
+export type AgentCoreEvent = Record<string, unknown>;
 
 /**
  * AgentCore Gateway context object.
@@ -70,14 +68,14 @@ export const TEST_RUN_ID_LENGTH = 10;
  * Helper function to safely parse and validate event parameters using Zod schema
  * Converts ZodError to AppError with proper 400 status code
  */
-export function parseEventWithSchema<T>(schema: z.ZodSchema<T>, event: AgentCoreEvent): T {
+export function parseEventWithSchema<T>(schema: z.ZodType<T>, event: AgentCoreEvent): T {
   try {
     return schema.parse(event);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.issues.map((issue: z.core.$ZodIssue) => 
-        `${issue.path.join('.')}: ${issue.message}`
-      ).join('; ');
+      const errorMessages = error.issues
+        .map((issue: z.core.$ZodIssue) => `${issue.path.join(".")}: ${issue.message}`)
+        .join("; ");
       throw new AppError(`Validation failed: ${errorMessages}`, 400);
     }
     throw error; // generic Error objects will be converted to 500 Internal Service Error in Lambda handler

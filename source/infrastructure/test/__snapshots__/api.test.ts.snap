@@ -2,6 +2,16 @@
 
 exports[`DLT API Test 1`] = `
 {
+  "Conditions": {
+    "TestAPIIsGovCloudPartition7F33CFCA": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Partition",
+        },
+        "aws-us-gov",
+      ],
+    },
+  },
   "Outputs": {
     "TestAPIDLTApiEndpointF4A49BAE": {
       "Value": {
@@ -165,6 +175,9 @@ exports[`DLT API Test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
@@ -174,11 +187,21 @@ exports[`DLT API Test 1`] = `
         "Description": "API microservices for creating, updating, listing and deleting test scenarios",
         "Environment": {
           "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
             "HISTORY_TABLE": "testHistoryDDBTable",
             "HISTORY_TABLE_GSI_NAME": "testId-startTime-index",
             "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
+            "MIN_COMPATIBLE_VERSION": "4.1.0",
             "SCENARIOS_BUCKET": "testScenarioBucketName",
             "SCENARIOS_TABLE": "testDDBTable",
+            "SCHEDULER_ROLE_ARN": {
+              "Fn::GetAtt": [
+                "TestAPISchedulerExecutionRole4FE124A2",
+                "Arn",
+              ],
+            },
             "SOLUTION_ID": "testId",
             "STACK_ID": {
               "Ref": "AWS::StackId",
@@ -291,8 +314,16 @@ exports[`DLT API Test 1`] = `
                 },
                 {
                   "Action": "iam:PassRole",
+                  "Condition": {
+                    "StringEquals": {
+                      "iam:PassedToService": "ecs-tasks.amazonaws.com",
+                    },
+                  },
                   "Effect": "Allow",
-                  "Resource": "arn:aws:iam::1234567890:role/MyRole-AJJHDSKSDF",
+                  "Resource": [
+                    "arn:aws:iam::1234567890:role/MyRole-AJJHDSKSDF",
+                    "arn:aws:iam::1234567890:role/TaskRole-AJJHDSKSDF",
+                  ],
                 },
                 {
                   "Action": "states:StartExecution",
@@ -335,6 +366,7 @@ exports[`DLT API Test 1`] = `
                     "ecs:DescribeTasks",
                     "ecs:DescribeClusters",
                     "ecs:DescribeTaskDefinition",
+                    "ecs:DescribeServices",
                   ],
                   "Effect": "Allow",
                   "Resource": "*",
@@ -358,7 +390,13 @@ exports[`DLT API Test 1`] = `
         "Description": "Distributed Load Testing API - version testVersion",
         "EndpointConfiguration": {
           "Types": [
-            "EDGE",
+            {
+              "Fn::If": [
+                "TestAPIIsGovCloudPartition7F33CFCA",
+                "REGIONAL",
+                "EDGE",
+              ],
+            },
           ],
         },
         "Name": "DLTApi",
@@ -414,7 +452,7 @@ exports[`DLT API Test 1`] = `
       "Type": "AWS::IAM::Role",
       "UpdateReplacePolicy": "Retain",
     },
-    "TestAPIDLTApiDeployment7935ADA245d5637a350f1dccb18909b2f266b38e": {
+    "TestAPIDLTApiDeployment7935ADA20b72ba8dcaa47e6e0c4facd26917148f": {
       "DependsOn": [
         "TestAPIAPIAllRequestValidator9A179146",
         "TestAPIDLTApiOPTIONS380FFB97",
@@ -494,10 +532,10 @@ exports[`DLT API Test 1`] = `
               "Arn",
             ],
           },
-          "Format": "{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","user":"$context.identity.user","caller":"$context.identity.caller","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.resourcePath","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength"}",
+          "Format": "{"extendedRequestId":"$context.extendedRequestId","ip":"$context.identity.sourceIp","caller":"$context.identity.caller","user":"$context.identity.user","userAgent":"$context.identity.userAgent","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.resourcePath","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength"}",
         },
         "DeploymentId": {
-          "Ref": "TestAPIDLTApiDeployment7935ADA245d5637a350f1dccb18909b2f266b38e",
+          "Ref": "TestAPIDLTApiDeployment7935ADA20b72ba8dcaa47e6e0c4facd26917148f",
         },
         "MethodSettings": [
           {
@@ -1794,6 +1832,137 @@ exports[`DLT API Test 1`] = `
         "Roles": [
           {
             "Ref": "TestAPIDLTAPIServicesLambdaRole446F20B1",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestAPILambdaApiSchedulerPolicy6110B8C0": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "scheduler:CreateSchedule",
+                "scheduler:DeleteSchedule",
+                "scheduler:GetSchedule",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":scheduler:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":schedule/default/*Create",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":scheduler:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":schedule/default/*Scheduled",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "iam:PassRole",
+              "Condition": {
+                "StringEquals": {
+                  "iam:PassedToService": "scheduler.amazonaws.com",
+                },
+              },
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "TestAPISchedulerExecutionRole4FE124A2",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestAPILambdaApiSchedulerPolicy6110B8C0",
+        "Roles": [
+          {
+            "Ref": "TestAPIDLTAPIServicesLambdaRole446F20B1",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestAPISchedulerExecutionRole4FE124A2": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "scheduler.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestAPISchedulerInvokeLambdaPolicyCAD3BF50": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "TestAPIDLTAPIServicesLambdaNew475B08B2",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestAPISchedulerInvokeLambdaPolicyCAD3BF50",
+        "Roles": [
+          {
+            "Ref": "TestAPISchedulerExecutionRole4FE124A2",
           },
         ],
       },

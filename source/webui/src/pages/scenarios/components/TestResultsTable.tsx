@@ -1,7 +1,15 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, Header, SegmentedControl, SpaceBetween, Table, TextFilter } from "@cloudscape-design/components";
+import {
+  Button,
+  Header,
+  SegmentedControl,
+  SpaceBetween,
+  Table,
+  TableProps,
+  TextFilter,
+} from "@cloudscape-design/components";
 import { useEffect, useMemo, useState } from "react";
 import { TablePreferences } from "../../../components/common/TablePreferences";
 import { useTestResultsData } from "../hooks/useTestResultsData";
@@ -79,8 +87,18 @@ export interface TestResultsTableProps {
   onViewModeChange: (mode: ViewMode) => void;
 }
 
-export function TestResultsTable({ testRun, baseline, selectedItems, onSelectionChange, displayMode, viewMode, onViewModeChange }: TestResultsTableProps) {
+export function TestResultsTable({
+  testRun,
+  baseline,
+  selectedItems,
+  onSelectionChange,
+  displayMode,
+  viewMode,
+  onViewModeChange,
+}: TestResultsTableProps) {
   const [filteringText, setFilteringText] = useState("");
+  const [sortingColumn, setSortingColumn] = useState<TableProps.SortingColumn<TableRow> | undefined>();
+  const [sortingDescending, setSortingDescending] = useState(false);
 
   // Load preferences from localStorage
   const [preferences, setPreferences] = useState(() => {
@@ -110,6 +128,30 @@ export function TestResultsTable({ testRun, baseline, selectedItems, onSelection
       ),
     [rows, filteringText]
   );
+
+  // Apply sorting
+  const sortedRows = useMemo(() => {
+    if (!sortingColumn?.sortingField) {
+      return filteredRows;
+    }
+
+    const sorted = [...filteredRows].sort((a, b) => {
+      const aValue = a[sortingColumn.sortingField as keyof TableRow];
+      const bValue = b[sortingColumn.sortingField as keyof TableRow];
+
+      if (typeof aValue === "number" && typeof bValue === "number") {
+        return aValue - bValue;
+      }
+
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        return aValue.localeCompare(bValue);
+      }
+
+      return 0;
+    });
+
+    return sortingDescending ? sorted.reverse() : sorted;
+  }, [filteredRows, sortingColumn, sortingDescending]);
 
   // Build column definitions
   const allColumns: TableColumn<TableRow>[] = useMemo(() => {
@@ -165,7 +207,7 @@ export function TestResultsTable({ testRun, baseline, selectedItems, onSelection
           return createBaselineComparisonCell(
             item.requests,
             comparison?.requests,
-            'higher-is-better',
+            "higher-is-better",
             displayMode,
             (val) => val.toLocaleString()
           );
@@ -198,7 +240,7 @@ export function TestResultsTable({ testRun, baseline, selectedItems, onSelection
           return createBaselineComparisonCell(
             item.success,
             comparison?.success,
-            'higher-is-better',
+            "higher-is-better",
             displayMode,
             (val) => val.toLocaleString()
           );
@@ -228,12 +270,8 @@ export function TestResultsTable({ testRun, baseline, selectedItems, onSelection
         header: "vs Baseline",
         cell: (item) => {
           const comparison = baselineComparisons.get(item.id);
-          return createBaselineComparisonCell(
-            item.errors,
-            comparison?.errors,
-            'lower-is-better',
-            displayMode,
-            (val) => val.toLocaleString()
+          return createBaselineComparisonCell(item.errors, comparison?.errors, "lower-is-better", displayMode, (val) =>
+            val.toLocaleString()
           );
         },
         csvValue: (item) => {
@@ -264,7 +302,7 @@ export function TestResultsTable({ testRun, baseline, selectedItems, onSelection
           return createBaselineComparisonCell(
             item.successRate,
             comparison?.successRate,
-            'higher-is-better',
+            "higher-is-better",
             displayMode,
             (val) => `${val.toFixed(2)}%`
           );
@@ -297,7 +335,7 @@ export function TestResultsTable({ testRun, baseline, selectedItems, onSelection
           return createBaselineComparisonCell(
             item.requestsPerSecond,
             comparison?.requestsPerSecond,
-            'higher-is-better',
+            "higher-is-better",
             displayMode,
             (val) => val.toFixed(2)
           );
@@ -330,7 +368,7 @@ export function TestResultsTable({ testRun, baseline, selectedItems, onSelection
           return createBaselineComparisonCell(
             item.avgRespTime,
             comparison?.avgRespTime,
-            'lower-is-better',
+            "lower-is-better",
             displayMode,
             (val) => `${val.toFixed(0)}ms`
           );
@@ -363,7 +401,7 @@ export function TestResultsTable({ testRun, baseline, selectedItems, onSelection
           return createBaselineComparisonCell(
             item.avgLatency,
             comparison?.avgLatency,
-            'lower-is-better',
+            "lower-is-better",
             displayMode,
             (val) => `${val.toFixed(0)}ms`
           );
@@ -396,7 +434,7 @@ export function TestResultsTable({ testRun, baseline, selectedItems, onSelection
           return createBaselineComparisonCell(
             item.avgConnectionTime,
             comparison?.avgConnectionTime,
-            'lower-is-better',
+            "lower-is-better",
             displayMode,
             (val) => `${val.toFixed(0)}ms`
           );
@@ -429,7 +467,7 @@ export function TestResultsTable({ testRun, baseline, selectedItems, onSelection
           return createBaselineComparisonCell(
             item.avgBandwidth,
             comparison?.avgBandwidth,
-            'higher-is-better',
+            "higher-is-better",
             displayMode,
             (val) => `${val.toFixed(2)} KB/s`
           );
@@ -479,7 +517,7 @@ export function TestResultsTable({ testRun, baseline, selectedItems, onSelection
             return createBaselineComparisonCell(
               currentValue,
               baselineVal,
-              'lower-is-better',
+              "lower-is-better",
               displayMode,
               (val) => `${val.toFixed(0)}ms`
             );
@@ -508,7 +546,7 @@ export function TestResultsTable({ testRun, baseline, selectedItems, onSelection
           return false;
         }
         // Hide baseline columns if no baseline is set
-        if (id.endsWith('_baseline') && !baseline) {
+        if (id.endsWith("_baseline") && !baseline) {
           return false;
         }
         return visible;
@@ -537,7 +575,7 @@ export function TestResultsTable({ testRun, baseline, selectedItems, onSelection
                 onChange={({ detail }) => {
                   const newMode = detail.selectedId as ViewMode;
                   onViewModeChange(newMode);
-                  
+
                   // Auto-select the single row in Overall mode
                   if (newMode === ViewMode.Overall && filteredRows.length > 0) {
                     onSelectionChange([filteredRows[0]]);
@@ -552,7 +590,12 @@ export function TestResultsTable({ testRun, baseline, selectedItems, onSelection
                   { text: "By Region", id: ViewMode.ByRegion },
                 ]}
               />
-              <Button iconName="download" variant="icon" ariaLabel="Download test results as CSV" onClick={handleDownload} />
+              <Button
+                iconName="download"
+                variant="icon"
+                ariaLabel="Download test results as CSV"
+                onClick={handleDownload}
+              />
             </SpaceBetween>
           }
         >
@@ -560,7 +603,7 @@ export function TestResultsTable({ testRun, baseline, selectedItems, onSelection
         </Header>
       }
       columnDefinitions={visibleColumns}
-      items={filteredRows}
+      items={sortedRows}
       selectedItems={selectedItems}
       onSelectionChange={({ detail }) => onSelectionChange(detail.selectedItems)}
       selectionType="single"
@@ -573,6 +616,12 @@ export function TestResultsTable({ testRun, baseline, selectedItems, onSelection
         selectionGroupLabel: "Test results selection",
         itemSelectionLabel: ({ selectedItems }, item) =>
           `${item.testLabel} in ${item.region} is ${selectedItems.indexOf(item) < 0 ? "not " : ""}selected`,
+      }}
+      sortingColumn={sortingColumn}
+      sortingDescending={sortingDescending}
+      onSortingChange={({ detail }) => {
+        setSortingColumn(detail.sortingColumn);
+        setSortingDescending(detail.isDescending ?? false);
       }}
       sortingDisabled={false}
       filter={

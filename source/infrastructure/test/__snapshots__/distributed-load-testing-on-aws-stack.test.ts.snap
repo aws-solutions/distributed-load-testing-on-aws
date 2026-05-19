@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`Distributed Load Testing stack test 1`] = `
 {
@@ -22,6 +22,30 @@ exports[`Distributed Load Testing stack test 1`] = `
           "Ref": "ExistingVPCId",
         },
         "",
+      ],
+    },
+    "DLTApiIsGovCloudPartition6BAD7D2E": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Partition",
+        },
+        "aws-us-gov",
+      ],
+    },
+    "DLTCognitoAuthIsGovCloudEastRegion022D5DDD": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Region",
+        },
+        "us-gov-east-1",
+      ],
+    },
+    "DLTCognitoAuthIsGovCloudPartition9F5A131A": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Partition",
+        },
+        "aws-us-gov",
       ],
     },
     "DeployMCPServerCondition": {
@@ -133,6 +157,12 @@ exports[`Distributed Load Testing stack test 1`] = `
         "Ref": "DLTCognitoAuthDLTUserPoolFA41A712",
       },
     },
+    "ConsoleResourceBucket": {
+      "Description": "Resource Bucket for Web Portal",
+      "Value": {
+        "Ref": "DLTConsoleResourcesDLTDashboardS3S3Bucket8E2568BB",
+      },
+    },
     "ConsoleURL": {
       "Description": "Web portal for DLT",
       "Value": {
@@ -242,6 +272,10 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Value": {
         "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
       },
+    },
+    "SolutionTemplate": {
+      "Description": "Identifies which published DLT template produced the hub stack. Consumed by the DLT console and API to render upgrade guidance.",
+      "Value": "cloudfront",
     },
     "SolutionUUID": {
       "Description": "Unique ID for deployment",
@@ -525,7 +559,13 @@ exports[`Distributed Load Testing stack test 1`] = `
         "Description": "Distributed Load Testing API - version testVersion",
         "EndpointConfiguration": {
           "Types": [
-            "EDGE",
+            {
+              "Fn::If": [
+                "DLTApiIsGovCloudPartition6BAD7D2E",
+                "REGIONAL",
+                "EDGE",
+              ],
+            },
           ],
         },
         "Name": "DLTApi",
@@ -752,6 +792,9 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
@@ -761,16 +804,26 @@ exports[`Distributed Load Testing stack test 1`] = `
         "Description": "API microservices for creating, updating, listing and deleting test scenarios",
         "Environment": {
           "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
             "HISTORY_TABLE": {
               "Ref": "DLTTestRunnerStorageDLTHistoryTable46D850CC",
             },
             "HISTORY_TABLE_GSI_NAME": "testId-startTime-index",
             "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
+            "MIN_COMPATIBLE_VERSION": "4.1.0",
             "SCENARIOS_BUCKET": {
               "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
             },
             "SCENARIOS_TABLE": {
               "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+            },
+            "SCHEDULER_ROLE_ARN": {
+              "Fn::GetAtt": [
+                "DLTApiSchedulerExecutionRole2AB7362D",
+                "Arn",
+              ],
             },
             "SOLUTION_ID": "testId",
             "STACK_ID": {
@@ -859,13 +912,26 @@ exports[`Distributed Load Testing stack test 1`] = `
                 },
                 {
                   "Action": "iam:PassRole",
-                  "Effect": "Allow",
-                  "Resource": {
-                    "Fn::GetAtt": [
-                      "DLTEcsDLTTaskExecutionRoleDE668717",
-                      "Arn",
-                    ],
+                  "Condition": {
+                    "StringEquals": {
+                      "iam:PassedToService": "ecs-tasks.amazonaws.com",
+                    },
                   },
+                  "Effect": "Allow",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "DLTEcsDLTTaskExecutionRoleDE668717",
+                        "Arn",
+                      ],
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "DLTEcsDLTTaskRoleD37E29C5",
+                        "Arn",
+                      ],
+                    },
+                  ],
                 },
                 {
                   "Action": "states:StartExecution",
@@ -910,6 +976,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                     "ecs:DescribeTasks",
                     "ecs:DescribeClusters",
                     "ecs:DescribeTaskDefinition",
+                    "ecs:DescribeServices",
                   ],
                   "Effect": "Allow",
                   "Resource": "*",
@@ -928,7 +995,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
-    "DLTApiDeployment098FF888316c93c583bc2c991db09cd9de64d50e": {
+    "DLTApiDeployment098FF8887a22406f0643f3d2e72246eed8b00957": {
       "DependsOn": [
         "DLTApiAPIAllRequestValidator02C9D47F",
         "DLTApiOPTIONS823B5F09",
@@ -1008,10 +1075,10 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Arn",
             ],
           },
-          "Format": "{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","user":"$context.identity.user","caller":"$context.identity.caller","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.resourcePath","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength"}",
+          "Format": "{"extendedRequestId":"$context.extendedRequestId","ip":"$context.identity.sourceIp","caller":"$context.identity.caller","user":"$context.identity.user","userAgent":"$context.identity.userAgent","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.resourcePath","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength"}",
         },
         "DeploymentId": {
-          "Ref": "DLTApiDeployment098FF888316c93c583bc2c991db09cd9de64d50e",
+          "Ref": "DLTApiDeployment098FF8887a22406f0643f3d2e72246eed8b00957",
         },
         "MethodSettings": [
           {
@@ -1149,6 +1216,87 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::IAM::Policy",
     },
+    "DLTApiLambdaApiSchedulerPolicy392E0831": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "scheduler:CreateSchedule",
+                "scheduler:DeleteSchedule",
+                "scheduler:GetSchedule",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":scheduler:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":schedule/default/*Create",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":scheduler:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":schedule/default/*Scheduled",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "iam:PassRole",
+              "Condition": {
+                "StringEquals": {
+                  "iam:PassedToService": "scheduler.amazonaws.com",
+                },
+              },
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTApiSchedulerExecutionRole2AB7362D",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "DLTApiLambdaApiSchedulerPolicy392E0831",
+        "Roles": [
+          {
+            "Ref": "DLTApiDLTAPIServicesLambdaRole4465EAA4",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
     "DLTApiOPTIONS823B5F09": {
       "Properties": {
         "ApiKeyRequired": false,
@@ -1191,6 +1339,56 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
       },
       "Type": "AWS::ApiGateway::Method",
+    },
+    "DLTApiSchedulerExecutionRole2AB7362D": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "scheduler.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "DLTApiSchedulerInvokeLambdaPolicy5D66B0FC": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTApiDLTAPIServicesLambdaNewF30B7DE0",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "DLTApiSchedulerInvokeLambdaPolicy5D66B0FC",
+        "Roles": [
+          {
+            "Ref": "DLTApiSchedulerExecutionRole2AB7362D",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
     "DLTApidltApiServicesLambdaLogGroup54338B12": {
       "DeletionPolicy": "Retain",
@@ -2364,6 +2562,324 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::Cognito::IdentityPoolRoleAttachment",
     },
+    "DLTCognitoAuthCognitoHostedUiLambda98AEA750": {
+      "DependsOn": [
+        "DLTCognitoAuthCognitoHostedUiLambdaServiceRoleDefaultPolicy65EE264C",
+        "DLTCognitoAuthCognitoHostedUiLambdaServiceRole397F7BE5",
+      ],
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "LAMBDA_INSIDE_VPC",
+            "LAMBDA_CONCURRENCY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "DLTCognitoAuthCognitoHostedUiLambdaServiceRole397F7BE5",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 300,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "DLTCognitoAuthCognitoHostedUiLambdaServiceRole397F7BE5": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "DLTCognitoAuthCognitoHostedUiLambdaServiceRoleDefaultPolicy65EE264C": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "cognito-idp:SetUICustomization",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTCognitoAuthDLTUserPoolFA41A712",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "DLTCognitoAuthCognitoHostedUiLambdaServiceRoleDefaultPolicy65EE264C",
+        "Roles": [
+          {
+            "Ref": "DLTCognitoAuthCognitoHostedUiLambdaServiceRole397F7BE5",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "DLTCognitoAuthCognitoHostedUiProviderframeworkonEventEBA8BB49": {
+      "DependsOn": [
+        "DLTCognitoAuthCognitoHostedUiProviderframeworkonEventServiceRoleDefaultPolicy9768F7DA",
+        "DLTCognitoAuthCognitoHostedUiProviderframeworkonEventServiceRole701715C4",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W89",
+              "reason": "Lambda function for Cognito UI customization does not need to be in a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Lambda function for Cognito UI customization does not need reserved concurrency",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "AWS CDK resource provider framework - onEvent (TestDLTStack/DLTCognitoAuth/CognitoHostedUiProvider)",
+        "Environment": {
+          "Variables": {
+            "USER_ON_EVENT_FUNCTION_ARN": {
+              "Fn::GetAtt": [
+                "DLTCognitoAuthCognitoHostedUiLambda98AEA750",
+                "Arn",
+              ],
+            },
+          },
+        },
+        "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "DLTCognitoAuthCognitoHostedUiProviderframeworkonEventServiceRole701715C4",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs22.x",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "DLTCognitoAuthCognitoHostedUiProviderframeworkonEventServiceRole701715C4": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "DLTCognitoAuthCognitoHostedUiProviderframeworkonEventServiceRoleDefaultPolicy9768F7DA": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "DLTCognitoAuthCognitoHostedUiLambda98AEA750",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "DLTCognitoAuthCognitoHostedUiLambda98AEA750",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTCognitoAuthCognitoHostedUiLambda98AEA750",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "DLTCognitoAuthCognitoHostedUiProviderframeworkonEventServiceRoleDefaultPolicy9768F7DA",
+        "Roles": [
+          {
+            "Ref": "DLTCognitoAuthCognitoHostedUiProviderframeworkonEventServiceRole701715C4",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "DLTCognitoAuthCognitoLogDeliveryConfiguration3B17611D": {
+      "Properties": {
+        "LogConfigurations": [
+          {
+            "CloudWatchLogsConfiguration": {
+              "LogGroupArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":logs:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":log-group:",
+                    {
+                      "Ref": "DLTCognitoAuthCognitoUserPoolLogGroupB2425FFC",
+                    },
+                  ],
+                ],
+              },
+            },
+            "EventSource": "userAuthEvents",
+            "LogLevel": "INFO",
+          },
+          {
+            "CloudWatchLogsConfiguration": {
+              "LogGroupArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":logs:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":log-group:",
+                    {
+                      "Ref": "DLTCognitoAuthCognitoUserPoolLogGroupB2425FFC",
+                    },
+                  ],
+                ],
+              },
+            },
+            "EventSource": "userNotification",
+            "LogLevel": "ERROR",
+          },
+        ],
+        "UserPoolId": {
+          "Ref": "DLTCognitoAuthDLTUserPoolFA41A712",
+        },
+      },
+      "Type": "AWS::Cognito::LogDeliveryConfiguration",
+    },
+    "DLTCognitoAuthCognitoUICustomization6480C5AD": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "MCPServerDLTUserPoolDomainA26D16C0",
+        "DLTCognitoAuthDLTUserPoolClientA2F8B2DB",
+      ],
+      "Properties": {
+        "CSS": ".banner-customizable { background-color: #232f3e; padding: 25px 0px; } .logo-customizable { max-width: 350px; max-height: 80px; } .submitButton-customizable { background-color: #ec7211; } .submitButton-customizable:hover { background-color: #eb5f07; }",
+        "ImageFileBase64": "iVBORw0KGgoAAAANSUhEUgAAAZAAAAA8CAYAAABIFuztAAAABmJLR0QA/wD/AP+gvaeTAAASyUlEQVR4nO2deZwV1ZXHf4edFoNAEBQQxSURxQR0MC7j4KiEfFxiHBNHE+KCyugnjtHoiNExJtFojKJRx7jE+HFJjOA6TqIDGAWFAJooYUCCoGwCyqbQ7E3/5o9zizp1u97r97r7ddPJ+X4+/aHq3nNv3aq67y5nKQDHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHcRzHaWKkuS9Isi+Az+dk1QDYAOAjEVlWpPwBAPYNpwtF5IMmb2QJkPwsgC+G0zUi8nZI3xPAYSF9tYi80xLta2pI9gTwhXC6836LyLcF0N8kLRaRHZVqX1NC8lAAvcPpXBFZXqJsKWwRkTca077GQvKfALQPp1NEZFtLtmdXhmQVgKNN0iwRWRXJ9AdwYDhdLyIzo3wBcIJJqhaR6ZFMWwDHm6RpIrLJ5HcLdewDYHcA1QD+D8BkEdnSkHtrlZC8hPWziOQVJNvklL/VyF3fBO3pR/KJBpQ7xbTjZZP+NZP+YmPbV2JbDib5iwpf4zRzX78vQX7P6J2WM8i2KCQfN+0+vwzZUmi2BQ/JA0g+nJO+xrSnV3O1pzVC8sLo/d2ZI/NVk7+aOmHY/MOiOjaR7BjJfMHkb07ySbYn+TOS2wr0pzUkL67sUyhMnQF6F6E/gLEAniPZrhIXINmG5A0A5gE4qxLXqDQkq0jeBWAWgJNauj3OrgHJDiRvha5QT2np9rRyLozOv02yU5T2BgCG4x5IdyMJJ0bnnQEMjdK+ZI5nisjWcHwfgKuQ7hhjugN4gOS/FcivKBUZnMtgIYDbAHQC0BXAZwAMR6oCOg3A9QBuNGUmm+Npjbh2FYAfhuOaBpRfAOCn4Xh+I9rRGPYDcHkLXdtRfgXg9SjtXqQ/+FsALDJ5G5qhTb0BXFMk/+fQ/g8AGyvfnNYJVT15ZJTcHcCZAHZqLURkDcm5AA4JSV9CdkyIJxAAGIZsv7ETyORw/c8DGBXSaqB96UUA6wEcBOAnAA4N+beQfFRENpdyb60WZlVYdXTBYWfwCyOzgWT3Mq/RkWR/kr2pusU8mS7mGttLqLMTyX1JdqhHLleFRbIvVV3WZLs+koeYay2oR/azJAeQ/EyJdXcP8slWukVUWCS7hnZ0K1G+Lcm9Q5l6+w1JMe9GQlrJKqwCdW425eOVZiy7W2hrSaok0w97MVKVGJl9zPU/Krf9UV0dw/V6liDbgeR+VPtgk2D6YdcGlO0d2t6ghTLJO81zXGSOp+TI2jHrPpPegWR1SLdqqFei8u+avJNC2nkm7emca+5PstbIDGvIfbYqWM8EEmSqmNXTnm/yfkBybfj7Xk7d86OHup3kcyQPM3KjSa5jlqTO3YLMqnA+heQ/m/Z8QnIoyS+bMk+bujMTCNVW8p5JW0Hyu6yrJ51s6vtilPcdk/eTkHYTyU9NvTtC/oKo7CkkZ0Vy06iG1LxnP4Tk6+YZbqT+kL5u6qjoBEKdBK6gvkvLLJLfKlDmcySfpr5vywckr2a+PW00yWVGdhHJb7AZJhCq3ep3UXsXhjbFfaMNyatIvh/d21aSvyV5oJEdQ+2jCbXUfrHSyCxk2p96mvTpIe1D6sT2c+oCLmFm3v1Qf693Mx0oSe3PA6m/geRapS4COpD8PrODdi3JN0l+LUf+AnONkSRPJjnXlF1L8gaWsXijTpyrTR3HhOedMDCSP8fk/dmkH2fSnwxtIY0dhDpJJr+3bUzHoG+bsstpxjBT/zeov82v8O/BnsUSJpAg96yRe9Ck5xrRSf4Hi7OW4YdG8vIicl2CTE04X8ZsR9pIcneWZkT/mDpg53F7dL9vm7wjoryrTN6dIe2OAvWuNuUuYnYytWwneWZ0nSHMDgKWFea4YhMI9Yc7qUAbEu6nGWSpO4jl9ZS5KrrOfxaQqyW50pw3+QRCcjCzg3zM3ZH8rUVkGe597yB7YwGZraa+XCM600F3C8nXCtSzjtlJp10R2VUkF5jzUnaEXagTWTFuicrYMWUiC/f5K8t4h2eZcjNC2nMm7a5Ivp/J2850EviRST+P5DPm/LggM8KkTTd19mV20tpBnZjHUPtQs3vRxuyqRnQAsN4qfYsJhgc5Jpx+CGAI1K7SB6mushuAS8LxWwCsN0Ut1J7xUwCxS2OfUHYcgMcAPCUipeqxe0LtPF+F6jgfNHlXMtpplMkfAFgPm0+g7b8bAEjuB+AeqKv2dqhOfAiAfwewGWr/eojZVeH9AHYLx38FcCqAowA8gvJcVRvDj5G6PG4BcBOAc6B2hdqQPhqANRpeAWCvcPwU9D4Ph95Pwk5HCaor+A9M3q+hrponA5gLoGIrOeoq+NdQmx+gfWoogNOR2kouI3lCkK9CaueaD9V5d4S6sr8Q0vcCcEE4ngrAeuRtgvaLzIKlHjoCOAbA96Gu2+dC3wUA7IGsYf4iAMludguAK6HP/hIAHQDsX8Z1AeAupHaHDQBugL7/XyE1VI8hWcjx5USoDeH4UI9dpI4sox2jzPHj4d/HbF0kOycnIrIU6ftrByBZBFr7x6TwlzAs/GvtHzvVYyGcwfbTNgCOg9pC/gxgJcl7SR5U/+38jcDSdyB25p5q0uvsQEh2NmmrSZ6RvFyqDn04o+0d67GBMN2BkNFqI+SXsgOpIfm5qNyrJv9nJr2sHUhIL2gDoaq4EuIVrX22o0PaQfZ5UAdZW2aaya/IDoT6rjaaMidH+Xbn+CGDSoKq8z+d5PUMK7+Q3s3ILzPp15n02B9/X2bVSk26A6GqQxNm0ahVSB5v8p4KaX3sPVDVMx1CXk+SJ5DsEV2jqA2E9e9ASPXismUeM3nXmfRpeekh71xmKboDodqukmdfS/LoKP+Hpq45Jt2OKauok26S9w/FnkWBduzLVHOwjcGmQ1WtrTL1jYzKWdXnNdT+nNzPu0HmQCPzh5D2skmr4zVHVVMtZmG2sAH9tCnYlXcg1lWuaKBM8DxIOlQPAM8AWEvyVehKdZmINMaY+EwDy80Skb9GaePN8eAG1lsKx5jj5SQPT/4ArDR5R+W05U8iEhvlx6PyHI/UO2iOiPwuyr8PqdfQ3gAGAYCILBGR50XkJgCdqZP43TCrOaQ7KyB7r+PsBURkEYA3G3UXxTnWHC8AMNi8l81Id1nJqnQlgGTy6wPgfwCsIzkBuqJeLCJrKtDOV6Pz982xnQiGmONnozLjkO4aSmEEUs/QN0Qk9rK83dQ3kGS/nDpm2gA8qAYgoSQbDHQ3l4yNL4nIagAIAZdPGrk4/iL2qhqG9H5eCXW8B2BJSDuKutBNdly1yO6YEMqMg3pcHgfdoc2LRDoCeJDkkLhspdmVJ5A9zfGqglIpowDYH1In6Au8FcAcki9RI0YbwqIGlluRk2aj7At16NhzrCFeJHbHdQtUbZf8/ZfJS36Eti15kdcFvw7QhFhV5XtxpohsR/Zd9AVUhUlyFMm3oX3lWQCXIXVxBNKBGaj/Xj8sr9llYfv1Gci+lz8i/U32Iykhev98ZN1/q6BxP3cAeI/qPNDUare10bldxCXeap2hg1eCXZgkC7u4nmLU9/43RNfIU20Xa3e94x3Va/M8kzSQaleZSHIiUrUTABzLrDE9nkBi9VV83Clca49w/hcR+SSvXSJSKyKvi8gVInIwNCL9aqQLqnaoO6FVnJaOAymG3fq/VZ+wiMyg6v1HAvg6dGVtO/cI6Ioo9usuhYb6yue5HlaZ40I+27GrbRy4VAo2tmUygI8LyCX+6vaH1iVHrionralZX08bAP2MQ0Ly/G5AGiu0GcD/Avg9dECeHdLtZ1S2muPmvlfbjnehwX6FaA9gm4hMIrkPdGV8BvS3YQPL/gW6w/pKE7Zza3RemyOzBWpjSZ5XDwDrkkyS7ZEOjqXQ0PdvKaXdxRiOdFEFAAeEv0JcDOC74XgedAHTE2oz/NeQXgPgNVNmElKblXXuyLgHk3wcuvPYC8A37edPgs3ldqo68+aQfHCRdlaEXXICITkc6cOoRWosrI82AF4QkfvC6ugYqPE0iSYdSrJXUGfZjtU2rPYKbbfjTlkqg0hWRVtquyq2agE74McTyN4F6rf3EL/LDxBUPAAeEZFHkwyqnWCriNRE8jvbSLJt9O2qSqrbEqzabDDJLiJSnSSEBUKy6qwFMDsMUsmPcAeAQSKyMMhbu4t9VvZeY5fpdkifWyWw73ymiJxnrt0eQLsCwWBtAPxGRMZSPQX/EbpYOjvkn0iycyhbrF80GSJCkosAJKvwYci+w5NQdzddDFv2SJId7He6SA5GOrFsQX4Abzkqszxs5Pkm5P/22yGdyEaSvFZENofn8QaAxNU4iYd5K9pZvBLaKQAGmPQ4vmR/pCrmCwFMR13sIrXZgwhbWoXViRokNIDkIKoR8Vpk9e3jgt6wIKHcCqgn0gSSHcMLnQS1gawz4sk92x+aoO6gbWnoRwC7QlfHSTv3g3oQJUw0x3brbWNW+kI9dPKwE9PuzPq5v2yOL2P28wuPAqimGu4TV96Z0OcH6IrnO6YNhyLrldIQ+pt3XecvyEwHsDgc9wBwD1ODcVcADyCrm14FHVCSQaUG2Z3WCHNsV7QTzPG3qBG/CVciuwJtaux7OZOk9VK6CPpeFpC8GQCozgEfQ9Wzz4WJvVpEXoKuYhMHEEH6cVTbL6rCxFQpXjLHPyZ5LDVu5WiozaocJiL9HfQHcFtQKYHqOmxVr+OjhVmjoX4I9VSTdJKIdI//oB5wycSSRKYnxF8lAIL9I0FEPgbwl/jyOWWfMsejqE4Ee4S2diZ5IbJfoqgT4Pg3B0v7mGLC+4w8N5jvhdWB2SCrP1E9ba6jBgImvBbVZb1RFlBjHXqHPOuFVUeFxNK9sEjyLZLPMxu8ON/WSw2QtOWeJPkg1avMRrBaL6yuzMaZzKXGBAg1uOsDkzeP5FhqYFfCema9cK5nlilBvjp6Hg3xwiqKKXc6s378K0I77LP7hMZ1kVkPlSkkL6XGisQfoEsmo7bMer1VU+OO/hjO7b1WIg7kSZO/lhrF/EuqN03CqUF2d5IfmfSpJK+lxrHMNOnPmvrbMxs/MI8ak5QErpXihXVY1GYbZzXWpPcKdVuS576RWY+2UuJAzo/qWkZ9p+tN2krqwiopY8eUh6L6Opm8op8sYtbbcQGLxFlQAzgTXjfpR7Auw3LK3x7JzM2R6URyTk59eTFEy1jmFztaJSxtAqkhOY45hkEWDiTcn3UjdS1zGHltkHwoR+6IkNcUE8hY6mQWs5zkoKi+bswGXVnZy8z5nVG5CTlleoa8gcxG81rWM4pGpwaF/SZHdhPJi815xSaQUPZcZgcMyxLWdY09jXUj0EmNXJ5qzo8zZQZQI7Jj5pK82ZxXYgLpwsLBkjtIXh3JD2LxQMk3GX1qhNmAtYQBIa/JJpCQN5Tk0uhaa6lfa7DvsaTPkVD7+6YC9zqfuiO28k01gdjPidxYj+zwqF2HhPR20T1XM/rybpAbEZV/oMB1+pGcUeBZJMyNn0lz0RI2kLeRfoTQshXqabIU+i38pQXK535MUUQWhod4FjSIZx+oEX0p1CVxvPnCZcLlUH34sVA11btIPXBuQ6ouyet4hT6mON+kT4AGOF4A4MtQw+cMAPeKiFWrQUTWUSevS6F6z8Sl72GoKqxPEJ2KLGcD+B40eGsLgHfCvxCRuVQvkW9Cg716QY187wB4OHb/DDaRc0iOhzoidIMG1t0P9ShLVE2xa3IeSQBb2YjIo9RJ6myowbgXgI+g7/6J2EYgIv9N1Y+PhuqNq6FG9CegdrDEuNzJlHmfGsh5CdSeUAsNznwIahdJdPeJEb4c7kD626rjiSci1dTvHZ0CVZn0hfb/+VB71bxIfjY1nuic0LZ+of4lULXP88FDzXIB1EB/JDQ4djZSFWWhjyn+EqmXWOx0MQPp+8y4morIzNC+k6FG31VQW+RaZr8dV5IziojcQ/KZcL+HQ20Jy6GqoN/m/P8ldkyJXbBrTF5Bgzo1luYFpPbWR+pp5iRokGuiHuwZ2l5Dcgx0/AGAJTnjDqDqKvv7eD7vIiKylORR0PFjBPQjirsB+BQ6tk0C8GLO+28WWjwU3nGc1gvJa6BeSosBzBaRF0zentCJHwBWiEghZxCnlbJLemE5jtNq2AOp59J2kpdCdwS9kDXwTo4LOo7jOH/HUD/4FxvRYzYw+nqt4ziO4yQOCY9TDf3Wg+5TapT8IfXX4rRG3AbiOE6TQY056QV15FgrIuVGgjuO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziO4ziOUyr/D8QA7LGXVkTnAAAAAElFTkSuQmCC",
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "DLTCognitoAuthCognitoHostedUiProviderframeworkonEventEBA8BB49",
+            "Arn",
+          ],
+        },
+        "UserPoolId": {
+          "Ref": "DLTCognitoAuthDLTUserPoolFA41A712",
+        },
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
     "DLTCognitoAuthCognitoUser8FAEDC59": {
       "Properties": {
         "DesiredDeliveryMediums": [
@@ -2397,6 +2913,21 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::Cognito::UserPoolUser",
     },
+    "DLTCognitoAuthCognitoUserPoolLogGroupB2425FFC": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
     "DLTCognitoAuthDLTCognitoAuthorizedRole9977D4DC": {
       "Metadata": {
         "cfn_nag": {
@@ -2416,21 +2947,65 @@ exports[`Distributed Load Testing stack test 1`] = `
         "AssumeRolePolicyDocument": {
           "Statement": [
             {
-              "Action": "sts:AssumeRoleWithWebIdentity",
-              "Condition": {
-                "ForAnyValue:StringLike": {
-                  "cognito-identity.amazonaws.com:amr": "authenticated",
+              "Fn::If": [
+                "DLTCognitoAuthIsGovCloudPartition9F5A131A",
+                {
+                  "Fn::If": [
+                    "DLTCognitoAuthIsGovCloudEastRegion022D5DDD",
+                    {
+                      "Action": "sts:AssumeRoleWithWebIdentity",
+                      "Condition": {
+                        "ForAnyValue:StringLike": {
+                          "cognito-identity.us-gov-east-1.amazonaws.com:amr": "authenticated",
+                        },
+                        "StringEquals": {
+                          "cognito-identity.us-gov-east-1.amazonaws.com:aud": {
+                            "Ref": "DLTCognitoAuthDLTIdentityPoolE110578F",
+                          },
+                        },
+                      },
+                      "Effect": "Allow",
+                      "Principal": {
+                        "Federated": "cognito-identity.us-gov-east-1.amazonaws.com",
+                      },
+                    },
+                    {
+                      "Action": "sts:AssumeRoleWithWebIdentity",
+                      "Condition": {
+                        "ForAnyValue:StringLike": {
+                          "cognito-identity-us-gov.amazonaws.com:amr": "authenticated",
+                        },
+                        "StringEquals": {
+                          "cognito-identity-us-gov.amazonaws.com:aud": {
+                            "Ref": "DLTCognitoAuthDLTIdentityPoolE110578F",
+                          },
+                        },
+                      },
+                      "Effect": "Allow",
+                      "Principal": {
+                        "Federated": "cognito-identity-us-gov.amazonaws.com",
+                      },
+                    },
+                  ],
                 },
-                "StringEquals": {
-                  "cognito-identity.amazonaws.com:aud": {
-                    "Ref": "DLTCognitoAuthDLTIdentityPoolE110578F",
+                {
+                  "Action": "sts:AssumeRoleWithWebIdentity",
+                  "Condition": {
+                    "ForAnyValue:StringLike": {
+                      "cognito-identity.amazonaws.com:amr": "authenticated",
+                    },
+                    "StringEquals": {
+                      "cognito-identity.amazonaws.com:aud": {
+                        "Ref": "DLTCognitoAuthDLTIdentityPoolE110578F",
+                      },
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Federated": "cognito-identity.amazonaws.com",
                   },
                 },
-              },
-              "Effect": "Allow",
-              "Principal": {
-                "Federated": "cognito-identity.amazonaws.com",
-              },
+              ],
             },
           ],
           "Version": "2012-10-17",
@@ -2484,36 +3059,20 @@ exports[`Distributed Load Testing stack test 1`] = `
                     "s3:GetObject",
                   ],
                   "Effect": "Allow",
-                  "Resource": [
-                    {
-                      "Fn::Join": [
-                        "",
-                        [
-                          {
-                            "Fn::GetAtt": [
-                              "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
-                              "Arn",
-                            ],
-                          },
-                          "/public/*",
-                        ],
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        {
+                          "Fn::GetAtt": [
+                            "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+                            "Arn",
+                          ],
+                        },
+                        "/public/*",
                       ],
-                    },
-                    {
-                      "Fn::Join": [
-                        "",
-                        [
-                          {
-                            "Fn::GetAtt": [
-                              "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
-                              "Arn",
-                            ],
-                          },
-                          "/cloudWatchImages/*",
-                        ],
-                      ],
-                    },
-                  ],
+                    ],
+                  },
                 },
                 {
                   "Action": "s3:GetObject",
@@ -2529,6 +3088,24 @@ exports[`Distributed Load Testing stack test 1`] = `
                           ],
                         },
                         "/results/*",
+                      ],
+                    ],
+                  },
+                },
+                {
+                  "Action": "s3:GetObject",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        {
+                          "Fn::GetAtt": [
+                            "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+                            "Arn",
+                          ],
+                        },
+                        "/regional-template/*",
                       ],
                     ],
                   },
@@ -2599,7 +3176,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                         {
                           "Ref": "AWS::AccountId",
                         },
-                        ":topicfilter/*",
+                        ":topicfilter/dlt/*",
                       ],
                     ],
                   },
@@ -2623,7 +3200,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                         {
                           "Ref": "AWS::AccountId",
                         },
-                        ":topic/*",
+                        ":topic/dlt/*",
                       ],
                     ],
                   },
@@ -2642,21 +3219,65 @@ exports[`Distributed Load Testing stack test 1`] = `
         "AssumeRolePolicyDocument": {
           "Statement": [
             {
-              "Action": "sts:AssumeRoleWithWebIdentity",
-              "Condition": {
-                "ForAnyValue:StringLike": {
-                  "cognito-identity.amazonaws.com:amr": "unauthenticated",
+              "Fn::If": [
+                "DLTCognitoAuthIsGovCloudPartition9F5A131A",
+                {
+                  "Fn::If": [
+                    "DLTCognitoAuthIsGovCloudEastRegion022D5DDD",
+                    {
+                      "Action": "sts:AssumeRoleWithWebIdentity",
+                      "Condition": {
+                        "ForAnyValue:StringLike": {
+                          "cognito-identity.us-gov-east-1.amazonaws.com:amr": "unauthenticated",
+                        },
+                        "StringEquals": {
+                          "cognito-identity.us-gov-east-1.amazonaws.com:aud": {
+                            "Ref": "DLTCognitoAuthDLTIdentityPoolE110578F",
+                          },
+                        },
+                      },
+                      "Effect": "Allow",
+                      "Principal": {
+                        "Federated": "cognito-identity.us-gov-east-1.amazonaws.com",
+                      },
+                    },
+                    {
+                      "Action": "sts:AssumeRoleWithWebIdentity",
+                      "Condition": {
+                        "ForAnyValue:StringLike": {
+                          "cognito-identity-us-gov.amazonaws.com:amr": "unauthenticated",
+                        },
+                        "StringEquals": {
+                          "cognito-identity-us-gov.amazonaws.com:aud": {
+                            "Ref": "DLTCognitoAuthDLTIdentityPoolE110578F",
+                          },
+                        },
+                      },
+                      "Effect": "Allow",
+                      "Principal": {
+                        "Federated": "cognito-identity-us-gov.amazonaws.com",
+                      },
+                    },
+                  ],
                 },
-                "StringEquals": {
-                  "cognito-identity.amazonaws.com:aud": {
-                    "Ref": "DLTCognitoAuthDLTIdentityPoolE110578F",
+                {
+                  "Action": "sts:AssumeRoleWithWebIdentity",
+                  "Condition": {
+                    "ForAnyValue:StringLike": {
+                      "cognito-identity.amazonaws.com:amr": "unauthenticated",
+                    },
+                    "StringEquals": {
+                      "cognito-identity.amazonaws.com:aud": {
+                        "Ref": "DLTCognitoAuthDLTIdentityPoolE110578F",
+                      },
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Federated": "cognito-identity.amazonaws.com",
                   },
                 },
-              },
-              "Effect": "Allow",
-              "Principal": {
-                "Federated": "cognito-identity.amazonaws.com",
-              },
+              ],
             },
           ],
           "Version": "2012-10-17",
@@ -2686,19 +3307,48 @@ exports[`Distributed Load Testing stack test 1`] = `
     "DLTCognitoAuthDLTUserPoolClientA2F8B2DB": {
       "Properties": {
         "AllowedOAuthFlows": [
-          "implicit",
           "code",
         ],
         "AllowedOAuthFlowsUserPoolClient": true,
         "AllowedOAuthScopes": [
-          "profile",
-          "phone",
-          "email",
           "openid",
-          "aws.cognito.signin.user.admin",
+          "email",
+          "profile",
         ],
         "CallbackURLs": [
-          "https://example.com",
+          {
+            "Fn::Join": [
+              "",
+              [
+                "https://",
+                {
+                  "Fn::GetAtt": [
+                    "DLTConsoleResourcesDLTDashboardS3CloudFrontDistribution1F11B8BB",
+                    "DomainName",
+                  ],
+                },
+              ],
+            ],
+          },
+          {
+            "Fn::Join": [
+              "",
+              [
+                "https://",
+                {
+                  "Fn::GetAtt": [
+                    "DLTConsoleResourcesDLTDashboardS3CloudFrontDistribution1F11B8BB",
+                    "DomainName",
+                  ],
+                },
+                "/",
+              ],
+            ],
+          },
+          "http://localhost:3000",
+          "http://localhost:3000/",
+          "http://localhost:7521/callback",
+          "http://localhost:3000/callback",
         ],
         "ClientName": {
           "Fn::Join": [
@@ -2711,7 +3361,50 @@ exports[`Distributed Load Testing stack test 1`] = `
             ],
           ],
         },
+        "EnableTokenRevocation": true,
+        "ExplicitAuthFlows": [
+          "ALLOW_USER_SRP_AUTH",
+        ],
         "GenerateSecret": false,
+        "LogoutURLs": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "https://",
+                {
+                  "Fn::GetAtt": [
+                    "DLTConsoleResourcesDLTDashboardS3CloudFrontDistribution1F11B8BB",
+                    "DomainName",
+                  ],
+                },
+              ],
+            ],
+          },
+          {
+            "Fn::Join": [
+              "",
+              [
+                "https://",
+                {
+                  "Fn::GetAtt": [
+                    "DLTConsoleResourcesDLTDashboardS3CloudFrontDistribution1F11B8BB",
+                    "DomainName",
+                  ],
+                },
+                "/",
+              ],
+            ],
+          },
+          "http://localhost:3000",
+          "http://localhost:3000/",
+          "http://localhost:7521/callback",
+          "http://localhost:3000/callback",
+        ],
+        "RefreshTokenRotation": {
+          "Feature": "ENABLED",
+          "RetryGracePeriodSeconds": 60,
+        },
         "RefreshTokenValidity": 1440,
         "SupportedIdentityProviders": [
           "COGNITO",
@@ -2886,7 +3579,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                     {
                       "Ref": "AWS::AccountId",
                     },
-                    ":topicfilter/*",
+                    ":topicfilter/dlt/*",
                   ],
                 ],
               },
@@ -2910,7 +3603,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                     {
                       "Ref": "AWS::AccountId",
                     },
-                    ":topic/*",
+                    ":topic/dlt/*",
                   ],
                 ],
               },
@@ -2977,7 +3670,28 @@ exports[`Distributed Load Testing stack test 1`] = `
             "Ref": "DLTLambdaFunctionTaskStatusRole9288E645",
           },
           {
-            "Ref": "DLTLambdaFunctionMetricFilterCleanerRole2EB5924C",
+            "Ref": "DLTLambdaFunctionTestCleanupRoleDC0BEA52",
+          },
+          {
+            "Ref": "DLTLambdaFunctionStabilizationCheckerRole6CBA6344",
+          },
+          {
+            "Ref": "DLTLambdaFunctionStartCommandRole3F343C56",
+          },
+          {
+            "Ref": "DLTLambdaFunctionRegionalSyncRole8A668DCC",
+          },
+          {
+            "Ref": "DLTLambdaFunctionTaskFailureHandlerRoleB2F5047C",
+          },
+          {
+            "Ref": "DLTLambdaFunctionOrphanCleanupRoleB4AD3115",
+          },
+          {
+            "Ref": "DLTLambdaFunctionSFNFailureHandlerRole383D70B7",
+          },
+          {
+            "Ref": "DLTLambdaFunctionTestStatusUpdaterRole997B3321",
           },
           {
             "Ref": "DLTApiDLTAPIServicesLambdaRole4465EAA4",
@@ -3137,6 +3851,151 @@ exports[`Distributed Load Testing stack test 1`] = `
               ],
             },
             {
+              "Action": "events:ListRules",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":events:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":rule/*",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "events:PutTargets",
+                "events:ListTargetsByRule",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":events:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":rule/*Create",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":events:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":rule/*Scheduled",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "cloudfront:GetResponseHeadersPolicy",
+                "cloudfront:UpdateResponseHeadersPolicy",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":cloudfront::",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":response-headers-policy/",
+                    {
+                      "Ref": "DLTConsoleResourcesDLTDashboardS3ResponseHeadersPolicyA894BC19",
+                    },
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": "scheduler:DeleteSchedule",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":scheduler:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":schedule/default/*Create",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":scheduler:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":schedule/default/*Scheduled",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
               "Action": [
                 "s3:GetObject*",
                 "s3:GetBucket*",
@@ -3199,6 +4058,13 @@ exports[`Distributed Load Testing stack test 1`] = `
                   ],
                 },
               ],
+            },
+            {
+              "Action": "cloudformation:DescribeStacks",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "AWS::StackId",
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -3444,7 +4310,7 @@ exports[`Distributed Load Testing stack test 1`] = `
           },
           "SecurityHeadersConfig": {
             "ContentSecurityPolicy": {
-              "ContentSecurityPolicy": "default-src 'self' https://*.amazonaws.com https://*.amazoncognito.com; upgrade-insecure-requests; script-src 'self' https://*.amazonaws.com https://*.amazoncognito.com; style-src 'self' 'unsafe-inline' https://*.amazonaws.com; img-src 'self' data: https://*.amazonaws.com; font-src 'self' data:; connect-src 'self' https://*.amazonaws.com https://*.amazoncognito.com wss://*.amazonaws.com; frame-src 'self' https://*.amazonaws.com; frame-ancestors 'self' https://*.amazonaws.com; object-src 'none'; base-uri 'self'; form-action 'self' https://*.amazonaws.com;",
+              "ContentSecurityPolicy": "default-src 'self' https://*.amazonaws.com; upgrade-insecure-requests; script-src 'self' https://*.amazonaws.com; style-src 'self' 'unsafe-inline' https://*.amazonaws.com; img-src 'self' data: https://*.amazonaws.com; font-src 'self' data:; connect-src 'self' https://*.amazonaws.com wss://*.amazonaws.com https://metrics.awssolutionsbuilder.com; frame-src 'self' https://*.amazonaws.com; frame-ancestors 'self' https://*.amazonaws.com; object-src 'none'; base-uri 'self'; form-action 'self' https://*.amazonaws.com;",
               "Override": true,
             },
             "ContentTypeOptions": {
@@ -3727,6 +4593,9 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
@@ -3761,6 +4630,64 @@ exports[`Distributed Load Testing stack test 1`] = `
         "Timeout": 120,
       },
       "Type": "AWS::Lambda::Function",
+    },
+    "DLTCustomResourcesBackwardsCompatibilityUpdateV3toV4CA07A806": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "Resource": "V3toV4BackCompat",
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DLTCustomResourcesCleanUpTestScenariosB69DD18C": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "Resource": "CleanUpTestScenarios",
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DLTCustomResourcesCopyJMeterBundle9E5A5E5E": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "DestBucket": {
+          "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+        },
+        "Resource": "CopyJMeterBundle",
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
+            "Arn",
+          ],
+        },
+        "SrcBucket": {
+          "Fn::Join": [
+            "-",
+            [
+              "codeBucket",
+              {
+                "Ref": "AWS::Region",
+              },
+            ],
+          ],
+        },
+        "SrcPath": "DLT/Version",
+        "Timestamp": "Omitted to remove snapshot dependency on timestamp",
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
     },
     "DLTCustomResourcesCustomResourceUuidD1C03F15": {
       "DeletionPolicy": "Delete",
@@ -3916,8 +4843,17 @@ exports[`Distributed Load Testing stack test 1`] = `
           "ecsCloudWatchLogGroup": {
             "Ref": "DLTEcsDLTCloudWatchLogsGroupFE9EC144",
           },
+          "executionRoleArn": {
+            "Fn::GetAtt": [
+              "DLTEcsDLTTaskExecutionRoleDE668717",
+              "Arn",
+            ],
+          },
           "region": {
             "Ref": "AWS::Region",
+          },
+          "stackId": {
+            "Ref": "AWS::StackId",
           },
           "subnetA": {
             "Fn::If": [
@@ -3947,20 +4883,58 @@ exports[`Distributed Load Testing stack test 1`] = `
           "taskDefinition": {
             "Ref": "DLTEcsDLTTaskDefinitionFB4E5564",
           },
-          "taskImage": {
-            "Fn::Join": [
-              "",
-              [
-                {
-                  "Ref": "AWS::StackName",
-                },
-                "-load-tester",
-              ],
+          "taskRoleArn": {
+            "Fn::GetAtt": [
+              "DLTEcsDLTTaskRoleD37E29C5",
+              "Arn",
             ],
           },
           "taskSecurityGroup": {
             "Ref": "DLTEcsDLTEcsSecurityGroup69E6743C",
           },
+          "version": "testVersion",
+        },
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DLTCustomResourcesUpdateCloudFrontCspCEAC2D6B": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "CognitoDomain": {
+          "Fn::Join": [
+            "",
+            [
+              "dlt-",
+              {
+                "Fn::GetAtt": [
+                  "DLTCustomResourcesCustomResourceUuidD1C03F15",
+                  "UUID",
+                ],
+              },
+              {
+                "Fn::If": [
+                  "DLTCognitoAuthIsGovCloudPartition9F5A131A",
+                  ".auth-fips.",
+                  ".auth.",
+                ],
+              },
+              {
+                "Ref": "AWS::Region",
+              },
+              ".amazoncognito.com",
+            ],
+          ],
+        },
+        "Resource": "UpdateCsp",
+        "ResponseHeadersPolicyId": {
+          "Ref": "DLTConsoleResourcesDLTDashboardS3ResponseHeadersPolicyA894BC19",
+        },
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
+            "Arn",
+          ],
         },
       },
       "Type": "AWS::CloudFormation::CustomResource",
@@ -4097,21 +5071,6 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::EC2::SecurityGroupEgress",
     },
-    "DLTEcsDLTSecGroupIngressFA958E66": {
-      "Properties": {
-        "Description": "Allow tasks to communicate",
-        "FromPort": 50000,
-        "GroupId": {
-          "Ref": "DLTEcsDLTEcsSecurityGroup69E6743C",
-        },
-        "IpProtocol": "tcp",
-        "SourceSecurityGroupId": {
-          "Ref": "DLTEcsDLTEcsSecurityGroup69E6743C",
-        },
-        "ToPort": 50000,
-      },
-      "Type": "AWS::EC2::SecurityGroupIngress",
-    },
     "DLTEcsDLTTaskDefinitionFB4E5564": {
       "Properties": {
         "ContainerDefinitions": [
@@ -4123,6 +5082,16 @@ exports[`Distributed Load Testing stack test 1`] = `
               },
             ],
             "Essential": true,
+            "HealthCheck": {
+              "Command": [
+                "CMD-SHELL",
+                "test -f /tmp/health_ready || exit 1",
+              ],
+              "Interval": 5,
+              "Retries": 10,
+              "StartPeriod": 10,
+              "Timeout": 5,
+            },
             "Image": {
               "Fn::If": [
                 "UseStableTagCondition",
@@ -4177,7 +5146,7 @@ exports[`Distributed Load Testing stack test 1`] = `
         ],
         "TaskRoleArn": {
           "Fn::GetAtt": [
-            "DLTEcsDLTTaskExecutionRoleDE668717",
+            "DLTEcsDLTTaskRoleD37E29C5",
             "Arn",
           ],
         },
@@ -4227,6 +5196,62 @@ exports[`Distributed Load Testing stack test 1`] = `
             },
             "PolicyName": "ECSTaskExecutionPolicy",
           },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "DLTEcsDLTTaskExecutionRoleDefaultPolicy3A93A204": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTEcsDLTCloudWatchLogsGroupFE9EC144",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "DLTEcsDLTTaskExecutionRoleDefaultPolicy3A93A204",
+        "Roles": [
+          {
+            "Ref": "DLTEcsDLTTaskExecutionRoleDE668717",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "DLTEcsDLTTaskRoleD37E29C5": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE",
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs-tasks.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
           {
             "PolicyDocument": {
               "Statement": [
@@ -4280,35 +5305,6 @@ exports[`Distributed Load Testing stack test 1`] = `
         ],
       },
       "Type": "AWS::IAM::Role",
-    },
-    "DLTEcsDLTTaskExecutionRoleDefaultPolicy3A93A204": {
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": [
-                "logs:CreateLogStream",
-                "logs:PutLogEvents",
-              ],
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "DLTEcsDLTCloudWatchLogsGroupFE9EC144",
-                  "Arn",
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "DLTEcsDLTTaskExecutionRoleDefaultPolicy3A93A204",
-        "Roles": [
-          {
-            "Ref": "DLTEcsDLTTaskExecutionRoleDE668717",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
     },
     "DLTEcsMetricFilterCountAlarm6B9438DB": {
       "Metadata": {
@@ -4384,15 +5380,34 @@ exports[`Distributed Load Testing stack test 1`] = `
             "PolicyDocument": {
               "Statement": [
                 {
-                  "Action": "ecs:ListTasks",
+                  "Action": [
+                    "ecs:DescribeTaskDefinition",
+                    "ecs:DeregisterTaskDefinition",
+                    "ecs:ListTaskDefinitions",
+                    "ecs:ListTasks",
+                  ],
                   "Effect": "Allow",
                   "Resource": "*",
                 },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "EcsUnscopedActionsPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
                 {
                   "Action": [
+                    "ecs:RegisterTaskDefinition",
+                    "ecs:DeleteTaskDefinitions",
                     "ecs:RunTask",
                     "ecs:DescribeTasks",
                     "ecs:TagResource",
+                    "ecs:CreateService",
+                    "ecs:UpdateService",
+                    "ecs:DeleteService",
+                    "ecs:DescribeServices",
                     "logs:PutMetricFilter",
                     "logs:DescribeMetricFilters",
                   ],
@@ -4404,6 +5419,14 @@ exports[`Distributed Load Testing stack test 1`] = `
                   "Effect": "Allow",
                   "Resource": "*",
                 },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "EcsTagScopedPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
                 {
                   "Action": "cloudwatch:PutMetricData",
                   "Condition": {
@@ -4414,8 +5437,16 @@ exports[`Distributed Load Testing stack test 1`] = `
                   "Effect": "Allow",
                   "Resource": "*",
                 },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "CloudWatchMetricPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
                 {
-                  "Action": "s3:putObject",
+                  "Action": "s3:PutObject",
                   "Effect": "Allow",
                   "Resource": {
                     "Fn::Join": [
@@ -4432,16 +5463,45 @@ exports[`Distributed Load Testing stack test 1`] = `
                     ],
                   },
                 },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "S3WritePolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
                 {
                   "Action": "iam:PassRole",
-                  "Effect": "Allow",
-                  "Resource": {
-                    "Fn::GetAtt": [
-                      "DLTEcsDLTTaskExecutionRoleDE668717",
-                      "Arn",
-                    ],
+                  "Condition": {
+                    "StringEquals": {
+                      "iam:PassedToService": "ecs-tasks.amazonaws.com",
+                    },
                   },
+                  "Effect": "Allow",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "DLTEcsDLTTaskExecutionRoleDE668717",
+                        "Arn",
+                      ],
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "DLTEcsDLTTaskRoleD37E29C5",
+                        "Arn",
+                      ],
+                    },
+                  ],
                 },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "IamPassRolePolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
                 {
                   "Action": "cloudwatch:PutDashboard",
                   "Effect": "Allow",
@@ -4465,11 +5525,61 @@ exports[`Distributed Load Testing stack test 1`] = `
               ],
               "Version": "2012-10-17",
             },
-            "PolicyName": "TaskLambdaPolicy",
+            "PolicyName": "CloudWatchDashboardPolicy",
           },
         ],
       },
       "Type": "AWS::IAM::Role",
+    },
+    "DLTLambdaFunctionECSTaskStoppedRule2D661D34": {
+      "Properties": {
+        "Description": "Routes ECS task STOPPED events to the Task Failure Handler for threshold tracking",
+        "EventPattern": {
+          "detail": {
+            "lastStatus": [
+              "STOPPED",
+            ],
+          },
+          "detail-type": [
+            "ECS Task State Change",
+          ],
+          "source": [
+            "aws.ecs",
+          ],
+        },
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "DLTLambdaFunctionTaskFailureHandlerCB3B514D",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "DLTLambdaFunctionECSTaskStoppedRuleAllowEventRuleTestDLTStackDLTLambdaFunctionTaskFailureHandler10684D850BDE319A": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "DLTLambdaFunctionTaskFailureHandlerCB3B514D",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "DLTLambdaFunctionECSTaskStoppedRule2D661D34",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
     },
     "DLTLambdaFunctionLambdaResultsPolicyB191FC35": {
       "Metadata": {
@@ -4546,14 +5656,6 @@ exports[`Distributed Load Testing stack test 1`] = `
     },
     "DLTLambdaFunctionLambdaTaskCancelerRoleAE2C84CF": {
       "Metadata": {
-        "cfn_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "W11",
-              "reason": "ecs:ListTasks does not support resource level permissions",
-            },
-          ],
-        },
         "guard": {
           "SuppressedRules": [
             "IAM_NO_INLINE_POLICY_CHECK",
@@ -4578,21 +5680,6 @@ exports[`Distributed Load Testing stack test 1`] = `
             "PolicyDocument": {
               "Statement": [
                 {
-                  "Action": "ecs:StopTask",
-                  "Condition": {
-                    "StringEquals": {
-                      "aws:ResourceTag/SolutionId": "testId",
-                    },
-                  },
-                  "Effect": "Allow",
-                  "Resource": "*",
-                },
-                {
-                  "Action": "ecs:ListTasks",
-                  "Effect": "Allow",
-                  "Resource": "*",
-                },
-                {
                   "Action": "dynamodb:UpdateItem",
                   "Effect": "Allow",
                   "Resource": {
@@ -4603,40 +5690,152 @@ exports[`Distributed Load Testing stack test 1`] = `
                   },
                 },
                 {
-                  "Action": [
-                    "logs:DescribeMetricFilters",
-                    "logs:DeleteMetricFilter",
-                  ],
-                  "Condition": {
-                    "StringEquals": {
-                      "aws:ResourceTag/SolutionId": "testId",
-                    },
-                  },
+                  "Action": "dynamodb:PutItem",
                   "Effect": "Allow",
-                  "Resource": "*",
-                },
-                {
-                  "Action": "cloudwatch:PutMetricData",
-                  "Condition": {
-                    "StringEquals": {
-                      "cloudwatch:namespace": "distributed-load-testing",
-                    },
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "DLTTestRunnerStorageDLTHistoryTable46D850CC",
+                      "Arn",
+                    ],
                   },
-                  "Effect": "Allow",
-                  "Resource": "*",
                 },
               ],
               "Version": "2012-10-17",
             },
-            "PolicyName": "TaskCancelerPolicy",
+            "PolicyName": "DynamoDbPolicy",
           },
         ],
       },
       "Type": "AWS::IAM::Role",
     },
-    "DLTLambdaFunctionMetricFilterCleanerDF0CAC68": {
+    "DLTLambdaFunctionMetricsEmitterD0894A67": {
       "DependsOn": [
-        "DLTLambdaFunctionMetricFilterCleanerRole2EB5924C",
+        "DLTLambdaFunctionMetricsEmitterRole7DF7406A",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "MetricsEmitterLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "Sends operational metrics for test lifecycle events",
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "DLTLambdaFunctionMetricsEmitterRole7DF7406A",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 15,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "DLTLambdaFunctionMetricsEmitterLambdaLogGroup3CB505DB": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "DLTLambdaFunctionMetricsEmitterD0894A67",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "DLTLambdaFunctionMetricsEmitterLogsPolicy2C69A721": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionMetricsEmitterLambdaLogGroup3CB505DB",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "DLTLambdaFunctionMetricsEmitterLogsPolicy2C69A721",
+        "Roles": [
+          {
+            "Ref": "DLTLambdaFunctionMetricsEmitterRole7DF7406A",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "DLTLambdaFunctionMetricsEmitterRole7DF7406A": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "DLTLambdaFunctionOrphanCleanup13860457": {
+      "DependsOn": [
+        "DLTLambdaFunctionOrphanCleanupRoleB4AD3115",
       ],
       "Metadata": {
         "cfn_nag": {
@@ -4657,32 +5856,79 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
           "S3Key": "Omitted to remove snapshot dependency on hash",
         },
-        "Description": "Cleans up CloudWatch metric filters for completed/failed tests",
+        "Description": "Hourly scan for orphaned ECS services not associated with active tests",
         "Environment": {
           "Variables": {
+            "SCENARIOS_TABLE": {
+              "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+            },
             "SOLUTION_ID": "testId",
+            "STATE_MACHINE_ARN": {
+              "Ref": "DLTStepFunctionTaskRunnerStepFunctionsC295A535",
+            },
             "VERSION": "testVersion",
           },
         },
         "Handler": "index.handler",
         "Role": {
           "Fn::GetAtt": [
-            "DLTLambdaFunctionMetricFilterCleanerRole2EB5924C",
+            "DLTLambdaFunctionOrphanCleanupRoleB4AD3115",
             "Arn",
           ],
         },
         "Runtime": "nodejs24.x",
-        "Timeout": 300,
+        "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
     },
-    "DLTLambdaFunctionMetricFilterCleanerLambdaLogGroupFC5FA57A": {
+    "DLTLambdaFunctionOrphanCleanupFailureAlarmE755678A": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CFN_NO_EXPLICIT_RESOURCE_NAMES",
+          ],
+        },
+      },
+      "Properties": {
+        "AlarmDescription": "Alerts when orphan ECS service cleanup fails. Manual intervention required to delete orphaned services and prevent ongoing Fargate charges.",
+        "AlarmName": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-OrphanCleanupFailure",
+            ],
+          ],
+        },
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "Dimensions": [
+          {
+            "Name": "SolutionId",
+            "Value": "testId",
+          },
+        ],
+        "EvaluationPeriods": 1,
+        "MetricName": "OrphanCleanupFailures",
+        "Namespace": "distributed-load-testing",
+        "Period": 300,
+        "Statistic": "Sum",
+        "Threshold": 1,
+        "TreatMissingData": "breaching",
+      },
+      "Type": "AWS::CloudWatch::Alarm",
+    },
+    "DLTLambdaFunctionOrphanCleanupLambdaLogGroupE96F9900": {
       "DeletionPolicy": "Retain",
       "Metadata": {
         "guard": {
@@ -4698,7 +5944,7 @@ exports[`Distributed Load Testing stack test 1`] = `
             [
               "/aws/lambda/",
               {
-                "Ref": "DLTLambdaFunctionMetricFilterCleanerDF0CAC68",
+                "Ref": "DLTLambdaFunctionOrphanCleanup13860457",
               },
             ],
           ],
@@ -4708,13 +5954,13 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
     },
-    "DLTLambdaFunctionMetricFilterCleanerRole2EB5924C": {
+    "DLTLambdaFunctionOrphanCleanupRoleB4AD3115": {
       "Metadata": {
         "cfn_nag": {
           "rules_to_suppress": [
             {
               "id": "W11",
-              "reason": "logs:DeleteMetricFilter does not support resource level permissions",
+              "reason": "ecs:ListServices does not support resource level permissions",
             },
           ],
         },
@@ -4742,9 +5988,15 @@ exports[`Distributed Load Testing stack test 1`] = `
             "PolicyDocument": {
               "Statement": [
                 {
+                  "Action": "ecs:ListServices",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                {
                   "Action": [
-                    "logs:DeleteMetricFilter",
-                    "logs:DescribeMetricFilters",
+                    "ecs:DescribeServices",
+                    "ecs:UpdateService",
+                    "ecs:DeleteService",
                   ],
                   "Condition": {
                     "StringEquals": {
@@ -4764,10 +6016,192 @@ exports[`Distributed Load Testing stack test 1`] = `
                   "Effect": "Allow",
                   "Resource": "*",
                 },
+                {
+                  "Action": "dynamodb:Scan",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+                      "Arn",
+                    ],
+                  },
+                },
               ],
               "Version": "2012-10-17",
             },
-            "PolicyName": "MetricFilterCleanerPolicy",
+            "PolicyName": "OrphanCleanupPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "DLTLambdaFunctionOrphanCleanupScheduleRuleAllowEventRuleTestDLTStackDLTLambdaFunctionOrphanCleanup8ACCE313015D564B": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "DLTLambdaFunctionOrphanCleanup13860457",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "DLTLambdaFunctionOrphanCleanupScheduleRuleF6705350",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "DLTLambdaFunctionOrphanCleanupScheduleRuleF6705350": {
+      "Properties": {
+        "Description": "Hourly trigger for orphaned ECS service cleanup",
+        "ScheduleExpression": "rate(1 hour)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "DLTLambdaFunctionOrphanCleanup13860457",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "DLTLambdaFunctionRegionalSyncEF230066": {
+      "DependsOn": [
+        "DLTLambdaFunctionRegionalSyncRole8A668DCC",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "Validates all regions are READY and emits sync metric",
+        "Environment": {
+          "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
+            "SCENARIOS_TABLE": {
+              "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+            },
+            "SOLUTION_ID": "testId",
+            "UUID": {
+              "Fn::GetAtt": [
+                "DLTCustomResourcesCustomResourceUuidD1C03F15",
+                "UUID",
+              ],
+            },
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "DLTLambdaFunctionRegionalSyncRole8A668DCC",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 30,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "DLTLambdaFunctionRegionalSyncLambdaLogGroup303B7022": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "DLTLambdaFunctionRegionalSyncEF230066",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "DLTLambdaFunctionRegionalSyncRole8A668DCC": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "dynamodb:UpdateItem",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+                      "Arn",
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "RegionalSyncPolicy",
           },
         ],
       },
@@ -4830,6 +6264,9 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
@@ -4839,6 +6276,9 @@ exports[`Distributed Load Testing stack test 1`] = `
         "Description": "Result parser for indexing xml test results to DynamoDB",
         "Environment": {
           "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
             "HISTORY_TABLE": {
               "Ref": "DLTTestRunnerStorageDLTHistoryTable46D850CC",
             },
@@ -4872,6 +6312,410 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::Lambda::Function",
     },
+    "DLTLambdaFunctionSFNFailureHandler928EB56D": {
+      "DependsOn": [
+        "DLTLambdaFunctionSFNFailureHandlerRole383D70B7",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "Layer 2 safety: invokes test-cleanup when step function fails",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "testId",
+            "TEST_CLEANUP_ARN": {
+              "Fn::GetAtt": [
+                "DLTLambdaFunctionTestCleanupBBAA461F",
+                "Arn",
+              ],
+            },
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "DLTLambdaFunctionSFNFailureHandlerRole383D70B7",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 120,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "DLTLambdaFunctionSFNFailureHandlerLambdaLogGroup967B3D84": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "DLTLambdaFunctionSFNFailureHandler928EB56D",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "DLTLambdaFunctionSFNFailureHandlerRole383D70B7": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "lambda:InvokeFunction",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "DLTLambdaFunctionTestCleanupBBAA461F",
+                      "Arn",
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "SFNFailureHandlerPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "DLTLambdaFunctionStabilizationChecker9DA790EC": {
+      "DependsOn": [
+        "DLTLambdaFunctionStabilizationCheckerRole6CBA6344",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "Checks ECS service stabilization status",
+        "Environment": {
+          "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
+            "SOLUTION_ID": "testId",
+            "UUID": {
+              "Fn::GetAtt": [
+                "DLTCustomResourcesCustomResourceUuidD1C03F15",
+                "UUID",
+              ],
+            },
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "DLTLambdaFunctionStabilizationCheckerRole6CBA6344",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "DLTLambdaFunctionStabilizationCheckerLambdaLogGroup42149834": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "DLTLambdaFunctionStabilizationChecker9DA790EC",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "DLTLambdaFunctionStabilizationCheckerRole6CBA6344": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+            "IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "ecs:DescribeServices",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:ResourceTag/SolutionId": "testId",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "EcsTagScopedPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "DLTLambdaFunctionStartCommand206D87C5": {
+      "DependsOn": [
+        "DLTLambdaFunctionStartCommandRole3F343C56",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "Writes S3 start marker so ECS tasks begin test execution",
+        "Environment": {
+          "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
+            "MAIN_STACK_REGION": {
+              "Ref": "AWS::Region",
+            },
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
+            "SCENARIOS_BUCKET": {
+              "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+            },
+            "SOLUTION_ID": "testId",
+            "UUID": {
+              "Fn::GetAtt": [
+                "DLTCustomResourcesCustomResourceUuidD1C03F15",
+                "UUID",
+              ],
+            },
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "DLTLambdaFunctionStartCommandRole3F343C56",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "DLTLambdaFunctionStartCommandLambdaLogGroupB730B794": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "DLTLambdaFunctionStartCommand206D87C5",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "DLTLambdaFunctionStartCommandRole3F343C56": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "s3:PutObject",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        {
+                          "Fn::GetAtt": [
+                            "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+                            "Arn",
+                          ],
+                        },
+                        "/start-signal/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "S3StartSignalPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
     "DLTLambdaFunctionTaskCancelerInvokePolicyA1C7562A": {
       "Properties": {
         "PolicyDocument": {
@@ -4891,9 +6735,6 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
         "PolicyName": "DLTLambdaFunctionTaskCancelerInvokePolicyA1C7562A",
         "Roles": [
-          {
-            "Ref": "DLTLambdaFunctionTaskStatusRole9288E645",
-          },
           {
             "Ref": "DLTApiDLTAPIServicesLambdaRole4465EAA4",
           },
@@ -4924,20 +6765,44 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
           "S3Key": "Omitted to remove snapshot dependency on hash",
         },
-        "Description": "Stops ECS task",
+        "Description": "Coordinates test cancellation — sets CANCELLING status, invokes test-cleanup per region",
         "Environment": {
           "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
+            "HISTORY_TABLE": {
+              "Ref": "DLTTestRunnerStorageDLTHistoryTable46D850CC",
+            },
             "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
             "SCENARIOS_TABLE": {
               "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
             },
             "SOLUTION_ID": "testId",
+            "STATE_MACHINE_ARN": {
+              "Ref": "DLTStepFunctionTaskRunnerStepFunctionsC295A535",
+            },
+            "TEST_CLEANUP_ARN": {
+              "Fn::GetAtt": [
+                "DLTLambdaFunctionTestCleanupBBAA461F",
+                "Arn",
+              ],
+            },
+            "UUID": {
+              "Fn::GetAtt": [
+                "DLTCustomResourcesCustomResourceUuidD1C03F15",
+                "UUID",
+              ],
+            },
             "VERSION": "testVersion",
           },
         },
@@ -4978,6 +6843,162 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
+    },
+    "DLTLambdaFunctionTaskFailureHandlerCB3B514D": {
+      "DependsOn": [
+        "DLTLambdaFunctionTaskFailureHandlerRoleB2F5047C",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "Handles ECS task failure events and tracks failure threshold",
+        "Environment": {
+          "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
+            "SCENARIOS_TABLE": {
+              "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+            },
+            "SOLUTION_ID": "testId",
+            "UUID": {
+              "Fn::GetAtt": [
+                "DLTCustomResourcesCustomResourceUuidD1C03F15",
+                "UUID",
+              ],
+            },
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "DLTLambdaFunctionTaskFailureHandlerRoleB2F5047C",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 30,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "DLTLambdaFunctionTaskFailureHandlerLambdaLogGroupE7AB6C96": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "DLTLambdaFunctionTaskFailureHandlerCB3B514D",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "DLTLambdaFunctionTaskFailureHandlerRoleB2F5047C": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+            "IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "dynamodb:UpdateItem",
+                    "dynamodb:GetItem",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+                      "Arn",
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "TaskFailureHandlerPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "cloudwatch:PutMetricData",
+                  "Condition": {
+                    "StringEquals": {
+                      "cloudwatch:namespace": "distributed-load-testing",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "CloudWatchMetricPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
     },
     "DLTLambdaFunctionTaskRunnerLambdaLogGroupF801BE82": {
       "DeletionPolicy": "Retain",
@@ -5028,6 +7049,9 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
@@ -5037,9 +7061,13 @@ exports[`Distributed Load Testing stack test 1`] = `
         "Description": "Task runner for ECS task definitions",
         "Environment": {
           "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
             "MAIN_STACK_REGION": {
               "Ref": "AWS::Region",
             },
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
             "SCENARIOS_BUCKET": {
               "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
             },
@@ -5047,6 +7075,12 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
             },
             "SOLUTION_ID": "testId",
+            "UUID": {
+              "Fn::GetAtt": [
+                "DLTCustomResourcesCustomResourceUuidD1C03F15",
+                "UUID",
+              ],
+            },
             "VERSION": "testVersion",
           },
         },
@@ -5085,23 +7119,36 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
           "S3Key": "Omitted to remove snapshot dependency on hash",
         },
-        "Description": "Task status checker",
+        "Description": "Task status checker — running check and S3 completion monitoring",
         "Environment": {
           "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
+            "MAIN_STACK_REGION": {
+              "Ref": "AWS::Region",
+            },
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
+            "SCENARIOS_BUCKET": {
+              "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+            },
             "SCENARIOS_TABLE": {
               "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
             },
             "SOLUTION_ID": "testId",
-            "TASK_CANCELER_ARN": {
+            "UUID": {
               "Fn::GetAtt": [
-                "DLTLambdaFunctionTaskCancelerNewA6986F4A",
-                "Arn",
+                "DLTCustomResourcesCustomResourceUuidD1C03F15",
+                "UUID",
               ],
             },
             "VERSION": "testVersion",
@@ -5115,7 +7162,7 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
         },
         "Runtime": "nodejs24.x",
-        "Timeout": 180,
+        "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -5153,8 +7200,198 @@ exports[`Distributed Load Testing stack test 1`] = `
             "PolicyDocument": {
               "Statement": [
                 {
+                  "Action": "ecs:ListTasks",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "EcsUnscopedActionsPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "ecs:DescribeTasks",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                {
+                  "Action": "s3:ListBucket",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+                      "Arn",
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "TaskStatusPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "DLTLambdaFunctionTestCleanupBBAA461F": {
+      "DependsOn": [
+        "DLTLambdaFunctionTestCleanupRoleDC0BEA52",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "Cleans up ECS resources for one region and sets final DDB status",
+        "Environment": {
+          "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
+            "HISTORY_TABLE": {
+              "Ref": "DLTTestRunnerStorageDLTHistoryTable46D850CC",
+            },
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
+            "SCENARIOS_TABLE": {
+              "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+            },
+            "SOLUTION_ID": "testId",
+            "UUID": {
+              "Fn::GetAtt": [
+                "DLTCustomResourcesCustomResourceUuidD1C03F15",
+                "UUID",
+              ],
+            },
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "DLTLambdaFunctionTestCleanupRoleDC0BEA52",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "DLTLambdaFunctionTestCleanupInvokePolicyA8E77925": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionTestCleanupBBAA461F",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "DLTLambdaFunctionTestCleanupInvokePolicyA8E77925",
+        "Roles": [
+          {
+            "Ref": "DLTLambdaFunctionLambdaTaskCancelerRoleAE2C84CF",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "DLTLambdaFunctionTestCleanupLambdaLogGroupC7B4FECA": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "DLTLambdaFunctionTestCleanupBBAA461F",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "DLTLambdaFunctionTestCleanupRoleDC0BEA52": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W11",
+              "reason": "ecs:ListTasks and ecs:DeregisterTaskDefinition do not support resource level permissions",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
                   "Action": [
-                    "ecs:DescribeTasks",
+                    "ecs:DeregisterTaskDefinition",
+                    "ecs:ListTaskDefinitions",
                     "ecs:ListTasks",
                   ],
                   "Effect": "Allow",
@@ -5163,7 +7400,245 @@ exports[`Distributed Load Testing stack test 1`] = `
               ],
               "Version": "2012-10-17",
             },
-            "PolicyName": "TaskStatusPolicy",
+            "PolicyName": "EcsUnscopedActionsPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "ecs:UpdateService",
+                    "ecs:DeleteService",
+                    "ecs:DescribeServices",
+                    "ecs:DeleteTaskDefinitions",
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:ResourceTag/SolutionId": "testId",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "EcsTagScopedPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "logs:DescribeMetricFilters",
+                    "logs:DeleteMetricFilter",
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:ResourceTag/SolutionId": "testId",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "MetricFilterPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "cloudwatch:PutMetricData",
+                  "Condition": {
+                    "StringEquals": {
+                      "cloudwatch:namespace": "distributed-load-testing",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "CloudWatchMetricPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "dynamodb:UpdateItem",
+                  "Effect": "Allow",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+                        "Arn",
+                      ],
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "DLTTestRunnerStorageDLTHistoryTable46D850CC",
+                        "Arn",
+                      ],
+                    },
+                  ],
+                },
+                {
+                  "Action": "dynamodb:PutItem",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "DLTTestRunnerStorageDLTHistoryTable46D850CC",
+                      "Arn",
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "DynamoDbPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "DLTLambdaFunctionTestStatusUpdater5E9CDE77": {
+      "DependsOn": [
+        "DLTLambdaFunctionTestStatusUpdaterRole997B3321",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "Updates scenario and history DynamoDB records with current test status",
+        "Environment": {
+          "Variables": {
+            "HISTORY_TABLE": {
+              "Ref": "DLTTestRunnerStorageDLTHistoryTable46D850CC",
+            },
+            "SCENARIOS_TABLE": {
+              "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+            },
+            "SOLUTION_ID": "testId",
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "DLTLambdaFunctionTestStatusUpdaterRole997B3321",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 30,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "DLTLambdaFunctionTestStatusUpdaterLambdaLogGroup7BB4B4CD": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "DLTLambdaFunctionTestStatusUpdater5E9CDE77",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "DLTLambdaFunctionTestStatusUpdaterRole997B3321": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:UpdateItem",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
+                      "Arn",
+                    ],
+                  },
+                },
+                {
+                  "Action": "dynamodb:UpdateItem",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "DLTTestRunnerStorageDLTHistoryTable46D850CC",
+                      "Arn",
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "DynamoDbPolicy",
           },
         ],
       },
@@ -5194,6 +7669,188 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
+    },
+    "DLTSavedQueriesOrphanCleanup80C351CE": {
+      "Properties": {
+        "LogGroupNames": [
+          {
+            "Ref": "DLTLambdaFunctionOrphanCleanupLambdaLogGroupE96F9900",
+          },
+        ],
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              "DLT - Orphan Cleanup [",
+              {
+                "Ref": "AWS::StackName",
+              },
+              " ",
+              {
+                "Ref": "AWS::Region",
+              },
+              "]",
+            ],
+          ],
+        },
+        "QueryString": "fields @timestamp, logEvent, message, region, cluster, orphanCount, orphanTestIds
+| filter logEvent = "ORPHAN_DETECTED"
+| sort @timestamp desc
+| limit 50",
+      },
+      "Type": "AWS::Logs::QueryDefinition",
+    },
+    "DLTSavedQueriesTaskFailuresC06FB5BD": {
+      "Properties": {
+        "LogGroupNames": [
+          {
+            "Ref": "DLTLambdaFunctionTaskFailureHandlerLambdaLogGroupE7AB6C96",
+          },
+        ],
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              "DLT - Task Failures [",
+              {
+                "Ref": "AWS::StackName",
+              },
+              " ",
+              {
+                "Ref": "AWS::Region",
+              },
+              "]",
+            ],
+          ],
+        },
+        "QueryString": "fields @timestamp, testId, testRunId, region, taskArn, stopCode, exitCode, stopCategory, stoppedReason
+| filter logEvent = "TASK_FAILURE_DETECTED"
+| sort @timestamp desc
+| limit 50",
+      },
+      "Type": "AWS::Logs::QueryDefinition",
+    },
+    "DLTSavedQueriesTestErrorsFED798D2": {
+      "Properties": {
+        "LogGroupNames": [
+          {
+            "Ref": "DLTLambdaFunctionTaskRunnerLambdaLogGroupF801BE82",
+          },
+          {
+            "Ref": "DLTLambdaFunctionStabilizationCheckerLambdaLogGroup42149834",
+          },
+          {
+            "Ref": "DLTLambdaFunctiontaskStatusCheckerLambdaLogGroup1988969D",
+          },
+          {
+            "Ref": "DLTLambdaFunctionStartCommandLambdaLogGroupB730B794",
+          },
+          {
+            "Ref": "DLTLambdaFunctionTestCleanupLambdaLogGroupC7B4FECA",
+          },
+          {
+            "Ref": "DLTLambdaFunctionTaskCancellerLambdaLogGroupBD1D284E",
+          },
+          {
+            "Ref": "DLTLambdaFunctionTaskFailureHandlerLambdaLogGroupE7AB6C96",
+          },
+          {
+            "Ref": "DLTLambdaFunctionRegionalSyncLambdaLogGroup303B7022",
+          },
+          {
+            "Ref": "DLTLambdaFunctionOrphanCleanupLambdaLogGroupE96F9900",
+          },
+          {
+            "Ref": "DLTLambdaFunctionSFNFailureHandlerLambdaLogGroup967B3D84",
+          },
+          {
+            "Ref": "DLTLambdaFunctionMetricsEmitterLambdaLogGroup3CB505DB",
+          },
+          {
+            "Ref": "DLTEcsDLTCloudWatchLogsGroupFE9EC144",
+          },
+        ],
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              "DLT - Test Errors [",
+              {
+                "Ref": "AWS::StackName",
+              },
+              " ",
+              {
+                "Ref": "AWS::Region",
+              },
+              "]",
+            ],
+          ],
+        },
+        "QueryString": "fields @timestamp, logEvent, message, region, taskId, error
+| filter testRunId = "REPLACE_WITH_TEST_RUN_ID" and level = "ERROR"
+| sort @timestamp asc",
+      },
+      "Type": "AWS::Logs::QueryDefinition",
+    },
+    "DLTSavedQueriesTestTimeline565856F1": {
+      "Properties": {
+        "LogGroupNames": [
+          {
+            "Ref": "DLTLambdaFunctionTaskRunnerLambdaLogGroupF801BE82",
+          },
+          {
+            "Ref": "DLTLambdaFunctionStabilizationCheckerLambdaLogGroup42149834",
+          },
+          {
+            "Ref": "DLTLambdaFunctiontaskStatusCheckerLambdaLogGroup1988969D",
+          },
+          {
+            "Ref": "DLTLambdaFunctionStartCommandLambdaLogGroupB730B794",
+          },
+          {
+            "Ref": "DLTLambdaFunctionTestCleanupLambdaLogGroupC7B4FECA",
+          },
+          {
+            "Ref": "DLTLambdaFunctionTaskCancellerLambdaLogGroupBD1D284E",
+          },
+          {
+            "Ref": "DLTLambdaFunctionTaskFailureHandlerLambdaLogGroupE7AB6C96",
+          },
+          {
+            "Ref": "DLTLambdaFunctionRegionalSyncLambdaLogGroup303B7022",
+          },
+          {
+            "Ref": "DLTLambdaFunctionOrphanCleanupLambdaLogGroupE96F9900",
+          },
+          {
+            "Ref": "DLTLambdaFunctionSFNFailureHandlerLambdaLogGroup967B3D84",
+          },
+          {
+            "Ref": "DLTLambdaFunctionMetricsEmitterLambdaLogGroup3CB505DB",
+          },
+        ],
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              "DLT - Test Timeline [",
+              {
+                "Ref": "AWS::StackName",
+              },
+              " ",
+              {
+                "Ref": "AWS::Region",
+              },
+              "]",
+            ],
+          ],
+        },
+        "QueryString": "fields @timestamp, logEvent, message, region, error
+| filter testRunId = "REPLACE_WITH_TEST_RUN_ID"
+| sort @timestamp asc
+| limit 500",
+      },
+      "Type": "AWS::Logs::QueryDefinition",
     },
     "DLTStepFunctionStepFunctionsLogGroup8DABDAB7": {
       "DeletionPolicy": "Retain",
@@ -5241,7 +7898,29 @@ exports[`Distributed Load Testing stack test 1`] = `
           "Fn::Join": [
             "",
             [
-              "{"StartAt":"Regions for testing","States":{"Regions for testing":{"Type":"Map","ResultPath":null,"Next":"Parse result","InputPath":"$","ItemsPath":"$.testTaskConfig","ItemSelector":{"testTaskConfig.$":"$$.Map.Item.Value","testId.$":"$.testId","testType.$":"$.testType","fileType.$":"$.fileType","showLive.$":"$.showLive","testDuration.$":"$.testDuration","prefix.$":"$.prefix","testRunId.$":"$.testRunId"},"ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"Check running tests","States":{"Check running tests":{"Next":"No running tests","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
+              "{"StartAt":"TestStart","States":{"TestStart":{"Next":"Stabilization Map","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":null,"Next":"Stabilization Map"}],"Type":"Task","ResultPath":null,"Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionMetricsEmitterD0894A67",
+                  "Arn",
+                ],
+              },
+              "","Payload":{"solutionId":"testId","uuid":"",
+              {
+                "Fn::GetAtt": [
+                  "DLTCustomResourcesCustomResourceUuidD1C03F15",
+                  "UUID",
+                ],
+              },
+              "","version":"testVersion","metricUrl":"https://metrics.awssolutionsbuilder.com/generic","accountId":"",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              "","metricSchemaVersion":1,"data":{"Type":"TestStart","TestId.$":"$.testId","TestType.$":"$.testType","FileType.$":"$.fileType","TestDuration.$":"$.testDuration","RegionCount.$":"States.ArrayLength($.testTaskConfig)"}}}},"Stabilization Map":{"Type":"Map","ResultPath":"$.stabilizationResults","Next":"Regional Sync","InputPath":"$","ItemsPath":"$.testTaskConfig","ItemSelector":{"testTaskConfig.$":"$$.Map.Item.Value","testId.$":"$.testId","testType.$":"$.testType","fileType.$":"$.fileType","showLive.$":"$.showLive","testDuration.$":"$.testDuration","prefix.$":"$.prefix","testRunId.$":"$.testRunId","hubTaskDefinition.$":"$.hubTaskDefinition"},"ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"Check Running Tests","States":{"Check Running Tests":{"Next":"Test already running?","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Prepare Phase 1 Failure Cleanup"}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -5252,7 +7931,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"No running tests":{"Type":"Choice","Choices":[{"Variable":"$.isRunning","BooleanEquals":false,"Next":"Run workers"}],"Default":"Test is still running"},"Test is still running":{"Type":"Fail","Error":"TestAlreadyRunning","Cause":"The same test is already running."},"Run workers":{"Next":"Requires leader?","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
+              "","Payload.$":"$"}},"Test already running?":{"Type":"Choice","Choices":[{"Variable":"$.isRunning","BooleanEquals":true,"Next":"Test Already Running End"}],"Default":"Task Runner"},"Task Runner":{"Next":"Check Stabilization","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Prepare Phase 1 Failure Cleanup"}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -5263,51 +7942,73 @@ exports[`Distributed Load Testing stack test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"Requires leader?":{"Type":"Choice","Choices":[{"Variable":"$.isRunning","BooleanEquals":false,"Next":"Cancel Test"},{"Variable":"$.taskIds","IsPresent":false,"Next":"Wait specified test duration"}],"Default":"Wait 1 minute - worker status"},"Wait 1 minute - worker status":{"Type":"Wait","Comment":"Wait 1 minute to check task status again","Seconds":60,"Next":"Check worker status"},"Check worker status":{"Next":"Are all workers running?","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
+              "","Payload.$":"$"}},"Check Stabilization":{"Next":"Service stable?","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Prepare Phase 1 Failure Cleanup"}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
               ":states:::lambda:invoke","Parameters":{"FunctionName":"",
               {
                 "Fn::GetAtt": [
-                  "DLTLambdaFunctionTaskStatusCheckerNew00D99653",
+                  "DLTLambdaFunctionStabilizationChecker9DA790EC",
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"Are all workers running?":{"Type":"Choice","Choices":[{"Variable":"$.isRunning","BooleanEquals":false,"Next":"Cancel Test"},{"Variable":"$.numTasksRunning","NumericEqualsPath":"$.numTasksTotal","Next":"Run leader task"}],"Default":"Wait 1 minute - worker status"},"Cancel Test":{"Next":"Map End","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:",
+              "","Payload.$":"$"}},"Wait 10s - stabilization":{"Type":"Wait","Seconds":10,"Next":"Check Stabilization"},"Service stable?":{"Type":"Choice","Choices":[{"Variable":"$.status","StringEquals":"READY","Next":"Phase 1 Map End"},{"Variable":"$.status","StringEquals":"FAILED","Next":"Phase 1 Map End"}],"Default":"Wait 10s - stabilization"},"Phase 1 Map End":{"Type":"Pass","End":true},"Phase 1 Error Cleanup":{"Next":"Phase 1 Map End","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
               ":states:::lambda:invoke","Parameters":{"FunctionName":"",
               {
                 "Fn::GetAtt": [
-                  "DLTLambdaFunctionTaskCancelerNewA6986F4A",
+                  "DLTLambdaFunctionTestCleanupBBAA461F",
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"Run leader task":{"Next":"Wait specified test duration","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Cancel Test"}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
+              "","Payload.$":"$"}},"Prepare Phase 1 Failure Cleanup":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason":"ECS service creation or stabilization failed","skipStatusUpdate":true},"Next":"Phase 1 Error Cleanup"},"Test Already Running End":{"Type":"Pass","Next":"Phase 1 Map End"}}}},"Regional Sync":{"Next":"All regions ready?","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Cancel All Regions"}],"Type":"Task","ResultPath":"$.syncResult","Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
               ":states:::lambda:invoke","Parameters":{"FunctionName":"",
               {
                 "Fn::GetAtt": [
-                  "DLTLambdaFunctionTaskRunnerNew5AE1A3C2",
+                  "DLTLambdaFunctionRegionalSyncEF230066",
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"Wait specified test duration":{"Type":"Wait","SecondsPath":"$.testDuration","Next":"Check task status"},"Check task status":{"Next":"Are all tasks done?","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
+              "","Payload":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testType.$":"$.testType","regions.$":"$.stabilizationResults"}}},"All regions ready?":{"Type":"Choice","Choices":[{"Variable":"$.syncResult.Payload.allReady","BooleanEquals":true,"Next":"Set Status: running"}],"Default":"Cancel All Regions"},"Cancel All Regions":{"Type":"Map","ResultPath":null,"Next":"Final Outcome: failed","InputPath":"$","ItemsPath":"$.stabilizationResults","ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"Prepare Cancel Cleanup","States":{"Prepare Cancel Cleanup":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason":"Regional sync failed — at least one region did not stabilize","skipStatusUpdate":true},"Next":"Cancel Region"},"Cancel Region":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
               ":states:::lambda:invoke","Parameters":{"FunctionName":"",
               {
                 "Fn::GetAtt": [
-                  "DLTLambdaFunctionTaskStatusCheckerNew00D99653",
+                  "DLTLambdaFunctionTestCleanupBBAA461F",
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"Wait 1 minute - task status":{"Type":"Wait","Comment":"Wait 1 minute to check task status again","Seconds":60,"Next":"Check task status"},"Are all tasks done?":{"Type":"Choice","Choices":[{"Variable":"$.isRunning","BooleanEquals":false,"Next":"Map End"}],"Default":"Wait 1 minute - task status"},"Map End":{"Type":"Pass","End":true}}}},"Parse result":{"Next":"Cleanup Metric Filters","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Cleanup Metric Filters"}],"Type":"Task","ResultPath":"$.parseResult","Resource":"arn:",
+              "","Payload.$":"$"}}}}},"Final Outcome: failed":{"Type":"Pass","Result":"failed","ResultPath":"$.finalOutcome","Next":"TestEnd"},"Error Cleanup Map":{"Type":"Map","ResultPath":null,"Next":"Final Outcome: failed","InputPath":"$","ItemsPath":"$.stabilizationResults","ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"Prepare Error Cleanup","States":{"Prepare Error Cleanup":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason":"Results parsing failed","skipStatusUpdate":true},"Next":"Invoke Error Cleanup"},"Invoke Error Cleanup":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionTestCleanupBBAA461F",
+                  "Arn",
+                ],
+              },
+              "","Payload.$":"$"}}}}},"Test results succeeded?":{"Type":"Choice","Choices":[{"Variable":"$.executionResult.hasFailures","BooleanEquals":true,"Next":"Error Cleanup Map"},{"Variable":"$.error","IsPresent":true,"Next":"Error Cleanup Map"}],"Default":"Cleanup Map"},"Set Status: cleaning up":{"Next":"Test results succeeded?","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":null,"Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionTestStatusUpdater5E9CDE77",
+                  "Arn",
+                ],
+              },
+              "","Payload":{"testId.$":"$.testId","testRunId.$":"$.testRunId","status":"cleaning up"}}},"Parse Results":{"Next":"Set Status: cleaning up","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Set Status: cleaning up"}],"Type":"Task","ResultPath":"$.parseResult","Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -5318,18 +8019,106 @@ exports[`Distributed Load Testing stack test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload":{"testTaskConfig.$":"$.testTaskConfig","testId.$":"$.testId","testType.$":"$.testType","fileType.$":"$.fileType","showLive.$":"$.showLive","testDuration.$":"$.testDuration","prefix.$":"$.prefix","testRunId.$":"$.testRunId","executionStart.$":"$$.Execution.StartTime"}}},"Cleanup Metric Filters":{"Next":"Done","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":null,"Resource":"arn:",
+              "","Payload":{"testTaskConfig.$":"$.testTaskConfig","testId.$":"$.testId","testType.$":"$.testType","fileType.$":"$.fileType","showLive.$":"$.showLive","testDuration.$":"$.testDuration","prefix.$":"$.prefix","testRunId.$":"$.testRunId","executionStart.$":"$$.Execution.StartTime"}}},"Set Status: parsing results":{"Next":"Parse Results","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":null,"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
               ":states:::lambda:invoke","Parameters":{"FunctionName":"",
               {
                 "Fn::GetAtt": [
-                  "DLTLambdaFunctionMetricFilterCleanerDF0CAC68",
+                  "DLTLambdaFunctionTestStatusUpdater5E9CDE77",
                   "Arn",
                 ],
               },
-              "","Payload":{"testTaskConfig.$":"$.testTaskConfig","testId.$":"$.testId"}}},"Done":{"Type":"Succeed"}}}",
+              "","Payload":{"testId.$":"$.testId","testRunId.$":"$.testRunId","status":"parsing results"}}},"Check For Failures":{"Type":"Pass","ResultPath":"$.executionResult","Parameters":{"hasFailures.$":"States.ArrayContains($.executionMapResults, 'failed')"},"Next":"Set Status: parsing results"},"Execution Map":{"Type":"Map","ResultPath":"$.executionMapResults","Next":"Check For Failures","InputPath":"$","ItemsPath":"$.stabilizationResults","ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"Send START Command","States":{"Send START Command":{"Next":"Check Completion","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Prepare Start Command Failure"}],"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionStartCommand206D87C5",
+                  "Arn",
+                ],
+              },
+              "","Payload.$":"$"}},"Check Completion":{"Next":"Is test complete?","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Prepare Completion Monitor Failure"}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionTaskStatusCheckerNew00D99653",
+                  "Arn",
+                ],
+              },
+              "","Payload.$":"$"}},"Wait 15s - completion":{"Type":"Wait","Seconds":15,"Next":"Check Completion"},"Is test complete?":{"Type":"Choice","Choices":[{"Variable":"$.isComplete","BooleanEquals":true,"Next":"Set Final Status: success"},{"Variable":"$.timedOut","BooleanEquals":true,"Next":"Prepare Phase 2 Failure Cleanup"}],"Default":"Wait 15s - completion"},"Set Final Status: success":{"Type":"Pass","Parameters":{"finalStatus":"success"},"Next":"Phase 2 Map End"},"Phase 2 Map End":{"Type":"Pass","OutputPath":"$.finalStatus","End":true},"Phase 2 Error Cleanup":{"Next":"Phase 2 Map End","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionTestCleanupBBAA461F",
+                  "Arn",
+                ],
+              },
+              "","Payload.$":"$"}},"Prepare Phase 2 Failure Cleanup":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason.$":"$.errorReason","skipStatusUpdate":true},"Next":"Phase 2 Error Cleanup"},"Prepare Completion Monitor Failure":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason":"Completion monitoring failed","skipStatusUpdate":true},"Next":"Phase 2 Error Cleanup"},"Prepare Start Command Failure":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason":"Failed to send start command","skipStatusUpdate":true},"Next":"Phase 2 Error Cleanup"}}}},"Set Status: running":{"Next":"Execution Map","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":null,"Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionTestStatusUpdater5E9CDE77",
+                  "Arn",
+                ],
+              },
+              "","Payload":{"testId.$":"$.testId","testRunId.$":"$.testRunId","status":"running"}}},"Cleanup Map":{"Type":"Map","ResultPath":null,"Next":"Final Outcome: complete","InputPath":"$","ItemsPath":"$.stabilizationResults","ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"Prepare Complete Cleanup","States":{"Prepare Complete Cleanup":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"complete","skipStatusUpdate":true},"Next":"Invoke Test Cleanup"},"Invoke Test Cleanup":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionTestCleanupBBAA461F",
+                  "Arn",
+                ],
+              },
+              "","Payload.$":"$"}}}}},"Final Outcome: complete":{"Type":"Pass","Result":"complete","ResultPath":"$.finalOutcome","Next":"TestEnd"},"TestEnd":{"Next":"Set Final Status and Endtime","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":null,"Next":"Set Final Status and Endtime"}],"Type":"Task","ResultPath":null,"Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionMetricsEmitterD0894A67",
+                  "Arn",
+                ],
+              },
+              "","Payload":{"solutionId":"testId","uuid":"",
+              {
+                "Fn::GetAtt": [
+                  "DLTCustomResourcesCustomResourceUuidD1C03F15",
+                  "UUID",
+                ],
+              },
+              "","version":"testVersion","metricUrl":"https://metrics.awssolutionsbuilder.com/generic","accountId":"",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              "","metricSchemaVersion":1,"data":{"Type":"TestEnd","TestId.$":"$.testId","TestType.$":"$.testType","FinalStatus.$":"$.finalOutcome"}}}},"Set Final Status and Endtime":{"Next":"Done","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":null,"Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionTestStatusUpdater5E9CDE77",
+                  "Arn",
+                ],
+              },
+              "","Payload":{"testId.$":"$.testId","testRunId.$":"$.testRunId","status.$":"$.finalOutcome","endTime.$":"$$.State.EnteredTime"}}},"Done":{"Type":"Succeed"}}}",
             ],
           ],
         },
@@ -5354,6 +8143,9 @@ exports[`Distributed Load Testing stack test 1`] = `
             "DLTStepFunctionTaskRunnerStepFunctionsRoleC2237F06",
             "Arn",
           ],
+        },
+        "TracingConfiguration": {
+          "Enabled": true,
         },
       },
       "Type": "AWS::StepFunctions::StateMachine",
@@ -5414,6 +8206,84 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Resource": [
                 {
                   "Fn::GetAtt": [
+                    "DLTLambdaFunctionMetricsEmitterD0894A67",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "DLTLambdaFunctionMetricsEmitterD0894A67",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "DLTLambdaFunctionRegionalSyncEF230066",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "DLTLambdaFunctionRegionalSyncEF230066",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "DLTLambdaFunctionTestStatusUpdater5E9CDE77",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "DLTLambdaFunctionTestStatusUpdater5E9CDE77",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
                     "DLTLambdaFunctionResultsParserNew4A490450",
                     "Arn",
                   ],
@@ -5440,7 +8310,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Resource": [
                 {
                   "Fn::GetAtt": [
-                    "DLTLambdaFunctionMetricFilterCleanerDF0CAC68",
+                    "DLTLambdaFunctionStartCommand206D87C5",
                     "Arn",
                   ],
                 },
@@ -5450,7 +8320,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                     [
                       {
                         "Fn::GetAtt": [
-                          "DLTLambdaFunctionMetricFilterCleanerDF0CAC68",
+                          "DLTLambdaFunctionStartCommand206D87C5",
                           "Arn",
                         ],
                       },
@@ -5492,6 +8362,32 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Resource": [
                 {
                   "Fn::GetAtt": [
+                    "DLTLambdaFunctionTestCleanupBBAA461F",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "DLTLambdaFunctionTestCleanupBBAA461F",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
                     "DLTLambdaFunctionTaskRunnerNew5AE1A3C2",
                     "Arn",
                   ],
@@ -5518,7 +8414,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Resource": [
                 {
                   "Fn::GetAtt": [
-                    "DLTLambdaFunctionTaskCancelerNewA6986F4A",
+                    "DLTLambdaFunctionStabilizationChecker9DA790EC",
                     "Arn",
                   ],
                 },
@@ -5528,7 +8424,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                     [
                       {
                         "Fn::GetAtt": [
-                          "DLTLambdaFunctionTaskCancelerNewA6986F4A",
+                          "DLTLambdaFunctionStabilizationChecker9DA790EC",
                           "Arn",
                         ],
                       },
@@ -5548,6 +8444,16 @@ exports[`Distributed Load Testing stack test 1`] = `
                 "logs:PutResourcePolicy",
                 "logs:DescribeResourcePolicies",
                 "logs:DescribeLogGroups",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+                "xray:GetSamplingRules",
+                "xray:GetSamplingTargets",
               ],
               "Effect": "Allow",
               "Resource": "*",
@@ -5787,6 +8693,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                 "dynamodb:BatchWriteItem",
                 "dynamodb:GetItem",
                 "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
                 "dynamodb:Query",
               ],
               "Effect": "Allow",
@@ -6399,7 +9306,6 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Type": "AWS::Cognito::UserPoolClient",
     },
     "MCPServerDLTUserPoolDomainA26D16C0": {
-      "Condition": "DeployMCPServerCondition",
       "Properties": {
         "Domain": {
           "Fn::Join": [
@@ -6441,6 +9347,9 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
@@ -6472,6 +9381,9 @@ exports[`Distributed Load Testing stack test 1`] = `
                   },
                 ],
               ],
+            },
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
             },
             "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
             "SCENARIOS_BUCKET_NAME": {
@@ -6595,6 +9507,29 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
+    "OrphanCleanupSfnPolicy9066FEBC": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "states:ListExecutions",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "DLTStepFunctionTaskRunnerStepFunctionsC295A535",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "OrphanCleanupSfnPolicy9066FEBC",
+        "Roles": [
+          {
+            "Ref": "DLTLambdaFunctionOrphanCleanupRoleB4AD3115",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
     "RealTimeDataRealTimeDataPublisherLogGroup3FE55F9A": {
       "DeletionPolicy": "Retain",
       "Metadata": {
@@ -6647,6 +9582,9 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
@@ -6733,7 +9671,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                         {
                           "Ref": "AWS::AccountId",
                         },
-                        ":topic/*",
+                        ":topic/dlt/*",
                       ],
                     ],
                   },
@@ -6746,6 +9684,110 @@ exports[`Distributed Load Testing stack test 1`] = `
         ],
       },
       "Type": "AWS::IAM::Role",
+    },
+    "SFNFailureHandlerSfnPolicy01B40EFA": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "states:DescribeExecution",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":states:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":execution:",
+                    {
+                      "Fn::GetAtt": [
+                        "DLTStepFunctionTaskRunnerStepFunctionsC295A535",
+                        "Name",
+                      ],
+                    },
+                    ":*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SFNFailureHandlerSfnPolicy01B40EFA",
+        "Roles": [
+          {
+            "Ref": "DLTLambdaFunctionSFNFailureHandlerRole383D70B7",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "SFNFailureRule770B04D7": {
+      "Properties": {
+        "Description": "Routes Step Function execution failures to the SFN Failure Handler for ECS cleanup",
+        "EventPattern": {
+          "detail": {
+            "stateMachineArn": [
+              {
+                "Ref": "DLTStepFunctionTaskRunnerStepFunctionsC295A535",
+              },
+            ],
+            "status": [
+              "FAILED",
+              "TIMED_OUT",
+              "ABORTED",
+            ],
+          },
+          "detail-type": [
+            "Step Functions Execution Status Change",
+          ],
+          "source": [
+            "aws.states",
+          ],
+        },
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "DLTLambdaFunctionSFNFailureHandler928EB56D",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "SFNFailureRuleAllowEventRuleTestDLTStackDLTLambdaFunctionSFNFailureHandler039E1E29AE42A424": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "DLTLambdaFunctionSFNFailureHandler928EB56D",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "SFNFailureRule770B04D7",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
     },
     "SolutionMetricsNewBilledDurationMemorySizeQueryApiLambdaF458D542": {
       "Properties": {
@@ -6769,11 +9811,11 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::Logs::QueryDefinition",
     },
-    "SolutionMetricsNewBilledDurationMemorySizeQueryMetricFilterCleanerC1A5C90C": {
+    "SolutionMetricsNewBilledDurationMemorySizeQueryOrphanCleanupC901D949": {
       "Properties": {
         "LogGroupNames": [
           {
-            "Ref": "DLTLambdaFunctionMetricFilterCleanerLambdaLogGroupFC5FA57A",
+            "Ref": "DLTLambdaFunctionOrphanCleanupLambdaLogGroupE96F9900",
           },
         ],
         "Name": {
@@ -6783,11 +9825,11 @@ exports[`Distributed Load Testing stack test 1`] = `
               {
                 "Ref": "AWS::StackName",
               },
-              "-BilledDurationMemorySizeQueryMetricFilterCleaner",
+              "-BilledDurationMemorySizeQueryOrphanCleanup",
             ],
           ],
         },
-        "QueryString": "stats sum(@billedDuration) as AWSLambdaBilledDurationMetricFilterCleaner, max(@memorySize) as AWSLambdaMemorySizeMetricFilterCleaner",
+        "QueryString": "stats sum(@billedDuration) as AWSLambdaBilledDurationOrphanCleanup, max(@memorySize) as AWSLambdaMemorySizeOrphanCleanup",
       },
       "Type": "AWS::Logs::QueryDefinition",
     },
@@ -6813,6 +9855,28 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::Logs::QueryDefinition",
     },
+    "SolutionMetricsNewBilledDurationMemorySizeQueryRegionalSync69DCBACA": {
+      "Properties": {
+        "LogGroupNames": [
+          {
+            "Ref": "DLTLambdaFunctionRegionalSyncLambdaLogGroup303B7022",
+          },
+        ],
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-BilledDurationMemorySizeQueryRegionalSync",
+            ],
+          ],
+        },
+        "QueryString": "stats sum(@billedDuration) as AWSLambdaBilledDurationRegionalSync, max(@memorySize) as AWSLambdaMemorySizeRegionalSync",
+      },
+      "Type": "AWS::Logs::QueryDefinition",
+    },
     "SolutionMetricsNewBilledDurationMemorySizeQueryResultsParser6748969C": {
       "Properties": {
         "LogGroupNames": [
@@ -6835,6 +9899,72 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::Logs::QueryDefinition",
     },
+    "SolutionMetricsNewBilledDurationMemorySizeQuerySFNFailureHandler89EBD787": {
+      "Properties": {
+        "LogGroupNames": [
+          {
+            "Ref": "DLTLambdaFunctionSFNFailureHandlerLambdaLogGroup967B3D84",
+          },
+        ],
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-BilledDurationMemorySizeQuerySFNFailureHandler",
+            ],
+          ],
+        },
+        "QueryString": "stats sum(@billedDuration) as AWSLambdaBilledDurationSFNFailureHandler, max(@memorySize) as AWSLambdaMemorySizeSFNFailureHandler",
+      },
+      "Type": "AWS::Logs::QueryDefinition",
+    },
+    "SolutionMetricsNewBilledDurationMemorySizeQueryStabilizationChecker711311E1": {
+      "Properties": {
+        "LogGroupNames": [
+          {
+            "Ref": "DLTLambdaFunctionStabilizationCheckerLambdaLogGroup42149834",
+          },
+        ],
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-BilledDurationMemorySizeQueryStabilizationChecker",
+            ],
+          ],
+        },
+        "QueryString": "stats sum(@billedDuration) as AWSLambdaBilledDurationStabilizationChecker, max(@memorySize) as AWSLambdaMemorySizeStabilizationChecker",
+      },
+      "Type": "AWS::Logs::QueryDefinition",
+    },
+    "SolutionMetricsNewBilledDurationMemorySizeQueryStartCommand90EBB4FC": {
+      "Properties": {
+        "LogGroupNames": [
+          {
+            "Ref": "DLTLambdaFunctionStartCommandLambdaLogGroupB730B794",
+          },
+        ],
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-BilledDurationMemorySizeQueryStartCommand",
+            ],
+          ],
+        },
+        "QueryString": "stats sum(@billedDuration) as AWSLambdaBilledDurationStartCommand, max(@memorySize) as AWSLambdaMemorySizeStartCommand",
+      },
+      "Type": "AWS::Logs::QueryDefinition",
+    },
     "SolutionMetricsNewBilledDurationMemorySizeQueryTaskCancelerFF6661A9": {
       "Properties": {
         "LogGroupNames": [
@@ -6854,6 +9984,28 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
         },
         "QueryString": "stats sum(@billedDuration) as AWSLambdaBilledDurationTaskCanceler, max(@memorySize) as AWSLambdaMemorySizeTaskCanceler",
+      },
+      "Type": "AWS::Logs::QueryDefinition",
+    },
+    "SolutionMetricsNewBilledDurationMemorySizeQueryTaskFailureHandler7FBE47E6": {
+      "Properties": {
+        "LogGroupNames": [
+          {
+            "Ref": "DLTLambdaFunctionTaskFailureHandlerLambdaLogGroupE7AB6C96",
+          },
+        ],
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-BilledDurationMemorySizeQueryTaskFailureHandler",
+            ],
+          ],
+        },
+        "QueryString": "stats sum(@billedDuration) as AWSLambdaBilledDurationTaskFailureHandler, max(@memorySize) as AWSLambdaMemorySizeTaskFailureHandler",
       },
       "Type": "AWS::Logs::QueryDefinition",
     },
@@ -6901,6 +10053,28 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::Logs::QueryDefinition",
     },
+    "SolutionMetricsNewBilledDurationMemorySizeQueryTestCleanup132BE627": {
+      "Properties": {
+        "LogGroupNames": [
+          {
+            "Ref": "DLTLambdaFunctionTestCleanupLambdaLogGroupC7B4FECA",
+          },
+        ],
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-BilledDurationMemorySizeQueryTestCleanup",
+            ],
+          ],
+        },
+        "QueryString": "stats sum(@billedDuration) as AWSLambdaBilledDurationTestCleanup, max(@memorySize) as AWSLambdaMemorySizeTestCleanup",
+      },
+      "Type": "AWS::Logs::QueryDefinition",
+    },
     "SolutionMetricsNewEventbridgeRuleToLambdaEventsRuleBB9E5FFD": {
       "Properties": {
         "ScheduleExpression": "cron(0 23 ? * MON *)",
@@ -6945,13 +10119,37 @@ exports[`Distributed Load Testing stack test 1`] = `
                     },
                     ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"identifier":"TaskStatusChecker","Id":"id_AWS_Lambda_Invocations_TaskStatusChecker"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
                     {
-                      "Ref": "DLTLambdaFunctionMetricFilterCleanerDF0CAC68",
+                      "Ref": "DLTLambdaFunctionTestCleanupBBAA461F",
                     },
-                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"identifier":"MetricFilterCleaner","Id":"id_AWS_Lambda_Invocations_MetricFilterCleaner"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"identifier":"TestCleanup","Id":"id_AWS_Lambda_Invocations_TestCleanup"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
                     {
                       "Ref": "DLTCustomResourceInfraCustomResourceLambdaA4053269",
                     },
-                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"identifier":"CustomResourceLambda","Id":"id_AWS_Lambda_Invocations_CustomResourceLambda"},{"MetricStat":{"Metric":{"Namespace":"AWS/DynamoDB","Dimensions":[{"Name":"TableName","Value":"",
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"identifier":"CustomResourceLambda","Id":"id_AWS_Lambda_Invocations_CustomResourceLambda"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    {
+                      "Ref": "DLTLambdaFunctionStabilizationChecker9DA790EC",
+                    },
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"identifier":"StabilizationChecker","Id":"id_AWS_Lambda_Invocations_StabilizationChecker"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    {
+                      "Ref": "DLTLambdaFunctionStartCommand206D87C5",
+                    },
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"identifier":"StartCommand","Id":"id_AWS_Lambda_Invocations_StartCommand"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    {
+                      "Ref": "DLTLambdaFunctionRegionalSyncEF230066",
+                    },
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"identifier":"RegionalSync","Id":"id_AWS_Lambda_Invocations_RegionalSync"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    {
+                      "Ref": "DLTLambdaFunctionTaskFailureHandlerCB3B514D",
+                    },
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"identifier":"TaskFailureHandler","Id":"id_AWS_Lambda_Invocations_TaskFailureHandler"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    {
+                      "Ref": "DLTLambdaFunctionOrphanCleanup13860457",
+                    },
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"identifier":"OrphanCleanup","Id":"id_AWS_Lambda_Invocations_OrphanCleanup"},{"MetricStat":{"Metric":{"Namespace":"AWS/Lambda","Dimensions":[{"Name":"FunctionName","Value":"",
+                    {
+                      "Ref": "DLTLambdaFunctionSFNFailureHandler928EB56D",
+                    },
+                    ""}],"MetricName":"Invocations"},"Stat":"Sum","Period":604800},"identifier":"SFNFailureHandler","Id":"id_AWS_Lambda_Invocations_SFNFailureHandler"},{"MetricStat":{"Metric":{"Namespace":"AWS/DynamoDB","Dimensions":[{"Name":"TableName","Value":"",
                     {
                       "Ref": "DLTTestRunnerStorageDLTScenariosTableAB6F5C2A",
                     },
@@ -6971,11 +10169,11 @@ exports[`Distributed Load Testing stack test 1`] = `
                     {
                       "Ref": "DLTEcsDLTEcsClusterBC5CE23B",
                     },
-                    ""},{"Name":"TaskDefinitionFamily","Value":"TestDLTStackDLTEcsDLTTaskDefinition098110F2"}],"MetricName":"CpuUtilized"},"Stat":"Average","Period":604800},"Id":"id_ECS_ContainerInsights_CpuUtilized"},{"MetricStat":{"Metric":{"Namespace":"ECS/ContainerInsights","Dimensions":[{"Name":"ClusterName","Value":"",
+                    ""}],"MetricName":"CpuUtilized"},"Stat":"Average","Period":604800},"Id":"id_ECS_ContainerInsights_CpuUtilized"},{"MetricStat":{"Metric":{"Namespace":"ECS/ContainerInsights","Dimensions":[{"Name":"ClusterName","Value":"",
                     {
                       "Ref": "DLTEcsDLTEcsClusterBC5CE23B",
                     },
-                    ""},{"Name":"TaskDefinitionFamily","Value":"TestDLTStackDLTEcsDLTTaskDefinition098110F2"}],"MetricName":"MemoryUtilized"},"Stat":"Average","Period":604800},"Id":"id_ECS_ContainerInsights_MemoryUtilized"}]}",
+                    ""}],"MetricName":"MemoryUtilized"},"Stat":"Average","Period":604800},"Id":"id_ECS_ContainerInsights_MemoryUtilized"}]}",
                   ],
                 ],
               },
@@ -7093,6 +10291,9 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
@@ -7102,6 +10303,9 @@ exports[`Distributed Load Testing stack test 1`] = `
         "Description": "Metrics util",
         "Environment": {
           "Variables": {
+            "ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
             "EXECUTION_DAY": "MON",
             "QUERY_PREFIX": {
               "Fn::Join": [
@@ -7305,7 +10509,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Effect": "Allow",
               "Resource": {
                 "Fn::GetAtt": [
-                  "DLTLambdaFunctionMetricFilterCleanerLambdaLogGroupFC5FA57A",
+                  "DLTLambdaFunctionTestCleanupLambdaLogGroupC7B4FECA",
                   "Arn",
                 ],
               },
@@ -7319,6 +10523,84 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Resource": {
                 "Fn::GetAtt": [
                   "DLTApidltApiServicesLambdaLogGroup54338B12",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "logs:StartQuery",
+                "logs:GetQueryResults",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionStabilizationCheckerLambdaLogGroup42149834",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "logs:StartQuery",
+                "logs:GetQueryResults",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionStartCommandLambdaLogGroupB730B794",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "logs:StartQuery",
+                "logs:GetQueryResults",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionRegionalSyncLambdaLogGroup303B7022",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "logs:StartQuery",
+                "logs:GetQueryResults",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionTaskFailureHandlerLambdaLogGroupE7AB6C96",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "logs:StartQuery",
+                "logs:GetQueryResults",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionOrphanCleanupLambdaLogGroupE96F9900",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "logs:StartQuery",
+                "logs:GetQueryResults",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DLTLambdaFunctionSFNFailureHandlerLambdaLogGroup967B3D84",
                   "Arn",
                 ],
               },
@@ -7349,7 +10631,64 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::Lambda::EventSourceMapping",
     },
-    "WebUIConfigAwsExportsCustomResource4C4BFB8F": {
+    "TaskCancelerSfnPolicyF898DBC2": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "states:ListExecutions",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "DLTStepFunctionTaskRunnerStepFunctionsC295A535",
+              },
+            },
+            {
+              "Action": [
+                "states:DescribeExecution",
+                "states:StopExecution",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":states:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":execution:",
+                    {
+                      "Fn::GetAtt": [
+                        "DLTStepFunctionTaskRunnerStepFunctionsC295A535",
+                        "Name",
+                      ],
+                    },
+                    ":*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TaskCancelerSfnPolicyF898DBC2",
+        "Roles": [
+          {
+            "Ref": "DLTLambdaFunctionLambdaTaskCancelerRoleAE2C84CF",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "WebConsoleAssets29CA09CF": {
       "DeletionPolicy": "Delete",
       "Properties": {
         "ApiEndpoint": {
@@ -7396,7 +10735,7 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
         "ServiceToken": {
           "Fn::GetAtt": [
-            "WebUIConfigAwsExportsProviderframeworkonEvent3844415C",
+            "WebConsoleAssetsProviderframeworkonEvent35FDF5FD",
             "Arn",
           ],
         },
@@ -7406,6 +10745,31 @@ exports[`Distributed Load Testing stack test 1`] = `
         "UserFilesBucketRegion": {
           "Ref": "AWS::Region",
         },
+        "UserPoolDomain": {
+          "Fn::Join": [
+            "",
+            [
+              "dlt-",
+              {
+                "Fn::GetAtt": [
+                  "DLTCustomResourcesCustomResourceUuidD1C03F15",
+                  "UUID",
+                ],
+              },
+              {
+                "Fn::If": [
+                  "DLTCognitoAuthIsGovCloudPartition9F5A131A",
+                  ".auth-fips.",
+                  ".auth.",
+                ],
+              },
+              {
+                "Ref": "AWS::Region",
+              },
+              ".amazoncognito.com",
+            ],
+          ],
+        },
         "UserPoolId": {
           "Ref": "DLTCognitoAuthDLTUserPoolFA41A712",
         },
@@ -7413,26 +10777,29 @@ exports[`Distributed Load Testing stack test 1`] = `
       "Type": "AWS::CloudFormation::CustomResource",
       "UpdateReplacePolicy": "Delete",
     },
-    "WebUIConfigAwsExportsLambda23D68C33": {
+    "WebConsoleAssetsHandler1472E7D6": {
       "DependsOn": [
-        "WebUIConfigAwsExportsLambdaServiceRoleDefaultPolicy95005C3A",
-        "WebUIConfigAwsExportsLambdaServiceRole3CBAA391",
+        "WebConsoleAssetsHandlerServiceRoleDefaultPolicyBFD9C256",
+        "WebConsoleAssetsHandlerServiceRole90869694",
       ],
       "Metadata": {
         "cfn_nag": {
           "rules_to_suppress": [
             {
               "id": "W89",
-              "reason": "Lambda function created by BucketDeployment does not need to be in a VPC as it only copies files to S3",
+              "reason": "Lambda does not need VPC - only writes to S3",
             },
             {
               "id": "W92",
-              "reason": "Lambda function created by BucketDeployment is temporary and does not need reserved concurrency",
+              "reason": "Temporary custom resource - no reserved concurrency needed",
             },
           ],
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
@@ -7442,7 +10809,7 @@ exports[`Distributed Load Testing stack test 1`] = `
         "Handler": "index.handler",
         "Role": {
           "Fn::GetAtt": [
-            "WebUIConfigAwsExportsLambdaServiceRole3CBAA391",
+            "WebConsoleAssetsHandlerServiceRole90869694",
             "Arn",
           ],
         },
@@ -7451,7 +10818,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::Lambda::Function",
     },
-    "WebUIConfigAwsExportsLambdaServiceRole3CBAA391": {
+    "WebConsoleAssetsHandlerServiceRole90869694": {
       "Properties": {
         "AssumeRolePolicyDocument": {
           "Statement": [
@@ -7482,7 +10849,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
-    "WebUIConfigAwsExportsLambdaServiceRoleDefaultPolicy95005C3A": {
+    "WebConsoleAssetsHandlerServiceRoleDefaultPolicyBFD9C256": {
       "Properties": {
         "PolicyDocument": {
           "Statement": [
@@ -7523,30 +10890,30 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
           "Version": "2012-10-17",
         },
-        "PolicyName": "WebUIConfigAwsExportsLambdaServiceRoleDefaultPolicy95005C3A",
+        "PolicyName": "WebConsoleAssetsHandlerServiceRoleDefaultPolicyBFD9C256",
         "Roles": [
           {
-            "Ref": "WebUIConfigAwsExportsLambdaServiceRole3CBAA391",
+            "Ref": "WebConsoleAssetsHandlerServiceRole90869694",
           },
         ],
       },
       "Type": "AWS::IAM::Policy",
     },
-    "WebUIConfigAwsExportsProviderframeworkonEvent3844415C": {
+    "WebConsoleAssetsProviderframeworkonEvent35FDF5FD": {
       "DependsOn": [
-        "WebUIConfigAwsExportsProviderframeworkonEventServiceRoleDefaultPolicy73DCEB49",
-        "WebUIConfigAwsExportsProviderframeworkonEventServiceRole51132DE1",
+        "WebConsoleAssetsProviderframeworkonEventServiceRoleDefaultPolicy819CE4DA",
+        "WebConsoleAssetsProviderframeworkonEventServiceRole3DF0B98A",
       ],
       "Metadata": {
         "cfn_nag": {
           "rules_to_suppress": [
             {
               "id": "W89",
-              "reason": "Lambda function created by BucketDeployment does not need to be in a VPC as it only copies files to S3",
+              "reason": "Lambda does not need VPC - only writes to S3",
             },
             {
               "id": "W92",
-              "reason": "Lambda function created by BucketDeployment is temporary and does not need reserved concurrency",
+              "reason": "Temporary custom resource - no reserved concurrency needed",
             },
           ],
         },
@@ -7558,12 +10925,12 @@ exports[`Distributed Load Testing stack test 1`] = `
           },
           "S3Key": "Omitted to remove snapshot dependency on hash",
         },
-        "Description": "AWS CDK resource provider framework - onEvent (TestDLTStack/WebUIConfig/AwsExportsProvider)",
+        "Description": "AWS CDK resource provider framework - onEvent (TestDLTStack/WebConsoleAssets/Provider)",
         "Environment": {
           "Variables": {
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
-                "WebUIConfigAwsExportsLambda23D68C33",
+                "WebConsoleAssetsHandler1472E7D6",
                 "Arn",
               ],
             },
@@ -7576,7 +10943,7 @@ exports[`Distributed Load Testing stack test 1`] = `
         },
         "Role": {
           "Fn::GetAtt": [
-            "WebUIConfigAwsExportsProviderframeworkonEventServiceRole51132DE1",
+            "WebConsoleAssetsProviderframeworkonEventServiceRole3DF0B98A",
             "Arn",
           ],
         },
@@ -7585,7 +10952,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::Lambda::Function",
     },
-    "WebUIConfigAwsExportsProviderframeworkonEventServiceRole51132DE1": {
+    "WebConsoleAssetsProviderframeworkonEventServiceRole3DF0B98A": {
       "Properties": {
         "AssumeRolePolicyDocument": {
           "Statement": [
@@ -7616,7 +10983,7 @@ exports[`Distributed Load Testing stack test 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
-    "WebUIConfigAwsExportsProviderframeworkonEventServiceRoleDefaultPolicy73DCEB49": {
+    "WebConsoleAssetsProviderframeworkonEventServiceRoleDefaultPolicy819CE4DA": {
       "Properties": {
         "PolicyDocument": {
           "Statement": [
@@ -7626,7 +10993,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Resource": [
                 {
                   "Fn::GetAtt": [
-                    "WebUIConfigAwsExportsLambda23D68C33",
+                    "WebConsoleAssetsHandler1472E7D6",
                     "Arn",
                   ],
                 },
@@ -7636,7 +11003,7 @@ exports[`Distributed Load Testing stack test 1`] = `
                     [
                       {
                         "Fn::GetAtt": [
-                          "WebUIConfigAwsExportsLambda23D68C33",
+                          "WebConsoleAssetsHandler1472E7D6",
                           "Arn",
                         ],
                       },
@@ -7651,7 +11018,7 @@ exports[`Distributed Load Testing stack test 1`] = `
               "Effect": "Allow",
               "Resource": {
                 "Fn::GetAtt": [
-                  "WebUIConfigAwsExportsLambda23D68C33",
+                  "WebConsoleAssetsHandler1472E7D6",
                   "Arn",
                 ],
               },
@@ -7659,10 +11026,10 @@ exports[`Distributed Load Testing stack test 1`] = `
           ],
           "Version": "2012-10-17",
         },
-        "PolicyName": "WebUIConfigAwsExportsProviderframeworkonEventServiceRoleDefaultPolicy73DCEB49",
+        "PolicyName": "WebConsoleAssetsProviderframeworkonEventServiceRoleDefaultPolicy819CE4DA",
         "Roles": [
           {
-            "Ref": "WebUIConfigAwsExportsProviderframeworkonEventServiceRole51132DE1",
+            "Ref": "WebConsoleAssetsProviderframeworkonEventServiceRole3DF0B98A",
           },
         ],
       },

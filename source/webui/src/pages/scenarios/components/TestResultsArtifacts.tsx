@@ -42,7 +42,21 @@ export function TestResultsArtifacts({ testRunDetails, testId }: TestResultsArti
           setError("No test result files found for this test run.");
           setActualPrefix(searchPath.replace(/\/$/, ""));
         } else {
-          const matchingFiles = result.items.filter((item) => item.path.includes(`_${testRunId}/`));
+          let matchingFiles = result.items.filter((item) => item.path.includes(`_${testRunId}/`));
+
+          // Fallback for legacy format: files stored directly under results/<testId>/
+          // with timestamps in filenames. The file timestamp may differ from startTime
+          // by a few seconds, so match within a tolerance window.
+          if (matchingFiles.length === 0 && testRunDetails.startTime) {
+            const runStart = new Date(testRunDetails.startTime).getTime();
+            const toleranceMs = 3_000;
+            matchingFiles = result.items.filter((item) => {
+              const match = item.path.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)/);
+              if (!match) return false;
+              const fileTime = new Date(match[1]).getTime();
+              return Math.abs(fileTime - runStart) <= toleranceMs;
+            });
+          }
 
           if (matchingFiles.length === 0) {
             setError("No test result files found for this test run.");

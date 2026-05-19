@@ -1,0 +1,25 @@
+{
+  "name": "@amzn/dlt-test-cleanup",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Test Cleanup Lambda for DLT — clean up load test resources",
+  "type": "module",
+  "main": "src/index.ts",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@amzn/dlt-common": "*",
+    "@aws-sdk/client-cloudwatch": "^3.993.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.993.0",
+    "@aws-sdk/client-dynamodb": "^3.993.0",
+    "@aws-sdk/client-ecs": "^3.993.0",
+    "@aws-sdk/lib-dynamodb": "^3.993.0"
+  }
+}

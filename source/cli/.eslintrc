@@ -1,0 +1,17 @@
+{
+  "overrides": [
+    {
+      "files": ["**/*.ts"],
+      "rules": {
+        "import/no-unresolved": "off",
+        "dot-notation": "off",
+        "jsdoc/require-jsdoc": "off",
+        "jsdoc/require-param": "off",
+        "jsdoc/require-param-type": "off",
+        "jsdoc/require-param-description": "off",
+        "jsdoc/require-returns": "off",
+        "@typescript-eslint/no-non-null-assertion": "off"
+      }
+    }
+  ]
+}

@@ -11,6 +11,7 @@ interface CloudFormationEvent {
     UserPoolId: string;
     PoolClientId: string;
     IdentityPoolId: string;
+    UserPoolDomain: string;
     ApiEndpoint: string;
     BucketName: string;
     ObjectKey: string;
@@ -25,7 +26,7 @@ interface CloudFormationEvent {
 interface CloudFormationResponse {
   Status: "SUCCESS" | "FAILED";
   PhysicalResourceId: string;
-  Data: Record<string, any>;
+  Data: Record<string, unknown>;
   Reason?: string;
 }
 
@@ -37,6 +38,7 @@ export const handler = async (event: CloudFormationEvent): Promise<CloudFormatio
     UserPoolId,
     PoolClientId,
     IdentityPoolId,
+    UserPoolDomain,
     ApiEndpoint,
     BucketName,
     ObjectKey,
@@ -52,6 +54,7 @@ export const handler = async (event: CloudFormationEvent): Promise<CloudFormatio
         UserPoolId,
         PoolClientId,
         IdentityPoolId,
+        UserPoolDomain,
         ApiEndpoint,
         UserFilesBucket,
         UserFilesBucketRegion,
@@ -76,11 +79,11 @@ export const handler = async (event: CloudFormationEvent): Promise<CloudFormatio
       PhysicalResourceId: PhysicalResourceId || `aws-exports-${Date.now()}`,
       Data: {},
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error:", error);
     return {
       Status: "FAILED",
-      Reason: error.message,
+      Reason: error instanceof Error ? error.message : String(error),
       PhysicalResourceId: PhysicalResourceId || `aws-exports-${Date.now()}`,
       Data: {},
     };

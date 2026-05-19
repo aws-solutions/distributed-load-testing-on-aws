@@ -18,7 +18,9 @@ export type CreateScenarioRequest = {
   scheduleStep?: string;
   cronValue?: string;
   cronExpiryDate?: string;
+  scheduleTimezone?: string;
   recurrence?: string;
+  healthyThreshold?: number;
 };
 
 export type TestTaskConfig = {

@@ -37,7 +37,7 @@ export function generateTestScenario(data?: Partial<ScenarioItem>): ScenarioItem
     scheduleRecurrence: Math.random() > 0.7 ? "daily" : "", // 30% chance of having recurrence
     testId,
     status: randomStatus,
-    testName: randomWord(2, 3).replace(" ", "_").toLowerCase(),
+    testName: randomWord(8, 12).replace(" ", "_").toLowerCase(),
     cronValue: Math.random() > 0.8 ? "0 9 * * *" : "", // 20% chance of having cron
     nextRun:
       Math.random() > 0.6
@@ -89,7 +89,6 @@ export function generateMockTestRunDetails(): any {
         p99_0: "0.011",
         stdev_rt: "0.005",
         avg_ct: "0.00347",
-        metricS3Location: "cloudwatch-images/MockTestId123/CloudWatchMetrics-us-east-1-2025-09-27T21:54:11.000Z",
         concurrency: "1",
         p99_9: "0.021",
         labels: [
@@ -143,7 +142,6 @@ export function generateMockTestRunDetails(): any {
         p99_0: "0.011",
         stdev_rt: "0.005",
         avg_ct: "0.00347",
-        metricS3Location: "cloudwatch-images/MockTestId123/CloudWatchMetrics-total-2025-09-27T21:54:11.000Z",
         concurrency: "1",
         p99_9: "0.021",
         labels: [

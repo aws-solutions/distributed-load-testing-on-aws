@@ -1,0 +1,21 @@
+{
+  "name": "@amzn/dlt-test-metadata-updater",
+  "version": "0.0.0",
+  "description": "Test Updater Lambda for DLT - Updates test scenario and history AWS Dynamo tables during test executions",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions"
+  },
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@amzn/dlt-common": "*",
+    "@aws-sdk/client-dynamodb": "^3.1030.0",
+    "@aws-sdk/lib-dynamodb": "^3.1030.0"
+  }
+}

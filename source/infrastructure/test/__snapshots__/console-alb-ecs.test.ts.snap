@@ -1,0 +1,5201 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DLT Console ALB ECS Construct - buildFromSource false with custom image URI 1`] = `
+{
+  "Conditions": {
+    "TestConsoleResourcesDeployWAFCondition08FF7A22": {
+      "Fn::Equals": [
+        "Yes",
+        "Yes",
+      ],
+    },
+    "TestConsoleResourcesUsePullThroughCache2161428A": {
+      "Fn::Equals": [
+        "123456789012.dkr.ecr.us-east-1.amazonaws.com/my-custom-repo:latest",
+        "",
+      ],
+    },
+  },
+  "Resources": {
+    "TestConsoleResourcesAlbSg1D59D4B2": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W2",
+              "reason": "Internet-facing ALB requires ingress from 0.0.0.0/0 for HTTPS traffic",
+            },
+            {
+              "id": "W5",
+              "reason": "Egress restricted to ECS tasks only via explicit rule",
+            },
+            {
+              "id": "W9",
+              "reason": "Internet-facing ALB requires ingress from 0.0.0.0/0",
+            },
+            {
+              "id": "F1000",
+              "reason": "Egress rule added explicitly to ECS security group",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "SECURITY_GROUP_MISSING_EGRESS_RULE",
+            "EC2_SECURITY_GROUP_INGRESS_OPEN_TO_WORLD_RULE",
+            "SECURITY_GROUP_INGRESS_CIDR_NON_32_RULE",
+          ],
+        },
+      },
+      "Properties": {
+        "GroupDescription": "ALB security group - HTTPS from internet",
+        "SecurityGroupIngress": [
+          {
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allow HTTPS from internet",
+            "FromPort": 443,
+            "IpProtocol": "tcp",
+            "ToPort": 443,
+          },
+          {
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allow HTTP for redirect to HTTPS",
+            "FromPort": 80,
+            "IpProtocol": "tcp",
+            "ToPort": 80,
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::SecurityGroup",
+    },
+    "TestConsoleResourcesAlbSgtoDLTStackTestConsoleResourcesEcsSgFA4E97748080C2F014FD": {
+      "Properties": {
+        "Description": "Allow HTTP to ECS tasks",
+        "DestinationSecurityGroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesEcsSg04098056",
+            "GroupId",
+          ],
+        },
+        "FromPort": 8080,
+        "GroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesAlbSg1D59D4B2",
+            "GroupId",
+          ],
+        },
+        "IpProtocol": "tcp",
+        "ToPort": 8080,
+      },
+      "Type": "AWS::EC2::SecurityGroupEgress",
+    },
+    "TestConsoleResourcesAlbWebAclAssociation54CA5F8E": {
+      "Condition": "TestConsoleResourcesDeployWAFCondition08FF7A22",
+      "Properties": {
+        "ResourceArn": {
+          "Ref": "TestConsoleResourcesWebConsoleAlbE4130765",
+        },
+        "WebACLArn": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesAlbWebAclDEDE8447",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::WAFv2::WebACLAssociation",
+    },
+    "TestConsoleResourcesAlbWebAclDEDE8447": {
+      "Condition": "TestConsoleResourcesDeployWAFCondition08FF7A22",
+      "Properties": {
+        "DefaultAction": {
+          "Allow": {},
+        },
+        "Rules": [
+          {
+            "Name": "AWSManagedRulesCommonRuleSet",
+            "OverrideAction": {
+              "None": {},
+            },
+            "Priority": 1,
+            "Statement": {
+              "ManagedRuleGroupStatement": {
+                "Name": "AWSManagedRulesCommonRuleSet",
+                "VendorName": "AWS",
+              },
+            },
+            "VisibilityConfig": {
+              "CloudWatchMetricsEnabled": true,
+              "MetricName": "AWSManagedRulesCommonRuleSet",
+              "SampledRequestsEnabled": true,
+            },
+          },
+          {
+            "Name": "AWSManagedRulesAmazonIpReputationList",
+            "OverrideAction": {
+              "None": {},
+            },
+            "Priority": 2,
+            "Statement": {
+              "ManagedRuleGroupStatement": {
+                "Name": "AWSManagedRulesAmazonIpReputationList",
+                "VendorName": "AWS",
+              },
+            },
+            "VisibilityConfig": {
+              "CloudWatchMetricsEnabled": true,
+              "MetricName": "AWSManagedRulesAmazonIpReputationList",
+              "SampledRequestsEnabled": true,
+            },
+          },
+          {
+            "Name": "AWSManagedRulesAnonymousIpList",
+            "OverrideAction": {
+              "None": {},
+            },
+            "Priority": 3,
+            "Statement": {
+              "ManagedRuleGroupStatement": {
+                "Name": "AWSManagedRulesAnonymousIpList",
+                "VendorName": "AWS",
+              },
+            },
+            "VisibilityConfig": {
+              "CloudWatchMetricsEnabled": true,
+              "MetricName": "AWSManagedRulesAnonymousIpList",
+              "SampledRequestsEnabled": true,
+            },
+          },
+        ],
+        "Scope": "REGIONAL",
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+        "VisibilityConfig": {
+          "CloudWatchMetricsEnabled": true,
+          "MetricName": "DLTConsoleAlbWebAcl",
+          "SampledRequestsEnabled": true,
+        },
+      },
+      "Type": "AWS::WAFv2::WebACL",
+    },
+    "TestConsoleResourcesConsoleBucketD314FA6C": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "aws:kms",
+              },
+            },
+          ],
+        },
+        "LoggingConfiguration": {
+          "DestinationBucketName": {
+            "Ref": "testSourceCodeBucketC577B176",
+          },
+          "LogFilePrefix": "console-bucket-access/",
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true,
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled",
+        },
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TestConsoleResourcesConsoleBucketPolicyBC55CBFD": {
+      "Properties": {
+        "Bucket": {
+          "Ref": "TestConsoleResourcesConsoleBucketD314FA6C",
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:*",
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false",
+                },
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "TestConsoleResourcesConsoleBucketD314FA6C",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "TestConsoleResourcesConsoleBucketD314FA6C",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+    },
+    "TestConsoleResourcesEcrPullThroughCache95A7995E": {
+      "Condition": "TestConsoleResourcesUsePullThroughCache2161428A",
+      "Properties": {
+        "EcrRepositoryPrefix": {
+          "Fn::Join": [
+            "-",
+            [
+              "dlt",
+              {
+                "Fn::Select": [
+                  4,
+                  {
+                    "Fn::Split": [
+                      "-",
+                      {
+                        "Fn::Select": [
+                          2,
+                          {
+                            "Fn::Split": [
+                              "/",
+                              {
+                                "Ref": "AWS::StackId",
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          ],
+        },
+        "UpstreamRegistryUrl": "public.ecr.aws",
+      },
+      "Type": "AWS::ECR::PullThroughCacheRule",
+    },
+    "TestConsoleResourcesEcsSg04098056": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W5",
+              "reason": "ECS tasks require outbound access to S3 Gateway endpoint (prefix list) and VPC interface endpoints. VPC has no NAT/internet gateway.",
+            },
+            {
+              "id": "W40",
+              "reason": "Egress to S3 Gateway endpoint requires all protocols as it uses prefix lists, not security groups",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "EC2_SECURITY_GROUP_EGRESS_OPEN_TO_WORLD_RULE",
+            "SECURITY_GROUP_EGRESS_ALL_PROTOCOLS_RULE",
+          ],
+        },
+      },
+      "Properties": {
+        "GroupDescription": "ECS tasks security group",
+        "SecurityGroupEgress": [
+          {
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allow all outbound traffic by default",
+            "IpProtocol": "-1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::SecurityGroup",
+    },
+    "TestConsoleResourcesEcsSgfromDLTStackTestConsoleResourcesAlbSg279930DD80803B46BBF2": {
+      "Properties": {
+        "Description": "Allow HTTP from ALB",
+        "FromPort": 8080,
+        "GroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesEcsSg04098056",
+            "GroupId",
+          ],
+        },
+        "IpProtocol": "tcp",
+        "SourceSecurityGroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesAlbSg1D59D4B2",
+            "GroupId",
+          ],
+        },
+        "ToPort": 8080,
+      },
+      "Type": "AWS::EC2::SecurityGroupIngress",
+    },
+    "TestConsoleResourcesPullThroughCacheWritePolicy1430841A": {
+      "Condition": "TestConsoleResourcesUsePullThroughCache2161428A",
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "ecr:CreateRepository",
+                "ecr:BatchImportUpstreamImage",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":ecr:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":repository/",
+                    {
+                      "Fn::Join": [
+                        "-",
+                        [
+                          "dlt",
+                          {
+                            "Fn::Select": [
+                              4,
+                              {
+                                "Fn::Split": [
+                                  "-",
+                                  {
+                                    "Fn::Select": [
+                                      2,
+                                      {
+                                        "Fn::Split": [
+                                          "/",
+                                          {
+                                            "Ref": "AWS::StackId",
+                                          },
+                                        ],
+                                      },
+                                    ],
+                                  },
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      ],
+                    },
+                    "/aws-solutions/distributed-load-testing-on-aws-web-console",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestConsoleResourcesPullThroughCacheWritePolicy1430841A",
+        "Roles": [
+          {
+            "Ref": "TestConsoleResourcesTaskExecutionRole29BE2E70",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestConsoleResourcesTaskExecutionRole29BE2E70": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "F10",
+              "reason": "Inline policy required for ECS task execution role with specific permissions",
+            },
+            {
+              "id": "W11",
+              "reason": "ecr:GetAuthorizationToken requires wildcard resource as it is an account-level action",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+            "IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs-tasks.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "TestConsoleResourcesWebConsoleLogGroupC74CF787",
+                        "Arn",
+                      ],
+                    },
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          {
+                            "Fn::GetAtt": [
+                              "TestConsoleResourcesWebConsoleLogGroupC74CF787",
+                              "Arn",
+                            ],
+                          },
+                          ":*",
+                        ],
+                      ],
+                    },
+                  ],
+                },
+                {
+                  "Action": "ecr:GetAuthorizationToken",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                {
+                  "Action": [
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:BatchGetImage",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::If": [
+                      "TestConsoleResourcesUsePullThroughCache2161428A",
+                      {
+                        "Fn::Join": [
+                          "",
+                          [
+                            "arn:",
+                            {
+                              "Ref": "AWS::Partition",
+                            },
+                            ":ecr:",
+                            {
+                              "Ref": "AWS::Region",
+                            },
+                            ":",
+                            {
+                              "Ref": "AWS::AccountId",
+                            },
+                            ":repository/",
+                            {
+                              "Fn::Join": [
+                                "-",
+                                [
+                                  "dlt",
+                                  {
+                                    "Fn::Select": [
+                                      4,
+                                      {
+                                        "Fn::Split": [
+                                          "-",
+                                          {
+                                            "Fn::Select": [
+                                              2,
+                                              {
+                                                "Fn::Split": [
+                                                  "/",
+                                                  {
+                                                    "Ref": "AWS::StackId",
+                                                  },
+                                                ],
+                                              },
+                                            ],
+                                          },
+                                        ],
+                                      },
+                                    ],
+                                  },
+                                ],
+                              ],
+                            },
+                            "/aws-solutions/distributed-load-testing-on-aws-web-console",
+                          ],
+                        ],
+                      },
+                      {
+                        "Fn::Join": [
+                          "",
+                          [
+                            "arn:",
+                            {
+                              "Ref": "AWS::Partition",
+                            },
+                            ":ecr:",
+                            {
+                              "Ref": "AWS::Region",
+                            },
+                            ":",
+                            {
+                              "Ref": "AWS::AccountId",
+                            },
+                            ":repository/my-custom-repo",
+                          ],
+                        ],
+                      },
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "ECSTaskExecutionPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestConsoleResourcesTaskExecutionRoleDefaultPolicy4237D4CC": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "TestConsoleResourcesWebConsoleLogGroupC74CF787",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestConsoleResourcesTaskExecutionRoleDefaultPolicy4237D4CC",
+        "Roles": [
+          {
+            "Ref": "TestConsoleResourcesTaskExecutionRole29BE2E70",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestConsoleResourcesTaskRoleFA4E7901": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "F10",
+              "reason": "Inline policy required for ECS task role with specific S3 permissions",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs-tasks.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "s3:GetObject",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        {
+                          "Fn::GetAtt": [
+                            "TestConsoleResourcesConsoleBucketD314FA6C",
+                            "Arn",
+                          ],
+                        },
+                        "/dlt-web-console.zip",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "S3AccessPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestConsoleResourcesVpcEndpointSgCCD7E513": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W5",
+              "reason": "VPC endpoint security group egress restricted to ECS tasks only",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "SECURITY_GROUP_EGRESS_PORT_RANGE_RULE",
+            "SECURITY_GROUP_MISSING_EGRESS_RULE",
+          ],
+        },
+      },
+      "Properties": {
+        "GroupDescription": "VPC endpoints security group",
+        "SecurityGroupIngress": [
+          {
+            "CidrIp": {
+              "Fn::GetAtt": [
+                "TestConsoleResourcesWebConsoleVpc8C60294F",
+                "CidrBlock",
+              ],
+            },
+            "Description": {
+              "Fn::Join": [
+                "",
+                [
+                  "from ",
+                  {
+                    "Fn::GetAtt": [
+                      "TestConsoleResourcesWebConsoleVpc8C60294F",
+                      "CidrBlock",
+                    ],
+                  },
+                  ":443",
+                ],
+              ],
+            },
+            "FromPort": 443,
+            "IpProtocol": "tcp",
+            "ToPort": 443,
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::SecurityGroup",
+    },
+    "TestConsoleResourcesVpcEndpointSgfromDLTStackTestConsoleResourcesEcsSgFA4E977444389A62235": {
+      "Properties": {
+        "Description": "Allow HTTPS from ECS tasks",
+        "FromPort": 443,
+        "GroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesVpcEndpointSgCCD7E513",
+            "GroupId",
+          ],
+        },
+        "IpProtocol": "tcp",
+        "SourceSecurityGroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesEcsSg04098056",
+            "GroupId",
+          ],
+        },
+        "ToPort": 443,
+      },
+      "Type": "AWS::EC2::SecurityGroupIngress",
+    },
+    "TestConsoleResourcesVpcEndpointSgtoDLTStackTestConsoleResourcesEcsSgFA4E97744437F048E3E": {
+      "Properties": {
+        "Description": "Allow HTTPS response to ECS tasks",
+        "DestinationSecurityGroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesEcsSg04098056",
+            "GroupId",
+          ],
+        },
+        "FromPort": 443,
+        "GroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesVpcEndpointSgCCD7E513",
+            "GroupId",
+          ],
+        },
+        "IpProtocol": "tcp",
+        "ToPort": 443,
+      },
+      "Type": "AWS::EC2::SecurityGroupEgress",
+    },
+    "TestConsoleResourcesWafLogGroupBF46A8D2": {
+      "Condition": "TestConsoleResourcesDeployWAFCondition08FF7A22",
+      "DeletionPolicy": "Delete",
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W84",
+              "reason": "CloudWatch Logs are encrypted by default with AWS managed keys",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "aws-waf-logs-",
+              {
+                "Ref": "AWS::StackName",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 365,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "TestConsoleResourcesWafLoggingConfigCEA00B60": {
+      "Condition": "TestConsoleResourcesDeployWAFCondition08FF7A22",
+      "Properties": {
+        "LogDestinationConfigs": [
+          {
+            "Fn::GetAtt": [
+              "TestConsoleResourcesWafLogGroupBF46A8D2",
+              "Arn",
+            ],
+          },
+        ],
+        "ResourceArn": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesAlbWebAclDEDE8447",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::WAFv2::LoggingConfiguration",
+    },
+    "TestConsoleResourcesWebConsoleAlbE4130765": {
+      "DependsOn": [
+        "TestConsoleResourcesWebConsoleVpcPublicSubnet1DefaultRoute1F571B6D",
+        "TestConsoleResourcesWebConsoleVpcPublicSubnet1RouteTableAssociationC969775E",
+        "TestConsoleResourcesWebConsoleVpcPublicSubnet2DefaultRoute2AC7A4BC",
+        "TestConsoleResourcesWebConsoleVpcPublicSubnet2RouteTableAssociationCD907359",
+        "testSourceCodeBucketPolicyCBB5449F",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W52",
+              "reason": "ALB access logging is enabled to the S3 logs bucket.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "LoadBalancerAttributes": [
+          {
+            "Key": "deletion_protection.enabled",
+            "Value": "false",
+          },
+          {
+            "Key": "access_logs.s3.enabled",
+            "Value": "true",
+          },
+          {
+            "Key": "access_logs.s3.bucket",
+            "Value": {
+              "Ref": "testSourceCodeBucketC577B176",
+            },
+          },
+          {
+            "Key": "access_logs.s3.prefix",
+            "Value": "alb-access-logs",
+          },
+        ],
+        "Scheme": "internet-facing",
+        "SecurityGroups": [
+          {
+            "Fn::GetAtt": [
+              "TestConsoleResourcesAlbSg1D59D4B2",
+              "GroupId",
+            ],
+          },
+        ],
+        "Subnets": [
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet1Subnet3EEFEAD4",
+          },
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet2SubnetF7A4B955",
+          },
+        ],
+        "Type": "application",
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+    },
+    "TestConsoleResourcesWebConsoleAlbHttpRedirectListener569D637C": {
+      "DependsOn": [
+        "testSourceCodeBucketPolicyCBB5449F",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W55",
+              "reason": "HTTP listener is used solely for redirecting to HTTPS",
+            },
+            {
+              "id": "W56",
+              "reason": "HTTP listener is used solely for redirecting to HTTPS, not serving content",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "ELBV2_LISTENER_SSL_POLICY_RULE",
+            "ELBV2_LISTENER_PROTOCOL_RULE",
+          ],
+        },
+      },
+      "Properties": {
+        "DefaultActions": [
+          {
+            "RedirectConfig": {
+              "Port": "443",
+              "Protocol": "HTTPS",
+              "StatusCode": "HTTP_301",
+            },
+            "Type": "redirect",
+          },
+        ],
+        "LoadBalancerArn": {
+          "Ref": "TestConsoleResourcesWebConsoleAlbE4130765",
+        },
+        "Port": 80,
+        "Protocol": "HTTP",
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+    },
+    "TestConsoleResourcesWebConsoleAlbHttpsListener27DE20F4": {
+      "DependsOn": [
+        "testSourceCodeBucketPolicyCBB5449F",
+      ],
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "ELBV2_LISTENER_SSL_POLICY_RULE",
+          ],
+        },
+      },
+      "Properties": {
+        "Certificates": [
+          {
+            "CertificateArn": "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012",
+          },
+        ],
+        "DefaultActions": [
+          {
+            "TargetGroupArn": {
+              "Ref": "TestConsoleResourcesWebConsoleTgFED59ECB",
+            },
+            "Type": "forward",
+          },
+        ],
+        "LoadBalancerArn": {
+          "Ref": "TestConsoleResourcesWebConsoleAlbE4130765",
+        },
+        "Port": 443,
+        "Protocol": "HTTPS",
+        "SslPolicy": "ELBSecurityPolicy-TLS-1-2-2017-01",
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+    },
+    "TestConsoleResourcesWebConsoleClusterC0276BF0": {
+      "Properties": {
+        "ClusterSettings": [
+          {
+            "Name": "containerInsights",
+            "Value": "enabled",
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+      },
+      "Type": "AWS::ECS::Cluster",
+    },
+    "TestConsoleResourcesWebConsoleLogGroupC74CF787": {
+      "DeletionPolicy": "Delete",
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W84",
+              "reason": "CloudWatch Logs are encrypted by default with AWS managed keys",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "RetentionInDays": 365,
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "TestConsoleResourcesWebConsoleService0AD7108A": {
+      "DependsOn": [
+        "TestConsoleResourcesTaskRoleFA4E7901",
+        "TestConsoleResourcesWebConsoleAlbHttpsListener27DE20F4",
+      ],
+      "Properties": {
+        "Cluster": {
+          "Ref": "TestConsoleResourcesWebConsoleClusterC0276BF0",
+        },
+        "DeploymentConfiguration": {
+          "Alarms": {
+            "AlarmNames": [],
+            "Enable": false,
+            "Rollback": false,
+          },
+          "DeploymentCircuitBreaker": {
+            "Enable": true,
+            "Rollback": true,
+          },
+          "MaximumPercent": 200,
+          "MinimumHealthyPercent": 50,
+        },
+        "DeploymentController": {
+          "Type": "ECS",
+        },
+        "DesiredCount": 2,
+        "EnableECSManagedTags": false,
+        "HealthCheckGracePeriodSeconds": 120,
+        "LaunchType": "FARGATE",
+        "LoadBalancers": [
+          {
+            "ContainerName": "web-console",
+            "ContainerPort": 8080,
+            "TargetGroupArn": {
+              "Ref": "TestConsoleResourcesWebConsoleTgFED59ECB",
+            },
+          },
+        ],
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "AssignPublicIp": "DISABLED",
+            "SecurityGroups": [
+              {
+                "Fn::GetAtt": [
+                  "TestConsoleResourcesEcsSg04098056",
+                  "GroupId",
+                ],
+              },
+            ],
+            "Subnets": [
+              {
+                "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0",
+              },
+              {
+                "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22",
+              },
+            ],
+          },
+        },
+        "TaskDefinition": {
+          "Ref": "TestConsoleResourcesWebConsoleTaskDefCAB56B06",
+        },
+      },
+      "Type": "AWS::ECS::Service",
+    },
+    "TestConsoleResourcesWebConsoleTaskDefCAB56B06": {
+      "Properties": {
+        "ContainerDefinitions": [
+          {
+            "Environment": [
+              {
+                "Name": "S3_BUCKET",
+                "Value": {
+                  "Ref": "TestConsoleResourcesConsoleBucketD314FA6C",
+                },
+              },
+              {
+                "Name": "S3_KEY",
+                "Value": "dlt-web-console.zip",
+              },
+            ],
+            "Essential": true,
+            "Image": {
+              "Fn::If": [
+                "TestConsoleResourcesUsePullThroughCache2161428A",
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ".dkr.ecr.",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ".amazonaws.com/",
+                      {
+                        "Fn::Join": [
+                          "-",
+                          [
+                            "dlt",
+                            {
+                              "Fn::Select": [
+                                4,
+                                {
+                                  "Fn::Split": [
+                                    "-",
+                                    {
+                                      "Fn::Select": [
+                                        2,
+                                        {
+                                          "Fn::Split": [
+                                            "/",
+                                            {
+                                              "Ref": "AWS::StackId",
+                                            },
+                                          ],
+                                        },
+                                      ],
+                                    },
+                                  ],
+                                },
+                              ],
+                            },
+                          ],
+                        ],
+                      },
+                      "/aws-solutions/distributed-load-testing-on-aws-web-console:tag",
+                    ],
+                  ],
+                },
+                "123456789012.dkr.ecr.us-east-1.amazonaws.com/my-custom-repo:latest",
+              ],
+            },
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": {
+                  "Ref": "TestConsoleResourcesWebConsoleLogGroupC74CF787",
+                },
+                "awslogs-region": {
+                  "Ref": "AWS::Region",
+                },
+                "awslogs-stream-prefix": "web-console",
+              },
+            },
+            "Name": "web-console",
+            "PortMappings": [
+              {
+                "ContainerPort": 8080,
+                "Protocol": "tcp",
+              },
+            ],
+          },
+        ],
+        "Cpu": "256",
+        "ExecutionRoleArn": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesTaskExecutionRole29BE2E70",
+            "Arn",
+          ],
+        },
+        "Family": "DLTStackTestConsoleResourcesWebConsoleTaskDefB4101E22",
+        "Memory": "512",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": [
+          "FARGATE",
+        ],
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+        "TaskRoleArn": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesTaskRoleFA4E7901",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::ECS::TaskDefinition",
+    },
+    "TestConsoleResourcesWebConsoleTgFED59ECB": {
+      "Properties": {
+        "HealthCheckIntervalSeconds": 30,
+        "HealthCheckPath": "/healthz",
+        "HealthyThresholdCount": 2,
+        "Port": 8080,
+        "Protocol": "HTTP",
+        "TargetGroupAttributes": [
+          {
+            "Key": "stickiness.enabled",
+            "Value": "false",
+          },
+        ],
+        "TargetType": "ip",
+        "UnhealthyThresholdCount": 3,
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+    },
+    "TestConsoleResourcesWebConsoleVpc8C60294F": {
+      "Properties": {
+        "CidrBlock": "10.0.0.0/16",
+        "EnableDnsHostnames": true,
+        "EnableDnsSupport": true,
+        "InstanceTenancy": "default",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::VPC",
+    },
+    "TestConsoleResourcesWebConsoleVpcEcrApiEndpoint8A84A363": {
+      "Properties": {
+        "PrivateDnsEnabled": true,
+        "SecurityGroupIds": [
+          {
+            "Fn::GetAtt": [
+              "TestConsoleResourcesVpcEndpointSgCCD7E513",
+              "GroupId",
+            ],
+          },
+        ],
+        "ServiceName": {
+          "Fn::Join": [
+            "",
+            [
+              "com.amazonaws.",
+              {
+                "Ref": "AWS::Region",
+              },
+              ".ecr.api",
+            ],
+          ],
+        },
+        "SubnetIds": [
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0",
+          },
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22",
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+        "VpcEndpointType": "Interface",
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::VPCEndpoint",
+    },
+    "TestConsoleResourcesWebConsoleVpcEcrDkrEndpointEC08D5FB": {
+      "Properties": {
+        "PrivateDnsEnabled": true,
+        "SecurityGroupIds": [
+          {
+            "Fn::GetAtt": [
+              "TestConsoleResourcesVpcEndpointSgCCD7E513",
+              "GroupId",
+            ],
+          },
+        ],
+        "ServiceName": {
+          "Fn::Join": [
+            "",
+            [
+              "com.amazonaws.",
+              {
+                "Ref": "AWS::Region",
+              },
+              ".ecr.dkr",
+            ],
+          ],
+        },
+        "SubnetIds": [
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0",
+          },
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22",
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+        "VpcEndpointType": "Interface",
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::VPCEndpoint",
+    },
+    "TestConsoleResourcesWebConsoleVpcIGWC6D33670": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::InternetGateway",
+    },
+    "TestConsoleResourcesWebConsoleVpcLogsEndpointE3DA3955": {
+      "Properties": {
+        "PrivateDnsEnabled": true,
+        "SecurityGroupIds": [
+          {
+            "Fn::GetAtt": [
+              "TestConsoleResourcesVpcEndpointSgCCD7E513",
+              "GroupId",
+            ],
+          },
+        ],
+        "ServiceName": {
+          "Fn::Join": [
+            "",
+            [
+              "com.amazonaws.",
+              {
+                "Ref": "AWS::Region",
+              },
+              ".logs",
+            ],
+          ],
+        },
+        "SubnetIds": [
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0",
+          },
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22",
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+        "VpcEndpointType": "Interface",
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::VPCEndpoint",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet1RouteTable71A96128": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PrivateSubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet1RouteTableAssociationAA5BD8E8": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1RouteTable71A96128",
+        },
+        "SubnetId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0": {
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "10.0.2.0/24",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Private",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Isolated",
+          },
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PrivateSubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet2RouteTable108FCCAA": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PrivateSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet2RouteTableAssociation0D123E3C": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2RouteTable108FCCAA",
+        },
+        "SubnetId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22": {
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "10.0.3.0/24",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Private",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Isolated",
+          },
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PrivateSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet1DefaultRoute1F571B6D": {
+      "DependsOn": [
+        "TestConsoleResourcesWebConsoleVpcVPCGW4F1A3A68",
+      ],
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcIGWC6D33670",
+        },
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet1RouteTable30F46F51",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet1RouteTable30F46F51": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PublicSubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet1RouteTableAssociationC969775E": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet1RouteTable30F46F51",
+        },
+        "SubnetId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet1Subnet3EEFEAD4",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet1Subnet3EEFEAD4": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W33",
+              "reason": "Public subnets required for internet-facing ALB, auto-assign disabled",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "SUBNET_AUTO_ASSIGN_PUBLIC_IP_DISABLED",
+          ],
+        },
+      },
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "10.0.0.0/24",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Public",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Public",
+          },
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PublicSubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet2DefaultRoute2AC7A4BC": {
+      "DependsOn": [
+        "TestConsoleResourcesWebConsoleVpcVPCGW4F1A3A68",
+      ],
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcIGWC6D33670",
+        },
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet2RouteTable592A54CC",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet2RouteTable592A54CC": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PublicSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet2RouteTableAssociationCD907359": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet2RouteTable592A54CC",
+        },
+        "SubnetId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet2SubnetF7A4B955",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet2SubnetF7A4B955": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W33",
+              "reason": "Public subnets required for internet-facing ALB, auto-assign disabled",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "SUBNET_AUTO_ASSIGN_PUBLIC_IP_DISABLED",
+          ],
+        },
+      },
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "10.0.1.0/24",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Public",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Public",
+          },
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PublicSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "TestConsoleResourcesWebConsoleVpcS3Endpoint713E2291": {
+      "Properties": {
+        "RouteTableIds": [
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1RouteTable71A96128",
+          },
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2RouteTable108FCCAA",
+          },
+        ],
+        "ServiceName": {
+          "Fn::Join": [
+            "",
+            [
+              "com.amazonaws.",
+              {
+                "Ref": "AWS::Region",
+              },
+              ".s3",
+            ],
+          ],
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+        "VpcEndpointType": "Gateway",
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::VPCEndpoint",
+    },
+    "TestConsoleResourcesWebConsoleVpcVPCGW4F1A3A68": {
+      "Properties": {
+        "InternetGatewayId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcIGWC6D33670",
+        },
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+    },
+    "testSourceCodeBucketC577B176": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "AccessControl": "LogDeliveryWrite",
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "ObjectWriter",
+            },
+          ],
+        },
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "testSourceCodeBucketPolicyCBB5449F": {
+      "Properties": {
+        "Bucket": {
+          "Ref": "testSourceCodeBucketC577B176",
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:PutObject",
+              "Condition": {
+                "ArnLike": {
+                  "aws:SourceArn": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":elasticloadbalancing:*:",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":loadbalancer/*",
+                      ],
+                    ],
+                  },
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "logdelivery.elasticloadbalancing.amazonaws.com",
+              },
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    {
+                      "Fn::GetAtt": [
+                        "testSourceCodeBucketC577B176",
+                        "Arn",
+                      ],
+                    },
+                    "/alb-access-logs/AWSLogs/",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    "/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+    },
+  },
+}
+`;
+
+exports[`DLT Console ALB ECS Construct - buildFromSource false with empty image URI (pull-through cache) 1`] = `
+{
+  "Conditions": {
+    "TestConsoleResourcesDeployWAFCondition08FF7A22": {
+      "Fn::Equals": [
+        "Yes",
+        "Yes",
+      ],
+    },
+    "TestConsoleResourcesUsePullThroughCache2161428A": {
+      "Fn::Equals": [
+        "",
+        "",
+      ],
+    },
+  },
+  "Resources": {
+    "TestConsoleResourcesAlbSg1D59D4B2": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W2",
+              "reason": "Internet-facing ALB requires ingress from 0.0.0.0/0 for HTTPS traffic",
+            },
+            {
+              "id": "W5",
+              "reason": "Egress restricted to ECS tasks only via explicit rule",
+            },
+            {
+              "id": "W9",
+              "reason": "Internet-facing ALB requires ingress from 0.0.0.0/0",
+            },
+            {
+              "id": "F1000",
+              "reason": "Egress rule added explicitly to ECS security group",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "SECURITY_GROUP_MISSING_EGRESS_RULE",
+            "EC2_SECURITY_GROUP_INGRESS_OPEN_TO_WORLD_RULE",
+            "SECURITY_GROUP_INGRESS_CIDR_NON_32_RULE",
+          ],
+        },
+      },
+      "Properties": {
+        "GroupDescription": "ALB security group - HTTPS from internet",
+        "SecurityGroupIngress": [
+          {
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allow HTTPS from internet",
+            "FromPort": 443,
+            "IpProtocol": "tcp",
+            "ToPort": 443,
+          },
+          {
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allow HTTP for redirect to HTTPS",
+            "FromPort": 80,
+            "IpProtocol": "tcp",
+            "ToPort": 80,
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::SecurityGroup",
+    },
+    "TestConsoleResourcesAlbSgtoDLTStackTestConsoleResourcesEcsSgFA4E97748080C2F014FD": {
+      "Properties": {
+        "Description": "Allow HTTP to ECS tasks",
+        "DestinationSecurityGroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesEcsSg04098056",
+            "GroupId",
+          ],
+        },
+        "FromPort": 8080,
+        "GroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesAlbSg1D59D4B2",
+            "GroupId",
+          ],
+        },
+        "IpProtocol": "tcp",
+        "ToPort": 8080,
+      },
+      "Type": "AWS::EC2::SecurityGroupEgress",
+    },
+    "TestConsoleResourcesAlbWebAclAssociation54CA5F8E": {
+      "Condition": "TestConsoleResourcesDeployWAFCondition08FF7A22",
+      "Properties": {
+        "ResourceArn": {
+          "Ref": "TestConsoleResourcesWebConsoleAlbE4130765",
+        },
+        "WebACLArn": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesAlbWebAclDEDE8447",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::WAFv2::WebACLAssociation",
+    },
+    "TestConsoleResourcesAlbWebAclDEDE8447": {
+      "Condition": "TestConsoleResourcesDeployWAFCondition08FF7A22",
+      "Properties": {
+        "DefaultAction": {
+          "Allow": {},
+        },
+        "Rules": [
+          {
+            "Name": "AWSManagedRulesCommonRuleSet",
+            "OverrideAction": {
+              "None": {},
+            },
+            "Priority": 1,
+            "Statement": {
+              "ManagedRuleGroupStatement": {
+                "Name": "AWSManagedRulesCommonRuleSet",
+                "VendorName": "AWS",
+              },
+            },
+            "VisibilityConfig": {
+              "CloudWatchMetricsEnabled": true,
+              "MetricName": "AWSManagedRulesCommonRuleSet",
+              "SampledRequestsEnabled": true,
+            },
+          },
+          {
+            "Name": "AWSManagedRulesAmazonIpReputationList",
+            "OverrideAction": {
+              "None": {},
+            },
+            "Priority": 2,
+            "Statement": {
+              "ManagedRuleGroupStatement": {
+                "Name": "AWSManagedRulesAmazonIpReputationList",
+                "VendorName": "AWS",
+              },
+            },
+            "VisibilityConfig": {
+              "CloudWatchMetricsEnabled": true,
+              "MetricName": "AWSManagedRulesAmazonIpReputationList",
+              "SampledRequestsEnabled": true,
+            },
+          },
+          {
+            "Name": "AWSManagedRulesAnonymousIpList",
+            "OverrideAction": {
+              "None": {},
+            },
+            "Priority": 3,
+            "Statement": {
+              "ManagedRuleGroupStatement": {
+                "Name": "AWSManagedRulesAnonymousIpList",
+                "VendorName": "AWS",
+              },
+            },
+            "VisibilityConfig": {
+              "CloudWatchMetricsEnabled": true,
+              "MetricName": "AWSManagedRulesAnonymousIpList",
+              "SampledRequestsEnabled": true,
+            },
+          },
+        ],
+        "Scope": "REGIONAL",
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+        "VisibilityConfig": {
+          "CloudWatchMetricsEnabled": true,
+          "MetricName": "DLTConsoleAlbWebAcl",
+          "SampledRequestsEnabled": true,
+        },
+      },
+      "Type": "AWS::WAFv2::WebACL",
+    },
+    "TestConsoleResourcesConsoleBucketD314FA6C": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "aws:kms",
+              },
+            },
+          ],
+        },
+        "LoggingConfiguration": {
+          "DestinationBucketName": {
+            "Ref": "testSourceCodeBucketC577B176",
+          },
+          "LogFilePrefix": "console-bucket-access/",
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true,
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled",
+        },
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TestConsoleResourcesConsoleBucketPolicyBC55CBFD": {
+      "Properties": {
+        "Bucket": {
+          "Ref": "TestConsoleResourcesConsoleBucketD314FA6C",
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:*",
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false",
+                },
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "TestConsoleResourcesConsoleBucketD314FA6C",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "TestConsoleResourcesConsoleBucketD314FA6C",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+    },
+    "TestConsoleResourcesEcrPullThroughCache95A7995E": {
+      "Condition": "TestConsoleResourcesUsePullThroughCache2161428A",
+      "Properties": {
+        "EcrRepositoryPrefix": {
+          "Fn::Join": [
+            "-",
+            [
+              "dlt",
+              {
+                "Fn::Select": [
+                  4,
+                  {
+                    "Fn::Split": [
+                      "-",
+                      {
+                        "Fn::Select": [
+                          2,
+                          {
+                            "Fn::Split": [
+                              "/",
+                              {
+                                "Ref": "AWS::StackId",
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          ],
+        },
+        "UpstreamRegistryUrl": "public.ecr.aws",
+      },
+      "Type": "AWS::ECR::PullThroughCacheRule",
+    },
+    "TestConsoleResourcesEcsSg04098056": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W5",
+              "reason": "ECS tasks require outbound access to S3 Gateway endpoint (prefix list) and VPC interface endpoints. VPC has no NAT/internet gateway.",
+            },
+            {
+              "id": "W40",
+              "reason": "Egress to S3 Gateway endpoint requires all protocols as it uses prefix lists, not security groups",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "EC2_SECURITY_GROUP_EGRESS_OPEN_TO_WORLD_RULE",
+            "SECURITY_GROUP_EGRESS_ALL_PROTOCOLS_RULE",
+          ],
+        },
+      },
+      "Properties": {
+        "GroupDescription": "ECS tasks security group",
+        "SecurityGroupEgress": [
+          {
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allow all outbound traffic by default",
+            "IpProtocol": "-1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::SecurityGroup",
+    },
+    "TestConsoleResourcesEcsSgfromDLTStackTestConsoleResourcesAlbSg279930DD80803B46BBF2": {
+      "Properties": {
+        "Description": "Allow HTTP from ALB",
+        "FromPort": 8080,
+        "GroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesEcsSg04098056",
+            "GroupId",
+          ],
+        },
+        "IpProtocol": "tcp",
+        "SourceSecurityGroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesAlbSg1D59D4B2",
+            "GroupId",
+          ],
+        },
+        "ToPort": 8080,
+      },
+      "Type": "AWS::EC2::SecurityGroupIngress",
+    },
+    "TestConsoleResourcesPullThroughCacheWritePolicy1430841A": {
+      "Condition": "TestConsoleResourcesUsePullThroughCache2161428A",
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "ecr:CreateRepository",
+                "ecr:BatchImportUpstreamImage",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":ecr:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":repository/",
+                    {
+                      "Fn::Join": [
+                        "-",
+                        [
+                          "dlt",
+                          {
+                            "Fn::Select": [
+                              4,
+                              {
+                                "Fn::Split": [
+                                  "-",
+                                  {
+                                    "Fn::Select": [
+                                      2,
+                                      {
+                                        "Fn::Split": [
+                                          "/",
+                                          {
+                                            "Ref": "AWS::StackId",
+                                          },
+                                        ],
+                                      },
+                                    ],
+                                  },
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      ],
+                    },
+                    "/aws-solutions/distributed-load-testing-on-aws-web-console",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestConsoleResourcesPullThroughCacheWritePolicy1430841A",
+        "Roles": [
+          {
+            "Ref": "TestConsoleResourcesTaskExecutionRole29BE2E70",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestConsoleResourcesTaskExecutionRole29BE2E70": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "F10",
+              "reason": "Inline policy required for ECS task execution role with specific permissions",
+            },
+            {
+              "id": "W11",
+              "reason": "ecr:GetAuthorizationToken requires wildcard resource as it is an account-level action",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+            "IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs-tasks.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "TestConsoleResourcesWebConsoleLogGroupC74CF787",
+                        "Arn",
+                      ],
+                    },
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          {
+                            "Fn::GetAtt": [
+                              "TestConsoleResourcesWebConsoleLogGroupC74CF787",
+                              "Arn",
+                            ],
+                          },
+                          ":*",
+                        ],
+                      ],
+                    },
+                  ],
+                },
+                {
+                  "Action": "ecr:GetAuthorizationToken",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                {
+                  "Action": [
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:BatchGetImage",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::If": [
+                      "TestConsoleResourcesUsePullThroughCache2161428A",
+                      {
+                        "Fn::Join": [
+                          "",
+                          [
+                            "arn:",
+                            {
+                              "Ref": "AWS::Partition",
+                            },
+                            ":ecr:",
+                            {
+                              "Ref": "AWS::Region",
+                            },
+                            ":",
+                            {
+                              "Ref": "AWS::AccountId",
+                            },
+                            ":repository/",
+                            {
+                              "Fn::Join": [
+                                "-",
+                                [
+                                  "dlt",
+                                  {
+                                    "Fn::Select": [
+                                      4,
+                                      {
+                                        "Fn::Split": [
+                                          "-",
+                                          {
+                                            "Fn::Select": [
+                                              2,
+                                              {
+                                                "Fn::Split": [
+                                                  "/",
+                                                  {
+                                                    "Ref": "AWS::StackId",
+                                                  },
+                                                ],
+                                              },
+                                            ],
+                                          },
+                                        ],
+                                      },
+                                    ],
+                                  },
+                                ],
+                              ],
+                            },
+                            "/aws-solutions/distributed-load-testing-on-aws-web-console",
+                          ],
+                        ],
+                      },
+                      {
+                        "Fn::Join": [
+                          "",
+                          [
+                            "arn:",
+                            {
+                              "Ref": "AWS::Partition",
+                            },
+                            ":ecr:",
+                            {
+                              "Ref": "AWS::Region",
+                            },
+                            ":",
+                            {
+                              "Ref": "AWS::AccountId",
+                            },
+                            ":repository/",
+                          ],
+                        ],
+                      },
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "ECSTaskExecutionPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestConsoleResourcesTaskExecutionRoleDefaultPolicy4237D4CC": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "TestConsoleResourcesWebConsoleLogGroupC74CF787",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestConsoleResourcesTaskExecutionRoleDefaultPolicy4237D4CC",
+        "Roles": [
+          {
+            "Ref": "TestConsoleResourcesTaskExecutionRole29BE2E70",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestConsoleResourcesTaskRoleFA4E7901": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "F10",
+              "reason": "Inline policy required for ECS task role with specific S3 permissions",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs-tasks.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "s3:GetObject",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        {
+                          "Fn::GetAtt": [
+                            "TestConsoleResourcesConsoleBucketD314FA6C",
+                            "Arn",
+                          ],
+                        },
+                        "/dlt-web-console.zip",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "S3AccessPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestConsoleResourcesVpcEndpointSgCCD7E513": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W5",
+              "reason": "VPC endpoint security group egress restricted to ECS tasks only",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "SECURITY_GROUP_EGRESS_PORT_RANGE_RULE",
+            "SECURITY_GROUP_MISSING_EGRESS_RULE",
+          ],
+        },
+      },
+      "Properties": {
+        "GroupDescription": "VPC endpoints security group",
+        "SecurityGroupIngress": [
+          {
+            "CidrIp": {
+              "Fn::GetAtt": [
+                "TestConsoleResourcesWebConsoleVpc8C60294F",
+                "CidrBlock",
+              ],
+            },
+            "Description": {
+              "Fn::Join": [
+                "",
+                [
+                  "from ",
+                  {
+                    "Fn::GetAtt": [
+                      "TestConsoleResourcesWebConsoleVpc8C60294F",
+                      "CidrBlock",
+                    ],
+                  },
+                  ":443",
+                ],
+              ],
+            },
+            "FromPort": 443,
+            "IpProtocol": "tcp",
+            "ToPort": 443,
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::SecurityGroup",
+    },
+    "TestConsoleResourcesVpcEndpointSgfromDLTStackTestConsoleResourcesEcsSgFA4E977444389A62235": {
+      "Properties": {
+        "Description": "Allow HTTPS from ECS tasks",
+        "FromPort": 443,
+        "GroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesVpcEndpointSgCCD7E513",
+            "GroupId",
+          ],
+        },
+        "IpProtocol": "tcp",
+        "SourceSecurityGroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesEcsSg04098056",
+            "GroupId",
+          ],
+        },
+        "ToPort": 443,
+      },
+      "Type": "AWS::EC2::SecurityGroupIngress",
+    },
+    "TestConsoleResourcesVpcEndpointSgtoDLTStackTestConsoleResourcesEcsSgFA4E97744437F048E3E": {
+      "Properties": {
+        "Description": "Allow HTTPS response to ECS tasks",
+        "DestinationSecurityGroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesEcsSg04098056",
+            "GroupId",
+          ],
+        },
+        "FromPort": 443,
+        "GroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesVpcEndpointSgCCD7E513",
+            "GroupId",
+          ],
+        },
+        "IpProtocol": "tcp",
+        "ToPort": 443,
+      },
+      "Type": "AWS::EC2::SecurityGroupEgress",
+    },
+    "TestConsoleResourcesWafLogGroupBF46A8D2": {
+      "Condition": "TestConsoleResourcesDeployWAFCondition08FF7A22",
+      "DeletionPolicy": "Delete",
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W84",
+              "reason": "CloudWatch Logs are encrypted by default with AWS managed keys",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "aws-waf-logs-",
+              {
+                "Ref": "AWS::StackName",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 365,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "TestConsoleResourcesWafLoggingConfigCEA00B60": {
+      "Condition": "TestConsoleResourcesDeployWAFCondition08FF7A22",
+      "Properties": {
+        "LogDestinationConfigs": [
+          {
+            "Fn::GetAtt": [
+              "TestConsoleResourcesWafLogGroupBF46A8D2",
+              "Arn",
+            ],
+          },
+        ],
+        "ResourceArn": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesAlbWebAclDEDE8447",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::WAFv2::LoggingConfiguration",
+    },
+    "TestConsoleResourcesWebConsoleAlbE4130765": {
+      "DependsOn": [
+        "TestConsoleResourcesWebConsoleVpcPublicSubnet1DefaultRoute1F571B6D",
+        "TestConsoleResourcesWebConsoleVpcPublicSubnet1RouteTableAssociationC969775E",
+        "TestConsoleResourcesWebConsoleVpcPublicSubnet2DefaultRoute2AC7A4BC",
+        "TestConsoleResourcesWebConsoleVpcPublicSubnet2RouteTableAssociationCD907359",
+        "testSourceCodeBucketPolicyCBB5449F",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W52",
+              "reason": "ALB access logging is enabled to the S3 logs bucket.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "LoadBalancerAttributes": [
+          {
+            "Key": "deletion_protection.enabled",
+            "Value": "false",
+          },
+          {
+            "Key": "access_logs.s3.enabled",
+            "Value": "true",
+          },
+          {
+            "Key": "access_logs.s3.bucket",
+            "Value": {
+              "Ref": "testSourceCodeBucketC577B176",
+            },
+          },
+          {
+            "Key": "access_logs.s3.prefix",
+            "Value": "alb-access-logs",
+          },
+        ],
+        "Scheme": "internet-facing",
+        "SecurityGroups": [
+          {
+            "Fn::GetAtt": [
+              "TestConsoleResourcesAlbSg1D59D4B2",
+              "GroupId",
+            ],
+          },
+        ],
+        "Subnets": [
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet1Subnet3EEFEAD4",
+          },
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet2SubnetF7A4B955",
+          },
+        ],
+        "Type": "application",
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+    },
+    "TestConsoleResourcesWebConsoleAlbHttpRedirectListener569D637C": {
+      "DependsOn": [
+        "testSourceCodeBucketPolicyCBB5449F",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W55",
+              "reason": "HTTP listener is used solely for redirecting to HTTPS",
+            },
+            {
+              "id": "W56",
+              "reason": "HTTP listener is used solely for redirecting to HTTPS, not serving content",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "ELBV2_LISTENER_SSL_POLICY_RULE",
+            "ELBV2_LISTENER_PROTOCOL_RULE",
+          ],
+        },
+      },
+      "Properties": {
+        "DefaultActions": [
+          {
+            "RedirectConfig": {
+              "Port": "443",
+              "Protocol": "HTTPS",
+              "StatusCode": "HTTP_301",
+            },
+            "Type": "redirect",
+          },
+        ],
+        "LoadBalancerArn": {
+          "Ref": "TestConsoleResourcesWebConsoleAlbE4130765",
+        },
+        "Port": 80,
+        "Protocol": "HTTP",
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+    },
+    "TestConsoleResourcesWebConsoleAlbHttpsListener27DE20F4": {
+      "DependsOn": [
+        "testSourceCodeBucketPolicyCBB5449F",
+      ],
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "ELBV2_LISTENER_SSL_POLICY_RULE",
+          ],
+        },
+      },
+      "Properties": {
+        "Certificates": [
+          {
+            "CertificateArn": "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012",
+          },
+        ],
+        "DefaultActions": [
+          {
+            "TargetGroupArn": {
+              "Ref": "TestConsoleResourcesWebConsoleTgFED59ECB",
+            },
+            "Type": "forward",
+          },
+        ],
+        "LoadBalancerArn": {
+          "Ref": "TestConsoleResourcesWebConsoleAlbE4130765",
+        },
+        "Port": 443,
+        "Protocol": "HTTPS",
+        "SslPolicy": "ELBSecurityPolicy-TLS-1-2-2017-01",
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+    },
+    "TestConsoleResourcesWebConsoleClusterC0276BF0": {
+      "Properties": {
+        "ClusterSettings": [
+          {
+            "Name": "containerInsights",
+            "Value": "enabled",
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+      },
+      "Type": "AWS::ECS::Cluster",
+    },
+    "TestConsoleResourcesWebConsoleLogGroupC74CF787": {
+      "DeletionPolicy": "Delete",
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W84",
+              "reason": "CloudWatch Logs are encrypted by default with AWS managed keys",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "RetentionInDays": 365,
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "TestConsoleResourcesWebConsoleService0AD7108A": {
+      "DependsOn": [
+        "TestConsoleResourcesTaskRoleFA4E7901",
+        "TestConsoleResourcesWebConsoleAlbHttpsListener27DE20F4",
+      ],
+      "Properties": {
+        "Cluster": {
+          "Ref": "TestConsoleResourcesWebConsoleClusterC0276BF0",
+        },
+        "DeploymentConfiguration": {
+          "Alarms": {
+            "AlarmNames": [],
+            "Enable": false,
+            "Rollback": false,
+          },
+          "DeploymentCircuitBreaker": {
+            "Enable": true,
+            "Rollback": true,
+          },
+          "MaximumPercent": 200,
+          "MinimumHealthyPercent": 50,
+        },
+        "DeploymentController": {
+          "Type": "ECS",
+        },
+        "DesiredCount": 2,
+        "EnableECSManagedTags": false,
+        "HealthCheckGracePeriodSeconds": 120,
+        "LaunchType": "FARGATE",
+        "LoadBalancers": [
+          {
+            "ContainerName": "web-console",
+            "ContainerPort": 8080,
+            "TargetGroupArn": {
+              "Ref": "TestConsoleResourcesWebConsoleTgFED59ECB",
+            },
+          },
+        ],
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "AssignPublicIp": "DISABLED",
+            "SecurityGroups": [
+              {
+                "Fn::GetAtt": [
+                  "TestConsoleResourcesEcsSg04098056",
+                  "GroupId",
+                ],
+              },
+            ],
+            "Subnets": [
+              {
+                "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0",
+              },
+              {
+                "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22",
+              },
+            ],
+          },
+        },
+        "TaskDefinition": {
+          "Ref": "TestConsoleResourcesWebConsoleTaskDefCAB56B06",
+        },
+      },
+      "Type": "AWS::ECS::Service",
+    },
+    "TestConsoleResourcesWebConsoleTaskDefCAB56B06": {
+      "Properties": {
+        "ContainerDefinitions": [
+          {
+            "Environment": [
+              {
+                "Name": "S3_BUCKET",
+                "Value": {
+                  "Ref": "TestConsoleResourcesConsoleBucketD314FA6C",
+                },
+              },
+              {
+                "Name": "S3_KEY",
+                "Value": "dlt-web-console.zip",
+              },
+            ],
+            "Essential": true,
+            "Image": {
+              "Fn::If": [
+                "TestConsoleResourcesUsePullThroughCache2161428A",
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ".dkr.ecr.",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ".amazonaws.com/",
+                      {
+                        "Fn::Join": [
+                          "-",
+                          [
+                            "dlt",
+                            {
+                              "Fn::Select": [
+                                4,
+                                {
+                                  "Fn::Split": [
+                                    "-",
+                                    {
+                                      "Fn::Select": [
+                                        2,
+                                        {
+                                          "Fn::Split": [
+                                            "/",
+                                            {
+                                              "Ref": "AWS::StackId",
+                                            },
+                                          ],
+                                        },
+                                      ],
+                                    },
+                                  ],
+                                },
+                              ],
+                            },
+                          ],
+                        ],
+                      },
+                      "/aws-solutions/distributed-load-testing-on-aws-web-console:tag",
+                    ],
+                  ],
+                },
+                "",
+              ],
+            },
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": {
+                  "Ref": "TestConsoleResourcesWebConsoleLogGroupC74CF787",
+                },
+                "awslogs-region": {
+                  "Ref": "AWS::Region",
+                },
+                "awslogs-stream-prefix": "web-console",
+              },
+            },
+            "Name": "web-console",
+            "PortMappings": [
+              {
+                "ContainerPort": 8080,
+                "Protocol": "tcp",
+              },
+            ],
+          },
+        ],
+        "Cpu": "256",
+        "ExecutionRoleArn": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesTaskExecutionRole29BE2E70",
+            "Arn",
+          ],
+        },
+        "Family": "DLTStackTestConsoleResourcesWebConsoleTaskDefB4101E22",
+        "Memory": "512",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": [
+          "FARGATE",
+        ],
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+        "TaskRoleArn": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesTaskRoleFA4E7901",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::ECS::TaskDefinition",
+    },
+    "TestConsoleResourcesWebConsoleTgFED59ECB": {
+      "Properties": {
+        "HealthCheckIntervalSeconds": 30,
+        "HealthCheckPath": "/healthz",
+        "HealthyThresholdCount": 2,
+        "Port": 8080,
+        "Protocol": "HTTP",
+        "TargetGroupAttributes": [
+          {
+            "Key": "stickiness.enabled",
+            "Value": "false",
+          },
+        ],
+        "TargetType": "ip",
+        "UnhealthyThresholdCount": 3,
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+    },
+    "TestConsoleResourcesWebConsoleVpc8C60294F": {
+      "Properties": {
+        "CidrBlock": "10.0.0.0/16",
+        "EnableDnsHostnames": true,
+        "EnableDnsSupport": true,
+        "InstanceTenancy": "default",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::VPC",
+    },
+    "TestConsoleResourcesWebConsoleVpcEcrApiEndpoint8A84A363": {
+      "Properties": {
+        "PrivateDnsEnabled": true,
+        "SecurityGroupIds": [
+          {
+            "Fn::GetAtt": [
+              "TestConsoleResourcesVpcEndpointSgCCD7E513",
+              "GroupId",
+            ],
+          },
+        ],
+        "ServiceName": {
+          "Fn::Join": [
+            "",
+            [
+              "com.amazonaws.",
+              {
+                "Ref": "AWS::Region",
+              },
+              ".ecr.api",
+            ],
+          ],
+        },
+        "SubnetIds": [
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0",
+          },
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22",
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+        "VpcEndpointType": "Interface",
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::VPCEndpoint",
+    },
+    "TestConsoleResourcesWebConsoleVpcEcrDkrEndpointEC08D5FB": {
+      "Properties": {
+        "PrivateDnsEnabled": true,
+        "SecurityGroupIds": [
+          {
+            "Fn::GetAtt": [
+              "TestConsoleResourcesVpcEndpointSgCCD7E513",
+              "GroupId",
+            ],
+          },
+        ],
+        "ServiceName": {
+          "Fn::Join": [
+            "",
+            [
+              "com.amazonaws.",
+              {
+                "Ref": "AWS::Region",
+              },
+              ".ecr.dkr",
+            ],
+          ],
+        },
+        "SubnetIds": [
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0",
+          },
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22",
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+        "VpcEndpointType": "Interface",
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::VPCEndpoint",
+    },
+    "TestConsoleResourcesWebConsoleVpcIGWC6D33670": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::InternetGateway",
+    },
+    "TestConsoleResourcesWebConsoleVpcLogsEndpointE3DA3955": {
+      "Properties": {
+        "PrivateDnsEnabled": true,
+        "SecurityGroupIds": [
+          {
+            "Fn::GetAtt": [
+              "TestConsoleResourcesVpcEndpointSgCCD7E513",
+              "GroupId",
+            ],
+          },
+        ],
+        "ServiceName": {
+          "Fn::Join": [
+            "",
+            [
+              "com.amazonaws.",
+              {
+                "Ref": "AWS::Region",
+              },
+              ".logs",
+            ],
+          ],
+        },
+        "SubnetIds": [
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0",
+          },
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22",
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+        "VpcEndpointType": "Interface",
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::VPCEndpoint",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet1RouteTable71A96128": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PrivateSubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet1RouteTableAssociationAA5BD8E8": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1RouteTable71A96128",
+        },
+        "SubnetId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0": {
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "10.0.2.0/24",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Private",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Isolated",
+          },
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PrivateSubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet2RouteTable108FCCAA": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PrivateSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet2RouteTableAssociation0D123E3C": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2RouteTable108FCCAA",
+        },
+        "SubnetId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22": {
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "10.0.3.0/24",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Private",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Isolated",
+          },
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PrivateSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet1DefaultRoute1F571B6D": {
+      "DependsOn": [
+        "TestConsoleResourcesWebConsoleVpcVPCGW4F1A3A68",
+      ],
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcIGWC6D33670",
+        },
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet1RouteTable30F46F51",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet1RouteTable30F46F51": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PublicSubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet1RouteTableAssociationC969775E": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet1RouteTable30F46F51",
+        },
+        "SubnetId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet1Subnet3EEFEAD4",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet1Subnet3EEFEAD4": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W33",
+              "reason": "Public subnets required for internet-facing ALB, auto-assign disabled",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "SUBNET_AUTO_ASSIGN_PUBLIC_IP_DISABLED",
+          ],
+        },
+      },
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "10.0.0.0/24",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Public",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Public",
+          },
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PublicSubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet2DefaultRoute2AC7A4BC": {
+      "DependsOn": [
+        "TestConsoleResourcesWebConsoleVpcVPCGW4F1A3A68",
+      ],
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcIGWC6D33670",
+        },
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet2RouteTable592A54CC",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet2RouteTable592A54CC": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PublicSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet2RouteTableAssociationCD907359": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet2RouteTable592A54CC",
+        },
+        "SubnetId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet2SubnetF7A4B955",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet2SubnetF7A4B955": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W33",
+              "reason": "Public subnets required for internet-facing ALB, auto-assign disabled",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "SUBNET_AUTO_ASSIGN_PUBLIC_IP_DISABLED",
+          ],
+        },
+      },
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "10.0.1.0/24",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Public",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Public",
+          },
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PublicSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "TestConsoleResourcesWebConsoleVpcS3Endpoint713E2291": {
+      "Properties": {
+        "RouteTableIds": [
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1RouteTable71A96128",
+          },
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2RouteTable108FCCAA",
+          },
+        ],
+        "ServiceName": {
+          "Fn::Join": [
+            "",
+            [
+              "com.amazonaws.",
+              {
+                "Ref": "AWS::Region",
+              },
+              ".s3",
+            ],
+          ],
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+        "VpcEndpointType": "Gateway",
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::VPCEndpoint",
+    },
+    "TestConsoleResourcesWebConsoleVpcVPCGW4F1A3A68": {
+      "Properties": {
+        "InternetGatewayId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcIGWC6D33670",
+        },
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+    },
+    "testSourceCodeBucketC577B176": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "AccessControl": "LogDeliveryWrite",
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "ObjectWriter",
+            },
+          ],
+        },
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "testSourceCodeBucketPolicyCBB5449F": {
+      "Properties": {
+        "Bucket": {
+          "Ref": "testSourceCodeBucketC577B176",
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:PutObject",
+              "Condition": {
+                "ArnLike": {
+                  "aws:SourceArn": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":elasticloadbalancing:*:",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":loadbalancer/*",
+                      ],
+                    ],
+                  },
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "logdelivery.elasticloadbalancing.amazonaws.com",
+              },
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    {
+                      "Fn::GetAtt": [
+                        "testSourceCodeBucketC577B176",
+                        "Arn",
+                      ],
+                    },
+                    "/alb-access-logs/AWSLogs/",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    "/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+    },
+  },
+}
+`;
+
+exports[`DLT Console ALB ECS Construct Test 1`] = `
+{
+  "Conditions": {
+    "TestConsoleResourcesDeployWAFCondition08FF7A22": {
+      "Fn::Equals": [
+        "Yes",
+        "Yes",
+      ],
+    },
+    "UseStableTagCondition": {
+      "Fn::Equals": [
+        "Yes",
+        "Yes",
+      ],
+    },
+  },
+  "Resources": {
+    "TestConsoleResourcesAlbSg1D59D4B2": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W2",
+              "reason": "Internet-facing ALB requires ingress from 0.0.0.0/0 for HTTPS traffic",
+            },
+            {
+              "id": "W5",
+              "reason": "Egress restricted to ECS tasks only via explicit rule",
+            },
+            {
+              "id": "W9",
+              "reason": "Internet-facing ALB requires ingress from 0.0.0.0/0",
+            },
+            {
+              "id": "F1000",
+              "reason": "Egress rule added explicitly to ECS security group",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "SECURITY_GROUP_MISSING_EGRESS_RULE",
+            "EC2_SECURITY_GROUP_INGRESS_OPEN_TO_WORLD_RULE",
+            "SECURITY_GROUP_INGRESS_CIDR_NON_32_RULE",
+          ],
+        },
+      },
+      "Properties": {
+        "GroupDescription": "ALB security group - HTTPS from internet",
+        "SecurityGroupIngress": [
+          {
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allow HTTPS from internet",
+            "FromPort": 443,
+            "IpProtocol": "tcp",
+            "ToPort": 443,
+          },
+          {
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allow HTTP for redirect to HTTPS",
+            "FromPort": 80,
+            "IpProtocol": "tcp",
+            "ToPort": 80,
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::SecurityGroup",
+    },
+    "TestConsoleResourcesAlbSgtoDLTStackTestConsoleResourcesEcsSgFA4E97748080C2F014FD": {
+      "Properties": {
+        "Description": "Allow HTTP to ECS tasks",
+        "DestinationSecurityGroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesEcsSg04098056",
+            "GroupId",
+          ],
+        },
+        "FromPort": 8080,
+        "GroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesAlbSg1D59D4B2",
+            "GroupId",
+          ],
+        },
+        "IpProtocol": "tcp",
+        "ToPort": 8080,
+      },
+      "Type": "AWS::EC2::SecurityGroupEgress",
+    },
+    "TestConsoleResourcesAlbWebAclAssociation54CA5F8E": {
+      "Condition": "TestConsoleResourcesDeployWAFCondition08FF7A22",
+      "Properties": {
+        "ResourceArn": {
+          "Ref": "TestConsoleResourcesWebConsoleAlbE4130765",
+        },
+        "WebACLArn": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesAlbWebAclDEDE8447",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::WAFv2::WebACLAssociation",
+    },
+    "TestConsoleResourcesAlbWebAclDEDE8447": {
+      "Condition": "TestConsoleResourcesDeployWAFCondition08FF7A22",
+      "Properties": {
+        "DefaultAction": {
+          "Allow": {},
+        },
+        "Rules": [
+          {
+            "Name": "AWSManagedRulesCommonRuleSet",
+            "OverrideAction": {
+              "None": {},
+            },
+            "Priority": 1,
+            "Statement": {
+              "ManagedRuleGroupStatement": {
+                "Name": "AWSManagedRulesCommonRuleSet",
+                "VendorName": "AWS",
+              },
+            },
+            "VisibilityConfig": {
+              "CloudWatchMetricsEnabled": true,
+              "MetricName": "AWSManagedRulesCommonRuleSet",
+              "SampledRequestsEnabled": true,
+            },
+          },
+          {
+            "Name": "AWSManagedRulesAmazonIpReputationList",
+            "OverrideAction": {
+              "None": {},
+            },
+            "Priority": 2,
+            "Statement": {
+              "ManagedRuleGroupStatement": {
+                "Name": "AWSManagedRulesAmazonIpReputationList",
+                "VendorName": "AWS",
+              },
+            },
+            "VisibilityConfig": {
+              "CloudWatchMetricsEnabled": true,
+              "MetricName": "AWSManagedRulesAmazonIpReputationList",
+              "SampledRequestsEnabled": true,
+            },
+          },
+          {
+            "Name": "AWSManagedRulesAnonymousIpList",
+            "OverrideAction": {
+              "None": {},
+            },
+            "Priority": 3,
+            "Statement": {
+              "ManagedRuleGroupStatement": {
+                "Name": "AWSManagedRulesAnonymousIpList",
+                "VendorName": "AWS",
+              },
+            },
+            "VisibilityConfig": {
+              "CloudWatchMetricsEnabled": true,
+              "MetricName": "AWSManagedRulesAnonymousIpList",
+              "SampledRequestsEnabled": true,
+            },
+          },
+        ],
+        "Scope": "REGIONAL",
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+        "VisibilityConfig": {
+          "CloudWatchMetricsEnabled": true,
+          "MetricName": "DLTConsoleAlbWebAcl",
+          "SampledRequestsEnabled": true,
+        },
+      },
+      "Type": "AWS::WAFv2::WebACL",
+    },
+    "TestConsoleResourcesConsoleBucketD314FA6C": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "aws:kms",
+              },
+            },
+          ],
+        },
+        "LoggingConfiguration": {
+          "DestinationBucketName": {
+            "Ref": "testSourceCodeBucketC577B176",
+          },
+          "LogFilePrefix": "console-bucket-access/",
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true,
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled",
+        },
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TestConsoleResourcesConsoleBucketPolicyBC55CBFD": {
+      "Properties": {
+        "Bucket": {
+          "Ref": "TestConsoleResourcesConsoleBucketD314FA6C",
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:*",
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false",
+                },
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "TestConsoleResourcesConsoleBucketD314FA6C",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "TestConsoleResourcesConsoleBucketD314FA6C",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+    },
+    "TestConsoleResourcesEcsSg04098056": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W5",
+              "reason": "ECS tasks require outbound access to S3 Gateway endpoint (prefix list) and VPC interface endpoints. VPC has no NAT/internet gateway.",
+            },
+            {
+              "id": "W40",
+              "reason": "Egress to S3 Gateway endpoint requires all protocols as it uses prefix lists, not security groups",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "EC2_SECURITY_GROUP_EGRESS_OPEN_TO_WORLD_RULE",
+            "SECURITY_GROUP_EGRESS_ALL_PROTOCOLS_RULE",
+          ],
+        },
+      },
+      "Properties": {
+        "GroupDescription": "ECS tasks security group",
+        "SecurityGroupEgress": [
+          {
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allow all outbound traffic by default",
+            "IpProtocol": "-1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::SecurityGroup",
+    },
+    "TestConsoleResourcesEcsSgfromDLTStackTestConsoleResourcesAlbSg279930DD80803B46BBF2": {
+      "Properties": {
+        "Description": "Allow HTTP from ALB",
+        "FromPort": 8080,
+        "GroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesEcsSg04098056",
+            "GroupId",
+          ],
+        },
+        "IpProtocol": "tcp",
+        "SourceSecurityGroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesAlbSg1D59D4B2",
+            "GroupId",
+          ],
+        },
+        "ToPort": 8080,
+      },
+      "Type": "AWS::EC2::SecurityGroupIngress",
+    },
+    "TestConsoleResourcesTaskExecutionRole29BE2E70": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "F10",
+              "reason": "Inline policy required for ECS task execution role with specific permissions",
+            },
+            {
+              "id": "W11",
+              "reason": "ecr:GetAuthorizationToken requires wildcard resource as it is an account-level action",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+            "IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs-tasks.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "TestConsoleResourcesWebConsoleLogGroupC74CF787",
+                        "Arn",
+                      ],
+                    },
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          {
+                            "Fn::GetAtt": [
+                              "TestConsoleResourcesWebConsoleLogGroupC74CF787",
+                              "Arn",
+                            ],
+                          },
+                          ":*",
+                        ],
+                      ],
+                    },
+                  ],
+                },
+                {
+                  "Action": "ecr:GetAuthorizationToken",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                {
+                  "Action": [
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:BatchGetImage",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":ecr:",
+                        {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":repository/cdk-*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "ECSTaskExecutionPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestConsoleResourcesTaskExecutionRoleDefaultPolicy4237D4CC": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":ecr:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":repository/",
+                    {
+                      "Fn::Sub": "cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}",
+                    },
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": "ecr:GetAuthorizationToken",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "TestConsoleResourcesWebConsoleLogGroupC74CF787",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestConsoleResourcesTaskExecutionRoleDefaultPolicy4237D4CC",
+        "Roles": [
+          {
+            "Ref": "TestConsoleResourcesTaskExecutionRole29BE2E70",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestConsoleResourcesTaskRoleFA4E7901": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "F10",
+              "reason": "Inline policy required for ECS task role with specific S3 permissions",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs-tasks.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "s3:GetObject",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        {
+                          "Fn::GetAtt": [
+                            "TestConsoleResourcesConsoleBucketD314FA6C",
+                            "Arn",
+                          ],
+                        },
+                        "/dlt-web-console.zip",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "S3AccessPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestConsoleResourcesVpcEndpointSgCCD7E513": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W5",
+              "reason": "VPC endpoint security group egress restricted to ECS tasks only",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "SECURITY_GROUP_EGRESS_PORT_RANGE_RULE",
+            "SECURITY_GROUP_MISSING_EGRESS_RULE",
+          ],
+        },
+      },
+      "Properties": {
+        "GroupDescription": "VPC endpoints security group",
+        "SecurityGroupIngress": [
+          {
+            "CidrIp": {
+              "Fn::GetAtt": [
+                "TestConsoleResourcesWebConsoleVpc8C60294F",
+                "CidrBlock",
+              ],
+            },
+            "Description": {
+              "Fn::Join": [
+                "",
+                [
+                  "from ",
+                  {
+                    "Fn::GetAtt": [
+                      "TestConsoleResourcesWebConsoleVpc8C60294F",
+                      "CidrBlock",
+                    ],
+                  },
+                  ":443",
+                ],
+              ],
+            },
+            "FromPort": 443,
+            "IpProtocol": "tcp",
+            "ToPort": 443,
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::SecurityGroup",
+    },
+    "TestConsoleResourcesVpcEndpointSgfromDLTStackTestConsoleResourcesEcsSgFA4E977444389A62235": {
+      "Properties": {
+        "Description": "Allow HTTPS from ECS tasks",
+        "FromPort": 443,
+        "GroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesVpcEndpointSgCCD7E513",
+            "GroupId",
+          ],
+        },
+        "IpProtocol": "tcp",
+        "SourceSecurityGroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesEcsSg04098056",
+            "GroupId",
+          ],
+        },
+        "ToPort": 443,
+      },
+      "Type": "AWS::EC2::SecurityGroupIngress",
+    },
+    "TestConsoleResourcesVpcEndpointSgtoDLTStackTestConsoleResourcesEcsSgFA4E97744437F048E3E": {
+      "Properties": {
+        "Description": "Allow HTTPS response to ECS tasks",
+        "DestinationSecurityGroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesEcsSg04098056",
+            "GroupId",
+          ],
+        },
+        "FromPort": 443,
+        "GroupId": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesVpcEndpointSgCCD7E513",
+            "GroupId",
+          ],
+        },
+        "IpProtocol": "tcp",
+        "ToPort": 443,
+      },
+      "Type": "AWS::EC2::SecurityGroupEgress",
+    },
+    "TestConsoleResourcesWafLogGroupBF46A8D2": {
+      "Condition": "TestConsoleResourcesDeployWAFCondition08FF7A22",
+      "DeletionPolicy": "Delete",
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W84",
+              "reason": "CloudWatch Logs are encrypted by default with AWS managed keys",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "aws-waf-logs-",
+              {
+                "Ref": "AWS::StackName",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 365,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "TestConsoleResourcesWafLoggingConfigCEA00B60": {
+      "Condition": "TestConsoleResourcesDeployWAFCondition08FF7A22",
+      "Properties": {
+        "LogDestinationConfigs": [
+          {
+            "Fn::GetAtt": [
+              "TestConsoleResourcesWafLogGroupBF46A8D2",
+              "Arn",
+            ],
+          },
+        ],
+        "ResourceArn": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesAlbWebAclDEDE8447",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::WAFv2::LoggingConfiguration",
+    },
+    "TestConsoleResourcesWebConsoleAlbE4130765": {
+      "DependsOn": [
+        "TestConsoleResourcesWebConsoleVpcPublicSubnet1DefaultRoute1F571B6D",
+        "TestConsoleResourcesWebConsoleVpcPublicSubnet1RouteTableAssociationC969775E",
+        "TestConsoleResourcesWebConsoleVpcPublicSubnet2DefaultRoute2AC7A4BC",
+        "TestConsoleResourcesWebConsoleVpcPublicSubnet2RouteTableAssociationCD907359",
+        "testSourceCodeBucketPolicyCBB5449F",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W52",
+              "reason": "ALB access logging is enabled to the S3 logs bucket.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "LoadBalancerAttributes": [
+          {
+            "Key": "deletion_protection.enabled",
+            "Value": "false",
+          },
+          {
+            "Key": "access_logs.s3.enabled",
+            "Value": "true",
+          },
+          {
+            "Key": "access_logs.s3.bucket",
+            "Value": {
+              "Ref": "testSourceCodeBucketC577B176",
+            },
+          },
+          {
+            "Key": "access_logs.s3.prefix",
+            "Value": "alb-access-logs",
+          },
+        ],
+        "Scheme": "internet-facing",
+        "SecurityGroups": [
+          {
+            "Fn::GetAtt": [
+              "TestConsoleResourcesAlbSg1D59D4B2",
+              "GroupId",
+            ],
+          },
+        ],
+        "Subnets": [
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet1Subnet3EEFEAD4",
+          },
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet2SubnetF7A4B955",
+          },
+        ],
+        "Type": "application",
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+    },
+    "TestConsoleResourcesWebConsoleAlbHttpRedirectListener569D637C": {
+      "DependsOn": [
+        "testSourceCodeBucketPolicyCBB5449F",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W55",
+              "reason": "HTTP listener is used solely for redirecting to HTTPS",
+            },
+            {
+              "id": "W56",
+              "reason": "HTTP listener is used solely for redirecting to HTTPS, not serving content",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "ELBV2_LISTENER_SSL_POLICY_RULE",
+            "ELBV2_LISTENER_PROTOCOL_RULE",
+          ],
+        },
+      },
+      "Properties": {
+        "DefaultActions": [
+          {
+            "RedirectConfig": {
+              "Port": "443",
+              "Protocol": "HTTPS",
+              "StatusCode": "HTTP_301",
+            },
+            "Type": "redirect",
+          },
+        ],
+        "LoadBalancerArn": {
+          "Ref": "TestConsoleResourcesWebConsoleAlbE4130765",
+        },
+        "Port": 80,
+        "Protocol": "HTTP",
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+    },
+    "TestConsoleResourcesWebConsoleAlbHttpsListener27DE20F4": {
+      "DependsOn": [
+        "testSourceCodeBucketPolicyCBB5449F",
+      ],
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "ELBV2_LISTENER_SSL_POLICY_RULE",
+          ],
+        },
+      },
+      "Properties": {
+        "Certificates": [
+          {
+            "CertificateArn": "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012",
+          },
+        ],
+        "DefaultActions": [
+          {
+            "TargetGroupArn": {
+              "Ref": "TestConsoleResourcesWebConsoleTgFED59ECB",
+            },
+            "Type": "forward",
+          },
+        ],
+        "LoadBalancerArn": {
+          "Ref": "TestConsoleResourcesWebConsoleAlbE4130765",
+        },
+        "Port": 443,
+        "Protocol": "HTTPS",
+        "SslPolicy": "ELBSecurityPolicy-TLS-1-2-2017-01",
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+    },
+    "TestConsoleResourcesWebConsoleClusterC0276BF0": {
+      "Properties": {
+        "ClusterSettings": [
+          {
+            "Name": "containerInsights",
+            "Value": "enabled",
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+      },
+      "Type": "AWS::ECS::Cluster",
+    },
+    "TestConsoleResourcesWebConsoleLogGroupC74CF787": {
+      "DeletionPolicy": "Delete",
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W84",
+              "reason": "CloudWatch Logs are encrypted by default with AWS managed keys",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "RetentionInDays": 365,
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "TestConsoleResourcesWebConsoleService0AD7108A": {
+      "DependsOn": [
+        "TestConsoleResourcesTaskRoleFA4E7901",
+        "TestConsoleResourcesWebConsoleAlbHttpsListener27DE20F4",
+      ],
+      "Properties": {
+        "Cluster": {
+          "Ref": "TestConsoleResourcesWebConsoleClusterC0276BF0",
+        },
+        "DeploymentConfiguration": {
+          "Alarms": {
+            "AlarmNames": [],
+            "Enable": false,
+            "Rollback": false,
+          },
+          "DeploymentCircuitBreaker": {
+            "Enable": true,
+            "Rollback": true,
+          },
+          "MaximumPercent": 200,
+          "MinimumHealthyPercent": 50,
+        },
+        "DeploymentController": {
+          "Type": "ECS",
+        },
+        "DesiredCount": 2,
+        "EnableECSManagedTags": false,
+        "HealthCheckGracePeriodSeconds": 120,
+        "LaunchType": "FARGATE",
+        "LoadBalancers": [
+          {
+            "ContainerName": "web-console",
+            "ContainerPort": 8080,
+            "TargetGroupArn": {
+              "Ref": "TestConsoleResourcesWebConsoleTgFED59ECB",
+            },
+          },
+        ],
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "AssignPublicIp": "DISABLED",
+            "SecurityGroups": [
+              {
+                "Fn::GetAtt": [
+                  "TestConsoleResourcesEcsSg04098056",
+                  "GroupId",
+                ],
+              },
+            ],
+            "Subnets": [
+              {
+                "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0",
+              },
+              {
+                "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22",
+              },
+            ],
+          },
+        },
+        "TaskDefinition": {
+          "Ref": "TestConsoleResourcesWebConsoleTaskDefCAB56B06",
+        },
+      },
+      "Type": "AWS::ECS::Service",
+    },
+    "TestConsoleResourcesWebConsoleTaskDefCAB56B06": {
+      "Properties": {
+        "ContainerDefinitions": [
+          {
+            "Environment": [
+              {
+                "Name": "S3_BUCKET",
+                "Value": {
+                  "Ref": "TestConsoleResourcesConsoleBucketD314FA6C",
+                },
+              },
+              {
+                "Name": "S3_KEY",
+                "Value": "dlt-web-console.zip",
+              },
+            ],
+            "Essential": true,
+            "Image": {
+              "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:4ce2b0092a62c8caf27db2e7717f140545a3c51babb5e62b87cbbd091a0dc9ad",
+            },
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": {
+                  "Ref": "TestConsoleResourcesWebConsoleLogGroupC74CF787",
+                },
+                "awslogs-region": {
+                  "Ref": "AWS::Region",
+                },
+                "awslogs-stream-prefix": "web-console",
+              },
+            },
+            "Name": "web-console",
+            "PortMappings": [
+              {
+                "ContainerPort": 8080,
+                "Protocol": "tcp",
+              },
+            ],
+          },
+        ],
+        "Cpu": "256",
+        "ExecutionRoleArn": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesTaskExecutionRole29BE2E70",
+            "Arn",
+          ],
+        },
+        "Family": "DLTStackTestConsoleResourcesWebConsoleTaskDefB4101E22",
+        "Memory": "512",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": [
+          "FARGATE",
+        ],
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+        "TaskRoleArn": {
+          "Fn::GetAtt": [
+            "TestConsoleResourcesTaskRoleFA4E7901",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::ECS::TaskDefinition",
+    },
+    "TestConsoleResourcesWebConsoleTgFED59ECB": {
+      "Properties": {
+        "HealthCheckIntervalSeconds": 30,
+        "HealthCheckPath": "/healthz",
+        "HealthyThresholdCount": 2,
+        "Port": 8080,
+        "Protocol": "HTTP",
+        "TargetGroupAttributes": [
+          {
+            "Key": "stickiness.enabled",
+            "Value": "false",
+          },
+        ],
+        "TargetType": "ip",
+        "UnhealthyThresholdCount": 3,
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+    },
+    "TestConsoleResourcesWebConsoleVpc8C60294F": {
+      "Properties": {
+        "CidrBlock": "10.0.0.0/16",
+        "EnableDnsHostnames": true,
+        "EnableDnsSupport": true,
+        "InstanceTenancy": "default",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::VPC",
+    },
+    "TestConsoleResourcesWebConsoleVpcEcrApiEndpoint8A84A363": {
+      "Properties": {
+        "PrivateDnsEnabled": true,
+        "SecurityGroupIds": [
+          {
+            "Fn::GetAtt": [
+              "TestConsoleResourcesVpcEndpointSgCCD7E513",
+              "GroupId",
+            ],
+          },
+        ],
+        "ServiceName": {
+          "Fn::Join": [
+            "",
+            [
+              "com.amazonaws.",
+              {
+                "Ref": "AWS::Region",
+              },
+              ".ecr.api",
+            ],
+          ],
+        },
+        "SubnetIds": [
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0",
+          },
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22",
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+        "VpcEndpointType": "Interface",
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::VPCEndpoint",
+    },
+    "TestConsoleResourcesWebConsoleVpcEcrDkrEndpointEC08D5FB": {
+      "Properties": {
+        "PrivateDnsEnabled": true,
+        "SecurityGroupIds": [
+          {
+            "Fn::GetAtt": [
+              "TestConsoleResourcesVpcEndpointSgCCD7E513",
+              "GroupId",
+            ],
+          },
+        ],
+        "ServiceName": {
+          "Fn::Join": [
+            "",
+            [
+              "com.amazonaws.",
+              {
+                "Ref": "AWS::Region",
+              },
+              ".ecr.dkr",
+            ],
+          ],
+        },
+        "SubnetIds": [
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0",
+          },
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22",
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+        "VpcEndpointType": "Interface",
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::VPCEndpoint",
+    },
+    "TestConsoleResourcesWebConsoleVpcIGWC6D33670": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::InternetGateway",
+    },
+    "TestConsoleResourcesWebConsoleVpcLogsEndpointE3DA3955": {
+      "Properties": {
+        "PrivateDnsEnabled": true,
+        "SecurityGroupIds": [
+          {
+            "Fn::GetAtt": [
+              "TestConsoleResourcesVpcEndpointSgCCD7E513",
+              "GroupId",
+            ],
+          },
+        ],
+        "ServiceName": {
+          "Fn::Join": [
+            "",
+            [
+              "com.amazonaws.",
+              {
+                "Ref": "AWS::Region",
+              },
+              ".logs",
+            ],
+          ],
+        },
+        "SubnetIds": [
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0",
+          },
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22",
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+        "VpcEndpointType": "Interface",
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::VPCEndpoint",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet1RouteTable71A96128": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PrivateSubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet1RouteTableAssociationAA5BD8E8": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1RouteTable71A96128",
+        },
+        "SubnetId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet1Subnet568BF2A0": {
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "10.0.2.0/24",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Private",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Isolated",
+          },
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PrivateSubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet2RouteTable108FCCAA": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PrivateSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet2RouteTableAssociation0D123E3C": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2RouteTable108FCCAA",
+        },
+        "SubnetId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "TestConsoleResourcesWebConsoleVpcPrivateSubnet2SubnetA5CA9A22": {
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "10.0.3.0/24",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Private",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Isolated",
+          },
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PrivateSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet1DefaultRoute1F571B6D": {
+      "DependsOn": [
+        "TestConsoleResourcesWebConsoleVpcVPCGW4F1A3A68",
+      ],
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcIGWC6D33670",
+        },
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet1RouteTable30F46F51",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet1RouteTable30F46F51": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PublicSubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet1RouteTableAssociationC969775E": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet1RouteTable30F46F51",
+        },
+        "SubnetId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet1Subnet3EEFEAD4",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet1Subnet3EEFEAD4": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W33",
+              "reason": "Public subnets required for internet-facing ALB, auto-assign disabled",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "SUBNET_AUTO_ASSIGN_PUBLIC_IP_DISABLED",
+          ],
+        },
+      },
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "10.0.0.0/24",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Public",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Public",
+          },
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PublicSubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet2DefaultRoute2AC7A4BC": {
+      "DependsOn": [
+        "TestConsoleResourcesWebConsoleVpcVPCGW4F1A3A68",
+      ],
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcIGWC6D33670",
+        },
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet2RouteTable592A54CC",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet2RouteTable592A54CC": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PublicSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet2RouteTableAssociationCD907359": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet2RouteTable592A54CC",
+        },
+        "SubnetId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcPublicSubnet2SubnetF7A4B955",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "TestConsoleResourcesWebConsoleVpcPublicSubnet2SubnetF7A4B955": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W33",
+              "reason": "Public subnets required for internet-facing ALB, auto-assign disabled",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "SUBNET_AUTO_ASSIGN_PUBLIC_IP_DISABLED",
+          ],
+        },
+      },
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": "",
+            },
+          ],
+        },
+        "CidrBlock": "10.0.1.0/24",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Public",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Public",
+          },
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc/PublicSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "TestConsoleResourcesWebConsoleVpcS3Endpoint713E2291": {
+      "Properties": {
+        "RouteTableIds": [
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet1RouteTable71A96128",
+          },
+          {
+            "Ref": "TestConsoleResourcesWebConsoleVpcPrivateSubnet2RouteTable108FCCAA",
+          },
+        ],
+        "ServiceName": {
+          "Fn::Join": [
+            "",
+            [
+              "com.amazonaws.",
+              {
+                "Ref": "AWS::Region",
+              },
+              ".s3",
+            ],
+          ],
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DLTStack/TestConsoleResources/WebConsoleVpc",
+          },
+        ],
+        "VpcEndpointType": "Gateway",
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::VPCEndpoint",
+    },
+    "TestConsoleResourcesWebConsoleVpcVPCGW4F1A3A68": {
+      "Properties": {
+        "InternetGatewayId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpcIGWC6D33670",
+        },
+        "VpcId": {
+          "Ref": "TestConsoleResourcesWebConsoleVpc8C60294F",
+        },
+      },
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+    },
+    "testSourceCodeBucketC577B176": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "AccessControl": "LogDeliveryWrite",
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "ObjectWriter",
+            },
+          ],
+        },
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "testSourceCodeBucketPolicyCBB5449F": {
+      "Properties": {
+        "Bucket": {
+          "Ref": "testSourceCodeBucketC577B176",
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:PutObject",
+              "Condition": {
+                "ArnLike": {
+                  "aws:SourceArn": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":elasticloadbalancing:*:",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":loadbalancer/*",
+                      ],
+                    ],
+                  },
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "logdelivery.elasticloadbalancing.amazonaws.com",
+              },
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    {
+                      "Fn::GetAtt": [
+                        "testSourceCodeBucketC577B176",
+                        "Arn",
+                      ],
+                    },
+                    "/alb-access-logs/AWSLogs/",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    "/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+    },
+  },
+}
+`;

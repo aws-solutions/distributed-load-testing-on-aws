@@ -19,11 +19,15 @@ export const createBreadcrumbs = (
   scenarioName?: string, 
   testRunId?: string,
   testId?: string,
-  testRunStartTime?: string
+  testRunStartTime?: string,
 ): BreadcrumbGroupProps.Item[] => {
   // Gather breadcrumb elements
   // Exclude /testruns/ which does not have its own page 
   // e.g. /scenarios/{testId}/testruns/{testRunId} => Scenarios -> Test ID -> Test Run ID
+  if (path === "/") {
+    return [{ text: "Home", href: "" }]
+  }
+
   const pathElements: string[] = path.split("/").filter(element => element !== "testruns");
 
   return pathElements.map((currentElement, index) => {
@@ -39,7 +43,7 @@ export const createBreadcrumbs = (
         scenarioName, 
         isTestRunId, 
         isTestId,
-        testRunStartTime
+        testRunStartTime,
       ), 
       href: href || "/" 
     };
@@ -59,15 +63,16 @@ const pathLabels: Record<string, string> = {
  * @param isoString ISO 8601 timestamp
  * @returns Formatted date string in local time (e.g., "Nov 10, 2025, 4:07 PM")
  */
-function formatDate(isoString: string): string {
+function formatDate(isoString: string, scheduleTimezone?: string): string {
   return formatToLocalTime(isoString, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-    hour12: true
-  });
+    hour12: true,
+    timeZoneName: 'short'
+  }, scheduleTimezone);
 }
 
 /**
@@ -84,7 +89,7 @@ function getLabelForPathElement(
   scenarioName?: string, 
   isTestRunId?: boolean,
   isTestId?: boolean,
-  testRunStartTime?: string
+  testRunStartTime?: string,
 ): string {
   const pathLabel = pathLabels[pathElement];
   if (pathLabel) return pathLabel;

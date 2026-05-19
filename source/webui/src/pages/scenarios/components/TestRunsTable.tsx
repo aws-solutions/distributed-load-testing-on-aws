@@ -95,14 +95,24 @@ export const TestRunsTable: React.FC<TestRunsTableProps> = ({
       <Button
         variant="normal"
         onClick={() => onSetBaseline([...(collectionProps.selectedItems || [])])}
-        disabled={(collectionProps.selectedItems?.length || 0) !== 1 || isSettingBaseline}
+        disabled={(() => {
+          // no test runs selected
+          const noTestRunSelected = (collectionProps.selectedItems?.length || 0) !== 1;
+          // no running / cancelling
+          const statusCheck = ! (collectionProps.selectedItems || []).every(item => item.status === "complete");
+          return noTestRunSelected || statusCheck || isSettingBaseline;
+        })()}
         loading={isSettingBaseline}
       >
         Set Baseline
       </Button>
       <Button 
         variant="normal" 
-        disabled={(collectionProps.selectedItems?.length || 0) === 0 || isDeletingTestRuns}
+        disabled={(() => {
+          const noTestRunSelected = (collectionProps.selectedItems?.length || 0) === 0;
+          const statusCheck = (collectionProps.selectedItems || []).filter(item => item.status && ["running", "cancelling"].includes(item.status)).length > 0;
+          return noTestRunSelected || statusCheck || isDeletingTestRuns;
+        })()}
         loading={isDeletingTestRuns}
         onClick={() => onDeleteTestRuns?.([...(collectionProps.selectedItems || [])])}
       >

@@ -41,6 +41,12 @@ interface ErrorRow {
 const processErrorData = (testRunDetails: TestRunDetails): ErrorRow[] => {
   const errors: ErrorRow[] = [];
 
+  // Handling case when there are no test results
+  // e.g. Cancelled tests
+  if (!testRunDetails.results) {
+    return []
+  }
+
   // Only process results where region is "total"
   const totalResults = testRunDetails.results["total"];
   if (!totalResults) return errors;
@@ -161,7 +167,7 @@ export function TestResultsErrors({ testRunDetails }: TestResultsErrorsProps) {
     return sorted;
   }, [filteredErrors, sortingColumn, sortingDescending, viewMode]);
 
-  if (!testRunDetails) {
+  if (!testRunDetails?.results) {
     return (
       <Container>
         <Box textAlign="center" padding="l">

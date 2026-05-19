@@ -5,6 +5,7 @@ import { get } from "aws-amplify/api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { addNotification } from "../../../store/notificationsSlice";
+import { sendConsoleMetric } from "../../../utils/consoleMetrics";
 import {
   useGetBaselineQuery,
   useGetTestRunsQuery,
@@ -125,7 +126,6 @@ export const useTestRuns = (testId: string) => {
       }
 
       abortControllerRef.current = new AbortController();
-      setIsLoadingMore(true);
 
       let nextToken: string | null = startToken;
       // Add first page of test runs from initial page load
@@ -175,6 +175,7 @@ export const useTestRuns = (testId: string) => {
 
     // Start progressive loading if more pages exist
     if (firstPageData.pagination?.next_token) {
+      setIsLoadingMore(true);
       loadRemainingPages(firstPageData.pagination.next_token, firstPageData.testRuns);
     }
   }, [firstPageData, isLoading, error, loadRemainingPages]);
@@ -243,6 +244,7 @@ export const useTestRuns = (testId: string) => {
     async (selectedItems: TestRun[]) => {
       if (selectedItems.length === 0) return;
 
+      sendConsoleMetric("ButtonClick", { Page: "TestRuns", Action: "SetBaseline", TestId: testId, TestRunId: selectedItems[0].testRunId });
       try {
         await setBaseline({ testId, testRunId: selectedItems[0].testRunId }).unwrap();
         const newBaseline = { ...selectedItems[0], isBaseline: true };
@@ -263,6 +265,7 @@ export const useTestRuns = (testId: string) => {
   const handleRemoveBaseline = useCallback(async () => {
     if (!baselineTestRun) return;
 
+    sendConsoleMetric("ButtonClick", { Page: "TestRuns", Action: "RemoveBaseline", TestId: testId });
     try {
       await removeBaseline({ testId }).unwrap();
       setBaselineTestRun(null);

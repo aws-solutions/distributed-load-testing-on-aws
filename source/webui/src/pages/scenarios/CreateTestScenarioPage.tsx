@@ -12,17 +12,25 @@ import { useFormData } from "./hooks/useFormData";
 
 import { get } from "aws-amplify/api";
 import { uploadData } from "aws-amplify/storage";
-import cronParser from "cron-parser";
 import { useCreateScenarioMutation } from "../../store/scenariosApiSlice";
+import { useSelector } from "react-redux";
+import { RootState } from "../../store/store";
+import { RegionalStackInfo } from "../../store/regionsSlice";
+import { validateExpiryDate } from "../../utils/dateValidation";
+import { isCronValid, validateCronFields } from "../../utils/cronValidation";
+import { extractErrorMessage } from "../../utils/errorUtils";
 import { generateUniqueId } from "../../utils/generateUniqueId.ts";
 import { isValidJSON } from "../../utils/jsonValidator";
 import { transformScenarioToFormData } from "../../utils/scenarioTransformer";
 import { getFileExtension, isScriptTestType } from "../../utils/scenarioUtils";
+import { isValidUri } from "../../utils/uriValidator";
 import { STEPS, TestTypes, VALIDATION_LIMITS } from "./constants";
-import { extractErrorMessage } from "../../utils/errorUtils";
+import { sendConsoleMetric } from "../../utils/consoleMetrics";
 import { CreateScenarioRequest } from "./types/createTest.ts";
+import { usePageLoadMetric } from "../../hooks/usePageLoadMetric";
 
 export default function CreateTestScenarioPage() {
+  usePageLoadMetric("CreateTestScenario", { dataReady: true });
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const stepFromUrl = parseInt(searchParams.get("step") || "0");
@@ -36,7 +44,21 @@ export default function CreateTestScenarioPage() {
   // Controls whether validation error messages are displayed in form fields and wizard steps
   const [showValidationErrors, setShowValidationErrors] = useState<boolean>(false);
   const copyDataProcessed = useRef(false);
-  const originalScriptFilename = useRef<string | null>(null);
+  const originalScriptMarkerFile = useRef<File | null>(null);
+
+  const regionalStacks = useSelector((state: RootState) => state.regions.regionalStacks);
+  const incompatibleRegions = new Set(
+    (regionalStacks ?? []).filter((s: RegionalStackInfo) => !s.compatible).map((s: RegionalStackInfo) => s.region)
+  );
+
+  // Clear wizard-level validation error banner when user modifies any form field
+  const prevFormDataRef = useRef(formData);
+  useEffect(() => {
+    if (prevFormDataRef.current !== formData && showValidationErrors) {
+      setShowValidationErrors(false);
+    }
+    prevFormDataRef.current = formData;
+  }, [formData, showValidationErrors]);
 
   const handleStepChange = useCallback(
     (newStepIndex: number) => {
@@ -80,13 +102,9 @@ export default function CreateTestScenarioPage() {
 
     if ((copyData || editData) && !copyDataProcessed.current) {
       try {
-        const scenario = JSON.parse(decodeURIComponent(copyData || editData!));
-        const testScenario = scenario.testScenario || {};
-        const scenarios = testScenario.scenarios || {};
-        const scenarioKey = Object.keys(scenarios)[0];
-        const scenarioConfig = scenarios[scenarioKey] || {};
-        originalScriptFilename.current = scenarioConfig.script || null;
+        const scenario = JSON.parse(copyData || editData!);
         const transformedData = transformScenarioToFormData(scenario, !copyData);
+        originalScriptMarkerFile.current = transformedData.scriptFile[0] || null;
         updateFormData(transformedData);
         copyDataProcessed.current = true;
       } catch (error) {
@@ -103,37 +121,6 @@ export default function CreateTestScenarioPage() {
   }, [searchParams, updateFormData, formData.testId, loadDraftIfRefresh]);
 
   /**
-   * Validates if the expiry date is valid (not in the past).
-   * 
-   * @param cronExpiryDate - The expiry date string in YYYY/MM/DD or YYYY-MM-DD format
-   * @returns true if the date is valid and not in the past, false otherwise
-   */
-  const isValidExpiryDate = (cronExpiryDate: string | undefined): boolean => {
-    if (!cronExpiryDate?.trim()) {
-      return false;
-    }
-
-    const dateParts = cronExpiryDate.split(/[-/]/);
-    if (dateParts.length !== 3) {
-      return false;
-    }
-
-    const year = parseInt(dateParts[0]);
-    const month = parseInt(dateParts[1]);
-    const day = parseInt(dateParts[2]);
-
-    if (isNaN(year) || isNaN(month) || isNaN(day)) {
-      return false;
-    }
-
-    const expiryDate = new Date(year, month - 1, day, 23, 59, 59, 999);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return expiryDate >= today;
-  };
-
-  /**
    * Checks if the Scenario Configuration step has valid input data.
    *
    * @returns {boolean} True if all required fields are valid, false otherwise
@@ -147,11 +134,13 @@ export default function CreateTestScenarioPage() {
   const isScenarioConfigurationStepValid = () => {
     const isScriptTest = isScriptTestType(formData.testType);
     const hasRequiredFile = isScriptTest ? formData.scriptFile?.length > 0 : true;
+    const hasK6License = formData.testType === TestTypes.K6 ? formData.k6LicenseAcknowledged : true;
     const hasHttpEndpoint = !isScriptTest ? Boolean(formData.httpEndpoint?.trim()) : true;
+    const hasValidUri = !isScriptTest ? (formData.httpEndpoint ? isValidUri(formData.httpEndpoint).isValid : false) : true;
     const hasValidJSON = !isScriptTest
       ? isValidJSON(formData.requestHeaders || "") && isValidJSON(formData.bodyPayload || "")
       : true;
-    return hasRequiredFile && hasHttpEndpoint && hasValidJSON;
+    return hasRequiredFile && hasK6License && hasHttpEndpoint && hasValidUri && hasValidJSON;
   };
 
   const isGeneralSettingsStepValid = () => {
@@ -161,15 +150,9 @@ export default function CreateTestScenarioPage() {
     if (formData.executionTiming === "run-once") {
       hasValidSchedule = Boolean(formData.scheduleTime?.trim() && formData.scheduleDate?.trim());
     } else if (formData.executionTiming === "run-schedule") {
-      try {
-        const dayOfMonth = formData.cronDayOfMonth === "?" ? "*" : formData.cronDayOfMonth;
-        const dayOfWeek = formData.cronDayOfWeek === "?" ? "*" : formData.cronDayOfWeek;
-        const validCron = `${formData.cronMinutes} ${formData.cronHours} ${dayOfMonth} ${formData.cronMonth} ${dayOfWeek}`;
-        cronParser.parse(validCron);
-        hasValidSchedule = isValidExpiryDate(formData.cronExpiryDate);
-      } catch {
-        hasValidSchedule = false;
-      }
+      const { cronMinutes, cronHours, cronDayOfMonth, cronMonth, cronDayOfWeek } = formData;
+      const isExpiryValid = validateExpiryDate(formData.cronExpiryDate).isValid;
+      hasValidSchedule = isCronValid({ cronMinutes, cronHours, cronDayOfMonth, cronMonth, cronDayOfWeek }) && isExpiryValid;
     }
 
     return hasNameAndDesc && hasValidSchedule;
@@ -177,6 +160,7 @@ export default function CreateTestScenarioPage() {
 
   const isTrafficShapeStepValid = () => {
     const hasRegions = formData.regions?.length > 0;
+    const hasIncompatibleRegion = formData.regions?.some((r) => incompatibleRegions.has(r.region));
     const hasValidRegions = formData.regions?.every(
       (region) =>
         region.taskCount &&
@@ -184,10 +168,14 @@ export default function CreateTestScenarioPage() {
         region.concurrency &&
         Number(region.concurrency) >= VALIDATION_LIMITS.CONCURRENCY.MIN
     );
-    const hasValidDuration = formData.rampUpValue && formData.holdForValue;
+    const hasValidDuration =
+      formData.rampUpValue &&
+      Number(formData.rampUpValue) >= VALIDATION_LIMITS.RAMP_UP.MIN &&
+      formData.holdForValue &&
+      Number(formData.holdForValue) >= VALIDATION_LIMITS.HOLD_FOR.MIN;
     const hasValidRegionCount = formData.regions?.length <= VALIDATION_LIMITS.MAX_REGIONS;
 
-    return hasRegions && hasValidRegions && hasValidDuration && hasValidRegionCount;
+    return hasRegions && !hasIncompatibleRegion && hasValidRegions && hasValidDuration && hasValidRegionCount;
   };
 
   /**
@@ -210,16 +198,24 @@ export default function CreateTestScenarioPage() {
     if (isScriptTest && !formData.scriptFile?.[0]) {
       return "Please upload a test script file.";
     }
+    if (formData.testType === TestTypes.K6 && !formData.k6LicenseAcknowledged) {
+      return "Please acknowledge the K6 AGPL-3.0 license terms.";
+    }
     return undefined;
   };
 
   const getTrafficShapeError = () => {
+    const errors: string[] = [];
+
+    const selectedIncompatible = formData.regions.filter((r) => incompatibleRegions.has(r.region));
+    if (selectedIncompatible.length > 0) {
+      errors.push(`Incompatible regions selected: ${selectedIncompatible.map((r) => r.region).join(", ")}. Please update the regional stack or remove them`);
+    }
+
     if (formData.regions.length > VALIDATION_LIMITS.MAX_REGIONS) {
-      return `Maximum ${VALIDATION_LIMITS.MAX_REGIONS} regions allowed`;
+      errors.push(`Maximum ${VALIDATION_LIMITS.MAX_REGIONS} regions allowed`);
     }
-    if (!formData.rampUpValue || !formData.holdForValue) {
-      return "Ramp up and hold for times are required";
-    }
+
     const hasInvalidRegions = formData.regions.some(
       (region) =>
         !region.taskCount ||
@@ -228,9 +224,22 @@ export default function CreateTestScenarioPage() {
         Number(region.concurrency) < VALIDATION_LIMITS.CONCURRENCY.MIN
     );
     if (hasInvalidRegions) {
-      return `Please ensure all regions have valid task count (≥${VALIDATION_LIMITS.TASK_COUNT.MIN}) and concurrency (≥${VALIDATION_LIMITS.CONCURRENCY.MIN})`;
+      errors.push(`Please ensure all regions have valid task count (≥${VALIDATION_LIMITS.TASK_COUNT.MIN}) and concurrency (≥${VALIDATION_LIMITS.CONCURRENCY.MIN})`);
     }
-    return undefined;
+
+    if (!formData.rampUpValue) {
+      errors.push("Ramp up time is required");
+    } else if (Number(formData.rampUpValue) < VALIDATION_LIMITS.RAMP_UP.MIN) {
+      errors.push(`Ramp up must be ≥${VALIDATION_LIMITS.RAMP_UP.MIN}`);
+    }
+
+    if (!formData.holdForValue) {
+      errors.push("Hold for time is required");
+    } else if (Number(formData.holdForValue) < VALIDATION_LIMITS.HOLD_FOR.MIN) {
+      errors.push(`Hold for must be ≥${VALIDATION_LIMITS.HOLD_FOR.MIN}`);
+    }
+
+    return errors.length > 0 ? `${errors.join(". ")}.` : undefined;
   };
 
   /**
@@ -260,19 +269,20 @@ export default function CreateTestScenarioPage() {
         return "Run date is required";
       }
     } else if (formData.executionTiming === "run-schedule") {
-      try {
-        const dayOfMonth = formData.cronDayOfMonth === "?" ? "*" : formData.cronDayOfMonth;
-        const dayOfWeek = formData.cronDayOfWeek === "?" ? "*" : formData.cronDayOfWeek;
-        const validCron = `${formData.cronMinutes} ${formData.cronHours} ${dayOfMonth} ${formData.cronMonth} ${dayOfWeek}`;
-        cronParser.parse(validCron);
-      } catch {
-        return "Invalid cron expression";
+      const { cronMinutes, cronHours, cronDayOfMonth, cronMonth, cronDayOfWeek } = formData;
+      if (!cronMinutes || !cronHours) {
+        return "Cron minutes and hours are required";
+      }
+      const cronError = validateCronFields({ cronMinutes, cronHours, cronDayOfMonth, cronMonth, cronDayOfWeek });
+      if (cronError) {
+        return cronError;
       }
       if (!formData.cronExpiryDate?.trim()) {
         return "Expiry date is required for scheduled tests";
       }
-      if (!isValidExpiryDate(formData.cronExpiryDate)) {
-        return "Expiry date must be in the future";
+      const validation = validateExpiryDate(formData.cronExpiryDate);
+      if (!validation.isValid) {
+        return validation.errorMessage;
       }
     }
     return undefined;
@@ -363,15 +373,14 @@ export default function CreateTestScenarioPage() {
       showLive: formData.showLive,
       regionalTaskDetails,
       tags: formData.tags.map((tag) => tag.label),
+      healthyThreshold: parseInt(formData.healthyThreshold) || 90,
     };
 
     // Add run schedule
     if (formData.executionTiming === "run-once") {
-      // Convert browser time to UTC
-      const localDateTime = new Date(`${formData.scheduleDate}T${formData.scheduleTime}:00`);
-      const utcDateTime = localDateTime.toISOString();
-      payload.scheduleDate = utcDateTime.split('T')[0];
-      payload.scheduleTime = utcDateTime.split('T')[1].substring(0, 5);
+      payload.scheduleDate = formData.scheduleDate;
+      payload.scheduleTime = formData.scheduleTime;
+      payload.scheduleTimezone = formData.scheduleTimezone || "UTC";
       payload.scheduleStep = "start";
     }
     if (formData.executionTiming === "run-schedule") {
@@ -380,6 +389,7 @@ export default function CreateTestScenarioPage() {
       const dayOfWeek = formData.cronDayOfWeek === "?" ? "*" : formData.cronDayOfWeek;
       payload.cronValue = `${formData.cronMinutes || "*"} ${formData.cronHours || "*"} ${dayOfMonth || "*"} ${formData.cronMonth || "*"} ${dayOfWeek || "*"}`;
       payload.cronExpiryDate = formData.cronExpiryDate || "";
+      payload.scheduleTimezone = formData.scheduleTimezone || "UTC";
       payload.scheduleStep = "create";
       payload.recurrence = "daily"; // Default to daily for cron schedules
     }
@@ -503,6 +513,7 @@ export default function CreateTestScenarioPage() {
           navigate("/scenarios");
         }}
         onSubmit={async () => {
+          sendConsoleMetric("ButtonClick", { Page: "CreateTestScenario", Action: formData.executionTiming === "run-now" ? "RunNow" : "Schedule", IsEdit: searchParams.get("editData") ? "true" : "false" });
           setIsSubmitting(true);
           setError(null);
 
@@ -511,13 +522,31 @@ export default function CreateTestScenarioPage() {
             if (
               isScriptTest &&
               formData.scriptFile?.[0] &&
-              formData.scriptFile[0].name !== originalScriptFilename.current
+              formData.scriptFile[0] !== originalScriptMarkerFile.current
             ) {
               setIsUploading(true);
               const file = formData.scriptFile[0];
               const fileExtension = getFileExtension(file.name);
+              sendConsoleMetric(
+                "ScriptUploadStarted",
+                { FileExtension: fileExtension, TestType: formData.testType, FileSizeBytes: file.size, TestId: formData.testId },
+              );
               const key = `test-scenarios/${formData.testType.toLowerCase()}/${formData.testId}.${fileExtension}`;
-              await uploadData({ key, data: file }).result;
+              try {
+                await uploadData({ key, data: file }).result;
+              } catch (uploadErr: any) {
+                sendConsoleMetric(
+                  "ScriptUploadFailed",
+                  {
+                    FileExtension: fileExtension,
+                    TestType: formData.testType,
+                    FileSizeBytes: file.size,
+                    TestId: formData.testId,
+                    ErrorCode: uploadErr?.name ?? "Unknown",
+                  },
+                );
+                throw uploadErr;
+              }
               setIsUploading(false);
             }
 

@@ -1,0 +1,21 @@
+{
+  "name": "@amzn/dlt-common",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared utilities for Distributed Load Testing on AWS",
+  "type": "module",
+  "main": "src/index.ts",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.27.0",
+    "nanoid": "^3.3.11"
+  }
+}

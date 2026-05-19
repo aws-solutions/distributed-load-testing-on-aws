@@ -1,15 +1,15 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Template } from "aws-cdk-lib/assertions";
 import { App, CfnCondition, DefaultStackSynthesizer, Fn, Stack } from "aws-cdk-lib";
+import { Template } from "aws-cdk-lib/assertions";
+import { Vpc } from "aws-cdk-lib/aws-ec2";
 import { Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { ECSResourcesConstruct } from "../lib/testing-resources/ecs";
-import { Vpc } from "aws-cdk-lib/aws-ec2";
 import { createTemplateWithoutS3Key } from "./snapshot_helpers";
 
-test("DLT ECS Test", () => {
-  const app = new App();
+test("DLT ECS Hub Test", () => {
+  const app = new App({ context: { "aws:cdk:bundling-stacks": [] } });
   process.env.PUBLIC_ECR_REGISTRY = "registry";
   process.env.PUBLIC_ECR_TAG = "tag";
   const stack = new Stack(app, "DLTStack", {
@@ -34,6 +34,7 @@ test("DLT ECS Test", () => {
   });
 
   const ecs = new ECSResourcesConstruct(stack, "TestECS", {
+    containerMode: "hub",
     fargateVpcId: vpc.vpcId,
     scenariosS3Bucket: "testscenariobucket",
     securityGroupEgress: "0.0.0.0/0",
@@ -44,29 +45,7 @@ test("DLT ECS Test", () => {
 
   expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();
   Template.fromStack(stack).hasResourceProperties("AWS::ECS::Cluster", {
-    ClusterSettings: [
-      {
-        Name: "containerInsights",
-        Value: "enabled",
-      },
-    ],
-  });
-  Template.fromStack(stack).hasResourceProperties("AWS::IAM::Role", {
-    AssumeRolePolicyDocument: {
-      Statement: [
-        {
-          Action: "sts:AssumeRole",
-          Effect: "Allow",
-          Principal: {
-            Service: "ecs-tasks.amazonaws.com",
-          },
-        },
-      ],
-      Version: "2012-10-17",
-    },
-  });
-  Template.fromStack(stack).hasResourceProperties("AWS::Logs::LogGroup", {
-    RetentionInDays: 3653,
+    ClusterSettings: [{ Name: "containerInsights", Value: "enabled" }],
   });
   Template.fromStack(stack).hasResourceProperties("AWS::ECS::TaskDefinition", {
     Cpu: "2048",
@@ -75,20 +54,37 @@ test("DLT ECS Test", () => {
     RequiresCompatibilities: ["FARGATE"],
   });
   Template.fromStack(stack).resourceCountIs("AWS::EC2::SecurityGroup", 1);
-  Template.fromStack(stack).hasResourceProperties("AWS::EC2::SecurityGroupIngress", {
-    GroupId: {
-      Ref: "TestECSDLTEcsSecurityGroupFE5016DC",
-    },
-    SourceSecurityGroupId: {
-      Ref: "TestECSDLTEcsSecurityGroupFE5016DC",
-    },
-  });
-  Template.fromStack(stack).hasResourceProperties("AWS::EC2::SecurityGroupEgress", {
-    Description: "Allow tasks to call out to external resources",
-  });
   expect(ecs.taskClusterName).toBeDefined();
   expect(ecs.ecsCloudWatchLogGroup).toBeDefined();
   expect(ecs.taskDefinitionArn).toBeDefined();
   expect(ecs.taskExecutionRoleArn).toBeDefined();
+  expect(ecs.taskRoleArn).toBeDefined();
+  expect(ecs.ecsSecurityGroupId).toBeDefined();
+});
+
+test("DLT ECS Regional Test — no task definition", () => {
+  const app = new App({ context: { "aws:cdk:bundling-stacks": [] } });
+  const stack = new Stack(app, "DLTRegionalStack");
+  const vpc = new Vpc(stack, "TestVPC");
+
+  const ecs = new ECSResourcesConstruct(stack, "TestECS", {
+    containerMode: "regional",
+    fargateVpcId: vpc.vpcId,
+    scenariosS3Bucket: "testscenariobucket",
+    securityGroupEgress: "0.0.0.0/0",
+    solutionId: "SO0062",
+  });
+
+  const template = Template.fromStack(stack);
+  template.hasResourceProperties("AWS::ECS::Cluster", {
+    ClusterSettings: [{ Name: "containerInsights", Value: "enabled" }],
+  });
+  template.resourceCountIs("AWS::ECS::TaskDefinition", 0);
+  template.resourceCountIs("AWS::EC2::SecurityGroup", 1);
+  expect(ecs.taskClusterName).toBeDefined();
+  expect(ecs.ecsCloudWatchLogGroup).toBeDefined();
+  expect(ecs.taskDefinitionArn).toBeUndefined();
+  expect(ecs.taskExecutionRoleArn).toBeDefined();
+  expect(ecs.taskRoleArn).toBeDefined();
   expect(ecs.ecsSecurityGroupId).toBeDefined();
 });

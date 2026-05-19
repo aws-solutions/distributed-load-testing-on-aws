@@ -137,9 +137,9 @@ export const getBaselineText = (baselineValue: number | undefined, formatter: (v
 export const generateCSV = <T>(columns: TableColumn<T>[], data: T[], hasBaseline: boolean): string => {
   const expandedColumns = columns.flatMap(col => {
     if (!hasBaseline || !col.csvBaselineValue) {
-      return [{ header: col.header.replace(/\u00A0.*$/, '').trim(), getValue: col.csvValue }];
+      return [{ header: col.header.replace(/\u00A0.*$/, '').trim(), getValue: col.csvValue }]; // NOSONAR - S5852: linear regex anchored to end of string, no ReDoS risk
     }
-    const baseHeader = col.header.replace(/\u00A0.*$/, '').trim();
+    const baseHeader = col.header.replace(/\u00A0.*$/, '').trim(); // NOSONAR - S5852: linear regex anchored to end of string, no ReDoS risk
     return [
       { header: baseHeader, getValue: col.csvValue },
       { header: `${baseHeader} vs Baseline`, getValue: col.csvBaselineValue }

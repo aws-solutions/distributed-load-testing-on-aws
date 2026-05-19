@@ -6,7 +6,7 @@ import { App, DefaultStackSynthesizer, Stack } from "aws-cdk-lib";
 import { FargateVpcConstruct } from "../lib/testing-resources/vpc";
 
 test("DLT VPC Test", () => {
-  const app = new App();
+  const app = new App({ context: { "aws:cdk:bundling-stacks": [] } });
   const stack = new Stack(app, "DLTStack", {
     synthesizer: new DefaultStackSynthesizer({
       generateBootstrapVersionRule: false,

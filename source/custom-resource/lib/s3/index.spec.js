@@ -88,4 +88,38 @@ describe("#S3::", () => {
       expect(error).toEqual("ERROR");
     }
   });
+
+  it('should return "SUCCESS" on copyJMeterBundle success', async () => {
+    const copyJMeterBundleEventBody = {
+      SrcBucket: "source-bucket",
+      SrcPath: "solution/v4.0.0",
+      DestBucket: "dest-bucket",
+    };
+
+    mockS3.copyObject.mockResolvedValueOnce({});
+
+    const response = await lambda.copyJMeterBundle(copyJMeterBundleEventBody);
+    expect(mockS3.copyObject).toHaveBeenCalledWith({
+      CopySource: "source-bucket/solution/v4.0.0/jmeter-bundle.tgz",
+      Bucket: "dest-bucket",
+      Key: "frameworks/jmeter/jmeter-bundle.tgz",
+    });
+    expect(response).toEqual("success");
+  });
+
+  it('should return "ERROR" on copyJMeterBundle failure', async () => {
+    const copyJMeterBundleEventBody = {
+      SrcBucket: "source-bucket",
+      SrcPath: "solution/v4.0.0",
+      DestBucket: "dest-bucket",
+    };
+
+    mockS3.copyObject.mockRejectedValue("ERROR");
+
+    try {
+      await lambda.copyJMeterBundle(copyJMeterBundleEventBody);
+    } catch (error) {
+      expect(error).toEqual("ERROR");
+    }
+  });
 });

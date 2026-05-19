@@ -1,0 +1,6 @@
+{
+  "version": "2.43.3",
+  "install": {
+    "pip": "locust=={version}"
+  }
+}

@@ -1,21 +1,27 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { AgentCoreEvent } from "../../src/lib/common.js";
 import { AppError } from "../../src/lib/errors.js";
-import type { HttpResponse, IAMHttpClient } from "../../src/lib/http-client.js";
+import type { HttpResponse } from "../../src/lib/http-client.js";
 import { handleGetScenarioDetails } from "../../src/tools/get-scenario-details.js";
+import {
+  createMockHttpClient,
+  expectGetCalledWith,
+  expectGetCalledWithContaining,
+  mockErrorResponse,
+  mockNetworkError,
+  mockSuccessResponse,
+  type MockHttpClient,
+} from "../test-utils.js";
 
 describe("handleGetScenarioDetails", () => {
-  let mockHttpClient: IAMHttpClient;
+  let mockHttpClient: MockHttpClient;
   const apiEndpoint = "https://api.example.com";
 
   beforeEach(() => {
-    mockHttpClient = {
-      get: vi.fn(),
-      request: vi.fn(),
-    } as any;
+    mockHttpClient = createMockHttpClient();
   });
 
   describe("Successful requests", () => {
@@ -34,7 +40,7 @@ describe("handleGetScenarioDetails", () => {
         headers: {},
       };
 
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+      mockHttpClient.get.mockResolvedValue(mockResponse);
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",
@@ -42,9 +48,7 @@ describe("handleGetScenarioDetails", () => {
 
       const result = await handleGetScenarioDetails(mockHttpClient, apiEndpoint, event);
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith(
-        `${apiEndpoint}/scenarios/test-12345?history=false&latest=false`
-      );
+      expectGetCalledWith(mockHttpClient, `${apiEndpoint}/scenarios/test-12345?history=false&latest=false`);
       expect(result).toEqual(mockScenario);
     });
 
@@ -55,15 +59,13 @@ describe("handleGetScenarioDetails", () => {
         headers: {},
       };
 
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+      mockHttpClient.get.mockResolvedValue(mockResponse);
 
       const event: AgentCoreEvent = {
         test_id: "abc-123-xy",
       };
 
-      await expect(
-        handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)
-      ).resolves.toBeDefined();
+      await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).resolves.toBeDefined();
     });
 
     it("should include query parameters for history and latest", async () => {
@@ -73,7 +75,7 @@ describe("handleGetScenarioDetails", () => {
         headers: {},
       };
 
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+      mockHttpClient.get.mockResolvedValue(mockResponse);
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",
@@ -81,10 +83,8 @@ describe("handleGetScenarioDetails", () => {
 
       await handleGetScenarioDetails(mockHttpClient, apiEndpoint, event);
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith(
-        expect.stringContaining("history=false")
-      );
-      expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("latest=false"));
+      expectGetCalledWithContaining(mockHttpClient, "history=false");
+      expectGetCalledWithContaining(mockHttpClient, "latest=false");
     });
   });
 
@@ -92,9 +92,7 @@ describe("handleGetScenarioDetails", () => {
     it("should throw AppError for missing test_id", async () => {
       const event: AgentCoreEvent = {};
 
-      await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
+      await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
 
       try {
         await handleGetScenarioDetails(mockHttpClient, apiEndpoint, event);
@@ -109,9 +107,7 @@ describe("handleGetScenarioDetails", () => {
         test_id: "short",
       };
 
-      await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
+      await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
 
       try {
         await handleGetScenarioDetails(mockHttpClient, apiEndpoint, event);
@@ -126,9 +122,7 @@ describe("handleGetScenarioDetails", () => {
         test_id: "test_12345",
       };
 
-      await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
+      await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
 
       try {
         await handleGetScenarioDetails(mockHttpClient, apiEndpoint, event);
@@ -141,24 +135,14 @@ describe("handleGetScenarioDetails", () => {
 
   describe("Error handling", () => {
     it("should throw AppError when API returns non-200 status", async () => {
-      const mockResponse: HttpResponse = {
-        statusCode: 404,
-        body: "Scenario not found",
-        headers: {},
-      };
-
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+      mockErrorResponse(mockHttpClient, 404, "Scenario not found");
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",
       };
 
-      await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
-      await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        "Scenario not found"
-      );
+      await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
+      await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).rejects.toThrow("Scenario not found");
 
       try {
         await handleGetScenarioDetails(mockHttpClient, apiEndpoint, event);
@@ -168,21 +152,13 @@ describe("handleGetScenarioDetails", () => {
     });
 
     it("should throw AppError with 404 when scenario data is null", async () => {
-      const mockResponse: HttpResponse = {
-        statusCode: 200,
-        body: JSON.stringify(null),
-        headers: {},
-      };
-
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+      mockSuccessResponse(mockHttpClient, null);
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",
       };
 
-      await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
+      await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
       await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
         "Scenario not found: test-12345"
       );
@@ -195,15 +171,13 @@ describe("handleGetScenarioDetails", () => {
     });
 
     it("should throw AppError with 500 when HTTP client throws", async () => {
-      vi.mocked(mockHttpClient.get).mockRejectedValue(new Error("Network error"));
+      mockNetworkError(mockHttpClient, "Network error");
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",
       };
 
-      await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
+      await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
       await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
         "Internal request failed"
       );
@@ -222,7 +196,7 @@ describe("handleGetScenarioDetails", () => {
         headers: {},
       };
 
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+      mockHttpClient.get.mockResolvedValue(mockResponse);
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",

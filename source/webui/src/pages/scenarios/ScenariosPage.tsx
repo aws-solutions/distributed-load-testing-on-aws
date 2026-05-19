@@ -4,11 +4,13 @@
 import { useGetScenariosQuery } from "../../store/scenariosApiSlice.ts";
 import { Alert, StatusIndicator } from "@cloudscape-design/components";
 import ScenariosContent from "./ScenariosContent.tsx";
+import { usePageLoadMetric } from "../../hooks/usePageLoadMetric";
 
 export default function ScenariosPage() {
-  const { data, isLoading, error } = useGetScenariosQuery();
+  const { data, isLoading, isFetching, error, refetch } = useGetScenariosQuery();
+  usePageLoadMetric("Scenarios", { dataReady: !isLoading && !error });
   const scenariosArray = data?.Items || [];
-  const scenariosContent = <ScenariosContent scenarios={scenariosArray} />;
+  const scenariosContent = <ScenariosContent scenarios={scenariosArray} refetch={refetch} isFetching={isFetching} />;
 
   if (isLoading) {
     return <StatusIndicator type={isLoading ? "loading" : "error"}>Loading</StatusIndicator>;

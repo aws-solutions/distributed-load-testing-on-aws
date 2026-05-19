@@ -56,6 +56,7 @@ export interface MetricPayload {
   Version: string;
   UUID: string;
   TimeStamp: string;
+  AccountId: string;
   Data: MetricPayloadData;
 }
 

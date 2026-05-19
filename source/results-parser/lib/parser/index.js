@@ -1,7 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-const { CloudWatch } = require("@aws-sdk/client-cloudwatch");
 const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb");
 const { DynamoDB } = require("@aws-sdk/client-dynamodb");
 const { S3 } = require("@aws-sdk/client-s3");
@@ -308,43 +307,39 @@ async function finalResults(testId, data) {
   return testFinalResults;
 }
 
-// Updating history Table with test results
-async function putTestHistory(historyParams) {
+/**
+ * Updates the test history table with final test results, completed task count, and success percentage.
+ * @param {string} testId The unique identifier for the test scenario.
+ * @param {string} testRunId The unique identifier for this specific test run.
+ * @param {object} results The aggregated final test results object.
+ * @param {object} completeTasks The number of ECS tasks that completed successfully.
+ * @param {string} succPercent The percentage of successful requests (undefined when throughput is zero).
+ */
+async function updateTestHistoryResults({ testId, testRunId, results, completeTasks, succPercent }) {
   try {
-    const {
-      status,
-      testId,
-      finalResults: finalTestResults,
-      startTime,
-      endTime,
-      testTaskConfigs,
-      testScenario,
-      testDescription,
-      testType,
-      completeTasks,
-    } = historyParams;
-    const thisTestScenario = JSON.parse(testScenario);
-    const succPercent = ((finalTestResults["total"].succ / finalTestResults["total"].throughput) * 100).toFixed(2);
-    const history = {
-      testRunId: historyParams.testRunId,
-      startTime,
-      endTime,
-      results: finalTestResults,
-      status,
-      succPercent,
-      testId,
-      testTaskConfigs,
-      testScenario: thisTestScenario,
-      testDescription,
-      testType,
-      completeTasks,
-    };
+    // Validate results data exists before updating table
+    if (Object.keys(results).length === 0 || Object.keys(completeTasks).length === 0 || !succPercent) {
+      return;
+    }
+
     const ddbParams = {
       TableName: HISTORY_TABLE,
-      Item: history,
+      Key: { testId, testRunId },
+      UpdateExpression: "set #r = :r, #ct = :ct, #sp = :sp",
+      ExpressionAttributeNames: {
+        "#r": "results",
+        "#ct": "completeTasks",
+        "#sp": "succPercent",
+      },
+      ExpressionAttributeValues: {
+        ":r": results,
+        ":ct": completeTasks,
+        ":sp": succPercent,
+      },
     };
-    await dynamoDb.put(ddbParams);
+    await dynamoDb.update(ddbParams);
   } catch (err) {
+    console.error(`Error occured updating test history table after parsing results for testId=${testId}, testRunId=${testRunId}`);
     console.error(err);
     throw err;
   }
@@ -352,24 +347,20 @@ async function putTestHistory(historyParams) {
 
 // Updating scenarios table with test results
 async function updateTable(params) {
-  const { status, testId, finalResults: finalTestResults, endTime, completeTasks } = params;
+  const { testId, finalResults: finalTestResults, completeTasks } = params;
 
   const ddbUpdateParams = {
     TableName: SCENARIOS_TABLE,
     Key: {
       testId: testId,
     },
-    UpdateExpression: "set #r = :r, #t = :t, #s = :s, #ct = :ct",
+    UpdateExpression: "set #r = :r, #ct = :ct",
     ExpressionAttributeNames: {
       "#r": "results",
-      "#t": "endTime",
-      "#s": "status",
       "#ct": "completeTasks",
     },
     ExpressionAttributeValues: {
       ":r": finalTestResults,
-      ":t": endTime,
-      ":s": status,
       ":ct": completeTasks,
     },
     ReturnValues: "ALL_NEW",
@@ -378,116 +369,9 @@ async function updateTable(params) {
   return "Success";
 }
 
-function getWidgetMetrics(testId, options) {
-  const metrics = [];
-  const metricOptions = {
-    avgRt: {
-      label: "Avg Response Time",
-      color: "#FF9900",
-    },
-    numVu: {
-      label: "Accumulated Virtual Users Activities",
-      color: "#1f77b4",
-    },
-    numSucc: {
-      label: "Successes",
-      color: "#2CA02C",
-    },
-    numFail: {
-      label: "Failures",
-      color: "#D62728",
-    },
-  };
-
-  for (const key in metricOptions) {
-    let metric = [];
-    let addedOptions = {};
-    //add either stat or expression
-    if (options.expression) {
-      addedOptions.expression =
-        key === "avgRt" ? `AVG([${options.expression[key]}])` : `SUM([${options.expression[key]}])`;
-    } else {
-      addedOptions = options;
-      metric = ["distributed-load-testing", `${testId}-${key}`];
-      key !== "avgRt" && (metricOptions[key].stat = "Sum");
-    }
-    //if key is not avgRt add sum and yAxis options
-    key !== "avgRt" && (metricOptions[key].yAxis = "right");
-
-    //add in provided options
-    metricOptions[key] = { ...metricOptions[key], ...addedOptions };
-
-    metric.push(metricOptions[key]);
-    metrics.push(metric);
-  }
-
-  return metrics;
-}
-
-async function createWidget(startTime, endTime, region, testId, metrics) {
-  if (region !== "total") {
-    metrics = getWidgetMetrics(testId, { region: region });
-  } else {
-    const metricIds = { avgRt: [], numVu: [], numSucc: [], numFail: [] };
-    metrics = metrics.map((metric) => {
-      const metricName = metric[1].split("-").pop();
-      const metricId = `${metricName}${metricIds[metricName].length}`;
-      metricIds[metricName].push(metricId);
-      metric[2] = { ...metric[2], visible: false, id: metricId };
-      return metric;
-    });
-    metrics = metrics.concat(getWidgetMetrics(testId, { expression: metricIds }));
-  }
-
-  const widget = {
-    title: `CloudWatchMetrics-${region}`,
-    width: 600,
-    height: 395,
-    metrics: metrics,
-    period: 10,
-    yAxis: {
-      left: {
-        showUnits: false,
-        label: "Seconds",
-      },
-      right: {
-        showUnits: false,
-        label: "Total",
-      },
-    },
-    stat: "Average",
-    view: "timeSeries",
-    start: new Date(startTime).toISOString(),
-    end: new Date(endTime).toISOString(),
-  };
-  const cwParams = {
-    MetricWidget: JSON.stringify(widget),
-  };
-  console.log(JSON.stringify(widget));
-  // Write the image to S3, store the object key in DDB
-  awsOptions.region = region === "total" ? AWS_REGION : region;
-  const cloudwatch = new CloudWatch(awsOptions);
-  const image = await cloudwatch.getMetricWidgetImage(cwParams);
-  const metricWidgetImage = Buffer.from(image.MetricWidgetImage).toString("base64");
-  const metricImageTitle = `${widget.title}-${widget.start}`;
-  const metricS3ObjectKey = `cloudwatch-images/${testId}/${metricImageTitle}`;
-  const s3PutObjectParams = {
-    Body: metricWidgetImage,
-    Bucket: process.env.SCENARIOS_BUCKET,
-    Key: `public/${metricS3ObjectKey}`,
-    ContentEncoding: "base64",
-    ContentType: "image/jpeg",
-  };
-  await s3.putObject(s3PutObjectParams);
-  console.log(`Wrote metric widget public/${metricS3ObjectKey} to S3 bucket`);
-
-  return { metricS3Location: metricS3ObjectKey, metrics: widget.metrics };
-}
-
 module.exports = {
   results,
   finalResults,
-  createWidget,
-  putTestHistory,
+  updateTestHistoryResults,
   updateTable,
 };

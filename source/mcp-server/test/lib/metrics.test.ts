@@ -3,15 +3,17 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-    approximateTokenCount,
-    sendToolUsageMetric,
-    toolUsageMetricSchemaVersion,
-    toolUsageMetricType,
-    toolUsageUserAgent,
+  approximateTokenCount,
+  type MetricEnvelope,
+  sendToolUsageMetric,
+  toolUsageMetricSchemaVersion,
+  toolUsageMetricType,
+  toolUsageUserAgent,
 } from "../../src/lib/metrics.js";
 
 // Mock config module
 vi.mock("../../src/lib/config.js", () => ({
+  getAwsAccountId: vi.fn(() => "123456789012"),
   getSolutionId: vi.fn(() => "test-solution-id"),
   getUuid: vi.fn(() => "test-uuid"),
   getVersion: vi.fn(() => "1.0.0"),
@@ -24,7 +26,9 @@ global.fetch = vi.fn();
 describe("Metrics", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation((): void => {
+      // Intentionally empty - suppress console output during tests
+    });
   });
 
   describe("approximateTokenCount", () => {
@@ -81,11 +85,16 @@ describe("Metrics", () => {
       );
 
       const callArgs = vi.mocked(fetch).mock.calls[0];
-      const body = JSON.parse(callArgs[1]?.body as string);
+      if (!callArgs) {
+        throw new Error("Expected fetch to be called");
+      }
+      const body = JSON.parse(callArgs[1]?.body as string) as MetricEnvelope;
 
       expect(body.Solution).toBe("test-solution-id");
       expect(body.UUID).toBe("test-uuid");
       expect(body.Version).toBe("1.0.0");
+      expect(body.MetricSchemaVersion).toBe(1);
+      expect(body.AccountId).toBe("123456789012");
       expect(body.Data).toEqual(metric);
       expect(body.TimeStamp).toBeDefined();
     });
@@ -110,7 +119,10 @@ describe("Metrics", () => {
       await sendToolUsageMetric(metric);
 
       const callArgs = vi.mocked(fetch).mock.calls[0];
-      const body = JSON.parse(callArgs[1]?.body as string);
+      if (!callArgs) {
+        throw new Error("Expected fetch to be called");
+      }
+      const body = JSON.parse(callArgs[1]?.body as string) as MetricEnvelope;
 
       // Timestamp should be in format: "YYYY-MM-DD HH:mm:ss.SSS"
       expect(body.TimeStamp).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$/);
@@ -135,9 +147,7 @@ describe("Metrics", () => {
 
       await sendToolUsageMetric(metric);
 
-      expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining("Failed to send tool usage metrics: 500")
-      );
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining("Failed to send tool usage metrics: 500"));
     });
 
     it("should silently catch network errors", async () => {
@@ -155,10 +165,7 @@ describe("Metrics", () => {
       };
 
       await expect(sendToolUsageMetric(metric)).resolves.toBeUndefined();
-      expect(console.error).toHaveBeenCalledWith(
-        "Failed to send tool usage metrics:",
-        expect.any(Error)
-      );
+      expect(console.error).toHaveBeenCalledWith("Failed to send tool usage metrics:", expect.any(Error));
     });
 
     it("should handle failure metrics", async () => {
@@ -182,7 +189,10 @@ describe("Metrics", () => {
 
       expect(fetch).toHaveBeenCalled();
       const callArgs = vi.mocked(fetch).mock.calls[0];
-      const body = JSON.parse(callArgs[1]?.body as string);
+      if (!callArgs) {
+        throw new Error("Expected fetch to be called");
+      }
+      const body = JSON.parse(callArgs[1]?.body as string) as MetricEnvelope;
 
       expect(body.Data.Status).toBe("failure");
       expect(body.Data.StatusCode).toBe(404);

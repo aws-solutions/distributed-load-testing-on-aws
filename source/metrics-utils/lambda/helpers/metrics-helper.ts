@@ -178,12 +178,13 @@ export class MetricsHelper {
     };
 
     try {
-      const { SOLUTION_ID, SOLUTION_VERSION, UUID } = process.env;
+      const { SOLUTION_ID, SOLUTION_VERSION, UUID, ACCOUNT_ID } = process.env;
       const payload: MetricPayload = {
         Solution: SOLUTION_ID as string,
         Version: SOLUTION_VERSION as string,
         UUID: UUID as string,
         TimeStamp: new Date().toISOString().replace("T", " ").replace("Z", ""),
+        AccountId: ACCOUNT_ID as string,
         Data: {
           DataStartTime: startTime.toISOString().replace("T", " ").replace("Z", ""),
           DataEndTime: endTime.toISOString().replace("T", " ").replace("Z", ""),

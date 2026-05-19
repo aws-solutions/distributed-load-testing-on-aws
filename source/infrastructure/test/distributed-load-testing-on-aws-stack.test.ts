@@ -7,7 +7,7 @@ import { Solution } from "../bin/solution";
 import { createTemplateWithoutS3Key } from "./snapshot_helpers";
 
 test("Distributed Load Testing stack test", () => {
-  const app = new App();
+  const app = new App({ context: { "aws:cdk:bundling-stacks": [] } });
   const solution = new Solution("testId", "DLT", "testVersion", "mainStackDescription");
   process.env.PUBLIC_ECR_REGISTRY = "registry";
   process.env.PUBLIC_ECR_TAG = "tag";
@@ -22,6 +22,7 @@ test("Distributed Load Testing stack test", () => {
     }),
     solution,
     stackType: "main",
+    solutionTemplate: "cloudfront",
   });
   expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();
 });

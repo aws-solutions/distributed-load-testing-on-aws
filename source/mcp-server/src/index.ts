@@ -44,7 +44,7 @@ export const handler = async (event: AgentCoreEvent, context: AgentCoreContext):
     const apiEndpoint = getApiGatewayEndpoint();
 
     // Route to appropriate tool handler with validated parameters
-    let result: any;
+    let result: unknown;
     switch (toolName) {
       case "list_scenarios":
         result = await handleListScenarios(httpClient, apiEndpoint, event);

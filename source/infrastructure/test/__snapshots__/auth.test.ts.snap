@@ -1,8 +1,35 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`DLT API Test 1`] = `
 {
+  "Conditions": {
+    "TestAuthIsGovCloudEastRegionCD181886": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Region",
+        },
+        "us-gov-east-1",
+      ],
+    },
+    "TestAuthIsGovCloudPartition5CDE4AF8": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Partition",
+        },
+        "aws-us-gov",
+      ],
+    },
+  },
   "Resources": {
+    "MCPServerDLTUserPoolDomainA26D16C0": {
+      "Properties": {
+        "Domain": "dlt-test-uuid-1234",
+        "UserPoolId": {
+          "Ref": "TestAuthDLTUserPool047D7286",
+        },
+      },
+      "Type": "AWS::Cognito::UserPoolDomain",
+    },
     "TestAuthCognitoAttachRole3C8C2843": {
       "Properties": {
         "IdentityPoolId": {
@@ -24,6 +51,324 @@ exports[`DLT API Test 1`] = `
         },
       },
       "Type": "AWS::Cognito::IdentityPoolRoleAttachment",
+    },
+    "TestAuthCognitoHostedUiLambda0EB7281A": {
+      "DependsOn": [
+        "TestAuthCognitoHostedUiLambdaServiceRoleDefaultPolicy43A09296",
+        "TestAuthCognitoHostedUiLambdaServiceRole0B5130D1",
+      ],
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "LAMBDA_INSIDE_VPC",
+            "LAMBDA_CONCURRENCY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "TestAuthCognitoHostedUiLambdaServiceRole0B5130D1",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 300,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TestAuthCognitoHostedUiLambdaServiceRole0B5130D1": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestAuthCognitoHostedUiLambdaServiceRoleDefaultPolicy43A09296": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "cognito-idp:SetUICustomization",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "TestAuthDLTUserPool047D7286",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestAuthCognitoHostedUiLambdaServiceRoleDefaultPolicy43A09296",
+        "Roles": [
+          {
+            "Ref": "TestAuthCognitoHostedUiLambdaServiceRole0B5130D1",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestAuthCognitoHostedUiProviderframeworkonEvent0E30F375": {
+      "DependsOn": [
+        "TestAuthCognitoHostedUiProviderframeworkonEventServiceRoleDefaultPolicy47B24B4C",
+        "TestAuthCognitoHostedUiProviderframeworkonEventServiceRoleEDF7C5DD",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W89",
+              "reason": "Lambda function for Cognito UI customization does not need to be in a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Lambda function for Cognito UI customization does not need reserved concurrency",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "AWS CDK resource provider framework - onEvent (DLTStack/TestAuth/CognitoHostedUiProvider)",
+        "Environment": {
+          "Variables": {
+            "USER_ON_EVENT_FUNCTION_ARN": {
+              "Fn::GetAtt": [
+                "TestAuthCognitoHostedUiLambda0EB7281A",
+                "Arn",
+              ],
+            },
+          },
+        },
+        "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "TestAuthCognitoHostedUiProviderframeworkonEventServiceRoleEDF7C5DD",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs22.x",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TestAuthCognitoHostedUiProviderframeworkonEventServiceRoleDefaultPolicy47B24B4C": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "TestAuthCognitoHostedUiLambda0EB7281A",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "TestAuthCognitoHostedUiLambda0EB7281A",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "TestAuthCognitoHostedUiLambda0EB7281A",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestAuthCognitoHostedUiProviderframeworkonEventServiceRoleDefaultPolicy47B24B4C",
+        "Roles": [
+          {
+            "Ref": "TestAuthCognitoHostedUiProviderframeworkonEventServiceRoleEDF7C5DD",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestAuthCognitoHostedUiProviderframeworkonEventServiceRoleEDF7C5DD": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestAuthCognitoLogDeliveryConfiguration3B566789": {
+      "Properties": {
+        "LogConfigurations": [
+          {
+            "CloudWatchLogsConfiguration": {
+              "LogGroupArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":logs:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":log-group:",
+                    {
+                      "Ref": "TestAuthCognitoUserPoolLogGroup35761FBE",
+                    },
+                  ],
+                ],
+              },
+            },
+            "EventSource": "userAuthEvents",
+            "LogLevel": "INFO",
+          },
+          {
+            "CloudWatchLogsConfiguration": {
+              "LogGroupArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":logs:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":log-group:",
+                    {
+                      "Ref": "TestAuthCognitoUserPoolLogGroup35761FBE",
+                    },
+                  ],
+                ],
+              },
+            },
+            "EventSource": "userNotification",
+            "LogLevel": "ERROR",
+          },
+        ],
+        "UserPoolId": {
+          "Ref": "TestAuthDLTUserPool047D7286",
+        },
+      },
+      "Type": "AWS::Cognito::LogDeliveryConfiguration",
+    },
+    "TestAuthCognitoUICustomization8EF75BD1": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "MCPServerDLTUserPoolDomainA26D16C0",
+        "TestAuthDLTUserPoolClient68D1C3B2",
+      ],
+      "Properties": {
+        "CSS": ".banner-customizable { background-color: #232f3e; padding: 25px 0px; } .logo-customizable { max-width: 350px; max-height: 80px; } .submitButton-customizable { background-color: #ec7211; } .submitButton-customizable:hover { background-color: #eb5f07; }",
+        "ImageFileBase64": "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",
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "TestAuthCognitoHostedUiProviderframeworkonEvent0E30F375",
+            "Arn",
+          ],
+        },
+        "UserPoolId": {
+          "Ref": "TestAuthDLTUserPool047D7286",
+        },
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
     },
     "TestAuthCognitoUser7FC8B6DF": {
       "Properties": {
@@ -52,6 +397,21 @@ exports[`DLT API Test 1`] = `
       },
       "Type": "AWS::Cognito::UserPoolUser",
     },
+    "TestAuthCognitoUserPoolLogGroup35761FBE": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
     "TestAuthDLTCognitoAuthorizedRole00B36330": {
       "Metadata": {
         "cfn_nag": {
@@ -71,21 +431,65 @@ exports[`DLT API Test 1`] = `
         "AssumeRolePolicyDocument": {
           "Statement": [
             {
-              "Action": "sts:AssumeRoleWithWebIdentity",
-              "Condition": {
-                "ForAnyValue:StringLike": {
-                  "cognito-identity.amazonaws.com:amr": "authenticated",
+              "Fn::If": [
+                "TestAuthIsGovCloudPartition5CDE4AF8",
+                {
+                  "Fn::If": [
+                    "TestAuthIsGovCloudEastRegionCD181886",
+                    {
+                      "Action": "sts:AssumeRoleWithWebIdentity",
+                      "Condition": {
+                        "ForAnyValue:StringLike": {
+                          "cognito-identity.us-gov-east-1.amazonaws.com:amr": "authenticated",
+                        },
+                        "StringEquals": {
+                          "cognito-identity.us-gov-east-1.amazonaws.com:aud": {
+                            "Ref": "TestAuthDLTIdentityPoolCE53676D",
+                          },
+                        },
+                      },
+                      "Effect": "Allow",
+                      "Principal": {
+                        "Federated": "cognito-identity.us-gov-east-1.amazonaws.com",
+                      },
+                    },
+                    {
+                      "Action": "sts:AssumeRoleWithWebIdentity",
+                      "Condition": {
+                        "ForAnyValue:StringLike": {
+                          "cognito-identity-us-gov.amazonaws.com:amr": "authenticated",
+                        },
+                        "StringEquals": {
+                          "cognito-identity-us-gov.amazonaws.com:aud": {
+                            "Ref": "TestAuthDLTIdentityPoolCE53676D",
+                          },
+                        },
+                      },
+                      "Effect": "Allow",
+                      "Principal": {
+                        "Federated": "cognito-identity-us-gov.amazonaws.com",
+                      },
+                    },
+                  ],
                 },
-                "StringEquals": {
-                  "cognito-identity.amazonaws.com:aud": {
-                    "Ref": "TestAuthDLTIdentityPoolCE53676D",
+                {
+                  "Action": "sts:AssumeRoleWithWebIdentity",
+                  "Condition": {
+                    "ForAnyValue:StringLike": {
+                      "cognito-identity.amazonaws.com:amr": "authenticated",
+                    },
+                    "StringEquals": {
+                      "cognito-identity.amazonaws.com:aud": {
+                        "Ref": "TestAuthDLTIdentityPoolCE53676D",
+                      },
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Federated": "cognito-identity.amazonaws.com",
                   },
                 },
-              },
-              "Effect": "Allow",
-              "Principal": {
-                "Federated": "cognito-identity.amazonaws.com",
-              },
+              ],
             },
           ],
           "Version": "2012-10-17",
@@ -135,15 +539,17 @@ exports[`DLT API Test 1`] = `
                     "s3:GetObject",
                   ],
                   "Effect": "Allow",
-                  "Resource": [
-                    "arn:aws:s3:::DOC-EXAMPLE-BUCKET/public/*",
-                    "arn:aws:s3:::DOC-EXAMPLE-BUCKET/cloudWatchImages/*",
-                  ],
+                  "Resource": "arn:aws:s3:::DOC-EXAMPLE-BUCKET/public/*",
                 },
                 {
                   "Action": "s3:GetObject",
                   "Effect": "Allow",
                   "Resource": "arn:aws:s3:::DOC-EXAMPLE-BUCKET/results/*",
+                },
+                {
+                  "Action": "s3:GetObject",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:s3:::DOC-EXAMPLE-BUCKET/regional-template/*",
                 },
                 {
                   "Action": "s3:ListBucket",
@@ -206,7 +612,7 @@ exports[`DLT API Test 1`] = `
                         {
                           "Ref": "AWS::AccountId",
                         },
-                        ":topicfilter/*",
+                        ":topicfilter/dlt/*",
                       ],
                     ],
                   },
@@ -230,7 +636,7 @@ exports[`DLT API Test 1`] = `
                         {
                           "Ref": "AWS::AccountId",
                         },
-                        ":topic/*",
+                        ":topic/dlt/*",
                       ],
                     ],
                   },
@@ -249,21 +655,65 @@ exports[`DLT API Test 1`] = `
         "AssumeRolePolicyDocument": {
           "Statement": [
             {
-              "Action": "sts:AssumeRoleWithWebIdentity",
-              "Condition": {
-                "ForAnyValue:StringLike": {
-                  "cognito-identity.amazonaws.com:amr": "unauthenticated",
+              "Fn::If": [
+                "TestAuthIsGovCloudPartition5CDE4AF8",
+                {
+                  "Fn::If": [
+                    "TestAuthIsGovCloudEastRegionCD181886",
+                    {
+                      "Action": "sts:AssumeRoleWithWebIdentity",
+                      "Condition": {
+                        "ForAnyValue:StringLike": {
+                          "cognito-identity.us-gov-east-1.amazonaws.com:amr": "unauthenticated",
+                        },
+                        "StringEquals": {
+                          "cognito-identity.us-gov-east-1.amazonaws.com:aud": {
+                            "Ref": "TestAuthDLTIdentityPoolCE53676D",
+                          },
+                        },
+                      },
+                      "Effect": "Allow",
+                      "Principal": {
+                        "Federated": "cognito-identity.us-gov-east-1.amazonaws.com",
+                      },
+                    },
+                    {
+                      "Action": "sts:AssumeRoleWithWebIdentity",
+                      "Condition": {
+                        "ForAnyValue:StringLike": {
+                          "cognito-identity-us-gov.amazonaws.com:amr": "unauthenticated",
+                        },
+                        "StringEquals": {
+                          "cognito-identity-us-gov.amazonaws.com:aud": {
+                            "Ref": "TestAuthDLTIdentityPoolCE53676D",
+                          },
+                        },
+                      },
+                      "Effect": "Allow",
+                      "Principal": {
+                        "Federated": "cognito-identity-us-gov.amazonaws.com",
+                      },
+                    },
+                  ],
                 },
-                "StringEquals": {
-                  "cognito-identity.amazonaws.com:aud": {
-                    "Ref": "TestAuthDLTIdentityPoolCE53676D",
+                {
+                  "Action": "sts:AssumeRoleWithWebIdentity",
+                  "Condition": {
+                    "ForAnyValue:StringLike": {
+                      "cognito-identity.amazonaws.com:amr": "unauthenticated",
+                    },
+                    "StringEquals": {
+                      "cognito-identity.amazonaws.com:aud": {
+                        "Ref": "TestAuthDLTIdentityPoolCE53676D",
+                      },
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Federated": "cognito-identity.amazonaws.com",
                   },
                 },
-              },
-              "Effect": "Allow",
-              "Principal": {
-                "Federated": "cognito-identity.amazonaws.com",
-              },
+              ],
             },
           ],
           "Version": "2012-10-17",
@@ -378,19 +828,21 @@ exports[`DLT API Test 1`] = `
     "TestAuthDLTUserPoolClient68D1C3B2": {
       "Properties": {
         "AllowedOAuthFlows": [
-          "implicit",
           "code",
         ],
         "AllowedOAuthFlowsUserPoolClient": true,
         "AllowedOAuthScopes": [
-          "profile",
-          "phone",
-          "email",
           "openid",
-          "aws.cognito.signin.user.admin",
+          "email",
+          "profile",
         ],
         "CallbackURLs": [
-          "https://example.com",
+          "test.com",
+          "test.com/",
+          "http://localhost:3000",
+          "http://localhost:3000/",
+          "http://localhost:7521/callback",
+          "http://localhost:3000/callback",
         ],
         "ClientName": {
           "Fn::Join": [
@@ -403,7 +855,23 @@ exports[`DLT API Test 1`] = `
             ],
           ],
         },
+        "EnableTokenRevocation": true,
+        "ExplicitAuthFlows": [
+          "ALLOW_USER_SRP_AUTH",
+        ],
         "GenerateSecret": false,
+        "LogoutURLs": [
+          "test.com",
+          "test.com/",
+          "http://localhost:3000",
+          "http://localhost:3000/",
+          "http://localhost:7521/callback",
+          "http://localhost:3000/callback",
+        ],
+        "RefreshTokenRotation": {
+          "Feature": "ENABLED",
+          "RetryGracePeriodSeconds": 60,
+        },
         "RefreshTokenValidity": 1440,
         "SupportedIdentityProviders": [
           "COGNITO",
@@ -479,7 +947,7 @@ exports[`DLT API Test 1`] = `
                     {
                       "Ref": "AWS::AccountId",
                     },
-                    ":topicfilter/*",
+                    ":topicfilter/dlt/*",
                   ],
                 ],
               },
@@ -503,7 +971,989 @@ exports[`DLT API Test 1`] = `
                     {
                       "Ref": "AWS::AccountId",
                     },
-                    ":topic/*",
+                    ":topic/dlt/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IoT::Policy",
+    },
+  },
+}
+`;
+
+exports[`DLT Auth with isConsoleHostedExternally 1`] = `
+{
+  "Conditions": {
+    "TestAuthIsGovCloudEastRegionCD181886": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Region",
+        },
+        "us-gov-east-1",
+      ],
+    },
+    "TestAuthIsGovCloudPartition5CDE4AF8": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Partition",
+        },
+        "aws-us-gov",
+      ],
+    },
+  },
+  "Resources": {
+    "MCPServerDLTUserPoolDomainA26D16C0": {
+      "Properties": {
+        "Domain": "dlt-test-uuid-1234",
+        "UserPoolId": {
+          "Ref": "TestAuthDLTUserPool047D7286",
+        },
+      },
+      "Type": "AWS::Cognito::UserPoolDomain",
+    },
+    "TestAuthCognitoAttachRole3C8C2843": {
+      "Properties": {
+        "IdentityPoolId": {
+          "Ref": "TestAuthDLTIdentityPoolCE53676D",
+        },
+        "Roles": {
+          "authenticated": {
+            "Fn::GetAtt": [
+              "TestAuthDLTCognitoAuthorizedRole00B36330",
+              "Arn",
+            ],
+          },
+          "unauthenticated": {
+            "Fn::GetAtt": [
+              "TestAuthDLTCognitoUnauthorizedRole3D399466",
+              "Arn",
+            ],
+          },
+        },
+      },
+      "Type": "AWS::Cognito::IdentityPoolRoleAttachment",
+    },
+    "TestAuthCognitoHostedUiLambda0EB7281A": {
+      "DependsOn": [
+        "TestAuthCognitoHostedUiLambdaServiceRoleDefaultPolicy43A09296",
+        "TestAuthCognitoHostedUiLambdaServiceRole0B5130D1",
+      ],
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "LAMBDA_INSIDE_VPC",
+            "LAMBDA_CONCURRENCY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "TestAuthCognitoHostedUiLambdaServiceRole0B5130D1",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 300,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TestAuthCognitoHostedUiLambdaServiceRole0B5130D1": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestAuthCognitoHostedUiLambdaServiceRoleDefaultPolicy43A09296": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "cognito-idp:SetUICustomization",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "TestAuthDLTUserPool047D7286",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestAuthCognitoHostedUiLambdaServiceRoleDefaultPolicy43A09296",
+        "Roles": [
+          {
+            "Ref": "TestAuthCognitoHostedUiLambdaServiceRole0B5130D1",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestAuthCognitoHostedUiProviderframeworkonEvent0E30F375": {
+      "DependsOn": [
+        "TestAuthCognitoHostedUiProviderframeworkonEventServiceRoleDefaultPolicy47B24B4C",
+        "TestAuthCognitoHostedUiProviderframeworkonEventServiceRoleEDF7C5DD",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W89",
+              "reason": "Lambda function for Cognito UI customization does not need to be in a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Lambda function for Cognito UI customization does not need reserved concurrency",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "AWS CDK resource provider framework - onEvent (DLTStack/TestAuth/CognitoHostedUiProvider)",
+        "Environment": {
+          "Variables": {
+            "USER_ON_EVENT_FUNCTION_ARN": {
+              "Fn::GetAtt": [
+                "TestAuthCognitoHostedUiLambda0EB7281A",
+                "Arn",
+              ],
+            },
+          },
+        },
+        "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "TestAuthCognitoHostedUiProviderframeworkonEventServiceRoleEDF7C5DD",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs22.x",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TestAuthCognitoHostedUiProviderframeworkonEventServiceRoleDefaultPolicy47B24B4C": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "TestAuthCognitoHostedUiLambda0EB7281A",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "TestAuthCognitoHostedUiLambda0EB7281A",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "TestAuthCognitoHostedUiLambda0EB7281A",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TestAuthCognitoHostedUiProviderframeworkonEventServiceRoleDefaultPolicy47B24B4C",
+        "Roles": [
+          {
+            "Ref": "TestAuthCognitoHostedUiProviderframeworkonEventServiceRoleEDF7C5DD",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TestAuthCognitoHostedUiProviderframeworkonEventServiceRoleEDF7C5DD": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestAuthCognitoLogDeliveryConfiguration3B566789": {
+      "Properties": {
+        "LogConfigurations": [
+          {
+            "CloudWatchLogsConfiguration": {
+              "LogGroupArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":logs:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":log-group:",
+                    {
+                      "Ref": "TestAuthCognitoUserPoolLogGroup35761FBE",
+                    },
+                  ],
+                ],
+              },
+            },
+            "EventSource": "userAuthEvents",
+            "LogLevel": "INFO",
+          },
+          {
+            "CloudWatchLogsConfiguration": {
+              "LogGroupArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":logs:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":log-group:",
+                    {
+                      "Ref": "TestAuthCognitoUserPoolLogGroup35761FBE",
+                    },
+                  ],
+                ],
+              },
+            },
+            "EventSource": "userNotification",
+            "LogLevel": "ERROR",
+          },
+        ],
+        "UserPoolId": {
+          "Ref": "TestAuthDLTUserPool047D7286",
+        },
+      },
+      "Type": "AWS::Cognito::LogDeliveryConfiguration",
+    },
+    "TestAuthCognitoUICustomization8EF75BD1": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "MCPServerDLTUserPoolDomainA26D16C0",
+        "TestAuthDLTUserPoolClient68D1C3B2",
+      ],
+      "Properties": {
+        "CSS": ".banner-customizable { background-color: #232f3e; padding: 25px 0px; } .logo-customizable { max-width: 350px; max-height: 80px; } .submitButton-customizable { background-color: #ec7211; } .submitButton-customizable:hover { background-color: #eb5f07; }",
+        "ImageFileBase64": "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",
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "TestAuthCognitoHostedUiProviderframeworkonEvent0E30F375",
+            "Arn",
+          ],
+        },
+        "UserPoolId": {
+          "Ref": "TestAuthDLTUserPool047D7286",
+        },
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "TestAuthCognitoUser7FC8B6DF": {
+      "Properties": {
+        "DesiredDeliveryMediums": [
+          "EMAIL",
+        ],
+        "ForceAliasCreation": true,
+        "UserAttributes": [
+          {
+            "Name": "email",
+            "Value": "email",
+          },
+          {
+            "Name": "nickname",
+            "Value": "testname",
+          },
+          {
+            "Name": "email_verified",
+            "Value": "true",
+          },
+        ],
+        "UserPoolId": {
+          "Ref": "TestAuthDLTUserPool047D7286",
+        },
+        "Username": "testname",
+      },
+      "Type": "AWS::Cognito::UserPoolUser",
+    },
+    "TestAuthCognitoUserPoolLogGroup35761FBE": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TestAuthDLTCognitoAuthorizedRole00B36330": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W11",
+              "reason": "iot:AttachPolicy does not allow for resource specification",
+            },
+            {
+              "id": "F10",
+              "reason": "requires inline policies",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Fn::If": [
+                "TestAuthIsGovCloudPartition5CDE4AF8",
+                {
+                  "Fn::If": [
+                    "TestAuthIsGovCloudEastRegionCD181886",
+                    {
+                      "Action": "sts:AssumeRoleWithWebIdentity",
+                      "Condition": {
+                        "ForAnyValue:StringLike": {
+                          "cognito-identity.us-gov-east-1.amazonaws.com:amr": "authenticated",
+                        },
+                        "StringEquals": {
+                          "cognito-identity.us-gov-east-1.amazonaws.com:aud": {
+                            "Ref": "TestAuthDLTIdentityPoolCE53676D",
+                          },
+                        },
+                      },
+                      "Effect": "Allow",
+                      "Principal": {
+                        "Federated": "cognito-identity.us-gov-east-1.amazonaws.com",
+                      },
+                    },
+                    {
+                      "Action": "sts:AssumeRoleWithWebIdentity",
+                      "Condition": {
+                        "ForAnyValue:StringLike": {
+                          "cognito-identity-us-gov.amazonaws.com:amr": "authenticated",
+                        },
+                        "StringEquals": {
+                          "cognito-identity-us-gov.amazonaws.com:aud": {
+                            "Ref": "TestAuthDLTIdentityPoolCE53676D",
+                          },
+                        },
+                      },
+                      "Effect": "Allow",
+                      "Principal": {
+                        "Federated": "cognito-identity-us-gov.amazonaws.com",
+                      },
+                    },
+                  ],
+                },
+                {
+                  "Action": "sts:AssumeRoleWithWebIdentity",
+                  "Condition": {
+                    "ForAnyValue:StringLike": {
+                      "cognito-identity.amazonaws.com:amr": "authenticated",
+                    },
+                    "StringEquals": {
+                      "cognito-identity.amazonaws.com:aud": {
+                        "Ref": "TestAuthDLTIdentityPoolCE53676D",
+                      },
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Federated": "cognito-identity.amazonaws.com",
+                  },
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              " Identity Pool authenticated role",
+            ],
+          ],
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "execute-api:Invoke",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":execute-api:",
+                        {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":apiId12345/prod/*",
+                      ],
+                    ],
+                  },
+                },
+                {
+                  "Action": [
+                    "s3:PutObject",
+                    "s3:GetObject",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:s3:::DOC-EXAMPLE-BUCKET/public/*",
+                },
+                {
+                  "Action": "s3:GetObject",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:s3:::DOC-EXAMPLE-BUCKET/results/*",
+                },
+                {
+                  "Action": "s3:GetObject",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:s3:::DOC-EXAMPLE-BUCKET/regional-template/*",
+                },
+                {
+                  "Action": "s3:ListBucket",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:s3:::DOC-EXAMPLE-BUCKET",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "InvokeApiPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "iot:AttachPolicy",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                {
+                  "Action": "iot:Connect",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iot:",
+                        {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":client/*",
+                      ],
+                    ],
+                  },
+                },
+                {
+                  "Action": "iot:Subscribe",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iot:",
+                        {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":topicfilter/dlt/*",
+                      ],
+                    ],
+                  },
+                },
+                {
+                  "Action": "iot:Receive",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iot:",
+                        {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":topic/dlt/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "IoTPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestAuthDLTCognitoUnauthorizedRole3D399466": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Fn::If": [
+                "TestAuthIsGovCloudPartition5CDE4AF8",
+                {
+                  "Fn::If": [
+                    "TestAuthIsGovCloudEastRegionCD181886",
+                    {
+                      "Action": "sts:AssumeRoleWithWebIdentity",
+                      "Condition": {
+                        "ForAnyValue:StringLike": {
+                          "cognito-identity.us-gov-east-1.amazonaws.com:amr": "unauthenticated",
+                        },
+                        "StringEquals": {
+                          "cognito-identity.us-gov-east-1.amazonaws.com:aud": {
+                            "Ref": "TestAuthDLTIdentityPoolCE53676D",
+                          },
+                        },
+                      },
+                      "Effect": "Allow",
+                      "Principal": {
+                        "Federated": "cognito-identity.us-gov-east-1.amazonaws.com",
+                      },
+                    },
+                    {
+                      "Action": "sts:AssumeRoleWithWebIdentity",
+                      "Condition": {
+                        "ForAnyValue:StringLike": {
+                          "cognito-identity-us-gov.amazonaws.com:amr": "unauthenticated",
+                        },
+                        "StringEquals": {
+                          "cognito-identity-us-gov.amazonaws.com:aud": {
+                            "Ref": "TestAuthDLTIdentityPoolCE53676D",
+                          },
+                        },
+                      },
+                      "Effect": "Allow",
+                      "Principal": {
+                        "Federated": "cognito-identity-us-gov.amazonaws.com",
+                      },
+                    },
+                  ],
+                },
+                {
+                  "Action": "sts:AssumeRoleWithWebIdentity",
+                  "Condition": {
+                    "ForAnyValue:StringLike": {
+                      "cognito-identity.amazonaws.com:amr": "unauthenticated",
+                    },
+                    "StringEquals": {
+                      "cognito-identity.amazonaws.com:aud": {
+                        "Ref": "TestAuthDLTIdentityPoolCE53676D",
+                      },
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Federated": "cognito-identity.amazonaws.com",
+                  },
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TestAuthDLTIdentityPoolCE53676D": {
+      "Properties": {
+        "AllowUnauthenticatedIdentities": false,
+        "CognitoIdentityProviders": [
+          {
+            "ClientId": {
+              "Ref": "TestAuthDLTUserPoolClient68D1C3B2",
+            },
+            "ProviderName": {
+              "Fn::GetAtt": [
+                "TestAuthDLTUserPool047D7286",
+                "ProviderName",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Cognito::IdentityPool",
+    },
+    "TestAuthDLTUserPool047D7286": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "AccountRecoverySetting": {
+          "RecoveryMechanisms": [
+            {
+              "Name": "verified_phone_number",
+              "Priority": 1,
+            },
+            {
+              "Name": "verified_email",
+              "Priority": 2,
+            },
+          ],
+        },
+        "AdminCreateUserConfig": {
+          "AllowAdminCreateUserOnly": true,
+          "InviteMessageTemplate": {
+            "EmailMessage": "
+                <p>
+                   Please use the credentials below to login to the Distributed Load Testing console.
+                </p>
+                <p>
+                    Username: <strong>{username}</strong>
+                </p>
+                <p>
+                    Password: <strong>{####}</strong>
+                </p>
+                <p>
+                    Console: <em>This is a self-hosted deployment. The web console URL will be available once hosting is configured.</em>
+                </p>
+              ",
+            "EmailSubject": "Welcome to Distributed Load Testing",
+            "SMSMessage": "Your username is {username} and temporary password is {####}.",
+          },
+        },
+        "AliasAttributes": [
+          "email",
+        ],
+        "AutoVerifiedAttributes": [
+          "email",
+        ],
+        "EmailVerificationMessage": "The verification code to your new account is {####}",
+        "EmailVerificationSubject": "Verify your new account",
+        "Policies": {
+          "PasswordPolicy": {
+            "MinimumLength": 12,
+            "RequireLowercase": true,
+            "RequireNumbers": true,
+            "RequireSymbols": true,
+            "RequireUppercase": true,
+          },
+        },
+        "Schema": [
+          {
+            "Mutable": true,
+            "Name": "email",
+            "Required": true,
+          },
+        ],
+        "SmsVerificationMessage": "The verification code to your new account is {####}",
+        "UserPoolAddOns": {
+          "AdvancedSecurityMode": "ENFORCED",
+        },
+        "UserPoolName": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-user-pool",
+            ],
+          ],
+        },
+        "VerificationMessageTemplate": {
+          "DefaultEmailOption": "CONFIRM_WITH_CODE",
+          "EmailMessage": "The verification code to your new account is {####}",
+          "EmailSubject": "Verify your new account",
+          "SmsMessage": "The verification code to your new account is {####}",
+        },
+      },
+      "Type": "AWS::Cognito::UserPool",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "TestAuthDLTUserPoolClient68D1C3B2": {
+      "Properties": {
+        "AllowedOAuthFlows": [
+          "code",
+        ],
+        "AllowedOAuthFlowsUserPoolClient": true,
+        "AllowedOAuthScopes": [
+          "openid",
+          "email",
+          "profile",
+        ],
+        "CallbackURLs": [
+          "http://localhost:3000",
+          "http://localhost:3000/",
+          "http://localhost:7521/callback",
+          "http://localhost:3000/callback",
+        ],
+        "ClientName": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-userpool-client",
+            ],
+          ],
+        },
+        "EnableTokenRevocation": true,
+        "ExplicitAuthFlows": [
+          "ALLOW_USER_SRP_AUTH",
+        ],
+        "GenerateSecret": false,
+        "LogoutURLs": [
+          "http://localhost:3000",
+          "http://localhost:3000/",
+          "http://localhost:7521/callback",
+          "http://localhost:3000/callback",
+        ],
+        "RefreshTokenRotation": {
+          "Feature": "ENABLED",
+          "RetryGracePeriodSeconds": 60,
+        },
+        "RefreshTokenValidity": 1440,
+        "SupportedIdentityProviders": [
+          "COGNITO",
+        ],
+        "TokenValidityUnits": {
+          "RefreshToken": "minutes",
+        },
+        "UserPoolId": {
+          "Ref": "TestAuthDLTUserPool047D7286",
+        },
+        "WriteAttributes": [
+          "address",
+          "email",
+          "phone_number",
+        ],
+      },
+      "Type": "AWS::Cognito::UserPoolClient",
+    },
+    "TestAuthIoTPolicyF897DD43": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W11",
+              "reason": "Cannot specify the resource to attach policy to identity",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "iot:Connect",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":iot:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":client/*",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": "iot:Subscribe",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":iot:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":topicfilter/dlt/*",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": "iot:Receive",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":iot:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":topic/dlt/*",
                   ],
                 ],
               },
