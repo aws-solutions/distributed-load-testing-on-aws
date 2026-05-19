@@ -8,6 +8,7 @@
 
 interface Config {
   apiGatewayEndpoint: string;
+  awsAccountId: string;
   scenariosBucketName: string;
   region: string;
   solutionId: string;
@@ -24,6 +25,11 @@ const loadConfig = (): Config => {
   const apiGatewayEndpoint = process.env["API_GATEWAY_ENDPOINT"];
   if (!apiGatewayEndpoint) {
     throw new Error("API_GATEWAY_ENDPOINT environment variable not set");
+  }
+
+  const awsAccountId = process.env["AWS_ACCOUNT_ID"];
+  if (!awsAccountId) {
+    throw new Error("AWS_ACCOUNT_ID environment variable not set");
   }
 
   const scenariosBucketName = process.env["SCENARIOS_BUCKET_NAME"];
@@ -58,6 +64,7 @@ const loadConfig = (): Config => {
 
   return {
     apiGatewayEndpoint,
+    awsAccountId,
     scenariosBucketName,
     region,
     solutionId,
@@ -75,6 +82,7 @@ export { config };
 
 // Export individual getters for convenient access
 export const getApiGatewayEndpoint = (): string => config.apiGatewayEndpoint;
+export const getAwsAccountId = (): string => config.awsAccountId;
 export const getScenariosBucket = (): string => config.scenariosBucketName;
 export const getRegion = (): string => config.region;
 export const getSolutionId = (): string => config.solutionId;

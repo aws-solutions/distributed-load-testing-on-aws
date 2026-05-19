@@ -41,7 +41,6 @@ class ConditionAspect implements IAspect {
 
   /**
    * Implement IAspect.visit to set the condition to whole resources in Construct.
-   *
    * @param {IConstruct} node Construct node to visit
    */
   visit(node: IConstruct): void {
@@ -54,7 +53,6 @@ class ConditionAspect implements IAspect {
 
 /**
  * RegionalInfrastructureDLTStack props
- *
  * @interface RegionalInfrastructureDLTStackProps
  */
 export interface RegionalInfrastructureDLTStackProps extends StackProps {
@@ -109,14 +107,6 @@ export class RegionalInfrastructureDLTStack extends Stack {
       constraintDescription: "The Egress CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
     });
 
-    const stableTagging = new CfnParameter(this, "UseStableTagging", {
-      description:
-        "Automatically use the most up to date and secure image up until the next minor release. Selecting 'No' will pull the image as originally released, without any security updates.",
-      type: "String",
-      default: "Yes",
-      allowedValues: ["Yes", "No"],
-    });
-
     // CFN Mappings
     const solutionMapping = new CfnMapping(this, "Solution", {
       mapping: {
@@ -163,7 +153,6 @@ export class RegionalInfrastructureDLTStack extends Stack {
             default: "Provide valid CIDR block for subnet B for the solution to create VPC",
           },
           [egressCidrBlock.logicalId]: { default: "Provide CIDR block for allowing outbound traffic of Fargate tasks" },
-          [stableTagging.logicalId]: { default: "Auto-update Container Image" },
         },
       },
     };
@@ -186,10 +175,6 @@ export class RegionalInfrastructureDLTStack extends Stack {
 
     const createFargateVpcResourcesCondition = new CfnCondition(this, "CreateFargateVPCResources", {
       expression: Fn.conditionEquals(existingVpcId.valueAsString, ""),
-    });
-
-    const stableTagCondition = new CfnCondition(this, "UseStableTagCondition", {
-      expression: Fn.conditionEquals(stableTagging.valueAsString, "Yes"),
     });
 
     const commonResources = new CommonResources(this, "CommonResources", props.solution, props.stackType);
@@ -248,12 +233,11 @@ export class RegionalInfrastructureDLTStack extends Stack {
 
     // ECS Fargate resources
     const fargateResources = new ECSResourcesConstruct(this, "DLTRegionalFargate", {
+      containerMode: "regional",
       fargateVpcId,
       securityGroupEgress: egressCidrBlock.valueAsString,
       scenariosS3Bucket: scenariosBucket.toString(),
       solutionId: props.solution.id,
-      stableTagCondition: stableTagCondition.logicalId,
-      buildFromSource: shouldBuildFromSource,
     });
 
     const ecsPolicyName = `RegionalECRPerms-${Aws.STACK_NAME}-${Aws.REGION}`;
@@ -269,7 +253,12 @@ export class RegionalInfrastructureDLTStack extends Stack {
           new PolicyStatement({
             effect: Effect.ALLOW,
             actions: ["iam:PassRole"],
-            resources: [fargateResources.taskExecutionRoleArn],
+            resources: [fargateResources.taskExecutionRoleArn, fargateResources.taskRoleArn],
+            conditions: {
+              StringEquals: {
+                "iam:PassedToService": "ecs-tasks.amazonaws.com",
+              },
+            },
           }),
         ],
       })
@@ -291,27 +280,33 @@ export class RegionalInfrastructureDLTStack extends Stack {
       solution: props.solution,
     });
 
-    customResources.testingResourcesConfigCR({
+    customResources.regionalTestingResourcesConfigCR({
       taskCluster: fargateResources.taskClusterName,
       ecsCloudWatchLogGroup: fargateResources.ecsCloudWatchLogGroup.logGroupName,
       taskSecurityGroup: fargateResources.ecsSecurityGroupId,
-      taskDefinition: fargateResources.taskDefinitionArn,
       subnetA: fargateSubnetA,
       subnetB: fargateSubnetB,
+      version: props.solution.version,
+      taskRoleArn: fargateResources.taskRoleArn,
+      executionRoleArn: fargateResources.taskExecutionRoleArn,
     });
 
     const { uuid } = customResources.uuidGenerator();
+
+    customResources.sendRegionalMetricsCR({
+      solutionId: props.solution.id,
+      solutionVersion: props.solution.version,
+      uuid,
+    });
 
     const solutionsMetrics = new SolutionsMetrics(this, "SolutionMetricsNew", {
       uuid,
     });
     solutionsMetrics.addECSAverageCPUUtilization({
       clusterName: fargateResources.taskClusterName,
-      taskDefinitionFamily: fargateResources.taskDefinitionFamily,
     });
     solutionsMetrics.addECSAverageMemoryUtilization({
       clusterName: fargateResources.taskClusterName,
-      taskDefinitionFamily: fargateResources.taskDefinitionFamily,
     });
 
     // Outputs
@@ -327,7 +322,6 @@ export class RegionalInfrastructureDLTStack extends Stack {
 
   /**
    * Resolves regional configuration values from context (local development) or CloudFormation mapping (published template)
-   *
    * @param {string} shouldBuildFromSource Whether building from source code locally instead of default published template
    * @param {CfnMapping} solutionMapping The CloudFormation mapping containing default values
    * @returns {object} Configuration object with resolved values

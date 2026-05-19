@@ -1,6 +1,6 @@
 {
   "name": "source",
-  "version": "4.0.16",
+  "version": "4.1.0",
   "private": true,
   "description": "ESLint and prettier dependencies to be used within the solution",
   "license": "Apache-2.0",
@@ -21,11 +21,8 @@
     "install:real-time-data-publisher": "cd ./real-time-data-publisher && npm ci",
     "install:results-parser": "cd ./results-parser && npm run clean && ci",
     "install:solution-utils": "cd ./solution-utils && npm run clean && ci",
-    "install:task-canceler": "cd ./task-canceler && npm run clean && ci",
-    "install:task-runner": "cd ./task-runner && npm run clean && ci",
-    "install:task-status-checker": "cd ./task-status-checker && npm ci",
     "install:metrics-utils": "cd ./metrics-utils && npm ci",
-    "install:all": "find . -maxdepth 2 -name package.json -execdir bash -c 'echo \"Installing in $(pwd)\" && npm ci' \\;",
+    "install:all": "bash install-legacy.sh",
     "clean:all": "find . -maxdepth 2 -name package.json -execdir npm run clean \\;",
     "clean": "rm -rf node_modules package-lock.json"
   },

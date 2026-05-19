@@ -1,24 +1,17 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { ClientRequest, IncomingMessage } from "http";
 import https from "https";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { IAMHttpClient } from "../../src/lib/http-client.js";
 
 vi.mock("https");
+vi.mock("aws4", () => ({
+  default: { sign: vi.fn() },
+  sign: vi.fn(),
+}));
 
-// Mock aws4 with factory function
-vi.mock("aws4", () => {
-  const mockSign = vi.fn();
-  return {
-    default: {
-      sign: mockSign,
-    },
-    sign: mockSign,
-  };
-});
-
-// Import aws4 to get the mocked version
 import * as aws4 from "aws4";
 
 describe("IAMHttpClient", () => {
@@ -26,107 +19,97 @@ describe("IAMHttpClient", () => {
   const mockRegion = "us-east-1";
   const mockCorrelationId = "test-correlation-id";
 
+  // Helper to create a mock request that resolves successfully
+  function setupSuccessfulRequest(responseBody = "{}", statusCode = 200): void {
+    vi.mocked(https.request).mockImplementation(((_opts: unknown, callback?: unknown) => {
+      const mockReq = {
+        on: vi.fn(),
+        write: vi.fn(),
+        end: vi.fn(),
+      };
+
+      // Simulate async response after req.end() is called
+      setImmediate(() => {
+        const mockRes = {
+          statusCode,
+          headers: { "content-type": "application/json" },
+          on: vi.fn((event: string, handler: (data?: string) => void) => {
+            if (event === "data")
+              setImmediate(() => {
+                handler(responseBody);
+              });
+            if (event === "end")
+              setImmediate(() => {
+                handler();
+              });
+          }),
+        };
+        const cb = callback as ((res: IncomingMessage) => void) | undefined;
+        if (cb) {
+          cb(mockRes as unknown as IncomingMessage);
+        }
+      });
+
+      return mockReq as unknown as ClientRequest;
+    }) as typeof https.request);
+
+    vi.mocked(aws4.sign).mockReturnValue({} as aws4.Request);
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     client = new IAMHttpClient(mockRegion, mockCorrelationId);
   });
 
-  describe("request", () => {
-    it("should make a successful GET request with IAM signing", async () => {
-      const mockResponse = {
-        statusCode: 200,
-        headers: { "content-type": "application/json" },
-        on: vi.fn((event, handler) => {
-          if (event === "data") {
-            handler('{"result":"success"}');
-          } else if (event === "end") {
-            handler();
-          }
-        }),
-      };
+  describe("request preparation", () => {
+    it("should call aws4.sign with correct service and region", async () => {
+      setupSuccessfulRequest();
+      let capturedOptions: aws4.Request | undefined;
 
-      const mockRequest = {
-        on: vi.fn(),
-        write: vi.fn(),
-        end: vi.fn(),
-      };
-
-      vi.mocked(https.request).mockImplementation(((options: any, callback: any) => {
-        if (callback) callback(mockResponse as any);
-        return mockRequest as any;
-      }) as any);
-
-      vi.mocked(aws4.sign).mockReturnValue({} as any);
-
-      const result = await client.request({
-        method: "GET",
-        url: "https://api.example.com/test",
+      vi.mocked(aws4.sign).mockImplementation((opts: unknown) => {
+        capturedOptions = opts as aws4.Request;
+        return opts as aws4.Request;
       });
-
-      expect(result.statusCode).toBe(200);
-      expect(result.body).toBe('{"result":"success"}');
-      expect(result.headers).toEqual({ "content-type": "application/json" });
-      expect(aws4.sign).toHaveBeenCalled();
-    });
-
-    it("should include correlation ID and user agent headers", async () => {
-      const mockResponse = {
-        statusCode: 200,
-        headers: {},
-        on: vi.fn((event, handler) => {
-          if (event === "data") handler("");
-          else if (event === "end") handler();
-        }),
-      };
-
-      const mockRequest = {
-        on: vi.fn(),
-        write: vi.fn(),
-        end: vi.fn(),
-      };
-
-      let capturedOptions: any;
-      vi.mocked(https.request).mockImplementation(((options: any, callback: any) => {
-        capturedOptions = options;
-        if (callback) callback(mockResponse as any);
-        return mockRequest as any;
-      }) as any);
-
-      vi.mocked(aws4.sign).mockImplementation((opts: any) => opts as any);
 
       await client.request({
         method: "GET",
         url: "https://api.example.com/test",
       });
 
-      expect(capturedOptions.headers["X-Correlation-Id"]).toBe(mockCorrelationId);
-      expect(capturedOptions.headers["User-Agent"]).toBe("dlt-mcp-server");
+      expect(capturedOptions?.service).toBe("execute-api");
+      expect(capturedOptions?.region).toBe(mockRegion);
+      expect(capturedOptions?.hostname).toBe("api.example.com");
+      expect(capturedOptions?.path).toBe("/test");
+      expect(capturedOptions?.method).toBe("GET");
+    });
+
+    it("should include correlation ID header", async () => {
+      setupSuccessfulRequest();
+      let capturedOptions: aws4.Request | undefined;
+
+      vi.mocked(aws4.sign).mockImplementation((opts: unknown) => {
+        capturedOptions = opts as aws4.Request;
+        return opts as aws4.Request;
+      });
+
+      await client.request({
+        method: "GET",
+        url: "https://api.example.com/test",
+      });
+
+      expect(capturedOptions?.headers?.["X-Correlation-Id"]).toBe(mockCorrelationId);
+      expect(capturedOptions?.headers?.["User-Agent"]).toBe("dlt-mcp-server");
+      expect(capturedOptions?.headers?.["Content-Type"]).toBe("application/json");
     });
 
     it("should include custom headers", async () => {
-      const mockResponse = {
-        statusCode: 200,
-        headers: {},
-        on: vi.fn((event, handler) => {
-          if (event === "data") handler("");
-          else if (event === "end") handler();
-        }),
-      };
+      setupSuccessfulRequest();
+      let capturedOptions: aws4.Request | undefined;
 
-      const mockRequest = {
-        on: vi.fn(),
-        write: vi.fn(),
-        end: vi.fn(),
-      };
-
-      let capturedOptions: any;
-      vi.mocked(https.request).mockImplementation(((options: any, callback: any) => {
-        capturedOptions = options;
-        if (callback) callback(mockResponse as any);
-        return mockRequest as any;
-      }) as any);
-
-      vi.mocked(aws4.sign).mockImplementation((opts: any) => opts as any);
+      vi.mocked(aws4.sign).mockImplementation((opts: unknown) => {
+        capturedOptions = opts as aws4.Request;
+        return opts as aws4.Request;
+      });
 
       await client.request({
         method: "GET",
@@ -134,31 +117,17 @@ describe("IAMHttpClient", () => {
         headers: { "X-Custom-Header": "custom-value" },
       });
 
-      expect(capturedOptions.headers["X-Custom-Header"]).toBe("custom-value");
+      expect(capturedOptions?.headers?.["X-Custom-Header"]).toBe("custom-value");
     });
 
-    it("should handle request body", async () => {
-      const mockResponse = {
-        statusCode: 200,
-        headers: {},
-        on: vi.fn((event, handler) => {
-          if (event === "data") handler("");
-          else if (event === "end") handler();
-        }),
-      };
+    it("should include request body in options when provided", async () => {
+      setupSuccessfulRequest();
+      let capturedOptions: aws4.Request | undefined;
 
-      const mockRequest = {
-        on: vi.fn(),
-        write: vi.fn(),
-        end: vi.fn(),
-      };
-
-      vi.mocked(https.request).mockImplementation(((options: any, callback: any) => {
-        if (callback) callback(mockResponse as any);
-        return mockRequest as any;
-      }) as any);
-
-      vi.mocked(aws4.sign).mockReturnValue({} as any);
+      vi.mocked(aws4.sign).mockImplementation((opts: unknown) => {
+        capturedOptions = opts as aws4.Request;
+        return opts as aws4.Request;
+      });
 
       const requestBody = '{"test":"data"}';
       await client.request({
@@ -167,32 +136,89 @@ describe("IAMHttpClient", () => {
         body: requestBody,
       });
 
-      expect(mockRequest.write).toHaveBeenCalledWith(requestBody);
+      expect(capturedOptions?.body).toBe(requestBody);
     });
 
-    it("should handle HTTP request errors", async () => {
-      const mockRequest = {
-        on: vi.fn((event, handler) => {
-          if (event === "error") {
-            handler(new Error("Network error"));
+    it("should parse URL with query parameters correctly", async () => {
+      setupSuccessfulRequest();
+      let capturedOptions: aws4.Request | undefined;
+
+      vi.mocked(aws4.sign).mockImplementation((opts: unknown) => {
+        capturedOptions = opts as aws4.Request;
+        return opts as aws4.Request;
+      });
+
+      await client.request({
+        method: "GET",
+        url: "https://api.example.com/test?param1=value1&param2=value2",
+      });
+
+      expect(capturedOptions?.hostname).toBe("api.example.com");
+      expect(capturedOptions?.path).toBe("/test?param1=value1&param2=value2");
+    });
+  });
+
+  describe("request execution", () => {
+    it("should return successful response", async () => {
+      setupSuccessfulRequest('{"result":"success"}', 200);
+
+      const result = await client.request({
+        method: "GET",
+        url: "https://api.example.com/test",
+      });
+
+      expect(result.statusCode).toBe(200);
+      expect(result.body).toBe('{"result":"success"}');
+      expect(result.headers).toBeDefined();
+    });
+
+    it("should write body to request when provided", async () => {
+      let mockReq:
+        | { on: ReturnType<typeof vi.fn>; write: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn> }
+        | undefined;
+
+      vi.mocked(https.request).mockImplementation(((_opts: unknown, callback?: unknown) => {
+        mockReq = {
+          on: vi.fn(),
+          write: vi.fn(),
+          end: vi.fn(),
+        };
+
+        setImmediate(() => {
+          const mockRes = {
+            statusCode: 200,
+            headers: {},
+            on: vi.fn((event: string, handler: () => void) => {
+              if (event === "end")
+                setImmediate(() => {
+                  handler();
+                });
+            }),
+          };
+          const cb = callback as ((res: IncomingMessage) => void) | undefined;
+          if (cb) {
+            cb(mockRes as unknown as IncomingMessage);
           }
-        }),
-        write: vi.fn(),
-        end: vi.fn(),
-      };
+        });
 
-      vi.mocked(https.request).mockReturnValue(mockRequest as any);
-      vi.mocked(aws4.sign).mockReturnValue({} as any);
+        return mockReq as unknown as ClientRequest;
+      }) as typeof https.request);
 
-      await expect(
-        client.request({
-          method: "GET",
-          url: "https://api.example.com/test",
-        })
-      ).rejects.toThrow("HTTP request failed: Network error");
+      vi.mocked(aws4.sign).mockReturnValue({} as aws4.Request);
+
+      const requestBody = '{"test":"data"}';
+      await client.request({
+        method: "POST",
+        url: "https://api.example.com/test",
+        body: requestBody,
+      });
+
+      expect(mockReq?.write).toHaveBeenCalledWith(requestBody);
     });
+  });
 
-    it("should handle URL parsing errors", async () => {
+  describe("error handling", () => {
+    it("should reject on invalid URL", async () => {
       await expect(
         client.request({
           method: "GET",
@@ -201,103 +227,64 @@ describe("IAMHttpClient", () => {
       ).rejects.toThrow("Failed to make signed request");
     });
 
-    it("should set service and region for IAM signing", async () => {
-      const mockResponse = {
-        statusCode: 200,
-        headers: {},
-        on: vi.fn((event, handler) => {
-          if (event === "data") handler("");
-          else if (event === "end") handler();
-        }),
-      };
-
-      const mockRequest = {
-        on: vi.fn(),
-        write: vi.fn(),
-        end: vi.fn(),
-      };
-
-      let capturedOptions: any;
-      vi.mocked(https.request).mockImplementation(((options: any, callback: any) => {
-        if (callback) callback(mockResponse as any);
-        return mockRequest as any;
-      }) as any);
-
-      vi.mocked(aws4.sign).mockImplementation((opts: any) => {
-        capturedOptions = opts;
-        return opts as any;
+    it("should wrap network errors with descriptive message", async () => {
+      vi.mocked(https.request).mockImplementation(() => {
+        const mockReq = {
+          on: vi.fn((event: string, handler: (error: Error) => void) => {
+            if (event === "error") {
+              setImmediate(() => {
+                handler(new Error("Network error"));
+              });
+            }
+          }),
+          write: vi.fn(),
+          end: vi.fn(),
+        };
+        return mockReq as unknown as ClientRequest;
       });
 
-      await client.request({
-        method: "GET",
-        url: "https://api.example.com/test",
-      });
+      vi.mocked(aws4.sign).mockReturnValue({} as aws4.Request);
 
-      expect(capturedOptions.service).toBe("execute-api");
-      expect(capturedOptions.region).toBe(mockRegion);
+      await expect(
+        client.request({
+          method: "GET",
+          url: "https://api.example.com/test",
+        })
+      ).rejects.toThrow("HTTP request failed: Network error");
     });
   });
 
-  describe("get", () => {
-    it("should make a GET request", async () => {
-      const mockResponse = {
-        statusCode: 200,
-        headers: {},
-        on: vi.fn((event, handler) => {
-          if (event === "data") handler('{"data":"test"}');
-          else if (event === "end") handler();
-        }),
-      };
+  describe("get method", () => {
+    it("should make a GET request with provided URL", async () => {
+      setupSuccessfulRequest('{"data":"test"}', 200);
+      let capturedOptions: aws4.Request | undefined;
 
-      const mockRequest = {
-        on: vi.fn(),
-        write: vi.fn(),
-        end: vi.fn(),
-      };
-
-      vi.mocked(https.request).mockImplementation(((options: any, callback: any) => {
-        if (callback) callback(mockResponse as any);
-        return mockRequest as any;
-      }) as any);
-
-      vi.mocked(aws4.sign).mockReturnValue({} as any);
+      vi.mocked(aws4.sign).mockImplementation((opts: unknown) => {
+        capturedOptions = opts as aws4.Request;
+        return opts as aws4.Request;
+      });
 
       const result = await client.get("https://api.example.com/test");
 
+      expect(capturedOptions?.method).toBe("GET");
       expect(result.statusCode).toBe(200);
       expect(result.body).toBe('{"data":"test"}');
     });
 
-    it("should pass custom headers to GET request", async () => {
-      const mockResponse = {
-        statusCode: 200,
-        headers: {},
-        on: vi.fn((event, handler) => {
-          if (event === "data") handler("");
-          else if (event === "end") handler();
-        }),
-      };
+    it("should pass custom headers to underlying request", async () => {
+      setupSuccessfulRequest();
+      let capturedOptions: aws4.Request | undefined;
 
-      const mockRequest = {
-        on: vi.fn(),
-        write: vi.fn(),
-        end: vi.fn(),
-      };
-
-      let capturedOptions: any;
-      vi.mocked(https.request).mockImplementation(((options: any, callback: any) => {
-        capturedOptions = options;
-        if (callback) callback(mockResponse as any);
-        return mockRequest as any;
-      }) as any);
-
-      vi.mocked(aws4.sign).mockImplementation((opts: any) => opts as any);
+      vi.mocked(aws4.sign).mockImplementation((opts: unknown) => {
+        capturedOptions = opts as aws4.Request;
+        return opts as aws4.Request;
+      });
 
       await client.get("https://api.example.com/test", {
         "X-Test-Header": "test-value",
       });
 
-      expect(capturedOptions.headers["X-Test-Header"]).toBe("test-value");
+      expect(capturedOptions?.headers?.["X-Test-Header"]).toBe("test-value");
     });
   });
 });

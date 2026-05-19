@@ -10,7 +10,7 @@ import { Solution } from "../bin/solution";
 import { createTemplateWithoutS3Key } from "./snapshot_helpers";
 
 test("DLT real time data resources Test", () => {
-  const app = new App();
+  const app = new App({ context: { "aws:cdk:bundling-stacks": [] } });
   const stack = new Stack(app, "DLTStack", {
     synthesizer: new DefaultStackSynthesizer({
       generateBootstrapVersionRule: false,
@@ -72,7 +72,7 @@ test("DLT real time data resources Test", () => {
                     {
                       Ref: "AWS::AccountId",
                     },
-                    ":topic/*",
+                    ":topic/dlt/*",
                   ],
                 ],
               },

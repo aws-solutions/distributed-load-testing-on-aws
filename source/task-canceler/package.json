@@ -1,37 +1,24 @@
 {
-  "name": "task-canceler",
-  "version": "4.0.16",
-  "description": "Triggered by api-services lambda function, cancels ecs tasks",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/aws-solutions/distributed-load-testing-on-aws"
-  },
+  "name": "@amzn/dlt-task-canceler",
+  "version": "4.1.0",
+  "private": true,
+  "description": "Task Canceler Lambda for DLT — coordinates test cancellation by invoking test-cleanup per region",
+  "type": "module",
+  "main": "src/index.ts",
   "license": "Apache-2.0",
   "author": {
     "name": "Amazon Web Services",
     "url": "https://aws.amazon.com/solutions"
   },
-  "main": "index.js",
   "scripts": {
-    "clean": "rm -rf node_modules package-lock.json",
-    "test": "jest lib/*.spec.js --coverage --silent"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
   },
   "dependencies": {
-    "@aws-sdk/client-cloudwatch": "^3.993.0",
-    "@aws-sdk/client-cloudwatch-logs": "^3.993.0",
-    "@aws-sdk/client-ecs": "^3.993.0",
+    "@amzn/dlt-common": "*",
     "@aws-sdk/client-dynamodb": "^3.993.0",
-    "@aws-sdk/lib-dynamodb": "^3.993.0",
-    "solution-utils": "file:../solution-utils"
-  },
-  "devDependencies": {
-    "jest": "29.7.0"
-  },
-  "engines": {
-    "node": "^24.x"
-  },
-  "readme": "./README.md",
-  "overrides": {
-    "fast-xml-parser": ">=5.5.6"
+    "@aws-sdk/client-lambda": "^3.993.0",
+    "@aws-sdk/client-sfn": "^3.993.0",
+    "@aws-sdk/lib-dynamodb": "^3.993.0"
   }
 }

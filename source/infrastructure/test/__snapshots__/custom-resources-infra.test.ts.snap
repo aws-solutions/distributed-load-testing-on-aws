@@ -27,6 +27,9 @@ exports[`DLT API Test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Ref": "testSourceCodeBucketC577B176",

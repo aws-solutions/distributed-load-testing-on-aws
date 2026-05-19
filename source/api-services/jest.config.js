@@ -24,5 +24,14 @@ module.exports = {
   },
   transform: {
     "^.+\\.(ts|tsx)$": ["babel-jest", { presets: ["@babel/preset-typescript"] }]
+  },
+  moduleNameMapper: {
+    // @amzn/dlt-common is consumed as TS source (no build step). Its barrel
+    // uses ESM-style .js extensions in imports. This mapper strips the .js
+    // so Jest resolves to the .ts files via babel-jest.
+    // 
+    // When compiling for Lambda packages, esbuild is used which handles ESM 
+    // imports correctly.
+    "^(\\.{1,2}/.*)\\.js$": "$1"
   }
 };

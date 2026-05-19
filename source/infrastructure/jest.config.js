@@ -5,5 +5,6 @@ module.exports = {
     "^.+\\.tsx?$": "ts-jest",
   },
   maxWorkers: "50%",
+  workerIdleMemoryLimit: "512MB",
   coverageReporters: ["text", "clover", "json", ["lcov", { projectRoot: "../.." }]],
 };

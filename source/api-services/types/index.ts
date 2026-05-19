@@ -98,7 +98,9 @@ export interface CreateTestRequest {
   recurrence?: "daily" | "weekly" | "biweekly" | "monthly";
   cronValue?: string;
   cronExpiryDate?: string;
+  scheduleTimezone?: string;
   eventBridge?: string;
+  healthyThreshold?: number;
 }
 
 // ============================================================================

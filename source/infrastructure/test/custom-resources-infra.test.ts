@@ -8,7 +8,7 @@ import { Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { CustomResourceInfraConstruct } from "../lib/custom-resources/custom-resources-infra";
 
 test("DLT API Test", () => {
-  const app = new App();
+  const app = new App({ context: { "aws:cdk:bundling-stacks": [] } });
   const stack = new Stack(app, "DLTStack", {
     synthesizer: new DefaultStackSynthesizer({
       generateBootstrapVersionRule: false,

@@ -24,8 +24,23 @@ main() {
     set -u
 
     declare DIST_OUTPUT_BUCKET=$1 SOLUTION_NAME=$2 VERSION=$3
-    # Check to see if the required parameters have been provided:
 
+    # Validate version contains a parseable semver (matches source regex: /v?(\d+)\.(\d+)\.(\d+)/)
+    if ! echo "$VERSION" | grep -qE '(^|[^0-9])v?[0-9]+\.[0-9]+\.[0-9]+'; then
+        echo "Error: VERSION '$VERSION' must contain a valid semver pattern (e.g. v4.1.0, custom-v4.1.0)"
+        exit 1
+    fi
+
+    # Warn if version doesn't match cdk.json solutionVersion
+    local project_root_check=$(dirname "$(cd -P -- "$(dirname "$0")" && pwd -P)")
+    local CDK_VERSION=$(node -p "require('${project_root_check}/source/infrastructure/cdk.json').context.solutionVersion" 2>/dev/null)
+    if [ -n "$CDK_VERSION" ]; then
+        local SCRIPT_SEMVER=$(echo "$VERSION" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+        local CDK_SEMVER=$(echo "$CDK_VERSION" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+        if [ "$SCRIPT_SEMVER" != "$CDK_SEMVER" ]; then
+            echo "Warning: VERSION '$VERSION' ($SCRIPT_SEMVER) does not match cdk.json solutionVersion '$CDK_VERSION' ($CDK_SEMVER)"
+        fi
+    fi
 
     export DIST_OUTPUT_BUCKET
     export SOLUTION_NAME
@@ -54,11 +69,36 @@ main() {
     rm -rf "$cdk_out_dir"
 
     header "[Synth] CDK Project"
-    cd ${source_dir}/infrastructure
+
+    # Install workspace dependencies at project root.
+    # Workspace packages have their deps hoisted here and must be
+    # available before CDK synth bundles Lambda code via esbuild.
+    cd "${project_root}"
+    npm ci
+
+    header "[Build-CLI] Bundling DLT CLI"
+    npm run bundle -w source/cli
+
+    cd "${source_dir}"/infrastructure
     npm ci
     npm run install:all
 
+    # Run pre-build scripts for container images before CDK synth
+    # CDK needs these files when building Docker images during synth
+    header "[Docker] Running pre-build scripts"
+    for image_dir in "$deployment_dir"/ecr/*/; do
+        if [ -f "$image_dir/pre-build.sh" ]; then
+            echo "Running pre-build for $(basename "$image_dir")"
+            (cd "$image_dir" && bash pre-build.sh)
+        fi
+    done
+
     node_modules/aws-cdk/bin/cdk synth --asset-metadata false --path-metadata false
+
+    # Download JMeter bundled assets using shared script
+    header "[JMeter] Downloading JMeter Bundle"
+    source "$project_root/scripts/download-jmeter-bundle.sh"
+    download_jmeter_assets "$regional_dist_dir"
 
     header "[Packing] Template artifacts"
 
@@ -73,7 +113,7 @@ main() {
         mv -- "$f" "${f%.template.json}.template"
     done
 
-    header "[Move-Regiona-Template] Move regional template to regional folder"
+    header "[Move-Regional-Template] Move regional template to regional folder"
     mv "$global_dist_dir"/*-regional.template "$regional_dist_dir"
 
     header "[Build-Console] Building console assets"
@@ -92,7 +132,7 @@ main() {
     fi
 
     header "[CDK-Helper] Copy the Lambda Asset and Console Assets"
-    pushd $cdk_out_dir
+    pushd "$cdk_out_dir"
     # Loop over already zipped assets (console asset mainly) and copy to destination
     for f in asset.*.zip; do cp "$f" "$regional_dist_dir/${f#asset.}"; done
 

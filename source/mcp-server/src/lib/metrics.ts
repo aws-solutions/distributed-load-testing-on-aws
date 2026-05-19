@@ -1,9 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { getMetricUrl, getSolutionId, getUuid, getVersion } from './config';
+import { getAwsAccountId, getMetricUrl, getSolutionId, getUuid, getVersion } from "./config";
 
-export type ToolUsageMetric = {
+export interface ToolUsageMetric {
   Type: string;
   MetricSchemaVersion: number;
   UserAgent: string;
@@ -12,7 +12,17 @@ export type ToolUsageMetric = {
   DurationMs: number;
   Status: "success" | "failure";
   StatusCode: number;
-};
+}
+
+export interface MetricEnvelope {
+  Solution: string;
+  UUID: string;
+  TimeStamp: string;
+  Version: string;
+  MetricSchemaVersion: number;
+  AccountId: string;
+  Data: ToolUsageMetric;
+}
 
 export const toolUsageMetricType = "ToolUsage";
 export const toolUsageMetricSchemaVersion = 1;
@@ -35,12 +45,14 @@ export function approximateTokenCount(text: string): number {
  */
 export async function sendToolUsageMetric(metric: ToolUsageMetric): Promise<void> {
   try {
-    const metrics = {
+    const metrics: MetricEnvelope = {
       Solution: getSolutionId(),
       UUID: getUuid(),
       // Date and time instant in a java.sql.Timestamp compatible format
       TimeStamp: new Date().toISOString().replace("T", " ").replace("Z", ""),
       Version: getVersion(),
+      MetricSchemaVersion: toolUsageMetricSchemaVersion,
+      AccountId: getAwsAccountId(),
       Data: metric,
     };
 
@@ -53,9 +65,8 @@ export async function sendToolUsageMetric(metric: ToolUsageMetric): Promise<void
     });
 
     if (response.status !== 200) {
-      console.error(`Failed to send tool usage metrics: ${response.status} ${response.statusText}`)
+      console.error(`Failed to send tool usage metrics: ${response.status} ${response.statusText}`);
     }
-
   } catch (err) {
     // silently catch errors
     console.error("Failed to send tool usage metrics:", err);

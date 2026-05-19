@@ -27,6 +27,25 @@ export function createTemplateWithoutS3Key(stack: Stack): Template {
       templateJson.Resources[key].Properties.Timestamp =
         "Omitted to remove snapshot dependency on timestamp";
     }
+    // Sanitize Cognito Domain with token placeholders
+    if (
+      templateJson.Resources[key].Properties?.Domain &&
+      typeof templateJson.Resources[key].Properties.Domain === "string" &&
+      templateJson.Resources[key].Properties.Domain.includes("${token[")
+    ) {
+      templateJson.Resources[key].Properties.Domain = "Omitted to remove snapshot dependency on token IDs";
+    }
+    // Sanitize UserPoolDomain in Fn::Join arrays
+    if (templateJson.Resources[key].Properties?.UserPoolDomain?.["Fn::Join"]) {
+      const joinArray = templateJson.Resources[key].Properties.UserPoolDomain["Fn::Join"][1];
+      if (Array.isArray(joinArray)) {
+        for (let i = 0; i < joinArray.length; i++) {
+          if (typeof joinArray[i] === "string" && joinArray[i].includes("${token[")) {
+            joinArray[i] = "Omitted to remove snapshot dependency on token IDs";
+          }
+        }
+      }
+    }
   });
 
   // Create a new Template instance with the modified JSON

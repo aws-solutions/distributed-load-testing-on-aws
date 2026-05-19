@@ -1,6 +1,6 @@
 {
   "name": "api-services",
-  "version": "4.0.16",
+  "version": "4.1.0",
   "description": "REST API micro services",
   "repository": {
     "type": "git",
@@ -25,6 +25,7 @@
     "@aws-sdk/client-ecs": "^3.993.0",
     "@aws-sdk/client-lambda": "^3.993.0",
     "@aws-sdk/client-s3": "^3.993.0",
+    "@aws-sdk/client-scheduler": "^3.1008.0",
     "@aws-sdk/client-service-quotas": "^3.993.0",
     "@aws-sdk/client-sfn": "^3.993.0",
     "@aws-sdk/lib-dynamodb": "^3.993.0",

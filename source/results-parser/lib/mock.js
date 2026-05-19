@@ -13,9 +13,7 @@ const mockDDBDocumentClient = {
 const mockParser = {
   results: jest.fn(),
   finalResults: jest.fn(),
-  createWidget: jest.fn(),
-  deleteRegionalMetricFilter: jest.fn(),
-  putTestHistory: jest.fn(),
+  updateTestHistoryResults: jest.fn(),
   updateTable: jest.fn(),
 };
 

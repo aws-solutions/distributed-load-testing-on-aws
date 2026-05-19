@@ -1,13 +1,12 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Link } from "@cloudscape-design/components";
+import { Link, StatusIndicator } from "@cloudscape-design/components";
 import React, { useCallback, useMemo } from "react";
 import { formatToLocalTime } from "../../../utils/dateUtils";
 import { TableColumn, TestRun } from "../types";
 import { createBaselineCellWithStatus, getBaselineDelta, getBaselineText } from "../utils";
-
-
+import { STATUS_INDICATOR_MAP } from "../constants";
 
 const METRICS_CONFIG = [
   { id: "requests", header: "Requests", metricType: 'higher-is-better' as const },
@@ -30,7 +29,11 @@ const PERCENTILES_CONFIG = [
   { id: "p0", header: "0th Resp Time" },
 ];
 
-export const useTestRunColumns = (baselineTestRun: TestRun | null, onTestRunClick?: (testRunId: string) => void) => {
+export const useTestRunColumns = (
+  testId: string,
+  baselineTestRun: TestRun | null,
+  onTestRunClick: (testRunId: string) => void
+) => {
   const createColumn = useCallback(
     (id: string, header: string, cellFn: (item: TestRun) => any, csvValueFn: (item: TestRun) => string, csvBaselineFn?: (item: TestRun) => string, sortingField?: string, sortingComparator?: (a: TestRun, b: TestRun) => number): TableColumn<TestRun> => ({
       id,
@@ -60,20 +63,43 @@ export const useTestRunColumns = (baselineTestRun: TestRun | null, onTestRunClic
       createColumn(
         "testRun", 
         "Start Time", 
-        (item) => formatToLocalTime(item.startTime, { hour12: false }),
-        (item) => formatToLocalTime(item.startTime, { hour12: false }),
+        (item) => formatToLocalTime(item.startTime, { hour12: false, timeZoneName: "short" }),
+        (item) => formatToLocalTime(item.startTime, { hour12: false, timeZoneName: "short" }),
         undefined,
         "startTime"
       ),
       createColumn(
-        "testRunId", 
-        "Test Run ID", 
-        (item) => onTestRunClick
-          ? React.createElement(Link, { onFollow: () => onTestRunClick(item.testRunId) }, item.testRunId)
-          : item.testRunId,
+        "testRunId",
+        "Test Run ID",
+        (item) =>
+          React.createElement(
+            Link,
+            {
+              href: `/scenarios/${testId}/testruns/${item.testRunId}`,
+              onFollow: (event) => {
+                event.preventDefault();
+                onTestRunClick(item.testRunId);
+              },
+            },
+            item.testRunId
+          ),
         (item) => item.testRunId,
         undefined,
         "testRunId"
+      ),
+      createColumn(
+        "status",
+        "Test Run Status",
+        (item) => {
+          if (!item.status || !(item.status in STATUS_INDICATOR_MAP)) {
+            return "-";
+          }
+          const statusIndicator = STATUS_INDICATOR_MAP[item.status];
+          return React.createElement(StatusIndicator, { type: statusIndicator.type }, statusIndicator.label);
+        },
+        (item) => item.status || "-",
+        undefined,
+        "status"
       ),
     ];
 

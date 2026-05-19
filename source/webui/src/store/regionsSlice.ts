@@ -4,20 +4,37 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { solutionApi, ApiEndpoints } from "./solutionApi.ts";
 
+/**
+ * Regional stack information (spoke deployment)
+ */
+export interface RegionalStackInfo {
+  region: string;
+  version: string;
+  compatible: boolean;
+  deploymentDate: string;
+  /** Stack ARN for the regional CloudFormation stack. Optional because it was added in v4.1.0; stacks deployed before this version will not have it until updated. */
+  stackId?: string;
+}
+
 interface RegionsState {
-  data: string[] | null;
+  regionNames: string[] | null;
+  regionalStacks: RegionalStackInfo[] | null;
 }
 
 const initialState: RegionsState = {
-  data: null,
+  regionNames: null,
+  regionalStacks: null,
 };
 
 export const regionsSlice = createSlice({
   name: "regions",
   initialState,
   reducers: {
-    setRegionsData: (state, action: PayloadAction<string[]>) => {
-      state.data = action.payload;
+    setRegionNames: (state, action: PayloadAction<string[]>) => {
+      state.regionNames = action.payload;
+    },
+    setRegionalStacks: (state, action: PayloadAction<RegionalStackInfo[]>) => {
+      state.regionalStacks = action.payload;
     },
   },
 });
@@ -29,8 +46,10 @@ export const regionsApiSlice = solutionApi.injectEndpoints({
       async onQueryStarted(arg, { dispatch, queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;
-          const regionValues = data.regions?.map((region: any) => region.region) || [];
-          dispatch(regionsSlice.actions.setRegionsData(regionValues));
+          const regions = data.regions || [];
+          const regionNames = regions.map((region: any) => region.region);
+          dispatch(regionsSlice.actions.setRegionNames(regionNames));
+          dispatch(regionsSlice.actions.setRegionalStacks(regions));
         } catch (error) {
           console.error("Failed to fetch regions:", error);
         }
@@ -39,5 +58,5 @@ export const regionsApiSlice = solutionApi.injectEndpoints({
   }),
 });
 
-export const { setRegionsData } = regionsSlice.actions;
+export const { setRegionNames, setRegionalStacks } = regionsSlice.actions;
 export const { useGetRegionsQuery } = regionsApiSlice;

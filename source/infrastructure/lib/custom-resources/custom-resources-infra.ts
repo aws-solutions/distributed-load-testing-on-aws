@@ -3,7 +3,7 @@
 
 import { ArnFormat, CfnResource, Duration, Stack } from "aws-cdk-lib";
 import { Effect, Policy, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
-import { Code, Function as LambdaFunction, Runtime } from "aws-cdk-lib/aws-lambda";
+import { Architecture, Code, Function as LambdaFunction, Runtime } from "aws-cdk-lib/aws-lambda";
 import { ILogGroup } from "aws-cdk-lib/aws-logs";
 import { Bucket, IBucket } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
@@ -106,6 +106,7 @@ export class CustomResourceInfraConstruct extends Construct {
       role: customResourceRole,
       code: Code.fromBucket(sourceBucket, `${props.sourceCodePrefix}/${props.stackType}-custom-resource.zip`),
       runtime: Runtime.NODEJS_24_X,
+      architecture: Architecture.ARM_64,
       timeout: Duration.seconds(120),
       environment: {
         METRIC_URL: props.metricsUrl,

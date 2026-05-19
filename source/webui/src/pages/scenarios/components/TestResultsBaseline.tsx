@@ -13,6 +13,7 @@ import {
   SpaceBetween,
   StatusIndicator
 } from "@cloudscape-design/components";
+import { formatToLocalTime } from "../../../utils/dateUtils";
 import { useNavigate } from "react-router-dom";
 import { useGetBaselineQuery, useRemoveTestRunBaselineMutation } from "../../../store/scenariosApiSlice";
 
@@ -172,7 +173,7 @@ export function TestResultsBaseline({ testId, displayMode, onDisplayModeChange }
                 label: "Date",
                 type: "pair",
                 value: testRunDetails?.startTime 
-                  ? new Date(testRunDetails.startTime).toLocaleString()
+                  ? formatToLocalTime(testRunDetails.startTime, { timeZoneName: "short" })
                   : 'Unknown'
               },
               {

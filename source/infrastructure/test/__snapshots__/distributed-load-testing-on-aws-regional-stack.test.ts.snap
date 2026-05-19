@@ -11,14 +11,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         "",
       ],
     },
-    "UseStableTagCondition": {
-      "Fn::Equals": [
-        {
-          "Ref": "UseStableTagging",
-        },
-        "Yes",
-      ],
-    },
   },
   "Description": "mainStackDescription",
   "Mappings": {
@@ -67,9 +59,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         },
         "SubnetBCidrBlock": {
           "default": "Provide valid CIDR block for subnet B for the solution to create VPC",
-        },
-        "UseStableTagging": {
-          "default": "Auto-update Container Image",
         },
         "VpcCidrBlock": {
           "default": "Provide valid CIDR block for the solution to create VPC",
@@ -127,15 +116,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       "ConstraintDescription": "The subnet CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
       "Default": "192.168.16.0/20",
       "Description": "CIDR block for subnet B of the AWS Fargate VPC",
-      "Type": "String",
-    },
-    "UseStableTagging": {
-      "AllowedValues": [
-        "Yes",
-        "No",
-      ],
-      "Default": "Yes",
-      "Description": "Automatically use the most up to date and secure image up until the next minor release. Selecting 'No' will pull the image as originally released, without any security updates.",
       "Type": "String",
     },
     "VpcCidrBlock": {
@@ -547,6 +527,35 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       "Type": "AWS::CloudFormation::CustomResource",
       "UpdateReplacePolicy": "Delete",
     },
+    "DLTCustomResourcesRegionalMetric8FDCE356": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "AccountId": {
+          "Ref": "AWS::AccountId",
+        },
+        "Region": {
+          "Ref": "AWS::Region",
+        },
+        "Resource": "Metric",
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "RegionalCustomResourceInfraCustomResourceLambda86A7E873",
+            "Arn",
+          ],
+        },
+        "SolutionId": "testId",
+        "StackType": "regional",
+        "UUID": {
+          "Fn::GetAtt": [
+            "DLTCustomResourcesCustomResourceUuidD1C03F15",
+            "UUID",
+          ],
+        },
+        "Version": "testVersion",
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
     "DLTCustomResourcesTestingResourcesConfig0BCA657F": {
       "DeletionPolicy": "Delete",
       "Properties": {
@@ -561,8 +570,17 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
           "ecsCloudWatchLogGroup": {
             "Ref": "DLTRegionalFargateDLTCloudWatchLogsGroupAE1278C6",
           },
+          "executionRoleArn": {
+            "Fn::GetAtt": [
+              "DLTRegionalFargateDLTTaskExecutionRole22C06EF4",
+              "Arn",
+            ],
+          },
           "region": {
             "Ref": "AWS::Region",
+          },
+          "stackId": {
+            "Ref": "AWS::StackId",
           },
           "subnetA": {
             "Fn::If": [
@@ -589,23 +607,16 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
           "taskCluster": {
             "Ref": "DLTRegionalFargateDLTEcsCluster1D89D366",
           },
-          "taskDefinition": {
-            "Ref": "DLTRegionalFargateDLTTaskDefinitionA3FD5099",
-          },
-          "taskImage": {
-            "Fn::Join": [
-              "",
-              [
-                {
-                  "Ref": "AWS::StackName",
-                },
-                "-load-tester",
-              ],
+          "taskRoleArn": {
+            "Fn::GetAtt": [
+              "DLTRegionalFargateDLTTaskRole856AA2A5",
+              "Arn",
             ],
           },
           "taskSecurityGroup": {
             "Ref": "DLTRegionalFargateDLTEcsSecurityGroup76A38D53",
           },
+          "version": "testVersion",
         },
       },
       "Type": "AWS::CloudFormation::CustomResource",
@@ -742,93 +753,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
       },
       "Type": "AWS::EC2::SecurityGroupEgress",
     },
-    "DLTRegionalFargateDLTSecGroupIngress5C8E0E6E": {
-      "Properties": {
-        "Description": "Allow tasks to communicate",
-        "FromPort": 50000,
-        "GroupId": {
-          "Ref": "DLTRegionalFargateDLTEcsSecurityGroup76A38D53",
-        },
-        "IpProtocol": "tcp",
-        "SourceSecurityGroupId": {
-          "Ref": "DLTRegionalFargateDLTEcsSecurityGroup76A38D53",
-        },
-        "ToPort": 50000,
-      },
-      "Type": "AWS::EC2::SecurityGroupIngress",
-    },
-    "DLTRegionalFargateDLTTaskDefinitionA3FD5099": {
-      "Properties": {
-        "ContainerDefinitions": [
-          {
-            "Environment": [
-              {
-                "Name": "JVM_ARGS",
-                "Value": "-Xms1g -Xmx3g",
-              },
-            ],
-            "Essential": true,
-            "Image": {
-              "Fn::If": [
-                "UseStableTagCondition",
-                "registry/distributed-load-testing-on-aws-load-tester:tag_stable",
-                "registry/distributed-load-testing-on-aws-load-tester:tag",
-              ],
-            },
-            "LogConfiguration": {
-              "LogDriver": "awslogs",
-              "Options": {
-                "awslogs-group": {
-                  "Ref": "DLTRegionalFargateDLTCloudWatchLogsGroupAE1278C6",
-                },
-                "awslogs-region": {
-                  "Ref": "AWS::Region",
-                },
-                "awslogs-stream-prefix": "load-testing",
-              },
-            },
-            "Memory": 4096,
-            "Name": {
-              "Fn::Join": [
-                "",
-                [
-                  {
-                    "Ref": "AWS::StackName",
-                  },
-                  "-load-tester",
-                ],
-              ],
-            },
-          },
-        ],
-        "Cpu": "2048",
-        "ExecutionRoleArn": {
-          "Fn::GetAtt": [
-            "DLTRegionalFargateDLTTaskExecutionRole22C06EF4",
-            "Arn",
-          ],
-        },
-        "Family": "TestDLTRegionalStackDLTRegionalFargateDLTTaskDefinitionDF9563D4",
-        "Memory": "4096",
-        "NetworkMode": "awsvpc",
-        "RequiresCompatibilities": [
-          "FARGATE",
-        ],
-        "Tags": [
-          {
-            "Key": "SolutionId",
-            "Value": "testId",
-          },
-        ],
-        "TaskRoleArn": {
-          "Fn::GetAtt": [
-            "DLTRegionalFargateDLTTaskExecutionRole22C06EF4",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::ECS::TaskDefinition",
-    },
     "DLTRegionalFargateDLTTaskExecutionRole22C06EF4": {
       "Metadata": {
         "guard": {
@@ -872,6 +796,33 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
             },
             "PolicyName": "ECSTaskExecutionPolicy",
           },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "DLTRegionalFargateDLTTaskRole856AA2A5": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE",
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs-tasks.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
           {
             "PolicyDocument": {
               "Statement": [
@@ -933,35 +884,6 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         ],
       },
       "Type": "AWS::IAM::Role",
-    },
-    "DLTRegionalFargateDLTTaskExecutionRoleDefaultPolicy81205560": {
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": [
-                "logs:CreateLogStream",
-                "logs:PutLogEvents",
-              ],
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "DLTRegionalFargateDLTCloudWatchLogsGroupAE1278C6",
-                  "Arn",
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "DLTRegionalFargateDLTTaskExecutionRoleDefaultPolicy81205560",
-        "Roles": [
-          {
-            "Ref": "DLTRegionalFargateDLTTaskExecutionRole22C06EF4",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
     },
     "DLTRegionalFargateMetricFilterCountAlarm7C81B027": {
       "Metadata": {
@@ -1189,6 +1111,9 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
@@ -1283,7 +1208,7 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
                         {
                           "Ref": "AWS::AccountId",
                         },
-                        ":topic/*",
+                        ":topic/dlt/*",
                       ],
                     ],
                   },
@@ -1321,6 +1246,9 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
@@ -1374,13 +1302,26 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
           "Statement": [
             {
               "Action": "iam:PassRole",
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "DLTRegionalFargateDLTTaskExecutionRole22C06EF4",
-                  "Arn",
-                ],
+              "Condition": {
+                "StringEquals": {
+                  "iam:PassedToService": "ecs-tasks.amazonaws.com",
+                },
               },
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "DLTRegionalFargateDLTTaskExecutionRole22C06EF4",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::GetAtt": [
+                    "DLTRegionalFargateDLTTaskRole856AA2A5",
+                    "Arn",
+                  ],
+                },
+              ],
             },
           ],
           "Version": "2012-10-17",
@@ -1458,11 +1399,11 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
                     {
                       "Ref": "DLTRegionalFargateDLTEcsCluster1D89D366",
                     },
-                    ""},{"Name":"TaskDefinitionFamily","Value":"TestDLTRegionalStackDLTRegionalFargateDLTTaskDefinitionDF9563D4"}],"MetricName":"CpuUtilized"},"Stat":"Average","Period":604800},"Id":"id_ECS_ContainerInsights_CpuUtilized"},{"MetricStat":{"Metric":{"Namespace":"ECS/ContainerInsights","Dimensions":[{"Name":"ClusterName","Value":"",
+                    ""}],"MetricName":"CpuUtilized"},"Stat":"Average","Period":604800},"Id":"id_ECS_ContainerInsights_CpuUtilized"},{"MetricStat":{"Metric":{"Namespace":"ECS/ContainerInsights","Dimensions":[{"Name":"ClusterName","Value":"",
                     {
                       "Ref": "DLTRegionalFargateDLTEcsCluster1D89D366",
                     },
-                    ""},{"Name":"TaskDefinitionFamily","Value":"TestDLTRegionalStackDLTRegionalFargateDLTTaskDefinitionDF9563D4"}],"MetricName":"MemoryUtilized"},"Stat":"Average","Period":604800},"Id":"id_ECS_ContainerInsights_MemoryUtilized"}]}",
+                    ""}],"MetricName":"MemoryUtilized"},"Stat":"Average","Period":604800},"Id":"id_ECS_ContainerInsights_MemoryUtilized"}]}",
                   ],
                 ],
               },
@@ -1580,6 +1521,9 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
@@ -1589,6 +1533,9 @@ exports[`Distributed Load Testing Regional stack test 1`] = `
         "Description": "Metrics util",
         "Environment": {
           "Variables": {
+            "ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
             "EXECUTION_DAY": "MON",
             "QUERY_PREFIX": {
               "Fn::Join": [

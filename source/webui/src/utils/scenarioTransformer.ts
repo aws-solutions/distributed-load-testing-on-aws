@@ -33,6 +33,7 @@ export const transformScenarioToFormData = (scenario: any, preserveId = false) =
   let cronMonth = "";
   let cronDayOfWeek = "";
   let cronExpiryDate = "";
+  let scheduleTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   
   if (scenario.cronValue && typeof scenario.cronValue === 'string') {
     executionTiming = "run-schedule";
@@ -45,10 +46,12 @@ export const transformScenarioToFormData = (scenario: any, preserveId = false) =
       cronDayOfWeek = cronParts[4];
     }
     cronExpiryDate = scenario.cronExpiryDate || "";
+    scheduleTimezone = scenario.scheduleTimezone || "UTC";
   } else if (scenario.scheduleDate && scenario.scheduleTime) {
     executionTiming = "run-once";
     scheduleDate = scenario.scheduleDate;
     scheduleTime = scenario.scheduleTime;
+    scheduleTimezone = scenario.scheduleTimezone || "UTC";
   }
   
   return {
@@ -74,6 +77,7 @@ export const transformScenarioToFormData = (scenario: any, preserveId = false) =
     cronDayOfWeek,
     cronYear: "",
     cronExpiryDate,
+    scheduleTimezone,
     regions:
       scenario.testTaskConfigs?.map((config: any) => ({
         region: config.region,

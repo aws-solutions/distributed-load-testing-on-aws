@@ -16,6 +16,7 @@ const mockCloudWatchEvents = jest.fn();
 const mockLambda = jest.fn();
 const mockCloudFormation = jest.fn();
 const mockServiceQuotas = jest.fn();
+const mockScheduler = jest.fn();
 
 const createMockFactory = (moduleLocation, clientName, mockFn) => () => {
   const actualModule = jest.requireActual(moduleLocation);
@@ -53,6 +54,21 @@ jest.doMock(
   "@aws-sdk/client-cloudwatch",
   createMockFactory("@aws-sdk/client-cloudwatch", "CloudWatch", mockCloudWatch)
 );
+jest.doMock(
+  "@aws-sdk/client-scheduler",
+  createMockFactory("@aws-sdk/client-scheduler", "Scheduler", mockScheduler)
+);
+
+// Mock @amzn/dlt-common's RSS fetch so tests never hit the public Solutions feed.
+// checkRegionalCompatibility and isUpdateAvailable forward to the real implementations.
+const mockGetLatestVersionFromRss = jest.fn();
+jest.doMock("@amzn/dlt-common", () => {
+  const actual = jest.requireActual("@amzn/dlt-common");
+  return {
+    ...actual,
+    getLatestVersionFromRss: mockGetLatestVersionFromRss,
+  };
+});
 
 jest.mock("@aws-sdk/lib-dynamodb", () => {
   const actualModule = jest.requireActual("@aws-sdk/lib-dynamodb");
@@ -84,6 +100,8 @@ process.env.SOLUTION_ID = "SO0062";
 process.env.STACK_ID = "arn:of:cloudformation:stack/stackName/abc-def-hij-123";
 process.env.STACK_NAME = "stackName";
 process.env.VERSION = "3.0.0";
+process.env.MIN_COMPATIBLE_VERSION = "3.0.0";
+process.env.AWS_REGION = "us-east-1";
 
 const lambda = require("./index.js");
 
@@ -99,6 +117,8 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
     mockLambda.mockReset();
     mockCloudFormation.mockReset();
     mockServiceQuotas.mockReset();
+    mockGetLatestVersionFromRss.mockReset();
+    mockGetLatestVersionFromRss.mockResolvedValue("9.9.9");
   });
 
   // Test custom error class methods
@@ -181,6 +201,9 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
       const config = { ...baseConfig, cronExpiryDate: "2025-12-31" };
       
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // getTestEntry
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ // getAllRegionConfigs scan
+        Items: [{ testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster", version: "v3.0.0" }]
+      }));
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ 
         Item: { region: "us-east-1", taskCluster: "cluster" } 
       })); // getRegionInfraConfigs
@@ -294,13 +317,16 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
         }
       };
 
-      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Items: [{ testId: "1234" }] }));
-      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 1 }));
+      // getTestEntry
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testData));
+      // dynamoDB.update (set status to cancelling)
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve());
+      // lambda.invoke (task canceler)
+      mockLambda.mockImplementationOnce(() => Promise.resolve());
+      mockS3.mockImplementationOnce(() => Promise.resolve({ Contents: [] }));
 
       const result = await lambda.cancelTest("1234");
-      expect(result).toBe("test cancelling");
+      expect(result).toEqual(expect.objectContaining({ status: "test cancelling" }));
     });
   });
 
@@ -336,7 +362,8 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
             StackId: "arn:aws:cloudformation:us-west-2:123456789012:stack/test-stack/12345",
             Tags: [{ Key: "SolutionVersion", Value: "v4.0.0" }],
             Outputs: [
-              { OutputKey: "McpEndpoint", OutputValue: "https://api.example.com/mcp" }
+              { OutputKey: "McpEndpoint", OutputValue: "https://api.example.com/mcp" },
+              { OutputKey: "SolutionTemplate", OutputValue: "cloudfront" },
             ]
           }
         ]
@@ -361,6 +388,9 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
       };
 
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // getTestEntry
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ // getAllRegionConfigs scan
+        Items: [{ testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster", version: "v3.0.0" }]
+      }));
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ 
         Item: { region: "us-east-1", taskCluster: "cluster" } 
       })); // getRegionInfraConfigs
@@ -370,6 +400,27 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
 
       const result = await lambda.createTest(config, "functionName");
       expect(result).toBeDefined();
+    });
+
+    it("should throw InvalidRegionalStack when a scenario references a deleted regional stack", async () => {
+      const config = {
+        testName: "Deleted Stack Test",
+        testDescription: "Test referencing a deleted regional stack",
+        testTaskConfigs: [{ region: "us-east-1", taskCount: 5, concurrency: 3 }],
+        testScenario: { execution: [{ "hold-for": "1m", "ramp-up": "30s" }] },
+        regionalTaskDetails: {}
+      };
+
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // getTestEntry
+
+      try {
+        await lambda.createTest(config, "functionName");
+        fail("Expected an error to be thrown");
+      } catch (err) {
+        expect(err.code).toEqual("InvalidRegionalStack");
+        expect(err.message).toContain("us-east-1");
+        expect(err.message).toContain("no longer exists");
+      }
     });
 
     it("should test createTest with tags validation", async () => {
@@ -383,6 +434,9 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
       };
 
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // getTestEntry
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ // getAllRegionConfigs scan
+        Items: [{ testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster", version: "v3.0.0" }]
+      }));
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ 
         Item: { region: "us-east-1", taskCluster: "cluster" } 
       })); // getRegionInfraConfigs
@@ -413,6 +467,9 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
         };
 
         mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // getTestEntry
+        mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ // getAllRegionConfigs scan
+          Items: [{ testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster", version: "v3.0.0" }]
+        }));
         mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ 
           Item: { region: "us-east-1", taskCluster: "cluster" } 
         })); // getRegionInfraConfigs
@@ -435,6 +492,9 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
       };
 
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // getTestEntry - returns undefined
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ // getAllRegionConfigs scan
+        Items: [{ testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster", version: "v3.0.0" }]
+      }));
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ 
         Item: { region: "us-east-1", taskCluster: "cluster" } 
       })); // getRegionInfraConfigs
@@ -473,6 +533,510 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
       expect(extracted.errors).toBe(5);
       expect(extracted.percentiles).toBeDefined();
       expect(extracted.avgResponseTime).toBe(200); // 0.2 * 1000
+    });
+  });
+
+  // Test scheduler-related branches
+  describe("scheduler and schedule management", () => {
+    it("should handle scheduleTest with scheduleStep=create and cronValue with timezone", async () => {
+      const futureDate = new Date();
+      futureDate.setMonth(futureDate.getMonth() + 1);
+      const cronExpiryDate = futureDate.toISOString().split("T")[0];
+
+      const config = {
+        testId: "test-sched-tz",
+        testName: "Timezone Schedule Test",
+        testDescription: "Test with timezone",
+        testType: "simple",
+        fileType: "none",
+        showLive: false,
+        scheduleStep: "create",
+        cronValue: "0 12 * * *",
+        cronExpiryDate,
+        scheduleTimezone: "America/New_York",
+        recurrence: "daily",
+        tags: [],
+        testTaskConfigs: [{ concurrency: 1, taskCount: 1, region: "us-east-1" }],
+        regionalTaskDetails: { "us-east-1": { dltAvailableTasks: 10 } },
+        testScenario: {
+          execution: [{ "ramp-up": "1m", "hold-for": "1m", scenario: "test" }],
+          scenarios: { test: { requests: [{ url: "https://example.com", method: "GET", headers: {} }] } },
+        },
+      };
+
+      const event = {
+        body: JSON.stringify(config),
+        httpMethod: "POST",
+        resource: "/scenarios",
+      };
+      const context = { functionArn: "arn:aws:lambda:us-east-1:123456789012:function:test" };
+
+      mockScheduler.mockImplementation(() => Promise.resolve());
+      mockCloudWatchEvents.mockImplementation(() => Promise.resolve({ Rules: [] }));
+      mockLambda.mockImplementation(() => Promise.resolve());
+      mockDynamoDB.mockImplementation(() =>
+        Promise.resolve({ Attributes: { testStatus: "scheduled" } })
+      );
+
+      const result = await lambda.scheduleTest(event, context);
+      expect(result).toBeDefined();
+      // Verify scheduler was called with an at() expression and the provided timezone
+      expect(mockScheduler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ScheduleExpression: expect.stringContaining("at("),
+          ScheduleExpressionTimezone: "America/New_York",
+        })
+      );
+    });
+
+    it("should handle scheduleTest with scheduleStep=start, recurrence, and cronExpiryDate (endDate branch)", async () => {
+      const futureDate = new Date();
+      futureDate.setMonth(futureDate.getMonth() + 1);
+      const cronExpiryDate = futureDate.toISOString().split("T")[0];
+
+      const config = {
+        testId: "test-enddate",
+        testName: "EndDate Test",
+        testDescription: "Test endDate branch",
+        testType: "simple",
+        fileType: "none",
+        showLive: false,
+        scheduleStep: "start",
+        recurrence: "daily",
+        cronExpiryDate,
+        scheduleTimezone: "UTC",
+        scheduleTime: "12:00",
+        scheduleDate: futureDate.toISOString().split("T")[0],
+        tags: [],
+        testTaskConfigs: [{ concurrency: 1, taskCount: 1, region: "us-east-1" }],
+        regionalTaskDetails: { "us-east-1": { dltAvailableTasks: 10 } },
+        testScenario: {
+          execution: [{ "ramp-up": "1m", "hold-for": "1m", scenario: "test" }],
+          scenarios: { test: { requests: [{ url: "https://example.com", method: "GET", headers: {} }] } },
+        },
+      };
+
+      const event = {
+        body: JSON.stringify(config),
+        httpMethod: "POST",
+        resource: "/scenarios",
+      };
+      const context = { functionArn: "arn:aws:lambda:us-east-1:123456789012:function:test" };
+
+      mockScheduler.mockImplementation(() => Promise.resolve());
+      mockCloudWatchEvents.mockImplementation(() => Promise.resolve({ Rules: [] }));
+      mockLambda.mockImplementation(() => Promise.resolve());
+      mockDynamoDB.mockImplementation(() =>
+        Promise.resolve({ Attributes: { testStatus: "scheduled" } })
+      );
+
+      const result = await lambda.scheduleTest(event, context);
+      // scheduleStep=start with recurrence creates recurring schedule and updates DB
+      // but doesn't return a value from the updateTestDBEntry path
+      expect(mockScheduler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          EndDate: expect.any(Date),
+          ScheduleExpressionTimezone: "UTC",
+        })
+      );
+    });
+
+    it("should handle deleteTest cleaning up scheduler schedules", async () => {
+      const testData = {
+        Item: {
+          testId: "test-del-sched",
+          testTaskConfigs: [
+            { region: "us-east-1", taskCluster: "cluster", ecsCloudWatchLogGroup: "logGroup" },
+          ],
+          testScenario: '{"execution":[{"ramp-up":"1m","hold-for":"1m"}]}',
+          status: "scheduled",
+          tags: ["tag1"],
+        },
+      };
+
+      // getTestEntry (inside getTestAndRegionConfigs)
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testData));
+      // getRegionInfraConfigs (inside getTestAndRegionConfigs) - key is "region-us-east-1"
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({
+          Item: {
+            testId: "region-us-east-1",
+            region: "us-east-1",
+            taskCluster: "cluster",
+            ecsCloudWatchLogGroup: "logGroup",
+          },
+        })
+      );
+
+      // deleteSchedules - ResourceNotFoundException for both schedules
+      const resourceNotFound = new Error("Schedule not found");
+      resourceNotFound.name = "ResourceNotFoundException";
+      mockScheduler.mockImplementation(() => Promise.reject(resourceNotFound));
+      // Legacy CloudWatch Events cleanup
+      mockCloudWatchEvents.mockImplementation(() => Promise.resolve({ Rules: [] }));
+      mockLambda.mockImplementation(() => Promise.resolve());
+      // deleteMetricFilter + deleteDashboards
+      mockCloudWatch.mockImplementation(() => Promise.resolve());
+      mockCloudWatchLogs.mockImplementation(() =>
+        Promise.resolve({ metricFilters: [] })
+      );
+      // S3 + DynamoDB cleanup (after the two mockImplementationOnce calls above)
+      mockS3.mockImplementation(() => Promise.resolve({ Contents: [] }));
+      mockDynamoDB.mockImplementation(() =>
+        Promise.resolve({ Items: [], Count: 0, UnprocessedItems: {} })
+      );
+
+      const result = await lambda.deleteTest("test-del-sched", "functionName");
+      expect(result).toBe("success");
+    });
+  });
+
+  // Tests for extractMetrics with DynamoDB-format values (covers parseFloatValue, parseIntValue, extractTotalResults)
+  describe("extractMetrics with various input formats", () => {
+    it("should handle DynamoDB-format values with S and N attributes", () => {
+      const results = {
+        total: {
+          throughput: { N: "200" },
+          succ: { N: "190" },
+          fail: { N: "10" },
+          testDuration: { N: "120" },
+          bytes: { N: "1000000" },
+          avg_rt: { S: "0.5" },
+          avg_lt: { S: "0.3" },
+          avg_ct: { S: "0.1" },
+          p0_0: { S: "0.01" },
+          p50_0: { S: "0.2" },
+          p90_0: { S: "0.4" },
+          p95_0: { S: "0.5" },
+          p99_0: { S: "0.8" },
+          p99_9: { S: "0.95" },
+          p100_0: { S: "1.2" },
+        },
+      };
+
+      const extracted = lambda.extractMetrics(results);
+      expect(extracted.requests).toBe(200);
+      expect(extracted.success).toBe(190);
+      expect(extracted.errors).toBe(10);
+      expect(extracted.avgResponseTime).toBe(500);
+      expect(extracted.avgLatency).toBe(300);
+      expect(extracted.avgConnectionTime).toBe(100);
+      expect(extracted.percentiles).toBeDefined();
+    });
+
+    it("should handle string-format values", () => {
+      const results = {
+        total: {
+          throughput: "300",
+          succ: "280",
+          fail: "20",
+          testDuration: "60",
+          bytes: "500000",
+          avg_rt: "0.25",
+          avg_lt: "0.15",
+          avg_ct: "0.05",
+          p0_0: "0.01",
+          p50_0: "0.1",
+          p90_0: "0.3",
+          p95_0: "0.4",
+          p99_0: "0.6",
+          p99_9: "0.8",
+          p100_0: "1.0",
+        },
+      };
+
+      const extracted = lambda.extractMetrics(results);
+      expect(extracted.requests).toBe(300);
+      expect(extracted.success).toBe(280);
+      expect(extracted.errors).toBe(20);
+      expect(extracted.avgResponseTime).toBe(250);
+    });
+
+    it("should handle JSON string results (extractTotalResults string branch)", () => {
+      const jsonString = JSON.stringify({
+        total: {
+          throughput: 50,
+          succ: 48,
+          fail: 2,
+          testDuration: 30,
+          bytes: 100000,
+          avg_rt: 0.1,
+          avg_lt: 0.08,
+          avg_ct: 0.02,
+          p0_0: 0.01,
+          p50_0: 0.05,
+          p90_0: 0.1,
+          p95_0: 0.15,
+          p99_0: 0.2,
+          p99_9: 0.25,
+          p100_0: 0.3,
+        },
+      });
+
+      const extracted = lambda.extractMetrics(jsonString);
+      expect(extracted.requests).toBe(50);
+      expect(extracted.success).toBe(48);
+    });
+
+    it("should handle invalid JSON string results", () => {
+      const extracted = lambda.extractMetrics("not valid json");
+      expect(extracted).toEqual({});
+    });
+
+    it("should handle results with undefined/null values", () => {
+      const results = {
+        total: {
+          throughput: null,
+          succ: undefined,
+          fail: 0,
+          testDuration: 60,
+          bytes: null,
+          avg_rt: null,
+          avg_lt: undefined,
+          avg_ct: undefined,
+          p0_0: null,
+          p50_0: null,
+          p90_0: null,
+          p95_0: null,
+          p99_0: null,
+          p99_9: null,
+          p100_0: null,
+        },
+      };
+
+      const extracted = lambda.extractMetrics(results);
+      expect(extracted.errors).toBe(0);
+      expect(extracted.avgResponseTime).toBeUndefined();
+    });
+  });
+
+  // Tests for getTestRuns with timestamp filtering (covers addTimestampConditions branches)
+  describe("getTestRuns with timestamp filtering", () => {
+    it("should handle start_timestamp only", async () => {
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({ Item: { testId: "test-ts", status: "complete" } })
+      );
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 5 }));
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({
+          Items: [{ testId: "test-ts", testRunId: "run1", startTime: "2025-01-01 10:00:00" }],
+        })
+      );
+
+      const result = await lambda.getTestRuns("test-ts", {
+        start_timestamp: "2025-01-01T00:00:00Z",
+      });
+      expect(result.testRuns).toHaveLength(1);
+    });
+
+    it("should handle end_timestamp only", async () => {
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({ Item: { testId: "test-ts2", status: "complete" } })
+      );
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 3 }));
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({
+          Items: [{ testId: "test-ts2", testRunId: "run2", startTime: "2025-06-01 10:00:00" }],
+        })
+      );
+
+      const result = await lambda.getTestRuns("test-ts2", {
+        end_timestamp: "2025-12-31T23:59:59Z",
+      });
+      expect(result.testRuns).toHaveLength(1);
+    });
+
+    it("should throw on invalid limit parameter", async () => {
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({ Item: { testId: "test-lim", status: "complete" } })
+      );
+
+      try {
+        await lambda.getTestRuns("test-lim", { limit: "999" });
+        fail("Should have thrown");
+      } catch (err) {
+        expect(err.code).toBe("BAD_REQUEST");
+        expect(err.message).toContain("Limit must be between 1 and 100");
+      }
+    });
+
+    it("should throw on invalid start_timestamp format", async () => {
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({ Item: { testId: "test-inv", status: "complete" } })
+      );
+
+      try {
+        await lambda.getTestRuns("test-inv", { start_timestamp: "not-a-date" });
+        fail("Should have thrown");
+      } catch (err) {
+        expect(err.code).toBe("BAD_REQUEST");
+      }
+    });
+
+    it("should throw on invalid end_timestamp format", async () => {
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({ Item: { testId: "test-inv2", status: "complete" } })
+      );
+
+      try {
+        await lambda.getTestRuns("test-inv2", { end_timestamp: "not-a-date" });
+        fail("Should have thrown");
+      } catch (err) {
+        expect(err.code).toBe("BAD_REQUEST");
+      }
+    });
+  });
+
+  // Tests for convertLinuxCronToAwsCron branches via scheduleTest
+  describe("scheduleTest with various cron patterns (convertLinuxCronToAwsCron branches)", () => {
+    const makeScheduleEvent = (cronValue, cronExpiryDate) => {
+      const config = {
+        testId: "test-cron-branch",
+        testName: "Cron Branch Test",
+        testDescription: "Test cron conversion branches",
+        testType: "simple",
+        fileType: "none",
+        showLive: false,
+        scheduleStep: "start",
+        cronValue,
+        cronExpiryDate: cronExpiryDate || "",
+        scheduleTimezone: "UTC",
+        recurrence: "",
+        tags: [],
+        testTaskConfigs: [{ concurrency: 1, taskCount: 1, region: "us-east-1" }],
+        regionalTaskDetails: { "us-east-1": { dltAvailableTasks: 10 } },
+        testScenario: {
+          execution: [{ "ramp-up": "1m", "hold-for": "1m", scenario: "test" }],
+          scenarios: {
+            test: { requests: [{ url: "https://example.com", method: "GET", headers: {} }] },
+          },
+        },
+      };
+      return {
+        body: JSON.stringify(config),
+        httpMethod: "POST",
+        resource: "/scenarios",
+      };
+    };
+    const context = {
+      functionArn: "arn:aws:lambda:us-east-1:123456789012:function:test",
+    };
+
+    beforeEach(() => {
+      mockScheduler.mockImplementation(() => Promise.resolve());
+      mockCloudWatchEvents.mockImplementation(() =>
+        Promise.resolve({ Rules: [] })
+      );
+      mockLambda.mockImplementation(() => Promise.resolve());
+      mockDynamoDB.mockImplementation(() =>
+        Promise.resolve({ Attributes: { testStatus: "scheduled" } })
+      );
+    });
+
+    it("should handle cron with specific dayOfMonth and wildcard dayOfWeek", async () => {
+      // "0 12 15 * *" => dayOfMonth=15, dayOfWeek=* => awsDayOfWeek="?"
+      const event = makeScheduleEvent("0 12 15 * *");
+      await lambda.scheduleTest(event, context);
+      expect(mockScheduler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ScheduleExpression: expect.stringContaining("cron(0 12 15"),
+        })
+      );
+    });
+
+    it("should handle cron with wildcard dayOfMonth and specific dayOfWeek", async () => {
+      // "0 12 * * 1" => dayOfMonth=*, dayOfWeek=1 => awsDayOfMonth="?"
+      const event = makeScheduleEvent("0 12 * * 1");
+      await lambda.scheduleTest(event, context);
+      expect(mockScheduler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ScheduleExpression: expect.stringContaining("cron(0 12 ?"),
+        })
+      );
+    });
+
+    it("should handle cron with both specific dayOfMonth and dayOfWeek", async () => {
+      // "0 12 15 * 3" => both specific => awsDayOfWeek="?"
+      const event = makeScheduleEvent("0 12 15 * 3");
+      await lambda.scheduleTest(event, context);
+      expect(mockScheduler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ScheduleExpression: expect.stringContaining("cron(0 12 15"),
+        })
+      );
+    });
+
+    it("should handle cron with dayOfWeek 0 (Sunday mapping)", async () => {
+      // "0 12 * * 0" => dayOfWeek=0 maps to 1 (Sunday in AWS)
+      const event = makeScheduleEvent("0 12 * * 0");
+      await lambda.scheduleTest(event, context);
+      expect(mockScheduler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ScheduleExpression: expect.stringContaining("cron(0 12 ? * 1"),
+        })
+      );
+    });
+
+    it("should handle cron with cronExpiryDate spanning multiple years", async () => {
+      const futureYear = new Date().getFullYear() + 2;
+      const cronExpiryDate = `${futureYear}-12-31`;
+      const event = makeScheduleEvent("0 12 * * *", cronExpiryDate);
+      await lambda.scheduleTest(event, context);
+      expect(mockScheduler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ScheduleExpression: expect.stringContaining("cron("),
+        })
+      );
+    });
+  });
+
+  // Test getStackInfo edge cases
+  describe("getStackInfo edge cases", () => {
+    it("should handle stack with no SolutionVersion tag but with Description", async () => {
+      const mockStack = {
+        Stacks: [
+          {
+            CreationTime: new Date("2025-01-01T00:00:00Z"),
+            StackId:
+              "arn:aws:cloudformation:us-east-1:123456789012:stack/test/abc",
+            Tags: [],
+            Outputs: [{ OutputKey: "SolutionTemplate", OutputValue: "cloudfront" }],
+            Description: "Distributed Load Testing v4.0.0",
+          },
+        ],
+      };
+      mockCloudFormation.mockImplementation(() => Promise.resolve(mockStack));
+      const result = await lambda.getStackInfo();
+      expect(result.version).toBe("v4.0.0");
+    });
+
+    it("should handle stack with no version info at all", async () => {
+      const mockStack = {
+        Stacks: [
+          {
+            CreationTime: new Date("2025-01-01T00:00:00Z"),
+            StackId:
+              "arn:aws:cloudformation:us-east-1:123456789012:stack/test/abc",
+            Tags: [],
+            Outputs: [{ OutputKey: "SolutionTemplate", OutputValue: "cloudfront" }],
+          },
+        ],
+      };
+      mockCloudFormation.mockImplementation(() => Promise.resolve(mockStack));
+      const result = await lambda.getStackInfo();
+      expect(result.version).toBe("unknown");
+    });
+
+    it("should handle empty stacks response", async () => {
+      mockCloudFormation.mockImplementation(() =>
+        Promise.resolve({ Stacks: [] })
+      );
+      try {
+        await lambda.getStackInfo();
+        fail("Should have thrown");
+      } catch (err) {
+        expect(err.code).toBe("STACK_NOT_FOUND");
+      }
     });
   });
 });

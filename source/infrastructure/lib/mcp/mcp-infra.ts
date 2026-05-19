@@ -8,11 +8,10 @@ import {
   ResourceServerScope,
   UserPool,
   UserPoolClient,
-  UserPoolDomain,
   UserPoolResourceServer,
 } from "aws-cdk-lib/aws-cognito";
 import { Effect, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
-import { Runtime } from "aws-cdk-lib/aws-lambda";
+import { Architecture, Runtime } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { Construct } from "constructs";
 import * as path from "path";
@@ -20,6 +19,8 @@ import toolSchemaJson from "../../../mcp-server/toolSchema.json";
 import { Solution, SOLUTIONS_METRICS_ENDPOINT } from "../../bin/solution";
 import { AgentCoreGateway } from "./gateway-construct";
 import { AgentCoreGatewayTarget } from "./gateway-target-construct";
+
+const PROJECT_ROOT = path.join(__dirname, "../../../..");
 
 /**
  * MCP Server props
@@ -61,14 +62,6 @@ export class MCPServer extends Construct {
       identifier: "dlt-mcp-gateway",
       userPoolResourceServerName: "DLT MCP Gateway Resource Server",
       scopes: [gatewayReadScope],
-    });
-
-    // User Pool Domain for OAuth endpoints
-    new UserPoolDomain(this, "DLTUserPoolDomain", {
-      userPool: props.cognitoUserPool,
-      cognitoDomain: {
-        domainPrefix: "dlt-" + props.uuid.replace("-", ""), // prefix must be globally unique
-      },
     });
 
     // Client ID/Client Secret client for machine to machine auth
@@ -130,10 +123,14 @@ export class MCPServer extends Construct {
       description: "MCP Tool Lambda Function",
       role: mcpToolLambdaRole,
       entry: path.join(__dirname, "../../../mcp-server/src/index.ts"),
+      projectRoot: PROJECT_ROOT,
+      depsLockFilePath: path.join(__dirname, "../../../../package-lock.json"),
       runtime: Runtime.NODEJS_24_X,
+      architecture: Architecture.ARM_64,
       timeout: Duration.seconds(60),
       memorySize: 512,
       environment: {
+        AWS_ACCOUNT_ID: Aws.ACCOUNT_ID,
         API_GATEWAY_ENDPOINT: props.api.url.replace(/\/$/, ""), // removes trailing '/'
         SCENARIOS_BUCKET_NAME: props.scenarioBucketName,
         SOLUTION_ID: props.solution.id,

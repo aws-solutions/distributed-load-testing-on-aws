@@ -1,0 +1,7 @@
+{
+  "version": "1.5.0",
+  "download": {
+    "binary": "https://github.com/grafana/k6/releases/download/v{version}/k6-v{version}-linux-{arch}.tar.gz",
+    "checksums": "https://github.com/grafana/k6/releases/download/v{version}/k6-v{version}-checksums.txt"
+  }
+}

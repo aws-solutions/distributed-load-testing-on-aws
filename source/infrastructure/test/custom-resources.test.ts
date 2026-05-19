@@ -10,7 +10,7 @@ import { Solution } from "../bin/solution";
 import { createTemplateWithoutS3Key } from "./snapshot_helpers";
 
 test("DLT API Test", () => {
-  const app = new App();
+  const app = new App({ context: { "aws:cdk:bundling-stacks": [] } });
   const stack = new Stack(app, "DLTStack", {
     synthesizer: new DefaultStackSynthesizer({
       generateBootstrapVersionRule: false,
@@ -41,13 +41,16 @@ test("DLT API Test", () => {
     iotPolicy: "testIoTPolicy",
   });
 
-  customResources.testingResourcesConfigCR({
+  customResources.hubTestingResourcesConfigCR({
     taskCluster: "testTaskCluster",
     ecsCloudWatchLogGroup: "testCloudWatchLogGroup",
     taskSecurityGroup: "sg-test123",
     taskDefinition: "task:def:arn:123",
     subnetA: "subnet-123",
     subnetB: "subnet-abc",
+    version: "testVersion",
+    taskRoleArn: "arn:aws:iam::123456789:role/task-role",
+    executionRoleArn: "arn:aws:iam::123456789:role/exec-role",
   });
 
   customResources.sendMetricsCR({
@@ -57,6 +60,12 @@ test("DLT API Test", () => {
     solutionVersion: "testVersion",
     autoUpdateContainerImage: "Yes",
     deployMcpServer: "No",
+  });
+
+  customResources.sendRegionalMetricsCR({
+    solutionId: "testId",
+    solutionVersion: "testVersion",
+    uuid: "abc-123-def-456",
   });
 
   expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();

@@ -4,6 +4,7 @@
 import { SideNavigation, SideNavigationProps } from "@cloudscape-design/components";
 import { useCallback, useEffect, useState } from "react";
 import { NavigateFunction, useLocation, useNavigate } from "react-router-dom";
+import { sendConsoleMetric } from "../../utils/consoleMetrics";
 
 export default function SideNavigationBar() {
   const navigate: NavigateFunction = useNavigate();
@@ -31,10 +32,15 @@ export default function SideNavigationBar() {
   // follow the given router link and update the store with active path
   const handleFollow = useCallback(
     (event: Readonly<CustomEvent>): void => {
-      if (event.detail.external || !event.detail.href) return;
+      if (event.detail.external) {
+        if (event.detail.text === "Documentation") {
+          sendConsoleMetric("ButtonClick", { Page: "Navigation", Action: "OpenDocumentation" });
+        }
+        return;
+      }
+      if (!event.detail.href) return;
 
       event.preventDefault();
-
       const path = event.detail.href;
       navigate(path);
     },

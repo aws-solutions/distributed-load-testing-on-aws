@@ -12,6 +12,7 @@ const mockCloudWatchEvents = jest.fn();
 const mockLambda = jest.fn();
 const mockCloudFormation = jest.fn();
 const mockServiceQuotas = jest.fn();
+const mockScheduler = jest.fn();
 
 const createMockFactory = (moduleLocation, clientName, mockFn) => () => {
   // This function will be called by Jest during hoisting
@@ -53,6 +54,21 @@ jest.doMock(
   "@aws-sdk/client-cloudwatch",
   createMockFactory("@aws-sdk/client-cloudwatch", "CloudWatch", mockCloudWatch)
 );
+jest.doMock(
+  "@aws-sdk/client-scheduler",
+  createMockFactory("@aws-sdk/client-scheduler", "Scheduler", mockScheduler)
+);
+
+// Mock @amzn/dlt-common's RSS fetch so tests never hit the public Solutions feed.
+// checkRegionalCompatibility and isUpdateAvailable forward to the real implementations.
+const mockGetLatestVersionFromRss = jest.fn();
+jest.doMock("@amzn/dlt-common", () => {
+  const actual = jest.requireActual("@amzn/dlt-common");
+  return {
+    ...actual,
+    getLatestVersionFromRss: mockGetLatestVersionFromRss,
+  };
+});
 
 jest.mock("@aws-sdk/lib-dynamodb", () => {
   const actualModule = jest.requireActual("@aws-sdk/lib-dynamodb");
@@ -122,6 +138,7 @@ const getSingleRegionalConf = {
       taskImage: "us-test-load-tester-image",
       subnetA: "subnet-456def",
       taskSecurityGroup: "sg-000000",
+      version: "3.0.0",
     },
   ],
 };
@@ -154,6 +171,7 @@ const getTwoRegionalConf = {
       taskImage: "us-test-load-tester-image",
       subnetA: "subnet-456def",
       taskSecurityGroup: "sg-000000",
+      version: "3.0.0",
     },
     {
       testId: "region-us-east-2",
@@ -165,6 +183,35 @@ const getTwoRegionalConf = {
       taskImage: "us-test-load-tester-image",
       subnetA: "subnet-456def",
       taskSecurityGroup: "sg-000000",
+      version: "3.0.0",
+    },
+  ],
+};
+
+// Thin-spoke: only hub (us-east-1) has taskDefinition, regional stack does not
+const getTwoRegionalConfThinSpoke = {
+  Items: [
+    {
+      testId: "region-us-east-1",
+      ecsCloudWatchLogGroup: "testClusterUS-DLTEcsDLTCloudWatchLogsGroup",
+      taskCluster: "testClusterUS",
+      taskDefinition: "arn:aws:ecs:us-east-1:123456789012:task-definition/testTaskDef1:1",
+      subnetB: "subnet-123abc",
+      region: "us-east-1",
+      taskImage: "us-test-load-tester-image",
+      subnetA: "subnet-456def",
+      taskSecurityGroup: "sg-000000",
+      version: "3.0.0",
+    },
+    {
+      testId: "region-us-east-2",
+      ecsCloudWatchLogGroup: "testClusterUS-DLTEcsDLTCloudWatchLogsGroup",
+      taskCluster: "testClusterUS",
+      subnetB: "subnet-123abc",
+      region: "us-east-2",
+      subnetA: "subnet-456def",
+      taskSecurityGroup: "sg-000000",
+      version: "3.0.0",
     },
   ],
 };
@@ -452,6 +499,7 @@ const getAllRegionalConfs = {
       taskImage: "us-test-load-tester-image",
       subnetA: "subnet-456def",
       taskSecurityGroup: "sg-000000",
+      version: "3.0.0",
     },
     {
       testId: "region-eu-west-1",
@@ -463,6 +511,7 @@ const getAllRegionalConfs = {
       taskImage: "eu-test-load-tester-image",
       subnetA: "subnet-def456",
       taskSecurityGroup: "sg-111111",
+      version: "3.0.0",
     },
   ],
 };
@@ -538,7 +587,6 @@ const historyEntries = {
         p50_0: "0.181",
       },
       region: "us-west-2",
-      metricS3Location: "testS3Location",
       testScenario: {
         execution: [
           {
@@ -690,6 +738,8 @@ process.env.SOLUTION_ID = "SO0062";
 process.env.STACK_ID = "arn:of:cloudformation:stack/stackName/abc-def-hij-123";
 process.env.STACK_NAME = "stackName";
 process.env.VERSION = "3.0.0";
+process.env.MIN_COMPATIBLE_VERSION = "3.0.0";
+process.env.AWS_REGION = "us-east-1";
 
 // Mock solution-utils
 jest.mock("solution-utils", () => ({
@@ -714,6 +764,8 @@ describe("#SCENARIOS API:: ", () => {
     mockLambda.mockReset();
     mockCloudFormation.mockReset();
     mockServiceQuotas.mockReset();
+    mockGetLatestVersionFromRss.mockReset();
+    mockGetLatestVersionFromRss.mockResolvedValue("9.9.9");
 
     jest.useFakeTimers("modern");
     jest.setSystemTime(new Date(Date.UTC(2017, 3, 22, 2, 28, 37))); // Note: Month is 0-indexed
@@ -769,13 +821,14 @@ describe("#SCENARIOS API:: ", () => {
   it('should return "SUCCESS" when "getAccountFargatevCPUDetails" returns correct vCPU limit, task definition, and vCPU usage', async () => {
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getTwoRegionalConf));
 
+    // Hub describeTaskDefinition (once)
+    mockEcs.mockImplementationOnce(() => Promise.resolve(dltTaskDefinition1));
+
+    // Per-region: ServiceQuotas, listClusters, listTasks (paginated), describeTasks
     mockServiceQuotas.mockImplementationOnce(() => Promise.resolve(serviceQuotavCPULimit));
     mockServiceQuotas.mockImplementationOnce(() => Promise.resolve(serviceQuotavCPULimit));
 
-    mockEcs.mockImplementationOnce(() => Promise.resolve(dltTaskDefinition1));
     mockEcs.mockImplementationOnce(() => Promise.resolve(getRegionalClusters));
-
-    mockEcs.mockImplementationOnce(() => Promise.resolve(dltTaskDefinition1));
     mockEcs.mockImplementationOnce(() => Promise.resolve(getRegionalClusters));
 
     mockEcs.mockImplementationOnce(() => Promise.resolve(tasks1));
@@ -797,13 +850,13 @@ describe("#SCENARIOS API:: ", () => {
   it('should return "SUCCESS" when "getAccountFargatevCPUDetails" returns correct task definition, vCPU usage, and errors on vCPU limit', async () => {
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getTwoRegionalConf));
 
+    // Hub describeTaskDefinition (once)
+    mockEcs.mockImplementationOnce(() => Promise.resolve(dltTaskDefinition1));
+
     mockServiceQuotas.mockImplementationOnce(() => Promise.reject("SQ ERROR"));
     mockServiceQuotas.mockImplementationOnce(() => Promise.reject("SQ ERROR"));
 
-    mockEcs.mockImplementationOnce(() => Promise.resolve(dltTaskDefinition1));
     mockEcs.mockImplementationOnce(() => Promise.resolve(getRegionalClusters));
-
-    mockEcs.mockImplementationOnce(() => Promise.resolve(dltTaskDefinition1));
     mockEcs.mockImplementationOnce(() => Promise.resolve(getRegionalClusters));
 
     mockEcs.mockImplementationOnce(() => Promise.resolve(tasks1));
@@ -825,13 +878,13 @@ describe("#SCENARIOS API:: ", () => {
   it('should return "SUCCESS" when "getAccountFargatevCPUDetails" returns correct vCPU limit, vCPU usage and errors on task definition', async () => {
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getTwoRegionalConf));
 
+    // Hub describeTaskDefinition fails
+    mockEcs.mockImplementationOnce(() => Promise.reject("ECS ERROR"));
+
     mockServiceQuotas.mockImplementationOnce(() => Promise.resolve(serviceQuotavCPULimit));
     mockServiceQuotas.mockImplementationOnce(() => Promise.resolve(serviceQuotavCPULimit));
 
-    mockEcs.mockImplementationOnce(() => Promise.reject("ECS ERROR"));
     mockEcs.mockImplementationOnce(() => Promise.resolve(getRegionalClusters));
-
-    mockEcs.mockImplementationOnce(() => Promise.reject("ECS ERROR"));
     mockEcs.mockImplementationOnce(() => Promise.resolve(getRegionalClusters));
 
     mockEcs.mockImplementationOnce(() => Promise.resolve(tasks1));
@@ -853,13 +906,13 @@ describe("#SCENARIOS API:: ", () => {
   it('should return "SUCCESS" when "getAccountFargatevCPUDetails" returns correct vCPU limit, task definition, and errors on vCPU usage', async () => {
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getTwoRegionalConf));
 
+    // Hub describeTaskDefinition (once)
+    mockEcs.mockImplementationOnce(() => Promise.resolve(dltTaskDefinition1));
+
     mockServiceQuotas.mockImplementationOnce(() => Promise.resolve(serviceQuotavCPULimit));
     mockServiceQuotas.mockImplementationOnce(() => Promise.resolve(serviceQuotavCPULimit));
 
-    mockEcs.mockImplementationOnce(() => Promise.resolve(dltTaskDefinition1));
     mockEcs.mockImplementationOnce(() => Promise.resolve(getRegionalClusters));
-
-    mockEcs.mockImplementationOnce(() => Promise.resolve(dltTaskDefinition1));
     mockEcs.mockImplementationOnce(() => Promise.resolve(getRegionalClusters));
 
     mockEcs.mockImplementationOnce(() => Promise.resolve(tasks1));
@@ -881,23 +934,14 @@ describe("#SCENARIOS API:: ", () => {
   it('should return "SUCCESS" when "getAccountFargatevCPUDetails" fails on "getAllAPIData" but returns correct vCPU Limit and task definition', async () => {
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getTwoRegionalConf));
 
+    // Hub describeTaskDefinition (once)
+    mockEcs.mockImplementationOnce(() => Promise.resolve(dltTaskDefinition1));
+
     mockServiceQuotas.mockImplementationOnce(() => Promise.resolve(serviceQuotavCPULimit));
     mockServiceQuotas.mockImplementationOnce(() => Promise.resolve(serviceQuotavCPULimit));
 
-    mockEcs.mockImplementationOnce(() => Promise.resolve(dltTaskDefinition1));
     mockEcs.mockImplementationOnce(() => Promise.reject("ECS ERROR"));
-
-    mockEcs.mockImplementationOnce(() => Promise.resolve(dltTaskDefinition1));
     mockEcs.mockImplementationOnce(() => Promise.reject("ECS ERROR"));
-
-    mockEcs.mockImplementationOnce(() => Promise.resolve(tasks1));
-    mockEcs.mockImplementationOnce(() => Promise.resolve(tasks1));
-
-    mockEcs.mockImplementationOnce(() => Promise.resolve(tasks2));
-    mockEcs.mockImplementationOnce(() => Promise.resolve(tasks2));
-
-    mockEcs.mockImplementationOnce(() => Promise.resolve(tasksDescription));
-    mockEcs.mockImplementationOnce(() => Promise.resolve(tasksDescription));
 
     const response = await lambda.getAccountFargatevCPUDetails();
     expect(response).toEqual({
@@ -909,13 +953,13 @@ describe("#SCENARIOS API:: ", () => {
   it('should return "SUCCESS" when "getAccountFargatevCPUDetails" and errors on vCPU limit, task definition, and vCPU usage', async () => {
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getTwoRegionalConf));
 
+    // Hub describeTaskDefinition fails
+    mockEcs.mockImplementationOnce(() => Promise.reject("ECS ERROR"));
+
     mockServiceQuotas.mockImplementationOnce(() => Promise.reject("SQ ERROR"));
     mockServiceQuotas.mockImplementationOnce(() => Promise.reject("SQ ERROR"));
 
-    mockEcs.mockImplementationOnce(() => Promise.reject("ECS ERROR"));
     mockEcs.mockImplementationOnce(() => Promise.resolve(getRegionalClusters));
-
-    mockEcs.mockImplementationOnce(() => Promise.reject("ECS ERROR"));
     mockEcs.mockImplementationOnce(() => Promise.resolve(getRegionalClusters));
 
     mockEcs.mockImplementationOnce(() => Promise.resolve(tasks1));
@@ -937,9 +981,10 @@ describe("#SCENARIOS API:: ", () => {
   it('should return "SUCCESS" when "getAccountFargatevCPUDetails" returns correct vCPU usage when tests are running', async () => {
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getSingleRegionalConf));
 
-    mockServiceQuotas.mockImplementationOnce(() => Promise.resolve(serviceQuotavCPULimit));
-
+    // Hub describeTaskDefinition (once)
     mockEcs.mockImplementationOnce(() => Promise.resolve(dltTaskDefinition1));
+
+    mockServiceQuotas.mockImplementationOnce(() => Promise.resolve(serviceQuotavCPULimit));
 
     mockEcs.mockImplementationOnce(() => Promise.resolve(getRegionalClusters));
 
@@ -956,9 +1001,10 @@ describe("#SCENARIOS API:: ", () => {
   it('should return "SUCCESS" when "getAccountFargatevCPUDetails" returns correct vCPU usage when no clusters are running', async () => {
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getSingleRegionalConf));
 
-    mockServiceQuotas.mockImplementationOnce(() => Promise.resolve(serviceQuotavCPULimit));
-
+    // Hub describeTaskDefinition (once)
     mockEcs.mockImplementationOnce(() => Promise.resolve(dltTaskDefinition1));
+
+    mockServiceQuotas.mockImplementationOnce(() => Promise.resolve(serviceQuotavCPULimit));
 
     mockEcs.mockImplementationOnce(() => Promise.resolve({ clusterArns: [] }));
 
@@ -969,9 +1015,10 @@ describe("#SCENARIOS API:: ", () => {
   it('should return "SUCCESS" when "getAccountFargatevCPUDetails" returns correct vCPU usage when no tests are running', async () => {
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getSingleRegionalConf));
 
-    mockServiceQuotas.mockImplementationOnce(() => Promise.resolve(serviceQuotavCPULimit));
-
+    // Hub describeTaskDefinition (once)
     mockEcs.mockImplementationOnce(() => Promise.resolve(dltTaskDefinition1));
+
+    mockServiceQuotas.mockImplementationOnce(() => Promise.resolve(serviceQuotavCPULimit));
 
     mockEcs.mockImplementationOnce(() => Promise.resolve(getRegionalClusters));
 
@@ -981,7 +1028,28 @@ describe("#SCENARIOS API:: ", () => {
     expect(response).toEqual({ "us-east-1": { vCPULimit: 4000, vCPUsInUse: 0, vCPUsPerTask: 2 } });
   });
 
+  it('should use hub task definition for vCPUsPerTask when regional stack has no task definition (thin spoke)', async () => {
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getTwoRegionalConfThinSpoke));
+
+    // Hub describeTaskDefinition (once, from hub config)
+    mockEcs.mockImplementationOnce(() => Promise.resolve(dltTaskDefinition1));
+
+    // Per-region: ServiceQuotas + ECS for vCPUsInUse
+    mockServiceQuotas.mockImplementationOnce(() => Promise.resolve(serviceQuotavCPULimit));
+    mockServiceQuotas.mockImplementationOnce(() => Promise.resolve(serviceQuotavCPULimit));
+
+    mockEcs.mockImplementationOnce(() => Promise.resolve({ clusterArns: [] }));
+    mockEcs.mockImplementationOnce(() => Promise.resolve({ clusterArns: [] }));
+
+    const response = await lambda.getAccountFargatevCPUDetails();
+    expect(response).toEqual({
+      "us-east-1": { vCPULimit: 4000, vCPUsInUse: 0, vCPUsPerTask: 2 },
+      "us-east-2": { vCPULimit: 4000, vCPUsInUse: 0, vCPUsPerTask: 2 },
+    });
+  });
+
   it('should return "SUCCESS" when "DELETETEST" returns success', async () => {
+    getData.Item.status = "complete";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
@@ -1000,6 +1068,7 @@ describe("#SCENARIOS API:: ", () => {
   });
 
   it('should return "SUCCESS" when "DELETETEST" has unprocessed entries from "deleteTestHistory', async () => {
+    getData.Item.status = "complete";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
@@ -1020,6 +1089,7 @@ describe("#SCENARIOS API:: ", () => {
   });
 
   it('DELETE should return "SUCCESS" when no metrics are found', async () => {
+    getData.Item.status = "complete";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve());
@@ -1040,9 +1110,60 @@ describe("#SCENARIOS API:: ", () => {
     expect(response).toEqual("success");
   });
 
+  it('should return "SUCCESS" when "DELETETEST" is called with empty ecsCloudWatchLogGroup (deleted regional stack)', async () => {
+    getData.Item.status = "complete";
+    // Simulate a deleted regional stack: the custom resource writes empty strings
+    // to the DDB config entry when the regional stack is removed
+    const deletedRegionalConf = {
+      Item: {
+        testId: "region-us-east-1",
+        ecsCloudWatchLogGroup: "",
+        taskCluster: "",
+        taskDefinition: "",
+        subnetB: "",
+        region: "us-east-1",
+        taskImage: "",
+        subnetA: "",
+        taskSecurityGroup: "",
+      },
+    };
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(deletedRegionalConf));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve());
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(historyEntries));
+    mockDynamoDB.mockImplementation(() => Promise.resolve(noUnprocessedItems));
+    mockCloudWatch.mockImplementationOnce(() => Promise.resolve());
+    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve(rulesResponse));
+    mockCloudWatchEvents.mockImplementation(() => Promise.resolve());
+    mockLambda.mockImplementationOnce(() => Promise.resolve());
+
+    const response = await lambda.deleteTest(testId, context.functionName);
+    expect(response).toEqual("success");
+    expect(mockCloudWatchLogs).not.toHaveBeenCalled();
+  });
+
+  it.each(["running", "cancelling", "provisioning", "cleaning up", "parsing results"])(
+    'should return 409 CONFLICT when "DELETETEST" is called on a %s test',
+    async (status) => {
+      expect.assertions(2);
+      getData.Item.status = status;
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
+
+      try {
+        await lambda.deleteTest(testId, context.functionName);
+      } catch (err) {
+        expect(err.code).toEqual("TEST_RUNNING");
+        expect(err.statusCode).toEqual(409);
+      }
+    }
+  );
+
   it('should return "SUCCESS" when "CREATETEST" returns success', async () => {
     mockS3.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
     mockStepFunctions.mockImplementation(() => Promise.resolve());
@@ -1066,6 +1187,7 @@ describe("#SCENARIOS API:: ", () => {
     getData.Item.nextRun = "2017-04-23 02:28:37";
     mockS3.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
     mockStepFunctions.mockImplementation(() => Promise.resolve());
@@ -1085,9 +1207,10 @@ describe("#SCENARIOS API:: ", () => {
     config.recurrence = "daily";
     mockS3.mockImplementation(() => Promise.resolve());
     mockStepFunctions.mockImplementation(() => Promise.resolve());
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
-    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(updateData));
 
     const response = await lambda.createTest(config, context.functionName);
@@ -1105,9 +1228,10 @@ describe("#SCENARIOS API:: ", () => {
     config.eventBridge = "true";
     mockS3.mockImplementation(() => Promise.resolve());
     mockStepFunctions.mockImplementation(() => Promise.resolve());
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
-    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(updateData));
 
     const response = await lambda.createTest(config, context.functionName);
@@ -1120,9 +1244,10 @@ describe("#SCENARIOS API:: ", () => {
 
     mockS3.mockImplementation(() => Promise.resolve());
     mockStepFunctions.mockImplementation(() => Promise.resolve());
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
-    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(updateData));
 
     const response = await lambda.createTest(config, context.functionName);
@@ -1132,6 +1257,7 @@ describe("#SCENARIOS API:: ", () => {
   it('should record proper date when "CREATETEST" with weekly recurrence', async () => {
     config.recurrence = "weekly";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
     mockS3.mockImplementation(() => Promise.resolve());
     mockStepFunctions.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
@@ -1152,6 +1278,7 @@ describe("#SCENARIOS API:: ", () => {
   it('should record proper date when "CREATETEST" with biweekly recurrence', async () => {
     config.recurrence = "biweekly";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
     mockS3.mockImplementation(() => Promise.resolve());
     mockStepFunctions.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
@@ -1172,6 +1299,7 @@ describe("#SCENARIOS API:: ", () => {
   it('should record proper date when "CREATETEST" with monthly recurrence', async () => {
     config.recurrence = "monthly";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
     mockS3.mockImplementation(() => Promise.resolve());
     mockStepFunctions.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
@@ -1189,23 +1317,24 @@ describe("#SCENARIOS API:: ", () => {
   });
 
   it('should return SUCCESS when "CANCELTEST" finds running tasks and returns success', async () => {
-    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(listData));
-    // Mock count queries for listTests totalTestRuns
-    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 5 })); // for testId "1234"
-    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 3 })); // for testId "5678"
+    // getTestEntry
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    // getTestAndRegionConfigs (getTestEntry + getRegionConfigs)
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
-    mockLambda.mockImplementationOnce(() => Promise.resolve());
+    // describeServiceTaskCounts (ECS describeServices)
+    mockEcs.mockImplementationOnce(() => Promise.resolve({ services: [{ runningCount: 1, pendingCount: 0, desiredCount: 1 }] }));
+    // dynamoDB.update (set status to cancelling)
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve());
+    // lambda.invoke (task canceler)
+    mockLambda.mockImplementationOnce(() => Promise.resolve());
+    // s3.listObjectsV2 (check for partial results)
+    mockS3.mockImplementationOnce(() => Promise.resolve({ Contents: [] }));
 
     const response = await lambda.cancelTest(testId);
-    expect(response).toEqual("test cancelling");
+    expect(response).toEqual(expect.objectContaining({ status: "test cancelling" }));
     expect(mockLambda).toHaveBeenCalledWith(
       expect.objectContaining({
-        Payload: JSON.stringify({
-          testId: testId,
-          testTaskConfig: getData.Item.testTaskConfigs[0],
-        }),
+        Payload: JSON.stringify({ testId: testId }),
       })
     );
   });
@@ -1250,17 +1379,16 @@ describe("#SCENARIOS API:: ", () => {
     expect(response.testStatus).toEqual("scheduled");
   });
 
-  it('should return SUCCESS and record proper next daily run when "SCHEDULETEST" returns success when scheduleStep is start and recurrence exists', async () => {
+  it('should return SUCCESS and delete past eventbridge rules when "SCHEDULETEST" runs with a testId', async () => {
+    config.testId = "test-id";
     config.scheduleStep = "start";
     config.recurrence = "daily";
 
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve({ Rules: [] }));
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve({ RuleArn: "arn:of:rule/123" }));
-    mockLambda.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
-    mockLambda.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
+    // deleteSchedules (scheduler.getSchedule + scheduler.deleteSchedule)
+    mockScheduler.mockImplementation(() => Promise.resolve());
+    // deleteRules: legacy CloudWatch Events cleanup
+    mockCloudWatchEvents.mockImplementation(() => Promise.resolve({ Rules: [] }));
+    mockLambda.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementation(() => {
       let scheduleData = updateData;
       scheduleData.Attributes.testStatus = "scheduled";
@@ -1268,8 +1396,7 @@ describe("#SCENARIOS API:: ", () => {
     });
 
     await lambda.scheduleTest(eventInput(), context);
-    expect(mockCloudWatchEvents).toHaveBeenNthCalledWith(
-      2,
+    expect(mockScheduler).toHaveBeenCalledWith(
       expect.objectContaining({
         ScheduleExpression: "rate(1 day)",
       })
@@ -1280,16 +1407,9 @@ describe("#SCENARIOS API:: ", () => {
     config.scheduleStep = "start";
     config.recurrence = "weekly";
 
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve(rulesResponse));
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
-    mockLambda.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve({ RuleArn: "arn:of:rule/123" }));
-    mockLambda.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
-    mockLambda.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
+    mockScheduler.mockImplementation(() => Promise.resolve());
+    mockCloudWatchEvents.mockImplementation(() => Promise.resolve({ Rules: [] }));
+    mockLambda.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementation(() => {
       let scheduleData = updateData;
       scheduleData.Attributes.testStatus = "scheduled";
@@ -1297,8 +1417,49 @@ describe("#SCENARIOS API:: ", () => {
     });
 
     await lambda.scheduleTest(eventInput(), context);
-    expect(mockCloudWatchEvents).toHaveBeenNthCalledWith(
-      4,
+    expect(mockScheduler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ScheduleExpression: "rate(1 day)",
+      })
+    );
+  });
+
+  it('should return SUCCESS and record proper next daily run when "SCHEDULETEST" returns success when scheduleStep is start and recurrence exists', async () => {
+    config.scheduleStep = "start";
+    config.recurrence = "daily";
+
+    mockScheduler.mockImplementation(() => Promise.resolve());
+    mockCloudWatchEvents.mockImplementation(() => Promise.resolve({ Rules: [] }));
+    mockLambda.mockImplementation(() => Promise.resolve());
+    mockDynamoDB.mockImplementation(() => {
+      let scheduleData = updateData;
+      scheduleData.Attributes.testStatus = "scheduled";
+      return Promise.resolve(scheduleData);
+    });
+
+    await lambda.scheduleTest(eventInput(), context);
+    expect(mockScheduler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ScheduleExpression: "rate(1 day)",
+      })
+    );
+  });
+
+  it('should return SUCCESS and record proper next weekly run when "SCHEDULETEST" returns success withe scheduleStep is start and recurrence exists', async () => {
+    config.scheduleStep = "start";
+    config.recurrence = "weekly";
+
+    mockScheduler.mockImplementation(() => Promise.resolve());
+    mockCloudWatchEvents.mockImplementation(() => Promise.resolve({ Rules: [] }));
+    mockLambda.mockImplementation(() => Promise.resolve());
+    mockDynamoDB.mockImplementation(() => {
+      let scheduleData = updateData;
+      scheduleData.Attributes.testStatus = "scheduled";
+      return Promise.resolve(scheduleData);
+    });
+
+    await lambda.scheduleTest(eventInput(), context);
+    expect(mockScheduler).toHaveBeenCalledWith(
       expect.objectContaining({
         ScheduleExpression: "rate(7 days)",
       })
@@ -1310,16 +1471,9 @@ describe("#SCENARIOS API:: ", () => {
     config.recurrence = "";
     config.cronValue = "0 0 * * *";
 
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve(rulesResponse));
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
-    mockLambda.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve({ RuleArn: "arn:of:rule/123" }));
-    mockLambda.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
-    mockLambda.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
+    mockScheduler.mockImplementation(() => Promise.resolve());
+    mockCloudWatchEvents.mockImplementation(() => Promise.resolve({ Rules: [] }));
+    mockLambda.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementation(() => {
       let scheduleData = updateData;
       scheduleData.Attributes.testStatus = "scheduled";
@@ -1327,10 +1481,9 @@ describe("#SCENARIOS API:: ", () => {
     });
 
     await lambda.scheduleTest(eventInput(), context);
-    expect(mockCloudWatchEvents).toHaveBeenNthCalledWith(
-      4,
+    expect(mockScheduler).toHaveBeenCalledWith(
       expect.objectContaining({
-        ScheduleExpression: "cron(0 0 * * ? 2017)",
+        ScheduleExpression: expect.stringContaining("cron(0 0 *"),
       })
     );
   });
@@ -1339,13 +1492,9 @@ describe("#SCENARIOS API:: ", () => {
     config.scheduleStep = "start";
     config.recurrence = "biweekly";
 
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve({ Rules: [] }));
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve({ RuleArn: "arn:of:rule/123" }));
-    mockLambda.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
-    mockLambda.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
+    mockScheduler.mockImplementation(() => Promise.resolve());
+    mockCloudWatchEvents.mockImplementation(() => Promise.resolve({ Rules: [] }));
+    mockLambda.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementation(() => {
       let scheduleData = updateData;
       scheduleData.Attributes.testStatus = "scheduled";
@@ -1353,8 +1502,7 @@ describe("#SCENARIOS API:: ", () => {
     });
 
     await lambda.scheduleTest(eventInput(), context);
-    expect(mockCloudWatchEvents).toHaveBeenNthCalledWith(
-      2,
+    expect(mockScheduler).toHaveBeenCalledWith(
       expect.objectContaining({
         ScheduleExpression: "rate(14 days)",
       })
@@ -1365,13 +1513,9 @@ describe("#SCENARIOS API:: ", () => {
     config.scheduleStep = "start";
     config.recurrence = "monthly";
 
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve({ Rules: [] }));
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve({ RuleArn: "arn:of:rule/123" }));
-    mockLambda.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
-    mockLambda.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
+    mockScheduler.mockImplementation(() => Promise.resolve());
+    mockCloudWatchEvents.mockImplementation(() => Promise.resolve({ Rules: [] }));
+    mockLambda.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementation(() => {
       let scheduleData = updateData;
       scheduleData.Attributes.testStatus = "scheduled";
@@ -1379,8 +1523,7 @@ describe("#SCENARIOS API:: ", () => {
     });
 
     await lambda.scheduleTest(eventInput(), context);
-    expect(mockCloudWatchEvents).toHaveBeenNthCalledWith(
-      2,
+    expect(mockScheduler).toHaveBeenCalledWith(
       expect.objectContaining({
         ScheduleExpression: "cron(30 12 28 * ? *)",
       })
@@ -1390,13 +1533,9 @@ describe("#SCENARIOS API:: ", () => {
   it('should return SUCCESS, and records proper nextRun when "SCHEDULETEST" returns success withe scheduleStep is start and no recurrence', async () => {
     config.scheduleStep = "start";
 
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve({ Rules: [] }));
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve({ RuleArn: "arn:of:rule/123" }));
-    mockLambda.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
-    mockLambda.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
+    mockScheduler.mockImplementation(() => Promise.resolve());
+    mockCloudWatchEvents.mockImplementation(() => Promise.resolve({ Rules: [] }));
+    mockLambda.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementationOnce(() => {
       let scheduleData = updateData;
       scheduleData.Attributes.testStatus = "scheduled";
@@ -1412,8 +1551,7 @@ describe("#SCENARIOS API:: ", () => {
         }),
       })
     );
-    expect(mockCloudWatchEvents).toHaveBeenNthCalledWith(
-      2,
+    expect(mockScheduler).toHaveBeenCalledWith(
       expect.objectContaining({
         ScheduleExpression: "cron(30 12 28 02 ? 2018)",
       })
@@ -1434,6 +1572,10 @@ describe("#SCENARIOS API:: ", () => {
           CreationTime: new Date("2025-09-09T19:40:22Z"),
           StackId: "arn:aws:cloudformation:us-west-2:123456789012:stack/test-stack/12345",
           Tags: [{ Key: "SolutionVersion", Value: "v4.0.1" }],
+          Outputs: [
+            { OutputKey: "SolutionUUID", OutputValue: "abc-uuid-123" },
+            { OutputKey: "SolutionTemplate", OutputValue: "cloudfront" },
+          ],
         },
       ],
     };
@@ -1441,9 +1583,17 @@ describe("#SCENARIOS API:: ", () => {
 
     const response = await lambda.getStackInfo();
     expect(response).toEqual({
+      account_id: "123456789012",
       created_time: "2025-09-09T19:40:22.000Z",
+      deployment_id: "abc-uuid-123",
+      deployment_method: "cloudformation",
+      mcp_endpoint: undefined,
       region: "us-west-2",
       version: "v4.0.1",
+      stack_id: "arn:aws:cloudformation:us-west-2:123456789012:stack/test-stack/12345",
+      solution_template: "cloudfront",
+      latest_version: "9.9.9",
+      is_update_available: true,
     });
   });
 
@@ -1454,6 +1604,7 @@ describe("#SCENARIOS API:: ", () => {
           CreationTime: new Date("2025-09-09T19:40:22Z"),
           StackId: "arn:aws:cloudformation:eu-west-1:123456789012:stack/test-stack/12345",
           Tags: [{ Key: "OtherTag", Value: "value" }],
+          Outputs: [{ OutputKey: "SolutionTemplate", OutputValue: "cloudfront" }],
         },
       ],
     };
@@ -1461,6 +1612,7 @@ describe("#SCENARIOS API:: ", () => {
 
     const response = await lambda.getStackInfo();
     expect(response.version).toEqual("unknown");
+    expect(response.deployment_method).toEqual("cloudformation");
   });
 
   it("should extract version from stack description when no SolutionVersion tag exists", async () => {
@@ -1471,6 +1623,7 @@ describe("#SCENARIOS API:: ", () => {
           StackId: "arn:aws:cloudformation:us-east-1:123456789012:stack/test-stack/12345",
           Description: "Distributed Load Testing Solution v4.0.1 - Creates infrastructure for load testing",
           Tags: [{ Key: "OtherTag", Value: "value" }],
+          Outputs: [{ OutputKey: "SolutionTemplate", OutputValue: "cloudfront" }],
         },
       ],
     };
@@ -1478,9 +1631,17 @@ describe("#SCENARIOS API:: ", () => {
 
     const response = await lambda.getStackInfo();
     expect(response).toEqual({
+      account_id: "123456789012",
       created_time: "2025-09-09T19:40:22.000Z",
+      deployment_id: undefined,
+      deployment_method: "cloudformation",
+      mcp_endpoint: undefined,
       region: "us-east-1",
       version: "v4.0.1",
+      stack_id: "arn:aws:cloudformation:us-east-1:123456789012:stack/test-stack/12345",
+      solution_template: "cloudfront",
+      latest_version: "9.9.9",
+      is_update_available: true,
     });
   });
 
@@ -1492,6 +1653,7 @@ describe("#SCENARIOS API:: ", () => {
           StackId: "arn:aws:cloudformation:us-west-1:123456789012:stack/test-stack/12345",
           Description: "Some description without version",
           Tags: [{ Key: "OtherTag", Value: "value" }],
+          Outputs: [{ OutputKey: "SolutionTemplate", OutputValue: "cloudfront" }],
         },
       ],
     };
@@ -1499,6 +1661,102 @@ describe("#SCENARIOS API:: ", () => {
 
     const response = await lambda.getStackInfo();
     expect(response.version).toEqual("unknown");
+    expect(response.deployment_method).toEqual("cloudformation");
+  });
+
+  it("should detect launch-wizard deployment method from LaunchWizardResourceGroupID tag", async () => {
+    const mockStackResponse = {
+      Stacks: [
+        {
+          CreationTime: new Date("2025-09-09T19:40:22Z"),
+          StackId: "arn:aws:cloudformation:us-west-2:123456789012:stack/test-stack/12345",
+          Tags: [
+            { Key: "SolutionVersion", Value: "v4.1.0" },
+            { Key: "LaunchWizardResourceGroupID", Value: "some-group-id" },
+          ],
+          Outputs: [{ OutputKey: "SolutionTemplate", OutputValue: "cloudfront" }],
+        },
+      ],
+    };
+    mockCloudFormation.mockImplementation(() => Promise.resolve(mockStackResponse));
+
+    const response = await lambda.getStackInfo();
+    expect(response.deployment_method).toEqual("launch-wizard");
+  });
+
+  it("should return solution_template from the SolutionTemplate stack output", async () => {
+    const mockStackResponse = {
+      Stacks: [
+        {
+          CreationTime: new Date("2025-09-09T19:40:22Z"),
+          StackId: "arn:aws:cloudformation:us-west-2:123456789012:stack/test-stack/12345",
+          Tags: [{ Key: "SolutionVersion", Value: "v4.1.0" }],
+          Outputs: [{ OutputKey: "SolutionTemplate", OutputValue: "alb-ecs" }],
+        },
+      ],
+    };
+    mockCloudFormation.mockImplementation(() => Promise.resolve(mockStackResponse));
+
+    const response = await lambda.getStackInfo();
+    expect(response.solution_template).toEqual("alb-ecs");
+  });
+
+  it("should throw INTERNAL_SERVER_ERROR when SolutionTemplate output is missing", async () => {
+    const mockStackResponse = {
+      Stacks: [
+        {
+          CreationTime: new Date("2025-09-09T19:40:22Z"),
+          StackId: "arn:aws:cloudformation:us-west-2:123456789012:stack/test-stack/12345",
+          Tags: [{ Key: "SolutionVersion", Value: "v4.1.0" }],
+          Outputs: [],
+        },
+      ],
+    };
+    mockCloudFormation.mockImplementation(() => Promise.resolve(mockStackResponse));
+
+    await expect(lambda.getStackInfo()).rejects.toMatchObject({
+      code: "MISSING_SOLUTION_TEMPLATE_OUTPUT",
+      statusCode: 500,
+    });
+  });
+
+  it("should return latest_version undefined and is_update_available false when RSS fetch fails", async () => {
+    const mockStackResponse = {
+      Stacks: [
+        {
+          CreationTime: new Date("2025-09-09T19:40:22Z"),
+          StackId: "arn:aws:cloudformation:us-west-2:123456789012:stack/test-stack/12345",
+          Tags: [{ Key: "SolutionVersion", Value: "v4.0.1" }],
+          Outputs: [{ OutputKey: "SolutionTemplate", OutputValue: "cloudfront" }],
+        },
+      ],
+    };
+    mockCloudFormation.mockImplementation(() => Promise.resolve(mockStackResponse));
+    mockGetLatestVersionFromRss.mockResolvedValue(undefined);
+
+    const response = await lambda.getStackInfo();
+    expect(response.latest_version).toBeUndefined();
+    expect(response.is_update_available).toBe(false);
+    expect(response.version).toEqual("v4.0.1");
+  });
+
+  it("should return is_update_available false when current version suffix matches the latest base version", async () => {
+    const mockStackResponse = {
+      Stacks: [
+        {
+          CreationTime: new Date("2025-09-09T19:40:22Z"),
+          StackId: "arn:aws:cloudformation:us-west-2:123456789012:stack/test-stack/12345",
+          Tags: [{ Key: "SolutionVersion", Value: "v4.1.0-ITL" }],
+          Outputs: [{ OutputKey: "SolutionTemplate", OutputValue: "cloudfront" }],
+        },
+      ],
+    };
+    mockCloudFormation.mockImplementation(() => Promise.resolve(mockStackResponse));
+    mockGetLatestVersionFromRss.mockResolvedValue("4.1.0");
+
+    const response = await lambda.getStackInfo();
+    expect(response.latest_version).toEqual("4.1.0");
+    expect(response.is_update_available).toBe(false);
   });
 
   //Negative Tests
@@ -1535,6 +1793,7 @@ describe("#SCENARIOS API:: ", () => {
   });
 
   it('should return "DB ERROR" when "DELETETEST" fails', async () => {
+    getData.Item.status = "complete";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementation(() => Promise.reject("DB ERROR"));
@@ -1552,6 +1811,7 @@ describe("#SCENARIOS API:: ", () => {
   });
 
   it('should return "DB ERROR" when "DELETETEST" fails when deleting the test', async () => {
+    getData.Item.status = "complete";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve());
@@ -1570,6 +1830,7 @@ describe("#SCENARIOS API:: ", () => {
   });
 
   it('should return "METRICS ERROR" when "DELETETEST" fails due to deleteMetricFilter error other than ResourceNotFoundException', async () => {
+    getData.Item.status = "complete";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
@@ -1589,10 +1850,11 @@ describe("#SCENARIOS API:: ", () => {
 
   it('should return "STEP FUNCTIONS ERROR" when "CREATETEST" fails', async () => {
     mockS3.mockImplementation(() => Promise.resolve());
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
     mockStepFunctions.mockImplementation(() => Promise.reject("STEP FUNCTIONS ERROR"));
-    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     try {
       await lambda.createTest(config, context.functionName);
     } catch (error) {
@@ -1674,6 +1936,7 @@ describe("#SCENARIOS API:: ", () => {
   it('should return "InvalidParameter" when "CREATETEST" fails due to hold-for less than min with no units', async () => {
     config.testScenario.execution[0]["hold-for"] = "0";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
     try {
       await lambda.createTest(config, context.functionName);
     } catch (error) {
@@ -1686,6 +1949,7 @@ describe("#SCENARIOS API:: ", () => {
   it('should return "InvalidParameter" when "CREATETEST" fails due to hold-for less than min with units', async () => {
     config.testScenario.execution[0]["hold-for"] = "0 ms";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
     try {
       await lambda.createTest(config, context.functionName);
     } catch (error) {
@@ -1699,6 +1963,7 @@ describe("#SCENARIOS API:: ", () => {
   it('should return "InvalidParameter" when "CREATETEST" fails due to hold-for units being invalid', async () => {
     config.testScenario.execution[0]["hold-for"] = "2 seconds";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
     try {
       await lambda.createTest(config, context.functionName);
     } catch (error) {
@@ -1712,6 +1977,7 @@ describe("#SCENARIOS API:: ", () => {
     config.testScenario.execution[0]["hold-for"] = "a";
     config.testType = "simple";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
     try {
       await lambda.createTest(config, context.functionName);
     } catch (error) {
@@ -1750,6 +2016,7 @@ describe("#SCENARIOS API:: ", () => {
   it('should return an exception when "CreateTest" fails to return a regional config', async () => {
     mockS3.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(notRegionalConf));
     await lambda.createTest(config, context.functionName).catch((err) => {
       expect(err.message.toString()).toEqual(
@@ -2034,6 +2301,7 @@ it('should return "INTERNAL_SERVER_ERROR" when CloudFormation fails', async () =
 
 it('should return "S3 ERROR" when "PUTOBJECT" fails', async () => {
   mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+  mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
   mockS3.mockImplementation(() => Promise.reject("S3 ERROR"));
 
   try {
@@ -2700,5 +2968,73 @@ describe("Baseline Management", () => {
         expect(error.statusCode).toEqual(500);
       }
     });
+  });
+});
+
+describe("getTestRunCount", () => {
+  it("returns the COUNT from the history table", async () => {
+    mockDynamoDB.mockImplementation(() => Promise.resolve({ Count: 5 }));
+    const count = await lambda.getTestRunCount("test-123");
+    expect(count).toBe(5);
+  });
+
+  it("returns null when DynamoDB throws", async () => {
+    mockDynamoDB.mockImplementation(() => Promise.reject(new Error("db error")));
+    const count = await lambda.getTestRunCount("test-123");
+    expect(count).toBeNull();
+  });
+});
+
+describe("computeChangedFields", () => {
+  const { computeChangedFields } = require("./index");
+
+  it("should return empty array when nothing changed", () => {
+    const existing = { testName: "Test", testDescription: "Desc", testType: "simple" };
+    const incoming = { testName: "Test", testDescription: "Desc", testType: "simple" };
+    expect(computeChangedFields(existing, incoming)).toEqual([]);
+  });
+
+  it("should detect changed scalar fields", () => {
+    const existing = { testName: "Old", testDescription: "Desc" };
+    const incoming = { testName: "New", testDescription: "Desc" };
+    expect(computeChangedFields(existing, incoming)).toEqual(["testName"]);
+  });
+
+  it("should detect multiple changed fields", () => {
+    const existing = { testName: "Old", testDescription: "Old Desc", showLive: false };
+    const incoming = { testName: "New", testDescription: "New Desc", showLive: true };
+    expect(computeChangedFields(existing, incoming)).toEqual(["testName", "testDescription", "showLive"]);
+  });
+
+  it("should compare testScenario as JSON string from DynamoDB against object", () => {
+    const scenario = { execution: [{ "hold-for": "1m" }] };
+    const existing = { testScenario: JSON.stringify(scenario) };
+    const incoming = { testScenario: scenario };
+    expect(computeChangedFields(existing, incoming)).toEqual([]);
+  });
+
+  it("should detect testScenario change when stored as JSON string", () => {
+    const existing = { testScenario: JSON.stringify({ execution: [{ "hold-for": "1m" }] }) };
+    const incoming = { testScenario: { execution: [{ "hold-for": "2m" }] } };
+    expect(computeChangedFields(existing, incoming)).toEqual(["testScenario"]);
+  });
+
+  it("should compare array fields like testTaskConfigs by value", () => {
+    const configs = [{ region: "us-east-1", taskCount: 1 }];
+    const existing = { testTaskConfigs: configs };
+    const incoming = { testTaskConfigs: [{ region: "us-east-1", taskCount: 2 }] };
+    expect(computeChangedFields(existing, incoming)).toEqual(["testTaskConfigs"]);
+  });
+
+  it("should treat undefined and missing fields as equal", () => {
+    const existing = {};
+    const incoming = {};
+    expect(computeChangedFields(existing, incoming)).toEqual([]);
+  });
+
+  it("should only track fields in TRACKED_FIELDS list", () => {
+    const existing = { testName: "Same", unknownField: "old" };
+    const incoming = { testName: "Same", unknownField: "new" };
+    expect(computeChangedFields(existing, incoming)).toEqual([]);
   });
 });

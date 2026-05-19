@@ -2,7 +2,7 @@
 **/dist/
 **/node_modules/
 cdk.out
-coverage
+**/coverage/
 build/
 dev/
 global-s3-assets/
@@ -11,6 +11,7 @@ open-source/
 deployment/ecr/**/*.jar
 .idea
 source/test/
+source/coverage-reports
 **/__pycache__/
 git-info
 .env
@@ -28,6 +29,12 @@ yarn-error.log*
 yarn-lock.json
 script_deploy*
 cdk.context.json
+jmeter.log
+**/*.tsbuildinfo
+cfn-guard-rules/
+
+# vscode
+.vscode/
 
 # cypress
 screenshots
@@ -42,3 +49,9 @@ source/metrics-utils/dist/
 
 # webui public directory
 source/webui/public/
+
+# JMeter local assets
+deployment/jmeter-assets/
+
+# CLI auto-generated version file
+source/cli/src/generated-version.ts

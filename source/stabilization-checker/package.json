@@ -1,0 +1,21 @@
+{
+  "name": "@amzn/dlt-stabilization-checker",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Stabilization Checker Lambda — polls ECS service health and resolves task IPs",
+  "type": "module",
+  "main": "src/index.ts",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@amzn/dlt-common": "*",
+    "@aws-sdk/client-ecs": "^3.993.0"
+  }
+}

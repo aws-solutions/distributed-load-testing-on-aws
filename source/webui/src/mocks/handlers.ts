@@ -52,11 +52,10 @@ export const getRegionsHandler = (apiUrl: string) =>
           ecsCloudWatchLogGroup: "distributed-load-testing-on-aws-DLTEcsDLTCloudWatchLogsGroupFE9EC144-5ursXtm2Gwvb",
           taskCluster: "distributed-load-testing-on-aws",
           testId: "region-us-east-1",
-          taskDefinition:
-            "arn:aws:ecs:us-east-1:123456789012:task-definition/distributedloadtestingonawsDLTEcsDLTTaskDefinitionFFD96F9E:12",
           subnetB: "subnet-0036b9d0136bf8b72",
           region: "us-east-1",
-          taskImage: "distributed-load-testing-on-aws-load-tester",
+          taskRoleArn: "arn:aws:iam::123456789012:role/dlt-task-role",
+          executionRoleArn: "arn:aws:iam::123456789012:role/dlt-execution-role",
           subnetA: "subnet-0f0e5e5b70565bac9",
           taskSecurityGroup: "sg-07e2c9237da3d7255",
         },
@@ -68,6 +67,9 @@ export const getRegionsHandler = (apiUrl: string) =>
 
 export const getScenarioDetailsHandler = (apiUrl: string) =>
   http.get(apiUrl + ApiEndpoints.SCENARIOS + "/:testId", () => ok(mockScenarioDetails));
+
+export const deleteScenarioHandler = (apiUrl: string) =>
+  http.delete(apiUrl + ApiEndpoints.SCENARIOS + "/:testId", () => ok({ message: "Scenario deleted" }));
 
 export const getVCPUDetailsHandler = (apiUrl: string) =>
   http.get(apiUrl + "/vCPUDetails", () => {
@@ -118,6 +120,7 @@ export const handlers = (apiUrl: string) => [
   getUserSelfHandler(apiUrl),
   getScenariosHandler(apiUrl),
   getScenarioDetailsHandler(apiUrl),
+  deleteScenarioHandler(apiUrl),
   getTestRunDetailsHandler(apiUrl),
   getRegionsHandler(apiUrl),
   getVCPUDetailsHandler(apiUrl),
@@ -125,6 +128,8 @@ export const handlers = (apiUrl: string) => [
 ];
 
 export const mockScenarios: ScenarioItem[] = generateTestScenarios(5); // Generate 5 mock scenarios
+
+import { TestStatus } from "../pages/scenarios/constants";
 
 export const mockScenarioDetails = {
   showLive: false,
@@ -140,7 +145,7 @@ export const mockScenarioDetails = {
       concurrency: 30,
     },
   ],
-  status: "scheduled" as const,
+  status: TestStatus.SCHEDULED,
   testType: "jmeter",
   nextRun: "2025-09-09 08:00:00",
   startTime: "",
@@ -170,23 +175,17 @@ export const mockScenarioDetails = {
   tasksPerRegion: [
     {
       region: "us-east-1",
-      tasks: [
-        {
-          lastStatus: "RUNNING" as const,
-        },
-      ],
+      running: 1,
+      pending: 0,
+      desired: 1,
     },
     {
       region: "us-east-2",
-      tasks: [
-        {
-          lastStatus: "PENDING" as const,
-        },
-        {
-          lastStatus: "PROVISIONING" as const,
-        },
-      ],
+      running: 0,
+      pending: 1,
+      desired: 2,
     },
   ],
+  taskFailureCount: 0,
   history: [],
 };

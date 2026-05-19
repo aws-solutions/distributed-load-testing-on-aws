@@ -15,13 +15,13 @@ import {
   SpaceBetween,
   Table,
 } from "@cloudscape-design/components";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useSelector } from "react-redux";
-import { useGetRegionsQuery } from "../../../store/regionsSlice";
+import { useGetRegionsQuery, RegionalStackInfo } from "../../../store/regionsSlice";
 import { RootState } from "../../../store/store";
 import { FormData } from "../types";
 import { solutionApi } from "../../../store/solutionApi";
-import { WARNING_THRESHOLDS } from "../constants";
+import { VALIDATION_LIMITS, WARNING_THRESHOLDS } from "../constants";
 
 interface RegionConfig {
   region: string;
@@ -50,26 +50,38 @@ export const TrafficShapeStep = ({ formData, updateFormData, showValidationError
 
   const { isLoading } = useGetRegionsQuery();
   const { data: vCPUData } = useGetVCPUDetailsQuery();
-  const regionsData = useSelector((state: RootState) => state.regions.data);
+  const regionsData = useSelector((state: RootState) => state.regions.regionNames);
+  const regionalStacks = useSelector((state: RootState) => state.regions.regionalStacks);
   const availableRegions = regionsData ?? [];
 
-  // Auto-select region if only one region is available
+  const incompatibleRegions = useMemo(
+    () => new Set((regionalStacks ?? []).filter((s: RegionalStackInfo) => !s.compatible).map((s: RegionalStackInfo) => s.region)),
+    [regionalStacks]
+  );
+
+  // Auto-select region if only one compatible region is available
   useEffect(() => {
-    if (availableRegions.length === 1 && regions.length === 0) {
+    const compatibleRegions = availableRegions.filter((r) => !incompatibleRegions.has(r));
+    if (compatibleRegions.length === 1 && regions.length === 0) {
       updateFormData({
         regions: [
           {
-            region: availableRegions[0],
+            region: compatibleRegions[0],
             taskCount: "",
             concurrency: "",
           },
         ],
       });
     }
-  }, [availableRegions, regions.length, updateFormData]);
+  }, [availableRegions, incompatibleRegions, regions.length, updateFormData]);
 
   const selectedRegions = regions.map((r) => ({ label: r.region, value: r.region }));
-  const regionOptions = availableRegions.map((region) => ({ label: region, value: region }));
+  const regionOptions = availableRegions.map((region) => ({
+    label: region,
+    value: region,
+    disabled: incompatibleRegions.has(region),
+    description: incompatibleRegions.has(region) ? "Incompatible version — update regional stack" : undefined,
+  }));
 
   const handleRegionSelection = (selectedOptions: any[]) => {
     const newRegions = selectedOptions.map((option) => ({
@@ -104,17 +116,18 @@ export const TrafficShapeStep = ({ formData, updateFormData, showValidationError
           <FormField
             label="Select Regions"
             errorText={
-              regions.length > 5
-                ? "Maximum 5 regions allowed"
+              regions.length > VALIDATION_LIMITS.MAX_REGIONS
+                ? `Maximum ${VALIDATION_LIMITS.MAX_REGIONS} regions allowed`
                 : showValidationErrors && regions.length === 0
                   ? "Please select at least one region"
                   : undefined
             }
           >
             <Multiselect
+              data-cy="regions-select"
               selectedOptions={selectedRegions}
               onChange={({ detail }) => {
-                if (detail.selectedOptions.length <= 5) {
+                if (detail.selectedOptions.length <= VALIDATION_LIMITS.MAX_REGIONS) {
                   handleRegionSelection([...detail.selectedOptions]);
                 }
               }}
@@ -141,8 +154,8 @@ export const TrafficShapeStep = ({ formData, updateFormData, showValidationError
                       errorText={
                         showValidationErrors && !region.taskCount
                           ? "Task count is required"
-                          : showValidationErrors && Number(region.taskCount) < 1
-                            ? "Task count must be ≥1"
+                          : region.taskCount && Number(region.taskCount) < VALIDATION_LIMITS.TASK_COUNT.MIN
+                            ? `Task count must be ≥${VALIDATION_LIMITS.TASK_COUNT.MIN}`
                             : undefined
                       }
                       warningText={
@@ -162,11 +175,12 @@ export const TrafficShapeStep = ({ formData, updateFormData, showValidationError
                       }
                     >
                       <Input
+                        data-cy={`task-count-input-${index}`}
                         value={region.taskCount || ""}
                         onChange={({ detail }) => updateRegion(index, "taskCount", detail.value)}
                         invalid={
                           !!(showValidationErrors && !region.taskCount) ||
-                          !!(region.taskCount && Number(region.taskCount) < 1)
+                          !!(region.taskCount && Number(region.taskCount) < VALIDATION_LIMITS.TASK_COUNT.MIN)
                         }
                         type="number"
                       />
@@ -178,8 +192,8 @@ export const TrafficShapeStep = ({ formData, updateFormData, showValidationError
                       errorText={
                         showValidationErrors && !region.concurrency
                           ? "Concurrency is required"
-                          : region.concurrency && Number(region.concurrency) < 1
-                            ? "Concurrency must be ≥1"
+                          : region.concurrency && Number(region.concurrency) < VALIDATION_LIMITS.CONCURRENCY.MIN
+                            ? `Concurrency must be ≥${VALIDATION_LIMITS.CONCURRENCY.MIN}`
                             : undefined
                       }
                       warningText={
@@ -199,11 +213,12 @@ export const TrafficShapeStep = ({ formData, updateFormData, showValidationError
                       }
                     >
                       <Input
+                        data-cy={`concurrency-input-${index}`}
                         value={region.concurrency || ""}
                         onChange={({ detail }) => updateRegion(index, "concurrency", detail.value)}
                         invalid={
                           !!(showValidationErrors && !region.concurrency) ||
-                          !!(region.concurrency && Number(region.concurrency) < 1)
+                          !!(region.concurrency && Number(region.concurrency) < VALIDATION_LIMITS.CONCURRENCY.MIN)
                         }
                         type="number"
                       />
@@ -288,19 +303,30 @@ export const TrafficShapeStep = ({ formData, updateFormData, showValidationError
           <FormField
             label="Ramp Up"
             description="The time to reach target concurrency"
-            errorText={showValidationErrors && !formData.rampUpValue ? "Ramp up time is required" : undefined}
+            errorText={
+              showValidationErrors && !formData.rampUpValue
+                ? "Ramp up time is required"
+                : formData.rampUpValue && Number(formData.rampUpValue) < VALIDATION_LIMITS.RAMP_UP.MIN
+                  ? `Ramp up must be ≥${VALIDATION_LIMITS.RAMP_UP.MIN}`
+                  : undefined
+            }
           >
             <Grid disableGutters gridDefinition={[{ colspan: 3 }, { colspan: 6 }]}>
               <Box padding={"xxs"}>
                 <Input
+                  data-cy="ramp-up-input"
                   value={formData.rampUpValue || ""}
                   onChange={({ detail }) => updateFormData({ rampUpValue: detail.value })}
-                  invalid={showValidationErrors && !formData.rampUpValue}
+                  invalid={
+                    !!(showValidationErrors && !formData.rampUpValue) ||
+                    !!(formData.rampUpValue && Number(formData.rampUpValue) < VALIDATION_LIMITS.RAMP_UP.MIN)
+                  }
                   type="number"
                 />
               </Box>
               <Box padding={"xxs"}>
                 <Select
+                  data-cy="ramp-up-unit-select"
                   selectedOption={{ label: formData.rampUpUnit || "minutes", value: formData.rampUpUnit || "minutes" }}
                   onChange={({ detail }) => updateFormData({ rampUpUnit: detail.selectedOption.value })}
                   options={[
@@ -315,19 +341,30 @@ export const TrafficShapeStep = ({ formData, updateFormData, showValidationError
           <FormField
             label="Hold For"
             description="The duration to maintain target load"
-            errorText={showValidationErrors && !formData.holdForValue ? "Hold for time is required" : undefined}
+            errorText={
+              showValidationErrors && !formData.holdForValue
+                ? "Hold for time is required"
+                : formData.holdForValue && Number(formData.holdForValue) < VALIDATION_LIMITS.HOLD_FOR.MIN
+                  ? `Hold for must be ≥${VALIDATION_LIMITS.HOLD_FOR.MIN}`
+                  : undefined
+            }
           >
             <Grid disableGutters gridDefinition={[{ colspan: 3 }, { colspan: 6 }]}>
               <Box padding={"xxs"}>
                 <Input
+                  data-cy="hold-for-input"
                   value={formData.holdForValue || ""}
                   onChange={({ detail }) => updateFormData({ holdForValue: detail.value })}
-                  invalid={showValidationErrors && !formData.holdForValue}
+                  invalid={
+                    !!(showValidationErrors && !formData.holdForValue) ||
+                    !!(formData.holdForValue && Number(formData.holdForValue) < VALIDATION_LIMITS.HOLD_FOR.MIN)
+                  }
                   type="number"
                 />
               </Box>
               <Box padding={"xxs"}>
                 <Select
+                  data-cy="hold-for-unit-select"
                   selectedOption={{
                     label: formData.holdForUnit || "minutes",
                     value: formData.holdForUnit || "minutes",

@@ -84,7 +84,6 @@ export function addCloudFrontMetric(
  *
  * @param {object} props Associated metric properties.
  * @param {string} props.clusterName The name of the ECS Cluster
- * @param {string} props.taskDefinitionFamily The task definition family for the ECS Cluster
  * @param {number} props.period The period to use for the metric, defaults to one week.
  * @param {string} props.identifier An identifier to be used for this metric to allow for uniqueness among the same metrics used for other resources.
  */
@@ -92,7 +91,6 @@ export function addECSAverageCPUUtilization(
   this: SolutionsMetrics,
   props: {
     clusterName: string;
-    taskDefinitionFamily: string;
     period?: number;
     identifier?: string;
   }
@@ -105,10 +103,6 @@ export function addECSAverageCPUUtilization(
           {
             Name: "ClusterName",
             Value: props.clusterName,
-          },
-          {
-            Name: "TaskDefinitionFamily",
-            Value: props.taskDefinitionFamily,
           },
         ],
         MetricName: "CpuUtilized",
@@ -124,7 +118,6 @@ export function addECSAverageCPUUtilization(
  *
  * @param {object} props Associated metric properties.
  * @param {string} props.clusterName The name of the ECS Cluster
- * @param {string} props.taskDefinitionFamily The task definition family for the ECS Cluster
  * @param {number} props.period The period to use for the metric, defaults to one week.
  * @param {string} props.identifier An identifier to be used for this metric to allow for uniqueness among the same metrics used for other resources.
  */
@@ -132,7 +125,6 @@ export function addECSAverageMemoryUtilization(
   this: SolutionsMetrics,
   props: {
     clusterName: string;
-    taskDefinitionFamily: string;
     period?: number;
     identifier?: string;
   }
@@ -145,10 +137,6 @@ export function addECSAverageMemoryUtilization(
           {
             Name: "ClusterName",
             Value: props.clusterName,
-          },
-          {
-            Name: "TaskDefinitionFamily",
-            Value: props.taskDefinitionFamily,
           },
         ],
         MetricName: "MemoryUtilized",

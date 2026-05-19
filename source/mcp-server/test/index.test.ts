@@ -5,13 +5,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Use vi.hoisted to set env vars before any module loading
 vi.hoisted(() => {
-  process.env.API_GATEWAY_ENDPOINT = "https://api.example.com";
-  process.env.AWS_REGION = "us-east-1";
-  process.env.SCENARIOS_BUCKET_NAME = "test-bucket";
-  process.env.SOLUTION_ID = "test-solution";
-  process.env.UUID = "test-uuid";
-  process.env.VERSION = "1.0.0";
-  process.env.METRIC_URL = "https://metrics.example.com";
+  process.env["API_GATEWAY_ENDPOINT"] = "https://api.example.com";
+  process.env["AWS_ACCOUNT_ID"] = "123456789012";
+  process.env["AWS_REGION"] = "us-east-1";
+  process.env["SCENARIOS_BUCKET_NAME"] = "test-bucket";
+  process.env["SOLUTION_ID"] = "test-solution";
+  process.env["UUID"] = "test-uuid";
+  process.env["VERSION"] = "1.0.0";
+  process.env["METRIC_URL"] = "https://metrics.example.com";
 });
 
 import type { AgentCoreContext, AgentCoreEvent } from "../src/lib/common.js";
@@ -37,9 +38,7 @@ vi.mock("../src/lib/logger.js", () => ({
 
 // Mock metrics to avoid external calls
 vi.mock("../src/lib/metrics.js", async () => {
-  const actual = await vi.importActual<typeof import("../src/lib/metrics.js")>(
-    "../src/lib/metrics.js"
-  );
+  const actual = await vi.importActual<typeof import("../src/lib/metrics.js")>("../src/lib/metrics.js");
   return {
     ...actual,
     sendToolUsageMetric: vi.fn().mockResolvedValue(undefined),
@@ -96,8 +95,7 @@ describe("Lambda Handler", () => {
     });
 
     it("should route get_scenario_details correctly", async () => {
-      mockContext.clientContext.custom.bedrockAgentCoreToolName =
-        "gateway-target___get_scenario_details";
+      mockContext.clientContext.custom.bedrockAgentCoreToolName = "gateway-target___get_scenario_details";
       const mockResult = { id: "test-123" };
       vi.mocked(tools.handleGetScenarioDetails).mockResolvedValue(mockResult);
 
@@ -133,8 +131,7 @@ describe("Lambda Handler", () => {
     });
 
     it("should route get_latest_test_run correctly", async () => {
-      mockContext.clientContext.custom.bedrockAgentCoreToolName =
-        "gateway-target___get_latest_test_run";
+      mockContext.clientContext.custom.bedrockAgentCoreToolName = "gateway-target___get_latest_test_run";
       const mockResult = { id: "run-456" };
       vi.mocked(tools.handleGetLatestTestRun).mockResolvedValue(mockResult);
 
@@ -146,8 +143,7 @@ describe("Lambda Handler", () => {
     });
 
     it("should route get_baseline_test_run correctly", async () => {
-      mockContext.clientContext.custom.bedrockAgentCoreToolName =
-        "gateway-target___get_baseline_test_run";
+      mockContext.clientContext.custom.bedrockAgentCoreToolName = "gateway-target___get_baseline_test_run";
       const mockResult = { id: "run-789" };
       vi.mocked(tools.handleGetBaselineTestRun).mockResolvedValue(mockResult);
 
@@ -159,8 +155,7 @@ describe("Lambda Handler", () => {
     });
 
     it("should route get_test_run_artifacts correctly", async () => {
-      mockContext.clientContext.custom.bedrockAgentCoreToolName =
-        "gateway-target___get_test_run_artifacts";
+      mockContext.clientContext.custom.bedrockAgentCoreToolName = "gateway-target___get_test_run_artifacts";
       const mockResult = { artifacts: [] };
       vi.mocked(tools.handleGetTestRunArtifacts).mockResolvedValue(mockResult);
 
@@ -179,7 +174,7 @@ describe("Lambda Handler", () => {
       const response = await handler(mockEvent, mockContext);
 
       expect(response.statusCode).toBe(400);
-      const body = JSON.parse(response.body);
+      const body = JSON.parse(response.body) as { error: string };
       expect(body.error).toContain("Unknown tool");
     });
 
@@ -189,7 +184,7 @@ describe("Lambda Handler", () => {
       const response = await handler(mockEvent, mockContext);
 
       expect(response.statusCode).toBe(404);
-      const body = JSON.parse(response.body);
+      const body = JSON.parse(response.body) as { error: string };
       expect(body.error).toBe("Not found");
     });
 
@@ -199,7 +194,7 @@ describe("Lambda Handler", () => {
       const response = await handler(mockEvent, mockContext);
 
       expect(response.statusCode).toBe(500);
-      const body = JSON.parse(response.body);
+      const body = JSON.parse(response.body) as { error: string };
       expect(body.error).toBe("Internal server error");
     });
   });
@@ -215,7 +210,7 @@ describe("Lambda Handler", () => {
       expect(response).toHaveProperty("headers");
       expect(response.headers).toEqual({ "Content-Type": "application/json" });
       expect(response).toHaveProperty("body");
-      expect(() => JSON.parse(response.body)).not.toThrow();
+      expect(() => JSON.parse(response.body) as unknown).not.toThrow();
     });
 
     it("should return proper error response structure", async () => {
@@ -227,15 +222,14 @@ describe("Lambda Handler", () => {
       expect(response).toHaveProperty("headers");
       expect(response.headers).toEqual({ "Content-Type": "application/json" });
       expect(response).toHaveProperty("body");
-      const body = JSON.parse(response.body);
+      const body = JSON.parse(response.body) as { error: string };
       expect(body).toHaveProperty("error");
     });
   });
 
   describe("Tool name parsing", () => {
     it("should extract tool name after delimiter", async () => {
-      mockContext.clientContext.custom.bedrockAgentCoreToolName =
-        "my-gateway-my-target___get_test_run";
+      mockContext.clientContext.custom.bedrockAgentCoreToolName = "my-gateway-my-target___get_test_run";
       vi.mocked(tools.handleGetTestRun).mockResolvedValue({ id: "test" });
 
       await handler(mockEvent, mockContext);
@@ -293,8 +287,8 @@ describe("Lambda Handler", () => {
           ToolName: "list_scenarios",
           Status: "success",
           StatusCode: 200,
-          TokenCount: expect.any(Number),
-          DurationMs: expect.any(Number),
+          TokenCount: expect.any(Number) as number,
+          DurationMs: expect.any(Number) as number,
         })
       );
     });

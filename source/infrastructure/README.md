@@ -25,6 +25,34 @@ npx cdk deploy DLTStack --profile {myProfile} --parameters AdminName={myAdmin} -
 - myAdmin - username to login to DLT web portal
 - myEmail - email address to receive temporary login credentials
 
+#### Deploy ALB + ECS stack (alternative to CloudFront)
+
+For regions where CloudFront is not available or for organizations that require a secure network deployment, use the ALB + ECS stack variant. This stack hosts the web console behind an Application Load Balancer with ECS Fargate instead of CloudFront + S3.
+
+```shell
+npx cdk deploy distributed-load-testing-on-aws-alb-ecs --profile {myProfile} \
+  --parameters AdminName={myAdmin} \
+  --parameters AdminEmail={myEmail} \
+  --parameters ConsoleDomainName={myDomain} \
+  --parameters ACMCertificateArn={myCertArn}
+```
+- myDomain - custom domain name for the web console (e.g., dlt.example.com), must match the ACM certificate
+- myCertArn - ARN of an ACM certificate in the same region for HTTPS
+
+By default, the ALB stack deploys an AWS WAF WebACL with AWS managed rule groups (CommonRuleSet, AmazonIpReputationList, AnonymousIpList) to protect the load balancer. To skip WAF deployment, add `--parameters DeployWAF=No`.
+
+#### Deploy headless stack (no web console hosting)
+
+For organizations that want to host the web console on their own infrastructure or integrate with existing web platforms. The backend services (API, Lambda, DynamoDB, Step Functions) are deployed normally. The web console assets are packaged as a ZIP file in an S3 bucket for download and self-hosting.
+
+```shell
+npx cdk deploy distributed-load-testing-on-aws-headless --profile {myProfile} \
+  --parameters AdminName={myAdmin} \
+  --parameters AdminEmail={myEmail}
+```
+
+The stack outputs include a ConsoleAssetsBucket URL where you can download the web console ZIP package.
+
 #### Deploy regional stack
 Time to deploy: ~ 5 minutes
 
@@ -41,6 +69,3 @@ AWS_REGION={myRegion} npx cdk deploy RegionalDLTStack --profile {myProfile} --pa
 - myPrimaryRegion - region of deployment for primary stack
 
 _Note: AWS_REGION={myRegion} can be prepended to `cdk deploy` to change region of deployment_
-
-
-

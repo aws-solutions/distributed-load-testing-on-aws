@@ -11,6 +11,7 @@ const coverageConfig: { provider: "v8" } & CoverageV8Options = {
   enabled: true,
   reportsDirectory: resolve(__dirname, "./coverage"),
   reporter: ["text", "html", "lcov"],
+  include: ['src/**/*.{ts,tsx}'],
   exclude: [
     "node_modules/**",
     "dist/**",
@@ -18,7 +19,7 @@ const coverageConfig: { provider: "v8" } & CoverageV8Options = {
     "**/mockServiceWorker.js",
     "vite.config.ts",
     "src/mocks/**",
-    "src/__tests__/**",
+    "**/__tests__/**",
   ],
 };
 
@@ -34,6 +35,9 @@ const config: VitestUserConfig & UserConfig = {
     testTimeout: 25000, // 25s test timeout unless specified otherwise in the test suite
   },
   plugins: [react()],
+  optimizeDeps: {
+    include: ["@vvo/tzdb"],
+  },
   server: {
     port: 3000,
   },

@@ -3,6 +3,7 @@
 
 import {
   Alert,
+  Box,
   Button,
   ContentLayout,
   Header,
@@ -21,6 +22,7 @@ import { TestResultsErrors } from "./components/TestResultsErrors";
 import { TestResultsTable } from "./components/TestResultsTable";
 import { TableRow } from "./types/testResults";
 import { ViewMode } from "./types/viewMode";
+import { usePageLoadMetric } from "../../hooks/usePageLoadMetric";
 
 export default function TestRunDetailsPage() {
   const { testId, testRunId } = useParams<{ testId: string; testRunId: string }>();
@@ -33,8 +35,15 @@ export default function TestRunDetailsPage() {
     testId: testId!, 
     testRunId: testRunId! 
   });
-  const { data: baseline } = useGetBaselineQuery({ 
+  const { data: baseline, isLoading: isBaselineLoading, error: baselineError } = useGetBaselineQuery({ 
     testId: testId! 
+  });
+  // extra is only emitted in PageDataReady (not PageInitialLoad), so
+  // BaselineEnabled reflects the actual loaded baseline state.
+  usePageLoadMetric("TestRunDetails", {
+    dataReady: !isLoading && !isBaselineLoading && !error && !baselineError,
+    testId,
+    extra: { BaselineEnabled: baseline?.baselineId ? "true" : "false" },
   });
 
   const handleBackToScenario = () => {
@@ -75,6 +84,17 @@ export default function TestRunDetailsPage() {
     >
       {testRun && (
         <SpaceBetween size="l">
+          {testRun.status === "failed" && testRun.errorReason && (
+            <Alert type="error" header="This test run did not complete successfully">
+              <SpaceBetween size="xs">
+                <Box variant="p">{testRun.errorReason}</Box>
+                <Box variant="p">
+                  Partial results may still be available below if the test was running before the failure occurred.
+                </Box>
+              </SpaceBetween>
+            </Alert>
+          )}
+
           <ScenarioMetadata testRun={testRun} testId={testId!} testRunId={testRunId!} />
 
           <Tabs

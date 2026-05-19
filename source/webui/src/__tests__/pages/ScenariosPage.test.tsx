@@ -16,13 +16,15 @@
  */
 
 import { screen, waitForElementToBeRemoved, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderAppContent } from "../test-utils.tsx";
 import { generateTestScenarios } from "../test-data-factory.ts";
 import { MOCK_SERVER_URL, server } from "../server.ts";
-import { http } from "msw";
+import { http, HttpResponse } from "msw";
 import { ApiEndpoints } from "../../store/solutionApi.ts";
 import { ok } from "../../mocks/handlers.ts";
 import { vi } from "vitest";
+import * as consoleMetrics from "../../utils/consoleMetrics.ts";
 
 it("renders an empty scenarios page", async () => {
   // GIVEN the backend returns no scenarios
@@ -104,6 +106,47 @@ it("renders error with 'Failed' when API returns 500", async () => {
   consoleSpy.mockRestore();
 });
 
+it("emits DeleteScenario metric on confirmation", async () => {
+  const metricSpy = vi.spyOn(consoleMetrics, "sendConsoleMetric");
+
+  // GIVEN a page with one complete (deletable) scenario
+  const scenarios = generateTestScenarios(1, { status: "complete" });
+  server.use(
+    http.get(MOCK_SERVER_URL + ApiEndpoints.SCENARIOS, async () => await ok({ Items: scenarios })),
+    http.delete(MOCK_SERVER_URL + ApiEndpoints.SCENARIOS + "/:testId", () =>
+      HttpResponse.json({}, { status: 200 }),
+    ),
+  );
+
+  renderAppContent({ initialRoute: "/scenarios" });
+
+  const withinMain = within(screen.getByTestId("main-content"));
+  await waitForElementToBeRemoved(await withinMain.findByText("Loading"));
+
+  // Select the scenario row
+  const user = userEvent.setup();
+  const radio = withinMain.getByRole("radio");
+  await user.click(radio);
+
+  // Open the Actions dropdown and click Delete Scenario
+  const actionsButton = withinMain.getByText("Actions");
+  await user.click(actionsButton);
+  const deleteItem = await screen.findByText("Delete Scenario");
+  await user.click(deleteItem);
+
+  // Click the confirm Delete button inside the modal
+  const confirmBtn = screen.getByTestId("confirm-delete-btn");
+  await user.click(confirmBtn);
+
+  // NOW the metric should have fired
+  expect(metricSpy).toHaveBeenCalledWith(
+    "ButtonClick",
+    expect.objectContaining({ Action: "DeleteScenario" }),
+  );
+
+  metricSpy.mockRestore();
+});
+
 it("validates data exists in the table", async () => {
   // GIVEN the backend returns scenarios with specific data
   const scenarios = generateTestScenarios(2);
@@ -122,3 +165,52 @@ it("validates data exists in the table", async () => {
   expect(within(table).getByText(scenarios[0].testName)).toBeInTheDocument();
   expect(within(table).getByText(scenarios[1].testName)).toBeInTheDocument();
 });
+
+it.each(["queued", "provisioning", "running", "cancelling", "cleaning up", "parsing results"])(
+  "disables Delete Scenario in table actions when status is %s",
+  async (status) => {
+    const scenarios = generateTestScenarios(1, { status: status as any });
+    server.use(http.get(MOCK_SERVER_URL + ApiEndpoints.SCENARIOS, async () => await ok({ Items: scenarios })));
+
+    renderAppContent({ initialRoute: "/scenarios" });
+
+    const withinMain = within(screen.getByTestId("main-content"));
+    await waitForElementToBeRemoved(await withinMain.findByText("Loading"));
+
+    // Select the scenario row
+    const user = userEvent.setup();
+    const radio = withinMain.getByRole("radio");
+    await user.click(radio);
+
+    // Open the Actions dropdown
+    const actionsButton = withinMain.getByText("Actions");
+    await user.click(actionsButton);
+
+    // Find the Delete Scenario menu item and verify it is disabled
+    const deleteItem = await screen.findByText("Delete Scenario");
+    expect(deleteItem.closest('[role="menuitem"]')).toHaveAttribute("aria-disabled", "true");
+  }
+);
+
+it.each(["complete", "cancelled", "failed", "scheduled"])(
+  "enables Delete Scenario in table actions when status is %s",
+  async (status) => {
+    const scenarios = generateTestScenarios(1, { status: status as any });
+    server.use(http.get(MOCK_SERVER_URL + ApiEndpoints.SCENARIOS, async () => await ok({ Items: scenarios })));
+
+    renderAppContent({ initialRoute: "/scenarios" });
+
+    const withinMain = within(screen.getByTestId("main-content"));
+    await waitForElementToBeRemoved(await withinMain.findByText("Loading"));
+
+    const user = userEvent.setup();
+    const radio = withinMain.getByRole("radio");
+    await user.click(radio);
+
+    const actionsButton = withinMain.getByText("Actions");
+    await user.click(actionsButton);
+
+    const deleteItem = await screen.findByText("Delete Scenario");
+    expect(deleteItem.closest('[role="menuitem"]')).not.toHaveAttribute("aria-disabled");
+  }
+);

@@ -3,7 +3,7 @@
 
 import * as path from "path";
 import { ArnFormat, CfnResource, Duration, Stack } from "aws-cdk-lib";
-import { Runtime } from "aws-cdk-lib/aws-lambda";
+import { Architecture, Runtime } from "aws-cdk-lib/aws-lambda";
 import { Effect, PolicyStatement, PolicyDocument, Role, ServicePrincipal, Policy } from "aws-cdk-lib/aws-iam";
 import { LogGroup, FilterPattern, ILogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { LambdaDestination } from "aws-cdk-lib/aws-logs-destinations";
@@ -39,7 +39,7 @@ export class RealTimeDataConstruct extends Construct {
                   region: props.mainRegion,
                   service: "iot",
                   resource: "topic",
-                  resourceName: "*",
+                  resourceName: "dlt/*",
                   arnFormat: ArnFormat.SLASH_RESOURCE_NAME,
                 }),
               ],
@@ -58,7 +58,10 @@ export class RealTimeDataConstruct extends Construct {
       handler: "index.handler",
       role: realTimeDataPublisherRole,
       entry: path.join(__dirname, "../../../real-time-data-publisher/index.js"),
+      projectRoot: path.join(__dirname, "../../../real-time-data-publisher"),
+      depsLockFilePath: path.join(__dirname, "../../../real-time-data-publisher/package-lock.json"),
       runtime: Runtime.NODEJS_24_X,
+      architecture: Architecture.ARM_64,
       timeout: Duration.seconds(180),
       environment: {
         MAIN_REGION: props.mainRegion,

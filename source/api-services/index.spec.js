@@ -21,7 +21,14 @@ jest.mock("./lib/scenarios/", () => ({
   },
   listTests: jest.fn().mockResolvedValue([]),
   getTest: jest.fn().mockResolvedValue({}),
-  cancelTest: jest.fn().mockResolvedValue("success"),
+  cancelTest: jest.fn().mockResolvedValue({
+    status: "test cancelling",
+    testType: "simple",
+    runDuration: 120,
+    tasksLaunched: 5,
+    tasksCompleted: 3,
+    hadResults: true,
+  }),
   createTest: jest.fn().mockResolvedValue({}),
   deleteTest: jest.fn().mockResolvedValue("success"),
   scheduleTest: jest.fn().mockResolvedValue({}),
@@ -36,6 +43,10 @@ jest.mock("./lib/scenarios/", () => ({
   setBaseline: jest.fn().mockResolvedValue("success"),
   clearBaseline: jest.fn().mockResolvedValue("success"),
   getStackInfo: jest.fn().mockResolvedValue({}),
+  getTestRunCount: jest.fn().mockResolvedValue(0),
+  getTestEntry: jest.fn().mockResolvedValue(null),
+  computeChangedFields: jest.fn().mockReturnValue([]),
+  getTestDurationSeconds: jest.fn().mockReturnValue(0),
 }));
 
 jest.mock("solution-utils", () => ({
@@ -259,6 +270,158 @@ describe("handler", () => {
       expect(scenarios.createTest).toHaveBeenCalledWith(testConfig, "test-function");
     });
 
+    it("should still succeed when getTestEntry throws a transient error", async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      scenarios.getTestEntry.mockRejectedValueOnce(new Error("DynamoDB transient error"));
+
+      const testConfig = {
+        testId: "existing-test-123",
+        testName: "Test Name",
+        testDescription: "Test Description",
+        testType: "simple",
+        testTaskConfigs: [{ region: "us-east-1", taskCount: 1, concurrency: 1 }],
+        testScenario: { execution: [{ "hold-for": "1m" }] },
+        regionalTaskDetails: { "us-east-1": { dltAvailableTasks: 10 } }
+      };
+
+      const event = {
+        resource: "/scenarios",
+        httpMethod: "POST",
+        body: JSON.stringify(testConfig),
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = { functionName: "test-function" };
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.createTest).toHaveBeenCalledWith(testConfig, "test-function");
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Failed to fetch existing entry for metric:",
+        expect.any(Error)
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it("should call getTestEntry with config.testId and send TestUpdate metric when entry exists", async () => {
+      const utils = require("solution-utils");
+      scenarios.getTestEntry.mockResolvedValueOnce({ testId: "existing-test-123", testName: "Old Name" });
+      scenarios.createTest.mockResolvedValueOnce({ testId: "existing-test-123" });
+      scenarios.getTestRunCount.mockResolvedValueOnce(2);
+      scenarios.computeChangedFields.mockReturnValueOnce(["testName"]);
+      scenarios.getTestDurationSeconds.mockReturnValue(60);
+
+      const testConfig = {
+        testId: "existing-test-123",
+        testName: "Updated Name",
+        testDescription: "Test Description",
+        testType: "simple",
+        testTaskConfigs: [{ region: "us-east-1", taskCount: 1, concurrency: 1 }],
+        testScenario: { execution: [{ "hold-for": "1m" }] },
+        regionalTaskDetails: { "us-east-1": { dltAvailableTasks: 10 } }
+      };
+
+      const event = {
+        resource: "/scenarios",
+        httpMethod: "POST",
+        body: JSON.stringify(testConfig),
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = { functionName: "test-function" };
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.getTestEntry).toHaveBeenCalledWith("existing-test-123");
+      expect(utils.sendMetric).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Type: "TestUpdate",
+          TestId: "existing-test-123",
+          FieldsChanged: ["testName"],
+          UserAgent: "test-agent",
+        })
+      );
+    });
+
+    it("should send TestCreate metric when getTestEntry returns null (new test)", async () => {
+      const utils = require("solution-utils");
+      scenarios.getTestEntry.mockResolvedValueOnce(null);
+      scenarios.createTest.mockResolvedValueOnce({ testId: "new-test-456" });
+      scenarios.getTestRunCount.mockResolvedValueOnce(0);
+      scenarios.getTestDurationSeconds.mockReturnValue(60);
+
+      const testConfig = {
+        testId: "new-test-456",
+        testName: "New Test",
+        testDescription: "Test Description",
+        testType: "simple",
+        testTaskConfigs: [{ region: "us-east-1", taskCount: 1, concurrency: 1 }],
+        testScenario: { execution: [{ "hold-for": "1m" }] },
+        regionalTaskDetails: { "us-east-1": { dltAvailableTasks: 10 } }
+      };
+
+      const event = {
+        resource: "/scenarios",
+        httpMethod: "POST",
+        body: JSON.stringify(testConfig),
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = { functionName: "test-function" };
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.getTestEntry).toHaveBeenCalledWith("new-test-456");
+      expect(utils.sendMetric).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Type: "TestCreate",
+          TestId: "new-test-456",
+          UserAgent: "test-agent",
+        })
+      );
+      const sentMetric = utils.sendMetric.mock.calls[0][0];
+      expect(sentMetric).not.toHaveProperty("FieldsChanged");
+    });
+
+    it("should not call getTestEntry when config has no testId", async () => {
+      const utils = require("solution-utils");
+      scenarios.createTest.mockResolvedValueOnce({ testId: "generated-id" });
+      scenarios.getTestRunCount.mockResolvedValueOnce(0);
+      scenarios.getTestDurationSeconds.mockReturnValue(0);
+
+      const testConfig = {
+        testName: "Brand New Test",
+        testDescription: "Test Description",
+        testType: "simple",
+        testTaskConfigs: [{ region: "us-east-1", taskCount: 1, concurrency: 1 }],
+        testScenario: { execution: [{ "hold-for": "1m" }] },
+        regionalTaskDetails: { "us-east-1": { dltAvailableTasks: 10 } }
+      };
+
+      const event = {
+        resource: "/scenarios",
+        httpMethod: "POST",
+        body: JSON.stringify(testConfig),
+        headers: { "User-Agent": "test-agent" },
+      };
+
+      const context = { functionName: "test-function" };
+
+      const response = await apiServices.handler(event, context);
+
+      expect(response.statusCode).toBe(200);
+      expect(scenarios.getTestEntry).not.toHaveBeenCalled();
+      expect(utils.sendMetric).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Type: "TestCreate",
+        })
+      );
+    });
+
     it("should handle EventBridge invocation", async () => {
       const testConfig = {
         testName: "EventBridge Test",
@@ -320,6 +483,9 @@ describe("handler", () => {
     });
 
     it("should handle DELETE /scenarios/{testId}", async () => {
+      const utils = require("solution-utils");
+      scenarios.getTestRunCount.mockResolvedValue(5);
+
       const event = {
         resource: "/scenarios/{testId}",
         httpMethod: "DELETE",
@@ -332,6 +498,14 @@ describe("handler", () => {
       const response = await apiServices.handler(event, context);
 
       expect(response.statusCode).toBe(200);
+      expect(scenarios.getTestRunCount).toHaveBeenCalledWith("test-123");
+      expect(utils.sendMetric).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Type: "DeleteTest",
+          TestId: "test-123",
+          TestRuns: 5,
+        })
+      );
       expect(scenarios.deleteTest).toHaveBeenCalledWith("test-123", "test-function");
     });
 
@@ -968,5 +1142,120 @@ describe("handler", () => {
 
     expect(response.statusCode).toBe(scenarios.StatusCodes.NOT_ALLOWED);
     expect(response.body).toContain("not supported for this resource");
+  });
+});
+
+describe("sendScenarioWriteMetric", () => {
+  const { sendScenarioWriteMetric } = require("./index");
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("should send TestCreate metric for a new scenario", async () => {
+    const utils = require("solution-utils");
+    scenarios.getTestRunCount.mockResolvedValue(3);
+    scenarios.getTestDurationSeconds.mockReturnValue(60);
+
+    await sendScenarioWriteMetric({
+      existingEntry: null,
+      data: { testId: "1234", baselineId: "run-abc" },
+      config: {
+        testType: "simple",
+        testTaskConfigs: [
+          { region: "us-east-1", taskCount: 1, concurrency: 5 },
+          { region: "us-west-2", taskCount: 1, concurrency: 3 },
+        ],
+        testScenario: { execution: [{ "hold-for": "1m", "ramp-up": "1m" }] },
+      },
+      userAgent: "test-agent",
+    });
+
+    expect(utils.sendMetric).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Type: "TestCreate",
+        TestRunNumber: 3,
+        HasBaseline: "true",
+        ConcurrencyTotal: 8,
+        EstimatedDuration: 120,
+      })
+    );
+    const sentMetric = utils.sendMetric.mock.calls[0][0];
+    expect(sentMetric).not.toHaveProperty("FieldsChanged");
+  });
+
+  it("should send TestUpdate metric with FieldsChanged for an existing scenario", async () => {
+    const utils = require("solution-utils");
+    scenarios.getTestRunCount.mockResolvedValue(5);
+    scenarios.computeChangedFields.mockReturnValue(["testName", "testScenario"]);
+    scenarios.getTestDurationSeconds.mockReturnValue(60);
+
+    await sendScenarioWriteMetric({
+      existingEntry: { testId: "1234", testName: "Old Name" },
+      data: { testId: "1234" },
+      config: {
+        testType: "simple",
+        testTaskConfigs: [{ region: "us-east-1", taskCount: 1, concurrency: 5 }],
+        testScenario: { execution: [{ "hold-for": "1m", "ramp-up": "1m" }] },
+      },
+      userAgent: "test-agent",
+    });
+
+    expect(utils.sendMetric).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Type: "TestUpdate",
+        TestRunNumber: 5,
+        FieldsChanged: ["testName", "testScenario"],
+      })
+    );
+  });
+
+  it("should send TestUpdate metric with schedule step for a scheduled update", async () => {
+    const utils = require("solution-utils");
+    scenarios.getTestRunCount.mockResolvedValue(2);
+    scenarios.computeChangedFields.mockReturnValue(["testName"]);
+    scenarios.getTestDurationSeconds.mockReturnValue(60);
+
+    await sendScenarioWriteMetric({
+      existingEntry: { testId: "1234", testName: "Old Name" },
+      data: { testId: "1234" },
+      config: {
+        testType: "simple",
+        testTaskConfigs: [{ region: "us-east-1", taskCount: 1, concurrency: 5 }],
+        testScenario: { execution: [{ "hold-for": "1m", "ramp-up": "1m" }] },
+        scheduleStep: "create",
+        cronValue: "0 12 * * *",
+      },
+      userAgent: "test-agent",
+    });
+
+    expect(utils.sendMetric).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Type: "TestUpdate",
+        TestRunNumber: 2,
+        FieldsChanged: ["testName"],
+        TestScheduleStep: "create",
+      })
+    );
+  });
+
+  it("should not throw when sendMetric fails", async () => {
+    const utils = require("solution-utils");
+    utils.sendMetric.mockRejectedValue(new Error("network error"));
+    scenarios.getTestRunCount.mockResolvedValue(0);
+    scenarios.getTestDurationSeconds.mockReturnValue(0);
+
+    await expect(
+      sendScenarioWriteMetric({
+        existingEntry: null,
+        data: { testId: "1234" },
+        config: {
+          testType: "simple",
+          testTaskConfigs: [{ region: "us-east-1", taskCount: 1, concurrency: 1 }],
+          testScenario: { execution: [{ "hold-for": "1m" }] },
+        },
+        userAgent: "test-agent",
+      })
+    ).resolves.toBeUndefined();
   });
 });

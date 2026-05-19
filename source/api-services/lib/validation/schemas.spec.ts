@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
-  testIdSchema,
-  testRunIdSchema,
-  pathParametersSchema,
-  scenariosQuerySchema,
-  scenarioQuerySchema,
-  testRunsQuerySchema,
   baselineQuerySchema,
   createTestSchema,
-  setBaselineSchema,
   deleteTestRunsSchema,
+  pathParametersSchema,
+  scenarioQuerySchema,
+  scenariosQuerySchema,
+  setBaselineSchema,
+  testIdSchema,
+  testRunIdSchema,
+  testRunsQuerySchema,
 } from "./schemas";
 
 describe("Validation Schemas", () => {
@@ -305,9 +305,46 @@ describe("Validation Schemas", () => {
         cronValue: "0 9 * * 1",
         cronExpiryDate: "2025-12-31",
         eventBridge: "my-event-bridge",
+        healthyThreshold: 80,
       };
 
       expect(() => createTestSchema.parse(fullTest)).not.toThrow();
+    });
+
+    describe("healthyThreshold validation", () => {
+      it("should default to 90 when not provided", () => {
+        const result = createTestSchema.parse(validBaseTest);
+        expect(result.healthyThreshold).toBe(90);
+      });
+
+      it("should accept valid healthyThreshold values", () => {
+        const validValues = [0, 1, 50, 90, 100];
+        validValues.forEach((healthyThreshold) => {
+          const test = { ...validBaseTest, healthyThreshold };
+          const result = createTestSchema.parse(test);
+          expect(result.healthyThreshold).toBe(healthyThreshold);
+        });
+      });
+
+      it("should reject healthyThreshold below 0", () => {
+        const test = { ...validBaseTest, healthyThreshold: -1 };
+        expect(() => createTestSchema.parse(test)).toThrow(/healthyThreshold must be between 0 and 100/);
+      });
+
+      it("should reject healthyThreshold above 100", () => {
+        const test = { ...validBaseTest, healthyThreshold: 101 };
+        expect(() => createTestSchema.parse(test)).toThrow(/healthyThreshold must be between 0 and 100/);
+      });
+
+      it("should reject non-integer healthyThreshold", () => {
+        const test = { ...validBaseTest, healthyThreshold: 50.5 };
+        expect(() => createTestSchema.parse(test)).toThrow(/healthyThreshold must be an integer/);
+      });
+
+      it("should reject non-number healthyThreshold", () => {
+        const test = { ...validBaseTest, healthyThreshold: "90" };
+        expect(() => createTestSchema.parse(test)).toThrow();
+      });
     });
 
     it("should validate different test types", () => {
@@ -329,7 +366,16 @@ describe("Validation Schemas", () => {
     });
 
     it("should validate region formats", () => {
-      const validRegions = ["us-east-1", "us-west-2", "eu-central-1", "ap-southeast-2", "sa-east-1", "ca-central-1"];
+      const validRegions = [
+        "us-east-1",
+        "us-west-2",
+        "eu-central-1",
+        "ap-southeast-2",
+        "sa-east-1",
+        "ca-central-1",
+        "us-gov-west-1",
+        "us-gov-east-1",
+      ];
 
       validRegions.forEach((region) => {
         const test = {

@@ -3,7 +3,7 @@
 
 // Component for test scenario name and description configuration
 
-import { Container, Header, SpaceBetween, FormField, Input, Textarea } from "@cloudscape-design/components";
+import { Box, Container, FormField, Header, Input, SpaceBetween, Textarea } from "@cloudscape-design/components";
 import { FormData } from "../types";
 
 interface Props {
@@ -22,6 +22,7 @@ export const TestConfigurationSection = ({ formData, updateFormData, showValidat
         errorText={showValidationErrors && !formData.testName?.trim() ? "Name is required" : ""}
       >
         <Input
+          data-cy="test-name-input"
           value={formData.testName}
           onChange={({ detail }) => {
             if (detail.value.length <= 200) {
@@ -39,6 +40,7 @@ export const TestConfigurationSection = ({ formData, updateFormData, showValidat
         errorText={showValidationErrors && !formData.testDescription?.trim() ? "Description is required" : ""}
       >
         <Textarea
+          data-cy="test-description-input"
           value={formData.testDescription}
           onChange={({ detail }) => {
             if (detail.value.length <= 1000) {
@@ -48,6 +50,40 @@ export const TestConfigurationSection = ({ formData, updateFormData, showValidat
           rows={4}
           invalid={showValidationErrors && !formData.testDescription?.trim()}
         />
+      </FormField>
+
+      <FormField
+        label="Healthy threshold (%)"
+        description="Minimum percentage of ECS tasks that must remain healthy across all regions. If failures cause the healthy percentage to drop below this value, the test is automatically marked as failed."
+        constraintText="Integer between 0 and 100. Default: 90"
+        errorText={
+          showValidationErrors &&
+          (isNaN(Number(formData.healthyThreshold)) ||
+            Number(formData.healthyThreshold) < 0 ||
+            Number(formData.healthyThreshold) > 100 ||
+            !Number.isInteger(Number(formData.healthyThreshold)))
+            ? "Must be an integer between 0 and 100"
+            : ""
+        }
+      >
+        <Box margin={{ top: "xxs" }}>
+          <Input
+            data-cy="healthy-threshold-input"
+            type="number"
+            value={formData.healthyThreshold}
+            onChange={({ detail }) => {
+              updateFormData({ healthyThreshold: detail.value });
+            }}
+            inputMode="numeric"
+            invalid={
+              showValidationErrors &&
+              (isNaN(Number(formData.healthyThreshold)) ||
+                Number(formData.healthyThreshold) < 0 ||
+                Number(formData.healthyThreshold) > 100 ||
+                !Number.isInteger(Number(formData.healthyThreshold)))
+            }
+          />
+        </Box>
       </FormField>
     </SpaceBetween>
   </Container>

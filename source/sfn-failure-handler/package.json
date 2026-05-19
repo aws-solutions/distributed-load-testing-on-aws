@@ -1,0 +1,22 @@
+{
+  "name": "@amzn/dlt-sfn-failure-handler",
+  "version": "0.0.0",
+  "private": true,
+  "description": "SFN Failure Handler Lambda — Layer 2 safety mechanism for ECS service cleanup when step function fails",
+  "type": "module",
+  "main": "src/index.ts",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@amzn/dlt-common": "*",
+    "@aws-sdk/client-lambda": "^3.981.0",
+    "@aws-sdk/client-sfn": "^3.981.0"
+  }
+}

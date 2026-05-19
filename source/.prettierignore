@@ -1,1 +1,16 @@
 webui/public/mockServiceWorker.js
+
+# Workspace packages (formatted by root prettier)
+cli
+common
+mcp-server
+orphan-cleanup
+regional-sync
+sfn-failure-handler
+stabilization-checker
+start-command
+task-canceler
+task-failure-handler
+task-runner
+task-status-checker
+test-cleanup

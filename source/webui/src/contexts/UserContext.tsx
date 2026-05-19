@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import React, { createContext, ReactNode, useEffect, useState } from "react";
-import { AuthUser, fetchUserAttributes, getCurrentUser, signInWithRedirect, signOut } from "aws-amplify/auth";
+import { AuthUser, fetchAuthSession, getCurrentUser, signInWithRedirect, signOut } from "aws-amplify/auth";
 import { Hub } from "aws-amplify/utils";
 import { attachIoTPolicy } from "../utils/iotPolicy";
+import { resetSessionId, sendSessionEndMetric } from "../utils/consoleMetrics";
 
 export const UserContext = createContext<{
   user: AuthUser | null;
@@ -22,22 +23,8 @@ export const UserContextProvider = (props: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [email, setEmail] = useState<string | null>(null);
 
-  Hub.listen("auth", ({ payload }) => {
-    switch (payload.event) {
-      case "signedOut":
-        setUser(null);
-        break;
-      case "signInWithRedirect":
-      case "signedIn":
-        checkUser();
-        break;
-      default:
-        break;
-    }
-  });
-
   useEffect(() => {
-    Hub.listen("auth", ({ payload }) => {
+    const unsubscribe = Hub.listen("auth", ({ payload }) => {
       switch (payload.event) {
         case "signInWithRedirect":
         case "signedIn":
@@ -45,10 +32,13 @@ export const UserContextProvider = (props: { children: ReactNode }) => {
           break;
         case "signedOut":
           setUser(null);
+          setEmail(null);
           break;
       }
     });
     checkUser();
+
+    return () => unsubscribe();
   }, []);
 
   const checkUser = async () => {
@@ -58,8 +48,9 @@ export const UserContextProvider = (props: { children: ReactNode }) => {
         ...responseUser,
       });
       try {
-        const userAttributesOutput = await fetchUserAttributes();
-        setEmail(userAttributesOutput.email ?? null);
+        const session = await fetchAuthSession();
+        const emailClaim = session.tokens?.idToken?.payload?.email;
+        setEmail(typeof emailClaim === "string" ? emailClaim : null);
 
         // Attach IoT policy when user is authenticated
         const response = await fetch("/aws-exports.json");
@@ -71,14 +62,11 @@ export const UserContextProvider = (props: { children: ReactNode }) => {
         console.log(e);
       }
     } catch (error) {
-      console.error(error);
+      // User is not authenticated — App.tsx owns the redirect flow,
+      // so we only clear local state here without triggering signInWithRedirect.
+      console.debug("UserContext: user not authenticated", error);
       setUser(null);
-      // If user is not authenticated, trigger sign in
-      try {
-        await signInWithRedirect();
-      } catch (signInError) {
-        console.debug("Sign in error:", signInError);
-      }
+      setEmail(null);
     }
   };
 
@@ -87,7 +75,11 @@ export const UserContextProvider = (props: { children: ReactNode }) => {
       value={{
         user,
         email,
-        signOut,
+        signOut: async () => {
+          sendSessionEndMetric();
+          resetSessionId();
+          await signOut();
+        },
         signInWithRedirect,
       }}
     >

@@ -1,11 +1,12 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Aws, CustomResource } from "aws-cdk-lib";
-import { Construct } from "constructs";
-import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import { Aws, CfnMapping, CustomResource, Stack } from "aws-cdk-lib";
 import { Effect, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { IBucket } from "aws-cdk-lib/aws-s3";
+import { Construct } from "constructs";
+import { CONSOLE_DOMAIN_MAPPING } from "./console-domain-mapping";
 
 export interface ConsoleConfigProps {
   readonly apiEndpoint: string;
@@ -27,14 +28,28 @@ export interface SendMetricsCRProps {
   readonly deployMcpServer?: string;
 }
 
-export interface TestingResourcesConfigCRProps {
+export interface SendRegionalMetricsCRProps {
+  readonly solutionId: string;
+  readonly solutionVersion: string;
+  readonly uuid: string;
+}
+
+interface TestingResourcesConfigCRBaseProps {
   readonly taskCluster: string;
   readonly ecsCloudWatchLogGroup: string;
   readonly taskSecurityGroup: string;
-  readonly taskDefinition: string;
   readonly subnetA: string;
   readonly subnetB: string;
+  readonly version: string;
+  readonly taskRoleArn: string;
+  readonly executionRoleArn: string;
 }
+
+export interface HubTestingResourcesConfigCRProps extends TestingResourcesConfigCRBaseProps {
+  readonly taskDefinition: string;
+}
+
+export interface RegionalTestingResourcesConfigCRProps extends TestingResourcesConfigCRBaseProps {}
 
 export interface PutRegionalTemplateProps {
   readonly sourceCodeBucketName: string;
@@ -45,8 +60,21 @@ export interface PutRegionalTemplateProps {
   readonly scenariosBucket: string;
   readonly timestamp?: string;
 }
+
+export interface CopyJMeterBundleProps {
+  readonly sourceCodeBucketName: string;
+  readonly solutionName: string;
+  readonly scenariosBucket: string;
+  readonly timestamp?: string;
+}
+
 export interface DetachIotPrincipalPolicyProps {
   readonly iotPolicyName: string;
+}
+
+export interface UpdateCspProps {
+  readonly responseHeadersPolicyId: string;
+  readonly cognitoDomain: string;
 }
 
 /**
@@ -99,12 +127,26 @@ export class CustomResourcesConstruct extends Construct {
     });
   }
 
+  public copyJMeterBundle(props: CopyJMeterBundleProps) {
+    this.createCustomResource("CopyJMeterBundle", this.customResourceLambda, {
+      Resource: "CopyJMeterBundle",
+      SrcBucket: props.sourceCodeBucketName,
+      SrcPath: props.solutionName,
+      DestBucket: props.scenariosBucket,
+      Timestamp: props.timestamp,
+    });
+  }
+
   public consoleConfig(props: ConsoleConfigProps) {
+    const consoleDomainMap = new CfnMapping(this, "ConsoleDomainMap", {
+      mapping: CONSOLE_DOMAIN_MAPPING,
+    });
+    const consoleDomain = consoleDomainMap.findInMap(Aws.PARTITION, "domain");
     const awsExports = `const awsConfig = {
       aws_iot_endpoint: '${props.iotEndpoint}',
       aws_iot_policy_name: '${props.iotPolicy}',
-      cw_dashboard: 'https://console.aws.amazon.com/cloudwatch/home?region=${Aws.REGION}#dashboards:',
-      ecs_dashboard: 'https://${Aws.REGION}.console.aws.amazon.com/ecs/home?region=${Aws.REGION}#/clusters/${Aws.STACK_NAME}/tasks',
+      cw_dashboard: 'https://${consoleDomain}/cloudwatch/home?region=${Aws.REGION}#dashboards:',
+      ecs_dashboard: 'https://${Aws.REGION}.${consoleDomain}/ecs/home?region=${Aws.REGION}#/clusters/${Aws.STACK_NAME}/tasks',
       aws_project_region: '${Aws.REGION}',
       aws_cognito_region: '${Aws.REGION}',
       aws_cognito_identity_pool_id: '${props.cognitoIdentityPool}',
@@ -146,6 +188,13 @@ export class CustomResourcesConstruct extends Construct {
   }
 
   public sendMetricsCR(props: SendMetricsCRProps) {
+    this.customResourceLambda.role?.addToPrincipalPolicy(
+      new PolicyStatement({
+        actions: ["cloudformation:DescribeStacks"],
+        resources: [Aws.STACK_ID],
+        effect: Effect.ALLOW,
+      })
+    );
     this.createCustomResource("Metric", this.customResourceLambda, {
       existingVPC: props.existingVpc,
       Region: Aws.REGION,
@@ -159,20 +208,154 @@ export class CustomResourcesConstruct extends Construct {
     });
   }
 
-  public testingResourcesConfigCR(props: TestingResourcesConfigCRProps) {
-    const testingResourcesConfig = {
-      region: Aws.REGION,
-      subnetA: props.subnetA,
-      subnetB: props.subnetB,
-      ecsCloudWatchLogGroup: props.ecsCloudWatchLogGroup,
-      taskSecurityGroup: props.taskSecurityGroup,
-      taskDefinition: props.taskDefinition,
-      taskImage: `${Aws.STACK_NAME}-load-tester`,
-      taskCluster: props.taskCluster,
-    };
+  public sendRegionalMetricsCR(props: SendRegionalMetricsCRProps) {
+    this.createCustomResource("RegionalMetric", this.customResourceLambda, {
+      Region: Aws.REGION,
+      Resource: "Metric",
+      SolutionId: props.solutionId,
+      UUID: props.uuid,
+      Version: props.solutionVersion,
+      AccountId: Aws.ACCOUNT_ID,
+      StackType: "regional",
+    });
+  }
+
+  public hubTestingResourcesConfigCR(props: HubTestingResourcesConfigCRProps) {
     this.createCustomResource("TestingResourcesConfig", this.customResourceLambda, {
-      TestingResourcesConfig: testingResourcesConfig,
+      TestingResourcesConfig: {
+        region: Aws.REGION,
+        subnetA: props.subnetA,
+        subnetB: props.subnetB,
+        ecsCloudWatchLogGroup: props.ecsCloudWatchLogGroup,
+        taskSecurityGroup: props.taskSecurityGroup,
+        taskDefinition: props.taskDefinition,
+        taskCluster: props.taskCluster,
+        version: props.version,
+        stackId: Aws.STACK_ID,
+        taskRoleArn: props.taskRoleArn,
+        executionRoleArn: props.executionRoleArn,
+      },
       Resource: "TestingResourcesConfigFile",
+    });
+  }
+
+  public regionalTestingResourcesConfigCR(props: RegionalTestingResourcesConfigCRProps) {
+    this.createCustomResource("TestingResourcesConfig", this.customResourceLambda, {
+      TestingResourcesConfig: {
+        region: Aws.REGION,
+        subnetA: props.subnetA,
+        subnetB: props.subnetB,
+        ecsCloudWatchLogGroup: props.ecsCloudWatchLogGroup,
+        taskSecurityGroup: props.taskSecurityGroup,
+        taskCluster: props.taskCluster,
+        version: props.version,
+        stackId: Aws.STACK_ID,
+        taskRoleArn: props.taskRoleArn,
+        executionRoleArn: props.executionRoleArn,
+      },
+      Resource: "TestingResourcesConfigFile",
+    });
+  }
+
+  /**
+   * Executes Backwards compatibility updates in a CustomResource
+   * This is to fix v3 -> v4 compatibility issues where configured tests are broken
+   * The CustomResource will only update tests with invalid configurations
+   */
+  public backwardsCompatibilityUpdates() {
+    // Grant permission to ListRules for all available rules
+    this.customResourceLambda.role?.addToPrincipalPolicy(
+      new PolicyStatement({
+        actions: ["events:ListRules"],
+        resources: [
+          Stack.of(this).formatArn({
+            service: "events",
+            resource: "rule",
+            // ListRules does not support resource-level permissions per AWS IAM docs
+            // See: https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazoneventbridge.html
+            resourceName: "*",
+          }),
+        ],
+        effect: Effect.ALLOW,
+      })
+    );
+    // Grant permission to PutTargets and ListTargetsByRule for rules created by DLT
+    // specified by the suffix Create and Scheduled
+    this.customResourceLambda.role?.addToPrincipalPolicy(
+      new PolicyStatement({
+        actions: ["events:PutTargets", "events:ListTargetsByRule"],
+        resources: [
+          Stack.of(this).formatArn({
+            service: "events",
+            resource: "rule",
+            resourceName: "*Create",
+          }),
+          Stack.of(this).formatArn({
+            service: "events",
+            resource: "rule",
+            resourceName: "*Scheduled",
+          }),
+        ],
+        effect: Effect.ALLOW,
+      })
+    );
+    this.createCustomResource("BackwardsCompatibilityUpdateV3toV4", this.customResourceLambda, {
+      Resource: "V3toV4BackCompat",
+    });
+  }
+
+  /**
+   * Creates a custom resource that updates the CloudFront ResponseHeadersPolicy CSP
+   * to add the exact Cognito domain at deploy time.
+   */
+  public updateCloudFrontCsp(props: UpdateCspProps) {
+    // Grant CloudFront permissions scoped to the specific ResponseHeadersPolicy
+    // CloudFront RHP ARNs are global (no region): arn:{partition}:cloudfront::{account}:response-headers-policy/{id}
+    this.customResourceLambda.role?.addToPrincipalPolicy(
+      new PolicyStatement({
+        actions: ["cloudfront:GetResponseHeadersPolicy", "cloudfront:UpdateResponseHeadersPolicy"],
+        resources: [
+          `arn:${Aws.PARTITION}:cloudfront::${Aws.ACCOUNT_ID}:response-headers-policy/${props.responseHeadersPolicyId}`,
+        ],
+        effect: Effect.ALLOW,
+      })
+    );
+
+    this.createCustomResource("UpdateCloudFrontCsp", this.customResourceLambda, {
+      Resource: "UpdateCsp",
+      ResponseHeadersPolicyId: props.responseHeadersPolicyId,
+      CognitoDomain: props.cognitoDomain,
+    });
+  }
+
+  /**
+   * Creates a custom resource that cleans up resources that aren't directly owned
+   * by the CloudFormation stack because they are created by test scenarios.
+   */
+  public cleanUpTestScenarioResources() {
+    // Grant permission to DeleteSchedule on EventBridge scheduler for rules created
+    // by DLT specified by the suffix Create and Scheduled
+    this.customResourceLambda.role?.addToPrincipalPolicy(
+      new PolicyStatement({
+        actions: ["scheduler:DeleteSchedule"],
+        resources: [
+          Stack.of(this).formatArn({
+            service: "scheduler",
+            resource: "schedule",
+            resourceName: "default/*Create",
+          }),
+          Stack.of(this).formatArn({
+            service: "scheduler",
+            resource: "schedule",
+            resourceName: "default/*Scheduled",
+          }),
+        ],
+        effect: Effect.ALLOW,
+      })
+    );
+
+    this.createCustomResource("CleanUpTestScenarios", this.customResourceLambda, {
+      Resource: "CleanUpTestScenarios",
     });
   }
 }

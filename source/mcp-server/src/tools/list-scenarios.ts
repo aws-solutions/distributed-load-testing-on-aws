@@ -4,7 +4,7 @@
 import { z } from "zod";
 import { parseEventWithSchema, type AgentCoreEvent } from "../lib/common";
 import { AppError } from "../lib/errors";
-import { IAMHttpClient, type HttpResponse } from "../lib/http-client";
+import type { HttpResponse, IHttpClient } from "../lib/http-client";
 
 // Zod schema for list_scenarios parameters (empty object)
 export const ListScenariosSchema = z.object({});
@@ -15,13 +15,17 @@ export type ListScenariosParameters = z.infer<typeof ListScenariosSchema>;
 /**
  * Handle list_scenarios tool
  */
-export async function handleListScenarios(httpClient: IAMHttpClient, apiEndpoint: string, event: AgentCoreEvent): Promise<any> {
+export async function handleListScenarios(
+  httpClient: IHttpClient,
+  apiEndpoint: string,
+  event: AgentCoreEvent
+): Promise<unknown> {
   parseEventWithSchema(ListScenariosSchema, event);
-  
+
   let response: HttpResponse;
   try {
     response = await httpClient.get(`${apiEndpoint}/scenarios`);
-  } catch (error) {
+  } catch {
     throw new AppError("Internal request failed", 500);
   }
 
@@ -29,7 +33,7 @@ export async function handleListScenarios(httpClient: IAMHttpClient, apiEndpoint
     throw new AppError(response.body, response.statusCode);
   }
 
-  const data = JSON.parse(response.body);
+  const data: unknown = JSON.parse(response.body);
   if (!data) {
     throw new AppError("No scenarios found", 404);
   }

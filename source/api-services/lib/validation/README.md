@@ -111,6 +111,7 @@ Optional fields:
 - `fileType`: 'none', 'script', or 'zip'
 - `showLive`: Boolean
 - `tags`: Array of up to 5 tags
+- `healthyThreshold`: Integer 0-100 (default: 90). Minimum percentage of ECS tasks that must remain healthy across all regions before the test is auto-failed.
 - `scheduleStep`: 'create' or 'start'
 - `scheduleDate`: YYYY-MM-DD format
 - `scheduleTime`: HH:MM format

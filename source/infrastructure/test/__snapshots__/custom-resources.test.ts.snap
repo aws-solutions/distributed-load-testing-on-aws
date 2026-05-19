@@ -2,6 +2,19 @@
 
 exports[`DLT API Test 1`] = `
 {
+  "Mappings": {
+    "DLTCustomResourcesConsoleDomainMap7AD26469": {
+      "aws": {
+        "domain": "console.aws.amazon.com",
+      },
+      "aws-cn": {
+        "domain": "console.amazonaws.cn",
+      },
+      "aws-us-gov": {
+        "domain": "console.amazonaws-us-gov.com",
+      },
+    },
+  },
   "Resources": {
     "DLTCustomResourceInfraCustomResourceLambdaA4053269": {
       "DependsOn": [
@@ -27,6 +40,9 @@ exports[`DLT API Test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
@@ -63,7 +79,17 @@ exports[`DLT API Test 1`] = `
               "const awsConfig = {
       aws_iot_endpoint: 'testIoTEndpoint',
       aws_iot_policy_name: 'testIoTPolicy',
-      cw_dashboard: 'https://console.aws.amazon.com/cloudwatch/home?region=",
+      cw_dashboard: 'https://",
+              {
+                "Fn::FindInMap": [
+                  "DLTCustomResourcesConsoleDomainMap7AD26469",
+                  {
+                    "Ref": "AWS::Partition",
+                  },
+                  "domain",
+                ],
+              },
+              "/cloudwatch/home?region=",
               {
                 "Ref": "AWS::Region",
               },
@@ -72,7 +98,17 @@ exports[`DLT API Test 1`] = `
               {
                 "Ref": "AWS::Region",
               },
-              ".console.aws.amazon.com/ecs/home?region=",
+              ".",
+              {
+                "Fn::FindInMap": [
+                  "DLTCustomResourcesConsoleDomainMap7AD26469",
+                  {
+                    "Ref": "AWS::Partition",
+                  },
+                  "domain",
+                ],
+              },
+              "/ecs/home?region=",
               {
                 "Ref": "AWS::Region",
               },
@@ -156,6 +192,30 @@ exports[`DLT API Test 1`] = `
       "Type": "AWS::CloudFormation::CustomResource",
       "UpdateReplacePolicy": "Delete",
     },
+    "DLTCustomResourcesRegionalMetric8FDCE356": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "AccountId": {
+          "Ref": "AWS::AccountId",
+        },
+        "Region": {
+          "Ref": "AWS::Region",
+        },
+        "Resource": "Metric",
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "DLTCustomResourceInfraCustomResourceLambdaA4053269",
+            "Arn",
+          ],
+        },
+        "SolutionId": "testId",
+        "StackType": "regional",
+        "UUID": "abc-123-def-456",
+        "Version": "testVersion",
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
     "DLTCustomResourcesTestingResourcesConfig0BCA657F": {
       "DeletionPolicy": "Delete",
       "Properties": {
@@ -168,25 +228,20 @@ exports[`DLT API Test 1`] = `
         },
         "TestingResourcesConfig": {
           "ecsCloudWatchLogGroup": "testCloudWatchLogGroup",
+          "executionRoleArn": "arn:aws:iam::123456789:role/exec-role",
           "region": {
             "Ref": "AWS::Region",
+          },
+          "stackId": {
+            "Ref": "AWS::StackId",
           },
           "subnetA": "subnet-123",
           "subnetB": "subnet-abc",
           "taskCluster": "testTaskCluster",
           "taskDefinition": "task:def:arn:123",
-          "taskImage": {
-            "Fn::Join": [
-              "",
-              [
-                {
-                  "Ref": "AWS::StackName",
-                },
-                "-load-tester",
-              ],
-            ],
-          },
+          "taskRoleArn": "arn:aws:iam::123456789:role/task-role",
           "taskSecurityGroup": "sg-test123",
+          "version": "testVersion",
         },
       },
       "Type": "AWS::CloudFormation::CustomResource",
@@ -286,6 +341,13 @@ exports[`DLT API Test 1`] = `
                     "/*",
                   ],
                 ],
+              },
+            },
+            {
+              "Action": "cloudformation:DescribeStacks",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "AWS::StackId",
               },
             },
           ],

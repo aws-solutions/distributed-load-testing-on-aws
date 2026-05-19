@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Mock AWS SDK
-const mockCloudWatch = jest.fn();
-const mockCloudWatchLogs = jest.fn();
 const mockS3 = jest.fn();
 
 const mockDynamoDB = {
@@ -23,20 +21,6 @@ jest.mock("@aws-sdk/lib-dynamodb", () => ({
       put: mockDynamoDB.put,
     })),
   },
-}));
-
-// Mock CloudWatch
-jest.mock("@aws-sdk/client-cloudwatch", () => ({
-  CloudWatch: jest.fn(() => ({
-    getMetricWidgetImage: mockCloudWatch,
-  })),
-}));
-
-// Mock CloudWatch Logs
-jest.mock("@aws-sdk/client-cloudwatch-logs", () => ({
-  CloudWatchLogs: jest.fn(() => ({
-    deleteMetricFilter: mockCloudWatchLogs,
-  })),
 }));
 
 // Mock S3
@@ -1234,7 +1218,6 @@ describe("#RESULTS PARSER::", () => {
   beforeEach(() => {
     mockDynamoDB.put.mockReset();
     mockDynamoDB.update.mockReset();
-    mockCloudWatch.mockReset();
     mockParse.mockReset();
     mockS3.mockReset();
   });
@@ -1270,18 +1253,14 @@ describe("#RESULTS PARSER::", () => {
 
   it("should return the final result when final results are processed successfully", async () => {
     mockDynamoDB.put.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatch.mockImplementation(() => Promise.resolve({ MetricWidgetImage: "CloudWatchImage" }));
     mockS3.mockImplementation(() => Promise.resolve());
-    mockCloudWatchLogs.mockImplementation(() => Promise.resolve());
     const response = await lambda.finalResults(testId, finalData);
     expect(response).toEqual(singleAggregatedResult);
   });
 
   it("should return an equal number of failure to sum of response codes error count", async () => {
     mockDynamoDB.put.mockImplementationOnce(() => Promise.resolve());
-    mockCloudWatch.mockImplementation(() => Promise.resolve({ MetricWidgetImage: "CloudWatchImage" }));
     mockS3.mockImplementation(() => Promise.resolve());
-    mockCloudWatchLogs.mockImplementation(() => Promise.resolve());
     const response = await lambda.finalResults(testId, finalData);
     expect(response.fail).toEqual(response.rc[0].count + response.rc[1].count);
   });
@@ -1300,7 +1279,6 @@ describe("#RESULTS PARSER::", () => {
 
   it('should return "DB UPDATE ERROR" when final results fails', async () => {
     mockDynamoDB.put.mockImplementationOnce(() => Promise.reject("DB UPDATE ERROR"));
-    mockCloudWatch.mockImplementation(() => Promise.resolve({ MetricWidgetImage: "CloudWatchImage" }));
     mockS3.mockImplementation(() => Promise.resolve());
 
     try {
@@ -1322,70 +1300,6 @@ describe("#RESULTS PARSER::", () => {
 
     try {
       await lambda.updateTable(updateTableParams);
-    } catch (err) {
-      expect(err).toEqual("Failure");
-    }
-  });
-
-  it("should save image and return key and metric on createWidget success", async () => {
-    mockCloudWatch.mockImplementationOnce(() => Promise.resolve({ MetricWidgetImage: "Image" }));
-    mockS3.mockImplementationOnce(() => Promise.resolve("Success"));
-
-    const result = await lambda.createWidget(startTime, endTime, region, testId, []);
-    const expectedImageLocation = `cloudwatch-images/${testId}/CloudWatchMetrics-${region}-${new Date(
-      startTime
-    ).toISOString()}`;
-    expect(mockS3).toHaveBeenCalledWith({
-      Body: Buffer.from("Image").toString("base64"),
-      Bucket: "scenario_bucket",
-      Key: `public/cloudwatch-images/${testId}/CloudWatchMetrics-${region}-${new Date(startTime).toISOString()}`,
-      ContentEncoding: "base64",
-      ContentType: "image/jpeg",
-    });
-    expect(result).toEqual({ metricS3Location: expectedImageLocation, metrics: widgetMetricsRegion1 });
-  });
-
-  it("should save image and return key and metrics for totals on createWidget success", async () => {
-    mockCloudWatch.mockImplementationOnce(() => Promise.resolve({ MetricWidgetImage: "Image" }));
-    mockS3.mockImplementationOnce(() => Promise.resolve("Success"));
-
-    const result = await lambda.createWidget(
-      startTime,
-      endTime,
-      "total",
-      testId,
-      widgetMetricsRegion1.concat(widgetMetricsRegion2)
-    );
-    const expectedImageLocation = `cloudwatch-images/${testId}/CloudWatchMetrics-total-${new Date(
-      startTime
-    ).toISOString()}`;
-    expect(mockS3).toHaveBeenCalledWith({
-      Body: Buffer.from("Image").toString("base64"),
-      Bucket: "scenario_bucket",
-      Key: `public/cloudwatch-images/${testId}/CloudWatchMetrics-total-${new Date(startTime).toISOString()}`,
-      ContentEncoding: "base64",
-      ContentType: "image/jpeg",
-    });
-
-    expect(result).toEqual({ metricS3Location: expectedImageLocation, metrics: aggregateWidgetMetrics });
-  });
-
-  it("should fail on getMetricWidgetImage failure in createWidget", async () => {
-    mockCloudWatch.mockImplementationOnce(() => Promise.reject("Failure"));
-
-    try {
-      await lambda.createWidget(startTime, endTime, region, testId, []);
-    } catch (err) {
-      expect(err).toEqual("Failure");
-    }
-  });
-
-  it("should fail on S3 failure in createWidget", async () => {
-    mockCloudWatch.mockImplementationOnce(() => Promise.resolve({ MetricWidgetImage: "Image" }));
-    mockS3.mockImplementationOnce(() => Promise.reject("Failure"));
-
-    try {
-      await lambda.createWidget(startTime, endTime, region, testId, []);
     } catch (err) {
       expect(err).toEqual("Failure");
     }

@@ -85,6 +85,7 @@ describe("#SEND METRICS", () => {
     process.env.SOLUTION_ID = "MySolutionID";
     process.env.VERSION = "MyVersion";
     process.env.METRIC_URL = "MyEndpoint";
+    process.env.AWS_ACCOUNT_ID = "123456789012";
   });
 
   afterEach(() => {
@@ -92,6 +93,7 @@ describe("#SEND METRICS", () => {
     delete process.env.SOLUTION_ID;
     delete process.env.VERSION;
     delete process.env.METRIC_URL;
+    delete process.env.AWS_ACCOUNT_ID;
   });
 
   it("should return 200 status code on success", async () => {
@@ -127,6 +129,8 @@ describe("#SEND METRICS", () => {
       Solution: process.env.SOLUTION_ID,
       UUID: process.env.UUID,
       Version: process.env.VERSION,
+      MetricSchemaVersion: 1,
+      AccountId: "123456789012",
       Data: metricData,
     };
 

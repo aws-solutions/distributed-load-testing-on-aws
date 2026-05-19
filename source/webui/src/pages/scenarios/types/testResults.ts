@@ -34,7 +34,6 @@ export interface TestResults {
   p99_0: string;
   stdev_rt: string;
   avg_ct: string;
-  metricS3Location?: string;
   concurrency: string;
   p99_9: string;
   labels: LabelMetrics[];
@@ -77,10 +76,13 @@ export interface TestRunDetails {
   status: "running" | "complete" | "failed" | "cancelled";
   succPercent: string;
   testRunId: string;
+  scheduleTimezone?: string;
   results: {
     [regionOrTotal: string]: TestResults; // Either region name or 'total'
   };
   testScenario?: TestScenario;
+  /** Present when status is "failed". Stored as a top-level attribute on the history table item. */
+  errorReason?: string;
 }
 
 export interface ResponseCode {
@@ -131,6 +133,7 @@ export interface BaselineTestRunDetails {
   startTime: string;
   endTime: string;
   status: string;
+  scheduleTimezone?: string;
   results: {
     [regionOrTotal: string]: TestResults;
   };

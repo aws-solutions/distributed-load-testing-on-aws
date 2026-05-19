@@ -19,10 +19,19 @@ export interface HttpResponse {
 }
 
 /**
+ * Interface for HTTP clients used by tool handlers
+ * Enables dependency injection and easier testing
+ */
+export interface IHttpClient {
+  get(url: string, headers?: Record<string, string>): Promise<HttpResponse>;
+  request(options: HttpClientOptions): Promise<HttpResponse>;
+}
+
+/**
  * HTTP client that signs requests with AWS IAM credentials using aws4
  * Automatically uses Lambda execution role credentials from environment
  */
-export class IAMHttpClient {
+export class IAMHttpClient implements IHttpClient {
   private region: string;
   private correlationId: string;
 
@@ -37,7 +46,7 @@ export class IAMHttpClient {
   async request(options: HttpClientOptions): Promise<HttpResponse> {
     try {
       const url = new URL(options.url);
-      
+
       // Prepare request options for aws4 signing
       const requestOptions: aws4.Request = {
         hostname: url.hostname,
@@ -62,15 +71,15 @@ export class IAMHttpClient {
       aws4.sign(requestOptions);
 
       // Execute the signed request
-      return new Promise((resolve, reject) => {
+      return await new Promise<HttpResponse>((resolve, reject) => {
         const req = https.request(requestOptions, (res) => {
           let body = "";
-          res.on("data", (chunk) => {
-            body += chunk;
+          res.on("data", (chunk: Buffer | string) => {
+            body += chunk.toString();
           });
           res.on("end", () => {
             resolve({
-              statusCode: res.statusCode || 500,
+              statusCode: res.statusCode ?? 500,
               body,
               headers: res.headers as Record<string, string>,
             });

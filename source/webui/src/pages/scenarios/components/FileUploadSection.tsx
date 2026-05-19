@@ -3,8 +3,7 @@
 
 // Component for JMeter file upload functionality
 
-import { Checkbox, Container, FileUpload, FormField, Header, Link } from "@cloudscape-design/components";
-import { useEffect, useState } from "react";
+import { Checkbox, Container, FileUpload, FormField, Header, Link, SpaceBetween } from "@cloudscape-design/components";
 import { TestTypes } from "../constants";
 import { FormData } from "../types";
 import { getFileExtension } from "../utils";
@@ -16,37 +15,22 @@ interface Props {
 }
 
 export const FileUploadSection = ({ formData, updateFormData, showValidationErrors = false }: Props) => {
-  const [acknowledged, setAcknowledged] = useState(false);
-
   const isFileRequired = formData.scriptFile?.length === 0;
 
-  // Helper function to format extensions array for display
   const formatExtensions = (extensions: string[]): string => {
     if (extensions.length === 0) return "";
     if (extensions.length === 1) return extensions[0];
     return extensions.join(", ");
   };
 
-  useEffect(() => {
-    // If a script file has already been specified then
-    // we know the K6 license has already been acknowledged.
-    if (formData.scriptFile && formData.scriptFile.length > 0) {
-      setAcknowledged(true);
-    }
-  }, [formData.scriptFile]);
-
   return (
     <Container header={<Header variant="h2">Upload Test File</Header>}>
+      <SpaceBetween direction="vertical" size="m">
       {formData.testType === TestTypes.K6 && (
         <Checkbox
-          checked={(formData.scriptFile && formData.scriptFile.length > 0) || acknowledged}
+          checked={formData.k6LicenseAcknowledged}
           onChange={({ detail }) => {
-            if (!detail.checked) {
-              updateFormData({ scriptFile: [] });
-              setAcknowledged(false);
-            } else {
-              setAcknowledged(true);
-            }
+            updateFormData({ k6LicenseAcknowledged: detail.checked });
           }}
         >
           This project is licensed under the{" "}
@@ -68,18 +52,7 @@ export const FileUploadSection = ({ formData, updateFormData, showValidationErro
         }
       >
         <FileUpload
-          errorText={
-            formData.testType === TestTypes.K6 && !acknowledged
-              ? "Please acknowledge the license terms above before uploading files."
-              : undefined
-          }
           onChange={({ detail }) => {
-            // Prevent file upload if K6 test type and not acknowledged
-            if (formData.testType === TestTypes.K6 && !acknowledged) {
-              updateFormData({ scriptFile: [] });
-              return;
-            }
-
             const maxSize = 50 * 1024 * 1024; // 50MB in bytes
             const expectedExt = getFileExtension(formData.testType);
 
@@ -118,6 +91,7 @@ export const FileUploadSection = ({ formData, updateFormData, showValidationErro
           multiple={false}
         />
       </FormField>
+      </SpaceBetween>
     </Container>
   );
 };

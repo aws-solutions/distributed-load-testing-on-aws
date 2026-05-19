@@ -34,13 +34,70 @@ const getRuntimeConfig = async () => {
   return runtimeConfig;
 };
 
+/**
+ * One-time migration: clear stale Amplify auth data from localStorage that was
+ * stored by the previous sign-in method (withAuthenticator / USER_SRP_AUTH).
+ *
+ * When upgrading to the Cognito Hosted UI (OAuth/PKCE), leftover tokens and
+ * user data from the old flow can confuse Amplify's auth state machine, causing
+ * the first post-upgrade sign-in to hang on the redirect callback.
+ *
+ * IMPORTANT: This must NOT run when the page is an OAuth callback (URL has ?code=
+ * or ?state= params), because the new OAuth/PKCE flow also stores its code_verifier
+ * under CognitoIdentityServiceProvider.* keys. Clearing those would break the
+ * token exchange.
+ */
+const MIGRATION_FLAG = "dlt-auth-migrated-to-hosted-ui";
+
+const clearLegacyAuthDataIfNeeded = () => {
+  // Already migrated — nothing to do.
+  if (localStorage.getItem(MIGRATION_FLAG)) {
+    return;
+  }
+
+  // If this is an OAuth callback page load, do NOT clear localStorage now.
+  // The PKCE code_verifier stored before the redirect lives under the same
+  // CognitoIdentityServiceProvider.* prefix and must survive this load.
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("code") || params.has("state")) {
+    return;
+  }
+
+  // Clear legacy keys from the old withAuthenticator (USER_SRP_AUTH) flow.
+  const legacyKeys = Object.keys(localStorage).filter(
+    (key) =>
+      key.startsWith("CognitoIdentityServiceProvider.") ||
+      key.startsWith("amplify-signin-with-hostedUI")
+  );
+  if (legacyKeys.length > 0) {
+    console.log("One-time migration: clearing legacy auth data from localStorage:", legacyKeys);
+    legacyKeys.forEach((key) => localStorage.removeItem(key));
+  }
+
+  // Mark migration as complete so this never runs again.
+  localStorage.setItem(MIGRATION_FLAG, "true");
+};
+
 getRuntimeConfig().then((json) => {
+  // One-time: remove auth state left over from the previous (non-OAuth) sign-in
+  // method before configuring Amplify, so the new OAuth flow starts cleanly.
+  clearLegacyAuthDataIfNeeded();
+
   const awsconfig: ResourcesConfig = {
     Auth: {
       Cognito: {
         userPoolId: json.UserPoolId,
         userPoolClientId: json.PoolClientId,
         identityPoolId: json.IdentityPoolId,
+        loginWith: {
+          oauth: {
+            domain: json.UserPoolDomain,
+            scopes: ["openid", "email", "profile"],
+            redirectSignIn: [window.location.origin],
+            redirectSignOut: [window.location.origin],
+            responseType: "code",
+          },
+        },
       },
     },
     API: {

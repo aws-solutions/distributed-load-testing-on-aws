@@ -29,11 +29,14 @@ const INITIAL_FORM_DATA: FormData = {
   cronMonth: "",
   cronDayOfWeek: "",
   cronExpiryDate: "",
+  scheduleTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   regions: [],
   rampUpValue: "",
   rampUpUnit: "minutes",
   holdForValue: "",
-  holdForUnit: "minutes"
+  holdForUnit: "minutes",
+  healthyThreshold: "90",
+  k6LicenseAcknowledged: false,
 };
 
 export const useFormData = () => {

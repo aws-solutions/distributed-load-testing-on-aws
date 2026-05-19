@@ -35,33 +35,19 @@ describe("FileUploadSection", () => {
     cronDayOfMonth: "",
     cronMonth: "",
     cronDayOfWeek: "",
-
     cronExpiryDate: "",
+    scheduleTimezone: "UTC",
     regions: [],
     rampUpUnit: "minutes",
     rampUpValue: "1",
     holdForUnit: "minutes",
     holdForValue: "5",
+    healthyThreshold: "90",
+    k6LicenseAcknowledged: false,
   };
 
-  test("scriptFile is reset to empty when acknowledged is false and file upload is attempted", () => {
+  test("file upload works without license acknowledgment for K6", () => {
     render(<FileUploadSection formData={defaultFormData} updateFormData={mockUpdateFormData} />);
-
-    const fileInput = screen.getByLabelText(/Choose file/i);
-    const mockFile = new File(["test content"], "test.js", { type: "application/javascript" });
-
-    fireEvent.change(fileInput, { target: { files: [mockFile] } });
-
-    expect(mockUpdateFormData).toHaveBeenCalledWith({ scriptFile: [] });
-  });
-
-  test("scriptFile is not empty when acknowledged is true and file upload is attempted", () => {
-    const k6FormData = { ...defaultFormData, testType: TestTypes.K6 };
-
-    render(<FileUploadSection formData={k6FormData} updateFormData={mockUpdateFormData} />);
-
-    const checkbox = screen.getByRole("checkbox");
-    fireEvent.click(checkbox);
 
     const fileInput = screen.getByLabelText(/Choose file/i);
     const mockFile = new File(["test content"], "test.js", { type: "application/javascript" });
@@ -74,13 +60,17 @@ describe("FileUploadSection", () => {
     });
   });
 
-  test("k6 accepts TypeScript (.ts) files when acknowledged", () => {
-    const k6FormData = { ...defaultFormData, testType: TestTypes.K6 };
-
-    render(<FileUploadSection formData={k6FormData} updateFormData={mockUpdateFormData} />);
+  test("license checkbox updates k6LicenseAcknowledged in form data", () => {
+    render(<FileUploadSection formData={defaultFormData} updateFormData={mockUpdateFormData} />);
 
     const checkbox = screen.getByRole("checkbox");
     fireEvent.click(checkbox);
+
+    expect(mockUpdateFormData).toHaveBeenCalledWith({ k6LicenseAcknowledged: true });
+  });
+
+  test("k6 accepts TypeScript (.ts) files", () => {
+    render(<FileUploadSection formData={defaultFormData} updateFormData={mockUpdateFormData} />);
 
     const fileInput = screen.getByLabelText(/Choose file/i);
     const mockFile = new File(["test content"], "test.ts", { type: "application/typescript" });
@@ -94,16 +84,10 @@ describe("FileUploadSection", () => {
   });
 
   test("k6 accepts both .js and .ts files", () => {
-    const k6FormData = { ...defaultFormData, testType: TestTypes.K6 };
-
-    render(<FileUploadSection formData={k6FormData} updateFormData={mockUpdateFormData} />);
-
-    const checkbox = screen.getByRole("checkbox");
-    fireEvent.click(checkbox);
+    render(<FileUploadSection formData={defaultFormData} updateFormData={mockUpdateFormData} />);
 
     const fileInput = screen.getByLabelText(/Choose file/i);
 
-    // Test .js file
     const jsFile = new File(["js content"], "test.js", { type: "application/javascript" });
     fireEvent.change(fileInput, { target: { files: [jsFile] } });
 
@@ -114,7 +98,6 @@ describe("FileUploadSection", () => {
 
     mockUpdateFormData.mockClear();
 
-    // Test .ts file
     const tsFile = new File(["ts content"], "test.ts", { type: "application/typescript" });
     fireEvent.change(fileInput, { target: { files: [tsFile] } });
 
@@ -122,5 +105,19 @@ describe("FileUploadSection", () => {
       scriptFile: [tsFile],
       fileError: "",
     });
+  });
+
+  test("K6 license checkbox is not auto-checked when scriptFile is empty", () => {
+    render(<FileUploadSection formData={defaultFormData} updateFormData={mockUpdateFormData} />);
+
+    const checkbox = screen.getByRole("checkbox");
+    expect(checkbox).not.toBeChecked();
+  });
+
+  test("license checkbox is not shown for non-K6 test types", () => {
+    const jmeterFormData = { ...defaultFormData, testType: TestTypes.JMETER };
+    render(<FileUploadSection formData={jmeterFormData} updateFormData={mockUpdateFormData} />);
+
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 });

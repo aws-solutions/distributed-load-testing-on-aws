@@ -1,4 +1,4 @@
-Distributed Load Testing 
+Distributed Load Testing
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 Licensed under the Apache License Version 2.0 (the "License"). You may not use this file except
@@ -7,11 +7,27 @@ or in the "license" file accompanying this file. This file is distributed on an 
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 
-**********************
+---
+
 THIRD PARTY COMPONENTS
-**********************
+
+---
+
 This software includes third party software subject to the following copyrights:
 
+@amzn/dlt-common under the Apache-2.0 license
+@amzn/dlt-mcp-server under the Apache-2.0 license
+@amzn/dlt-stabilization-checker under the Apache-2.0 license
+@amzn/dlt-start-command under the Apache-2.0 license
+@amzn/dlt-task-canceler under the Apache-2.0 license
+@amzn/dlt-orphan-cleanup under the Apache-2.0 license
+@amzn/dlt-regional-sync under the Apache-2.0 license
+@amzn/dlt-sfn-failure-handler under the Apache-2.0 license
+@amzn/dlt-task-failure-handler under the Apache-2.0 license
+@amzn/dlt-test-cleanup under the Apache-2.0 license
+@amzn/dlt-task-runner under the Apache-2.0 license
+@amzn/dlt-task-status-checker under the Apache-2.0 license
+@amzn/dlt-test-metadata-updater under the Apache-2.0 license
 @aws-amplify/pubsub under the Apache-2.0 license
 @aws-amplify/ui-components under the Apache-2.0 license
 @aws-amplify/ui-react under the Apache-2.0 license
@@ -20,6 +36,8 @@ This software includes third party software subject to the following copyrights:
 @aws-solutions-constructs/aws-eventbridge-lambda under the Apache-2.0 license
 @aws-solutions-constructs/aws-lambda-sqs-lambda under the Apache-2.0 license
 @aws-sdk/client-s3 under the Apache-2.0 license
+@aws-sdk/client-scheduler under the Apache-2.0 license
+@aws-sdk/client-cloudfront under the Apache-2.0 license
 @aws-sdk/client-cloudwatch under the Apache-2.0 license
 @aws-sdk/client-cloudwatch-logs under the Apache-2.0 license
 @aws-sdk/client-sqs under the Apache-2.0 license
@@ -43,6 +61,7 @@ chart.js under the MIT license
 chartjs-adapter-date-fns under the MIT license
 constructs under the Apache-2.0 license
 cypress under the MIT license
+@amzn/dlt-cli under the Apache-2.0 license
 esbuild under the MIT license
 eslint under the MIT license
 eslint-config-prettier under the MIT license
@@ -72,6 +91,19 @@ react-scripts under the MIT license
 reactstrap under the MIT license
 nanoid under the MIT license
 taurus under the Apache-2.0 license
+Apache JMeter under the Apache-2.0 license
+jpgc-json (JMeter Plugins) under the Apache-2.0 license
+jpgc-casutg (JMeter Plugins) under the Apache-2.0 license
+jpgc-dummy (JMeter Plugins) under the Apache-2.0 license
+jpgc-ffw (JMeter Plugins) under the Apache-2.0 license
+jpgc-fifo (JMeter Plugins) under the Apache-2.0 license
+jpgc-functions (JMeter Plugins) under the Apache-2.0 license
+jpgc-perfmon (JMeter Plugins) under the Apache-2.0 license
+jpgc-prmctl (JMeter Plugins) under the Apache-2.0 license
+jpgc-tst (JMeter Plugins) under the Apache-2.0 license
+jpgc-udp (JMeter Plugins) under the Apache-2.0 license
+bzm-http2 (JMeter Plugins) under the Apache-2.0 license
+bzm-random-csv (JMeter Plugins) under the Apache-2.0 license
 ts-jest under the MIT license
 ts-node under the MIT license
 typescript under the Apache-2.0 license
@@ -123,7 +155,14 @@ strip-json-comments under the MIT license
 path-key under the MIT license
 shebang-command under the MIT license
 shebang-regex under the MIT license
+b4a under the Apache-2.0 license
 balanced-match under the MIT license
+bare-events under the Apache-2.0 license
+bare-fs under the Apache-2.0 license
+bare-os under the Apache-2.0 license
+bare-path under the Apache-2.0 license
+bare-stream under the Apache-2.0 license
+bare-url under the Apache-2.0 license
 queue-microtask under the MIT license
 reusify under the MIT license
 chalk under the MIT license
@@ -421,6 +460,7 @@ isexe under the ISC license
 @testing-library/react under the MIT license
 @tootallnate/once under the MIT license
 @trysound/sax under the ISC license
+@types/archiver under the MIT license
 @types/aria-query under the MIT license
 @types/babel__core under the MIT license
 @types/babel__generator under the MIT license
@@ -453,6 +493,7 @@ isexe under the ISC license
 @types/range-parser under the MIT license
 @types/react-dom under the MIT license
 @types/react under the MIT license
+@types/readdir-glob under the MIT license
 @types/resolve under the MIT license
 @types/retry under the MIT license
 @types/semver under the MIT license
@@ -473,6 +514,7 @@ isexe under the ISC license
 @typescript-eslint/typescript-estree under the BSD-2-Clause license
 @typescript-eslint/utils under the MIT license
 @typescript-eslint/visitor-keys under the MIT license
+@vvo/tzdb under the MIT license
 @webassemblyjs/ast under the MIT license
 @webassemblyjs/floating-point-hex-parser under the MIT license
 @webassemblyjs/helper-api-error under the MIT license
@@ -492,6 +534,7 @@ isexe under the ISC license
 @xtuc/ieee754 under the BSD-3-Clause license
 @xtuc/long under the Apache-2.0 license
 abab under the BSD-3-Clause license
+abort-controller under the MIT license
 accepts under the MIT license
 ace-builds under the BSD-3-Clause license
 acorn-globals under the MIT license
@@ -509,6 +552,8 @@ ansi-regex under the MIT license
 antd under the MIT license
 any-promise under the MIT license
 anymatch under the ISC license
+archiver under the MIT license
+archiver-utils under the MIT license
 arg under the MIT license
 aria-hidden under the MIT license
 aria-query under the Apache-2.0 license
@@ -584,7 +629,7 @@ napi-postinstall under the MIT license
 @babel/template under the MIT license.
 @babel/traverse under the MIT license.
 @babel/types under the MIT license.
-workbox-background-sync under the MIT license   
+workbox-background-sync under the MIT license  
 workbox-core under the MIT license
 workbox-broadcast-update under the MIT license
 workbox-cacheable-response under the MIT license
@@ -636,6 +681,7 @@ deep-is under the MIT license
 fast-levenshtein under the MIT license
 word-wrap under the MIT license
 strip-ansi under the MIT license
+text-decoder under the Apache-2.0 license
 text-table under the MIT license
 globby under the MIT license
 array-union under the MIT license
@@ -758,6 +804,7 @@ eslint-utils under the MIT license
 regexpp under the MIT license
 prettier-linter-helpers under the MIT license
 fast-diff under the MIT license
+fast-fifo under the MIT license
 array.prototype.findlast under the MIT license
 array.prototype.tosorted under the MIT license
 es-iterator-helpers under the MIT license
@@ -785,6 +832,7 @@ buffer under the MIT license
 base64-js under the MIT license
 ieee754 under the BSD-3-Clause license
 events under the MIT license
+events-universal under the Apache-2.0 license
 jmespath under the MIT license
 querystring under the MIT license
 sax under the ISC license
@@ -903,6 +951,7 @@ is-buffer under the MIT license
 @smithy/core under the Apache-2.0 license
 fast-xml-builder under the MIT license
 fast-xml-parser under the MIT license
+path-expression-matcher under the MIT license
 strnum under the MIT license
 @aws-sdk/credential-provider-http under the Apache-2.0 license
 @smithy/util-endpoints under the Apache-2.0 license
@@ -1046,6 +1095,7 @@ common-tags under the MIT license
 dayjs under the MIT license
 enquirer under the MIT license
 ansi-colors under the MIT license
+event-target-shim under the MIT license
 eventemitter2 under the MIT license
 pump under the MIT license
 end-of-stream under the MIT license
@@ -1065,6 +1115,7 @@ is-installed-globally under the MIT license
 global-dirs under the MIT license
 ini under the ISC license
 lazy-ass under the MIT license
+lazystream under the MIT license
 listr2 under the MIT license
 cli-truncate under the MIT license
 colorette under the MIT license
@@ -1401,6 +1452,8 @@ schema-utils under the MIT license.
 chrome-trace-event under the MIT license.
 enhanced-resolve under the MIT license.
 tapable under the MIT license.
+tar-stream under the MIT license
+teex under the MIT license
 es-module-lexer under the MIT license.
 glob-to-regexp under the BSD-2-Clause license.
 loader-runner under the MIT license.
@@ -1419,10 +1472,12 @@ thunky under the MIT license.
 chokidar under the MIT license.
 is-binary-path under the MIT license.
 binary-extensions under the MIT license.
+readdir-glob under the Apache-2.0 license
 readdirp under the MIT license.
 compression under the MIT license.
 negotiator under the MIT license.
 bytes under the MIT license.
+compress-commons under the MIT license
 compressible under the MIT license.
 on-headers under the MIT license.
 vary under the MIT license.
@@ -1774,6 +1829,7 @@ tldts-core under the MIT license.
 tree-kill under the MIT license.
 @aws-sdk/client-iot under the Apache-2.0 license.
 crc-32 under the Apache-2.0 license.
+crc32-stream under the MIT license
 @floating-ui/utils under the MIT license.
 @radix-ui/react-use-effect-event under the MIT license.
 @ant-design/fast-color under the MIT license.
@@ -1835,6 +1891,8 @@ set-cookie-parser under the MIT license
 @humanwhocodes/retry under the MIT license
 @typescript-eslint/project-service under the MIT license
 @typescript-eslint/tsconfig-utils under the MIT license
+typescript-eslint under the MIT license
+obug under the MIT license
 ts-api-utils under the MIT license
 fdir under the MIT license
 @rollup/rollup-android-arm-eabi under the MIT license
@@ -1868,6 +1926,8 @@ tinyglobby under the MIT license
 @swc/core-linux-arm-gnueabihf under the Apache-2.0 license
 @swc/core-linux-arm64-gnu under the Apache-2.0 license
 @swc/core-linux-arm64-musl under the Apache-2.0 license
+@swc/core-linux-ppc64-gnu under the Apache-2.0 license
+@swc/core-linux-s390x-gnu under the Apache-2.0 license
 @swc/core-linux-x64-gnu under the Apache-2.0 license
 @swc/core-linux-x64-musl under the Apache-2.0 license
 @swc/core-win32-arm64-msvc under the Apache-2.0 license
@@ -1896,6 +1956,7 @@ yoctocolors-cjs under the MIT license
 is-node-process under the MIT license
 outvariant under the MIT license
 @open-draft/until under the MIT license
+streamx under the MIT license
 strict-event-emitter under the MIT license
 @types/cookie under the MIT license
 @types/statuses under the MIT license
@@ -1927,6 +1988,7 @@ synckit under the MIT license
 data-uri-to-buffer under the MIT license
 fetch-blob under the MIT license
 node-domexception under the MIT license
+node-exports-info under the MIT license
 web-streams-polyfill under the MIT license
 formdata-polyfill under the MIT license
 baseline-browser-mapping under the MIT license
@@ -1937,6 +1999,7 @@ uglify-js under the MIT license
 @aws-lambda-powertools/commons under the Apache-2.0 license
 @aws-sdk/client-bedrock-agentcore-control under the Apache-2.0 license
 @aws-lambda-powertools/logger under the Apache-2.0 license
+zip-stream under the MIT license
 zod under the MIT license
 @types/aws4 under the MIT license
 @cloudscape-design/components under the Apache-2.0 license
@@ -1967,13 +2030,33 @@ exit under the MIT license
 tagged-tag under the MIT license
 until-async under the MIT license
 generator-function under the MIT license
-node-exports-info under the MIT license
+nginx/nginx under the BSD-2-Clause license
+@aws-sdk/client-cognito-identity under the Apache-2.0 license
+@aws-sdk/credential-provider-cognito-identity under the Apache-2.0 license
+@aws-sdk/credential-providers under the Apache-2.0 license
+@jsonjoy.com/buffers under the Apache-2.0 license
+@jsonjoy.com/codegen under the Apache-2.0 license
+@jsonjoy.com/fs-core under the Apache-2.0 license
+@jsonjoy.com/fs-fsa under the Apache-2.0 license
+@jsonjoy.com/fs-node under the Apache-2.0 license
+@jsonjoy.com/fs-node-builtins under the Apache-2.0 license
+@jsonjoy.com/fs-node-to-fsa under the Apache-2.0 license
+@jsonjoy.com/fs-node-utils under the Apache-2.0 license
+@jsonjoy.com/fs-print under the Apache-2.0 license
+@jsonjoy.com/fs-snapshot under the Apache-2.0 license
+@jsonjoy.com/json-pointer under the Apache-2.0 license
+amazon-cognito-identity-js under the Apache-2.0 license
+fast-base64-decode under the MIT license
+glob-to-regex.js under the Apache-2.0 license
+isomorphic-unfetch under the MIT license
+unfetch under the MIT license
+fast-check under the MIT license
+path-expression-matcher under the MIT license
+@nodable/entities under the MIT license
 
-
-
-********************
 OPEN SOURCE LICENSES
-********************
+
+---
 
 0BSD - https://opensource.org/licenses/0BSD
 Apache-2.0 - https://opensource.org/licenses/Apache-2.0

@@ -13,15 +13,17 @@ const s3 = new S3(options);
 
 const dynamoDb = DynamoDBDocument.from(new DynamoDB(options));
 
-const parseResults = async (eventConfigs, testId, endTime, startTime, totalDuration, resultList) => {
+const parseResults = async (eventConfigs, testId, totalDuration, resultList) => {
   let aggregateData = [];
 
   const finalResults = {};
   const completeTasks = {};
-  let allMetrics = [];
   const promises = await getFilesByRegion(resultList);
   //Get results per region
   for (const eventConfig of eventConfigs) {
+    // Skip processing promises when empty
+    if (!promises[eventConfig.region]) continue;
+
     const data = [];
     const result = await Promise.all(promises[eventConfig.region]);
 
@@ -54,72 +56,48 @@ const parseResults = async (eventConfigs, testId, endTime, startTime, totalDurat
     // Parser final results for region
     let finalResultsPerRegion = await parser.finalResults(testId, data);
     finalResults[eventConfig.region] = finalResultsPerRegion;
-
-    //create widget image for region
-    const { metricS3Location, metrics: taskMetrics } = await parser.createWidget(
-      startTime,
-      endTime,
-      eventConfig.region,
-      testId,
-      []
-    );
-    finalResults[eventConfig.region].metricS3Location = metricS3Location;
-    allMetrics = allMetrics.concat(taskMetrics);
   }
   //parse aggregate final results
-  let finalResultsTotal = await parser.finalResults(testId, aggregateData);
-  finalResults["total"] = finalResultsTotal;
-  return { finalResults: finalResults, allMetrics: allMetrics, completeTasks: completeTasks };
+  if (aggregateData.length > 0) {
+    let finalResultsTotal = await parser.finalResults(testId, aggregateData);
+    finalResults["total"] = finalResultsTotal;
+  }
+  return { finalResults, completeTasks };
 };
 
 const writeTestDataToHistoryTable = async (
-  scenariosTableItems,
-  endTime,
   testId,
   eventConfigs,
   resultList,
   totalDuration,
   testRunId
 ) => {
-  const { startTime, testTaskConfigs, testType, testScenario, testDescription } = scenariosTableItems;
-  const { finalResults, completeTasks, allMetrics } = await parseResults(
+  const { finalResults, completeTasks } = await parseResults(
     eventConfigs,
     testId,
-    endTime,
-    startTime,
     totalDuration,
     resultList
   );
 
-  //create aggregate widget image
-  const { metricS3Location: aggMetricS3Loc } = await parser.createWidget(
-    startTime,
-    endTime,
-    "total",
-    testId,
-    allMetrics
-  );
-  finalResults["total"].metricS3Location = aggMetricS3Loc;
+  // Calculate success percentage
+  let succPercent = 0;
+  // avoid dividing by zero
+  if (finalResults["total"] && finalResults["total"].throughput > 0) {
+    succPercent = ((finalResults["total"].succ / finalResults["total"].throughput) * 100).toFixed(2);
+  }
 
   // Write test run data to history table
-  let status = "complete";
   const historyParams = {
-    status,
     testId,
-    finalResults,
-    startTime,
-    endTime,
-    testTaskConfigs,
-    testScenario,
-    testDescription,
-    testType,
-    completeTasks,
     testRunId,
+    results: finalResults,
+    completeTasks,
+    succPercent,
   };
-  await parser.putTestHistory(historyParams);
+  await parser.updateTestHistoryResults(historyParams);
 
-  //update dynamoDB table
-  const updateTableParams = { status, testId, finalResults, endTime, completeTasks };
+  //update scenario dynamoDB table
+  const updateTableParams = { testId, finalResults, completeTasks };
   await parser.updateTable(updateTableParams);
 };
 const getScenariosTableItems = async (testId) => {
@@ -128,7 +106,7 @@ const getScenariosTableItems = async (testId) => {
     Key: {
       testId: testId,
     },
-    AttributesToGet: ["startTime", "status", "testTaskConfigs", "testType", "testScenario", "testDescription"],
+    AttributesToGet: ["startTime", "status", "testTaskConfigs", "testType", "testScenario", "testDescription", "scheduleTimezone"],
   };
   const ddbGetResponse = await dynamoDb.get(ddbParams);
   return ddbGetResponse.Item;
@@ -150,10 +128,11 @@ const getResultList = async (testId, s3Prefix) => {
       params.ContinuationToken = nextContinuationToken;
     }
     const result = await s3.listObjectsV2(params);
-    resultList = resultList.concat(result.Contents);
+    resultList = resultList.concat(result.Contents ?? []);
     nextContinuationToken = result.IsTruncated ? result.NextContinuationToken : null;
   } while (nextContinuationToken);
-  return resultList;
+  // exclude objects in /results relating to completion signals
+  return resultList.filter((item) => !item.Key.includes("/completion/"));
 };
 
 // // Define a function to create the timeout promise
@@ -205,11 +184,7 @@ const getFilesByRegion = async (resultList) => {
 
 exports.handler = async (event) => {
   console.log(`Parsing results: testId=${event.testId}, prefix=${event.prefix}, region=${event.testTaskConfig?.region}, testRunId=${event.testRunId}`);
-  const { showLive, testId, fileType, prefix, testTaskConfig: eventConfigs, executionStart: testStartTime } = event;
-  const endTime = new Date()
-    .toISOString()
-    .replace("T", " ")
-    .replace(/\.\d+Z$/, "");
+  const { showLive, testId, testRunId, fileType, prefix, testTaskConfig: eventConfigs, executionStart: testStartTime } = event;
 
   try {
     const scenariosTableItems = await getScenariosTableItems(testId);
@@ -218,25 +193,21 @@ exports.handler = async (event) => {
     let totalDuration = 0;
     let testResult = status;
 
-    if (!["cancelling", "cancelled", "failed"].includes(status)) {
-      let resultList = await getResultList(testId, prefix);
-
-      if (resultList.length > 0) {
-        await writeTestDataToHistoryTable(
-          scenariosTableItems,
-          endTime,
-          testId,
-          eventConfigs,
-          resultList,
-          totalDuration,
-          event.testRunId
-        );
-        testResult = "completed";
-      } else {
-        // If there's no result files in S3 bucket, there's a possibility that the test failed in the Fargate tasks.
-        await updateScenariosTable(testId, "Test might be failed to run.");
-        testResult = "failed";
-      }
+    // ECS tasks attempts to upload result file even during both failure or cancellation
+    // so this lambda step will process result files that are available
+    let resultList = await getResultList(testId, prefix);
+    if (resultList.length > 0) {
+      await writeTestDataToHistoryTable(
+        testId,
+        eventConfigs,
+        resultList,
+        totalDuration,
+        testRunId
+      );
+      testResult = "completed";
+    } else {
+      // If there's no result files in S3 bucket, there's a possibility that the test failed in the Fargate tasks.
+      testResult = "failed";
     }
 
     // Send operational metrics
@@ -270,6 +241,16 @@ exports.handler = async (event) => {
         "Failed to parse the results - One item uploading to DynamoDB has exceeded the maximum allowed size (400KB)"
       );
     else await updateScenariosTable(testId, `Failed to parse the results - ${error.message}`);
+
+    try {
+      await utils.sendMetric({
+        Type: "ResultsParsingFailed",
+        TestId: testId,
+        TestType: fileType || "unknown",
+      });
+    } catch (err) {
+      console.error("Failed to send metric:", err);
+    }
 
     throw new Error(`Failed to parse results: ${error.message || 'Unknown error'}`);
   }

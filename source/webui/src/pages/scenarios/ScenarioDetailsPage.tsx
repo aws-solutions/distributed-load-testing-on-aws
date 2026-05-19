@@ -10,20 +10,36 @@ import {
   Header,
   ProgressBar,
   SpaceBetween,
-  StatusIndicator
+  StatusIndicator,
 } from "@cloudscape-design/components";
 import { useEffect, useRef, useState } from "react";
+import { useDispatch } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
-import { useGetScenarioDetailsQuery, useRunScenarioMutation, useStopScenarioMutation } from "../../store/scenariosApiSlice";
+import {
+  useDeleteScenarioMutation,
+  useGetScenarioDetailsQuery,
+  useRunScenarioMutation,
+  useStopScenarioMutation,
+} from "../../store/scenariosApiSlice";
+import { addNotification } from "../../store/notificationsSlice";
 import { ScenarioDetailsContent } from "./components/ScenarioDetailsContent";
+import { DeleteScenarioModal } from "./components/DeleteScenarioModal";
+import { ACTIVE_TEST_STATES, TestStatus, getPollingInterval, isTerminalState } from "./constants";
 import "./ScenarioDetailsPage.css";
+import { usePageLoadMetric } from "../../hooks/usePageLoadMetric";
+import { sendConsoleMetric } from "../../utils/consoleMetrics";
 
 export default function ScenarioDetailsPage() {
   const { testId } = useParams<{ testId: string }>();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteScenario] = useDeleteScenarioMutation();
   const { data: scenario, isLoading, error, refetch } = useGetScenarioDetailsQuery({ testId: testId! });
+  usePageLoadMetric("ScenarioDetails", { dataReady: !isLoading && !error, testId });
   const [stopScenario, { isLoading: isStoppingScenario }] = useStopScenarioMutation();
   const [runScenario, { isLoading: isRunningScenario }] = useRunScenarioMutation();
   const [progress, setProgress] = useState(0);
@@ -32,6 +48,17 @@ export default function ScenarioDetailsPage() {
   const [currentInterval, setCurrentInterval] = useState(5000);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const progressRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Tracks whether the user explicitly turned off auto-refresh via the dropdown.
+  // Prevents the auto-enable effect from overriding the user's choice.
+  const userDisabledRefresh = useRef(false);
+  // Holds the latest status so the timer callback can read it without
+  // the effect needing scenario?.status in its dependency array.
+  const latestStatusRef = useRef<string>("");
+
+  // Keep latestStatusRef in sync with the scenario status
+  useEffect(() => {
+    latestStatusRef.current = scenario?.status ?? "";
+  }, [scenario?.status]);
 
   // Handle refresh option selection
   const handleRefreshChange = ({ detail }: { detail: { id: string } }) => {
@@ -57,26 +84,33 @@ export default function ScenarioDetailsPage() {
       
       const intervalTime = intervalMap[id];
       if (intervalTime) {
+        userDisabledRefresh.current = false;
         setCurrentInterval(intervalTime);
         setIsAutoRefreshEnabled(true);
+        setRefreshTrigger(prev => prev + 1);
       }
     } else {
+      userDisabledRefresh.current = true;
       setIsAutoRefreshEnabled(false);
     }
   };
 
-  // Auto-enable refresh when scenario starts running
+  // Auto-enable refresh for active states, disable for terminal states.
+  // Respects the user's explicit "Off" choice via userDisabledRefresh.
   useEffect(() => {
-    if (scenario?.status === "running" && !isAutoRefreshEnabled) {
-      // Automatically enable auto-refresh with default interval when test starts
+    const status = scenario?.status;
+    if (status === undefined) return;
+    if (ACTIVE_TEST_STATES.has(status) && !isAutoRefreshEnabled && !userDisabledRefresh.current) {
       setIsAutoRefreshEnabled(true);
-    } else if (scenario?.status !== "running" && isAutoRefreshEnabled) {
-      // Disable auto-refresh when test stops
+    } else if (isTerminalState(status) && isAutoRefreshEnabled) {
+      userDisabledRefresh.current = false;
       setIsAutoRefreshEnabled(false);
     }
   }, [scenario?.status]);
 
-  // Main effect to manage auto-refresh timer
+  // Main effect to manage auto-refresh timer.
+  // Does NOT depend on scenario?.status — the timer callback reads
+  // latestStatusRef to compute the effective polling interval.
   useEffect(() => {
     // Clear any existing timer
     if (progressRef.current) {
@@ -84,12 +118,14 @@ export default function ScenarioDetailsPage() {
       progressRef.current = null;
     }
     
-    // Start timer if auto-refresh is enabled (regardless of scenario status)
+    // Start timer if auto-refresh is enabled
     if (isAutoRefreshEnabled) {
       setProgress(0);
       
+      const effectiveInterval = getPollingInterval(latestStatusRef.current, currentInterval);
+      
       // Update progress every 100ms
-      const step = 100 / (currentInterval / 100);
+      const step = 100 / (effectiveInterval / 100);
       let currentProgress = 0;
       
       progressRef.current = setInterval(() => {
@@ -157,6 +193,7 @@ export default function ScenarioDetailsPage() {
 
   const handleCopy = () => {
     if (scenario) {
+      sendConsoleMetric("ButtonClick", { Page: "ScenarioDetails", Action: "CopyScenario", TestId: testId });
       const { ...scenarioWithoutId } = scenario;
       const encodedData = encodeURIComponent(JSON.stringify(scenarioWithoutId));
       navigate(`/create-scenario?step=0&copyData=${encodedData}`);
@@ -165,6 +202,7 @@ export default function ScenarioDetailsPage() {
 
   const handleEdit = () => {
     if (scenario) {
+      sendConsoleMetric("ButtonClick", { Page: "ScenarioDetails", Action: "EditScenario", TestId: testId });
       const encodedData = encodeURIComponent(JSON.stringify(scenario));
       navigate(`/create-scenario?step=0&editData=${encodedData}`);
     }
@@ -172,6 +210,7 @@ export default function ScenarioDetailsPage() {
 
   const handleCancel = async () => {
     if (scenario) {
+      sendConsoleMetric("ButtonClick", { Page: "ScenarioDetails", Action: "CancelTestRun", TestId: testId });
       try {
         await stopScenario({ testId: scenario.testId }).unwrap();
       } catch (error: any) {
@@ -182,6 +221,7 @@ export default function ScenarioDetailsPage() {
 
   const handleRun = async () => {
     if (scenario) {
+      sendConsoleMetric("ButtonClick", { Page: "ScenarioDetails", Action: "RunScenario", TestId: testId });
       try {
         await runScenario(scenario).unwrap();
       } catch (error: any) {
@@ -193,6 +233,28 @@ export default function ScenarioDetailsPage() {
           // Generic error handler
           setRunError(error?.data?.message || error?.message || 'Failed to run scenario');
         }
+      }
+    }
+  };
+
+  const handleDelete = async () => {
+    if (scenario) {
+      setIsDeleting(true);
+      try {
+        await deleteScenario(scenario.testId).unwrap();
+        setShowDeleteModal(false);
+        sendConsoleMetric("ButtonClick", { Page: "ScenarioDetails", Action: "DeleteScenario", TestId: testId });
+        navigate("/scenarios");
+      } catch (error: any) {
+        dispatch(
+          addNotification({
+            id: `delete-error-${Date.now()}`,
+            type: "error",
+            content: `Failed to delete scenario: ${error?.data?.message || error?.message || "Unknown error"}`,
+          }),
+        );
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -223,6 +285,14 @@ export default function ScenarioDetailsPage() {
     return (
       <ContentLayout>
         <Alert type="error">Failed to load scenario details</Alert>
+      </ContentLayout>
+    );
+  }
+
+  if (!scenario) {
+    return (
+      <ContentLayout>
+        <Alert type="error">Scenario not found</Alert>
       </ContentLayout>
     );
   }
@@ -260,19 +330,28 @@ export default function ScenarioDetailsPage() {
                   </SpaceBetween>
                 </Box>
               </SpaceBetween>
-              {scenario?.status === "running" ? (
-                <Button onClick={handleCancel} loading={isStoppingScenario}>Cancel</Button>
+              {scenario.status === TestStatus.CANCELLING ? (
+                <Button disabled>Cancelling…</Button>
+              ) : ACTIVE_TEST_STATES.has(scenario.status) ? (
+                <Button data-cy="cancel-scenario-btn" onClick={handleCancel} loading={isStoppingScenario}>Cancel</Button>
               ) : (
                 <Button onClick={handleEdit}>Edit Scenario</Button>
               )}
               <Button onClick={handleCopy}>Copy Scenario</Button>
+              <Button
+                data-cy="details-delete-scenario-btn"
+                onClick={() => setShowDeleteModal(true)}
+                disabled={!isTerminalState(scenario.status)}
+              >
+                Delete Scenario
+              </Button>
               <Button 
                 variant="primary" 
                 onClick={handleRun} 
                 loading={isRunningScenario}
-                disabled={scenario?.status === "running"}
+                disabled={ACTIVE_TEST_STATES.has(scenario.status)}
               >
-                {scenario?.status === "running" ? "Test Running" : "Run Scenario"}
+                Run Scenario
               </Button>
             </SpaceBetween>
           }
@@ -289,7 +368,15 @@ export default function ScenarioDetailsPage() {
           Failed to run scenario: {runError}
         </Alert>
       )}
-      {scenario && <ScenarioDetailsContent scenario_definition={scenario} />}
+      <ScenarioDetailsContent scenario_definition={scenario} />
+
+      <DeleteScenarioModal
+        visible={showDeleteModal}
+        scenarioName={scenario.testName}
+        loading={isDeleting}
+        onDismiss={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+      />
     </ContentLayout>
   );
 }

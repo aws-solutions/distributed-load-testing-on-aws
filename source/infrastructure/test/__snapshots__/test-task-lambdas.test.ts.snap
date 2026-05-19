@@ -37,15 +37,34 @@ exports[`DLT Task Lambda Test 1`] = `
             "PolicyDocument": {
               "Statement": [
                 {
-                  "Action": "ecs:ListTasks",
+                  "Action": [
+                    "ecs:DescribeTaskDefinition",
+                    "ecs:DeregisterTaskDefinition",
+                    "ecs:ListTaskDefinitions",
+                    "ecs:ListTasks",
+                  ],
                   "Effect": "Allow",
                   "Resource": "*",
                 },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "EcsUnscopedActionsPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
                 {
                   "Action": [
+                    "ecs:RegisterTaskDefinition",
+                    "ecs:DeleteTaskDefinitions",
                     "ecs:RunTask",
                     "ecs:DescribeTasks",
                     "ecs:TagResource",
+                    "ecs:CreateService",
+                    "ecs:UpdateService",
+                    "ecs:DeleteService",
+                    "ecs:DescribeServices",
                     "logs:PutMetricFilter",
                     "logs:DescribeMetricFilters",
                   ],
@@ -57,6 +76,14 @@ exports[`DLT Task Lambda Test 1`] = `
                   "Effect": "Allow",
                   "Resource": "*",
                 },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "EcsTagScopedPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
                 {
                   "Action": "cloudwatch:PutMetricData",
                   "Condition": {
@@ -67,16 +94,48 @@ exports[`DLT Task Lambda Test 1`] = `
                   "Effect": "Allow",
                   "Resource": "*",
                 },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "CloudWatchMetricPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
                 {
-                  "Action": "s3:putObject",
+                  "Action": "s3:PutObject",
                   "Effect": "Allow",
                   "Resource": "testBucketArn/*",
                 },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "S3WritePolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
                 {
                   "Action": "iam:PassRole",
+                  "Condition": {
+                    "StringEquals": {
+                      "iam:PassedToService": "ecs-tasks.amazonaws.com",
+                    },
+                  },
                   "Effect": "Allow",
-                  "Resource": "arn:aws:iam:us-east-1:111122223333:roleArn",
+                  "Resource": [
+                    "arn:aws:iam:us-east-1:111122223333:roleArn",
+                    "arn:aws:iam:us-east-1:111122223333:roleTaskArn",
+                  ],
                 },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "IamPassRolePolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
                 {
                   "Action": "cloudwatch:PutDashboard",
                   "Effect": "Allow",
@@ -100,11 +159,61 @@ exports[`DLT Task Lambda Test 1`] = `
               ],
               "Version": "2012-10-17",
             },
-            "PolicyName": "TaskLambdaPolicy",
+            "PolicyName": "CloudWatchDashboardPolicy",
           },
         ],
       },
       "Type": "AWS::IAM::Role",
+    },
+    "TaskRunnerLambdaFunctionsECSTaskStoppedRule42139E93": {
+      "Properties": {
+        "Description": "Routes ECS task STOPPED events to the Task Failure Handler for threshold tracking",
+        "EventPattern": {
+          "detail": {
+            "lastStatus": [
+              "STOPPED",
+            ],
+          },
+          "detail-type": [
+            "ECS Task State Change",
+          ],
+          "source": [
+            "aws.ecs",
+          ],
+        },
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "TaskRunnerLambdaFunctionsTaskFailureHandler8F67C3A3",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "TaskRunnerLambdaFunctionsECSTaskStoppedRuleAllowEventRuleDLTStackTaskRunnerLambdaFunctionsTaskFailureHandler55AE65C7DD84A112": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "TaskRunnerLambdaFunctionsTaskFailureHandler8F67C3A3",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "TaskRunnerLambdaFunctionsECSTaskStoppedRule42139E93",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
     },
     "TaskRunnerLambdaFunctionsLambdaResultsPolicy6D0AF2FB": {
       "Metadata": {
@@ -181,14 +290,6 @@ exports[`DLT Task Lambda Test 1`] = `
     },
     "TaskRunnerLambdaFunctionsLambdaTaskCancelerRoleEEC6795B": {
       "Metadata": {
-        "cfn_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "W11",
-              "reason": "ecs:ListTasks does not support resource level permissions",
-            },
-          ],
-        },
         "guard": {
           "SuppressedRules": [
             "IAM_NO_INLINE_POLICY_CHECK",
@@ -213,21 +314,6 @@ exports[`DLT Task Lambda Test 1`] = `
             "PolicyDocument": {
               "Statement": [
                 {
-                  "Action": "ecs:StopTask",
-                  "Condition": {
-                    "StringEquals": {
-                      "aws:ResourceTag/SolutionId": "testId",
-                    },
-                  },
-                  "Effect": "Allow",
-                  "Resource": "*",
-                },
-                {
-                  "Action": "ecs:ListTasks",
-                  "Effect": "Allow",
-                  "Resource": "*",
-                },
-                {
                   "Action": "dynamodb:UpdateItem",
                   "Effect": "Allow",
                   "Resource": {
@@ -238,40 +324,152 @@ exports[`DLT Task Lambda Test 1`] = `
                   },
                 },
                 {
-                  "Action": [
-                    "logs:DescribeMetricFilters",
-                    "logs:DeleteMetricFilter",
-                  ],
-                  "Condition": {
-                    "StringEquals": {
-                      "aws:ResourceTag/SolutionId": "testId",
-                    },
-                  },
+                  "Action": "dynamodb:PutItem",
                   "Effect": "Allow",
-                  "Resource": "*",
-                },
-                {
-                  "Action": "cloudwatch:PutMetricData",
-                  "Condition": {
-                    "StringEquals": {
-                      "cloudwatch:namespace": "distributed-load-testing",
-                    },
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "TestTable5769773A",
+                      "Arn",
+                    ],
                   },
-                  "Effect": "Allow",
-                  "Resource": "*",
                 },
               ],
               "Version": "2012-10-17",
             },
-            "PolicyName": "TaskCancelerPolicy",
+            "PolicyName": "DynamoDbPolicy",
           },
         ],
       },
       "Type": "AWS::IAM::Role",
     },
-    "TaskRunnerLambdaFunctionsMetricFilterCleaner6CB6EDAC": {
+    "TaskRunnerLambdaFunctionsMetricsEmitter4932EADC": {
       "DependsOn": [
-        "TaskRunnerLambdaFunctionsMetricFilterCleanerRole672CE84C",
+        "TaskRunnerLambdaFunctionsMetricsEmitterRole402938BE",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "MetricsEmitterLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "Sends operational metrics for test lifecycle events",
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "TaskRunnerLambdaFunctionsMetricsEmitterRole402938BE",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 15,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TaskRunnerLambdaFunctionsMetricsEmitterLambdaLogGroup16E278B4": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "TaskRunnerLambdaFunctionsMetricsEmitter4932EADC",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TaskRunnerLambdaFunctionsMetricsEmitterLogsPolicy32C051A2": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "TaskRunnerLambdaFunctionsMetricsEmitterLambdaLogGroup16E278B4",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TaskRunnerLambdaFunctionsMetricsEmitterLogsPolicy32C051A2",
+        "Roles": [
+          {
+            "Ref": "TaskRunnerLambdaFunctionsMetricsEmitterRole402938BE",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TaskRunnerLambdaFunctionsMetricsEmitterRole402938BE": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TaskRunnerLambdaFunctionsOrphanCleanupBFD9226C": {
+      "DependsOn": [
+        "TaskRunnerLambdaFunctionsOrphanCleanupRoleFD4C0A71",
       ],
       "Metadata": {
         "cfn_nag": {
@@ -292,15 +490,21 @@ exports[`DLT Task Lambda Test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
           "S3Key": "Omitted to remove snapshot dependency on hash",
         },
-        "Description": "Cleans up CloudWatch metric filters for completed/failed tests",
+        "Description": "Hourly scan for orphaned ECS services not associated with active tests",
         "Environment": {
           "Variables": {
+            "SCENARIOS_TABLE": {
+              "Ref": "TestTable5769773A",
+            },
             "SOLUTION_ID": "testId",
             "VERSION": "testVersion",
           },
@@ -308,16 +512,54 @@ exports[`DLT Task Lambda Test 1`] = `
         "Handler": "index.handler",
         "Role": {
           "Fn::GetAtt": [
-            "TaskRunnerLambdaFunctionsMetricFilterCleanerRole672CE84C",
+            "TaskRunnerLambdaFunctionsOrphanCleanupRoleFD4C0A71",
             "Arn",
           ],
         },
         "Runtime": "nodejs24.x",
-        "Timeout": 300,
+        "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
     },
-    "TaskRunnerLambdaFunctionsMetricFilterCleanerLambdaLogGroupC0D7DF4C": {
+    "TaskRunnerLambdaFunctionsOrphanCleanupFailureAlarm400E854D": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CFN_NO_EXPLICIT_RESOURCE_NAMES",
+          ],
+        },
+      },
+      "Properties": {
+        "AlarmDescription": "Alerts when orphan ECS service cleanup fails. Manual intervention required to delete orphaned services and prevent ongoing Fargate charges.",
+        "AlarmName": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName",
+              },
+              "-OrphanCleanupFailure",
+            ],
+          ],
+        },
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "Dimensions": [
+          {
+            "Name": "SolutionId",
+            "Value": "testId",
+          },
+        ],
+        "EvaluationPeriods": 1,
+        "MetricName": "OrphanCleanupFailures",
+        "Namespace": "distributed-load-testing",
+        "Period": 300,
+        "Statistic": "Sum",
+        "Threshold": 1,
+        "TreatMissingData": "breaching",
+      },
+      "Type": "AWS::CloudWatch::Alarm",
+    },
+    "TaskRunnerLambdaFunctionsOrphanCleanupLambdaLogGroupEA55D5F7": {
       "DeletionPolicy": "Retain",
       "Metadata": {
         "guard": {
@@ -333,7 +575,7 @@ exports[`DLT Task Lambda Test 1`] = `
             [
               "/aws/lambda/",
               {
-                "Ref": "TaskRunnerLambdaFunctionsMetricFilterCleaner6CB6EDAC",
+                "Ref": "TaskRunnerLambdaFunctionsOrphanCleanupBFD9226C",
               },
             ],
           ],
@@ -343,13 +585,13 @@ exports[`DLT Task Lambda Test 1`] = `
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
     },
-    "TaskRunnerLambdaFunctionsMetricFilterCleanerRole672CE84C": {
+    "TaskRunnerLambdaFunctionsOrphanCleanupRoleFD4C0A71": {
       "Metadata": {
         "cfn_nag": {
           "rules_to_suppress": [
             {
               "id": "W11",
-              "reason": "logs:DeleteMetricFilter does not support resource level permissions",
+              "reason": "ecs:ListServices does not support resource level permissions",
             },
           ],
         },
@@ -377,9 +619,15 @@ exports[`DLT Task Lambda Test 1`] = `
             "PolicyDocument": {
               "Statement": [
                 {
+                  "Action": "ecs:ListServices",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                {
                   "Action": [
-                    "logs:DeleteMetricFilter",
-                    "logs:DescribeMetricFilters",
+                    "ecs:DescribeServices",
+                    "ecs:UpdateService",
+                    "ecs:DeleteService",
                   ],
                   "Condition": {
                     "StringEquals": {
@@ -399,10 +647,187 @@ exports[`DLT Task Lambda Test 1`] = `
                   "Effect": "Allow",
                   "Resource": "*",
                 },
+                {
+                  "Action": "dynamodb:Scan",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "TestTable5769773A",
+                      "Arn",
+                    ],
+                  },
+                },
               ],
               "Version": "2012-10-17",
             },
-            "PolicyName": "MetricFilterCleanerPolicy",
+            "PolicyName": "OrphanCleanupPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TaskRunnerLambdaFunctionsOrphanCleanupScheduleRule7382011D": {
+      "Properties": {
+        "Description": "Hourly trigger for orphaned ECS service cleanup",
+        "ScheduleExpression": "rate(1 hour)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "TaskRunnerLambdaFunctionsOrphanCleanupBFD9226C",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "TaskRunnerLambdaFunctionsOrphanCleanupScheduleRuleAllowEventRuleDLTStackTaskRunnerLambdaFunctionsOrphanCleanup5B7AC5D036AA701D": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "TaskRunnerLambdaFunctionsOrphanCleanupBFD9226C",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "TaskRunnerLambdaFunctionsOrphanCleanupScheduleRule7382011D",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "TaskRunnerLambdaFunctionsRegionalSync6D984481": {
+      "DependsOn": [
+        "TaskRunnerLambdaFunctionsRegionalSyncRole9B35161B",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "Validates all regions are READY and emits sync metric",
+        "Environment": {
+          "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
+            "SCENARIOS_TABLE": {
+              "Ref": "TestTable5769773A",
+            },
+            "SOLUTION_ID": "testId",
+            "UUID": "testId",
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "TaskRunnerLambdaFunctionsRegionalSyncRole9B35161B",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 30,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TaskRunnerLambdaFunctionsRegionalSyncLambdaLogGroup0C6851A2": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "TaskRunnerLambdaFunctionsRegionalSync6D984481",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TaskRunnerLambdaFunctionsRegionalSyncRole9B35161B": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "dynamodb:UpdateItem",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "TestTable5769773A",
+                      "Arn",
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "RegionalSyncPolicy",
           },
         ],
       },
@@ -465,6 +890,9 @@ exports[`DLT Task Lambda Test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
@@ -474,6 +902,9 @@ exports[`DLT Task Lambda Test 1`] = `
         "Description": "Result parser for indexing xml test results to DynamoDB",
         "Environment": {
           "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
             "HISTORY_TABLE": {
               "Ref": "TestTable5769773A",
             },
@@ -500,31 +931,382 @@ exports[`DLT Task Lambda Test 1`] = `
       },
       "Type": "AWS::Lambda::Function",
     },
-    "TaskRunnerLambdaFunctionsTaskCancelerInvokePolicyD51068E2": {
+    "TaskRunnerLambdaFunctionsSFNFailureHandlerDDF8B5C3": {
+      "DependsOn": [
+        "TaskRunnerLambdaFunctionsSFNFailureHandlerRoleBF311DB1",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
       "Properties": {
-        "PolicyDocument": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "Layer 2 safety: invokes test-cleanup when step function fails",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "testId",
+            "TEST_CLEANUP_ARN": {
+              "Fn::GetAtt": [
+                "TaskRunnerLambdaFunctionsTestCleanup3B9CF263",
+                "Arn",
+              ],
+            },
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "TaskRunnerLambdaFunctionsSFNFailureHandlerRoleBF311DB1",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 120,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TaskRunnerLambdaFunctionsSFNFailureHandlerLambdaLogGroupC9F88A01": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "TaskRunnerLambdaFunctionsSFNFailureHandlerDDF8B5C3",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TaskRunnerLambdaFunctionsSFNFailureHandlerRoleBF311DB1": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
           "Statement": [
             {
-              "Action": "lambda:InvokeFunction",
+              "Action": "sts:AssumeRole",
               "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "TaskRunnerLambdaFunctionsTaskCancelerNew4B46C8FD",
-                  "Arn",
-                ],
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
               },
             },
           ],
           "Version": "2012-10-17",
         },
-        "PolicyName": "TaskRunnerLambdaFunctionsTaskCancelerInvokePolicyD51068E2",
-        "Roles": [
+        "Policies": [
           {
-            "Ref": "TaskRunnerLambdaFunctionsTaskStatusRole4B498DE5",
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "lambda:InvokeFunction",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "TaskRunnerLambdaFunctionsTestCleanup3B9CF263",
+                      "Arn",
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "SFNFailureHandlerPolicy",
           },
         ],
       },
-      "Type": "AWS::IAM::Policy",
+      "Type": "AWS::IAM::Role",
+    },
+    "TaskRunnerLambdaFunctionsStabilizationChecker3B7C2651": {
+      "DependsOn": [
+        "TaskRunnerLambdaFunctionsStabilizationCheckerRoleB001855B",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "Checks ECS service stabilization status",
+        "Environment": {
+          "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
+            "SOLUTION_ID": "testId",
+            "UUID": "testId",
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "TaskRunnerLambdaFunctionsStabilizationCheckerRoleB001855B",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TaskRunnerLambdaFunctionsStabilizationCheckerLambdaLogGroupDD5EB666": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "TaskRunnerLambdaFunctionsStabilizationChecker3B7C2651",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TaskRunnerLambdaFunctionsStabilizationCheckerRoleB001855B": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+            "IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "ecs:DescribeServices",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:ResourceTag/SolutionId": "testId",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "EcsTagScopedPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TaskRunnerLambdaFunctionsStartCommandAF9E43AF": {
+      "DependsOn": [
+        "TaskRunnerLambdaFunctionsStartCommandRoleF9102D66",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "Writes S3 start marker so ECS tasks begin test execution",
+        "Environment": {
+          "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
+            "MAIN_STACK_REGION": "us-east-1",
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
+            "SCENARIOS_BUCKET": "testBucket",
+            "SOLUTION_ID": "testId",
+            "UUID": "testId",
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "TaskRunnerLambdaFunctionsStartCommandRoleF9102D66",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TaskRunnerLambdaFunctionsStartCommandLambdaLogGroupB2A5B858": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "TaskRunnerLambdaFunctionsStartCommandAF9E43AF",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TaskRunnerLambdaFunctionsStartCommandRoleF9102D66": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "s3:PutObject",
+                  "Effect": "Allow",
+                  "Resource": "testBucketArn/start-signal/*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "S3StartSignalPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
     },
     "TaskRunnerLambdaFunctionsTaskCancelerNew4B46C8FD": {
       "DependsOn": [
@@ -549,20 +1331,31 @@ exports[`DLT Task Lambda Test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
           "S3Key": "Omitted to remove snapshot dependency on hash",
         },
-        "Description": "Stops ECS task",
+        "Description": "Coordinates test cancellation — sets CANCELLING status, invokes test-cleanup per region",
         "Environment": {
           "Variables": {
-            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
+            "HISTORY_TABLE": {
+              "Ref": "TestTable5769773A",
+            },
             "SCENARIOS_TABLE": {
               "Ref": "TestTable5769773A",
             },
             "SOLUTION_ID": "testId",
+            "TEST_CLEANUP_ARN": {
+              "Fn::GetAtt": [
+                "TaskRunnerLambdaFunctionsTestCleanup3B9CF263",
+                "Arn",
+              ],
+            },
             "VERSION": "testVersion",
           },
         },
@@ -603,6 +1396,157 @@ exports[`DLT Task Lambda Test 1`] = `
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
+    },
+    "TaskRunnerLambdaFunctionsTaskFailureHandler8F67C3A3": {
+      "DependsOn": [
+        "TaskRunnerLambdaFunctionsTaskFailureHandlerRole960EAB27",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "Handles ECS task failure events and tracks failure threshold",
+        "Environment": {
+          "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
+            "SCENARIOS_TABLE": {
+              "Ref": "TestTable5769773A",
+            },
+            "SOLUTION_ID": "testId",
+            "UUID": "testId",
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "TaskRunnerLambdaFunctionsTaskFailureHandlerRole960EAB27",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 30,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TaskRunnerLambdaFunctionsTaskFailureHandlerLambdaLogGroup509242B1": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "TaskRunnerLambdaFunctionsTaskFailureHandler8F67C3A3",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TaskRunnerLambdaFunctionsTaskFailureHandlerRole960EAB27": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+            "IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "dynamodb:UpdateItem",
+                    "dynamodb:GetItem",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "TestTable5769773A",
+                      "Arn",
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "TaskFailureHandlerPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "cloudwatch:PutMetricData",
+                  "Condition": {
+                    "StringEquals": {
+                      "cloudwatch:namespace": "distributed-load-testing",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "CloudWatchMetricPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
     },
     "TaskRunnerLambdaFunctionsTaskRunnerLambdaLogGroup9B234D13": {
       "DeletionPolicy": "Retain",
@@ -653,6 +1597,9 @@ exports[`DLT Task Lambda Test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
@@ -662,12 +1609,17 @@ exports[`DLT Task Lambda Test 1`] = `
         "Description": "Task runner for ECS task definitions",
         "Environment": {
           "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
             "MAIN_STACK_REGION": "us-east-1",
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
             "SCENARIOS_BUCKET": "testBucket",
             "SCENARIOS_TABLE": {
               "Ref": "TestTable5769773A",
             },
             "SOLUTION_ID": "testId",
+            "UUID": "testId",
             "VERSION": "testVersion",
           },
         },
@@ -706,25 +1658,29 @@ exports[`DLT Task Lambda Test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
           "S3Key": "Omitted to remove snapshot dependency on hash",
         },
-        "Description": "Task status checker",
+        "Description": "Task status checker — running check and S3 completion monitoring",
         "Environment": {
           "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
+            "MAIN_STACK_REGION": "us-east-1",
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
+            "SCENARIOS_BUCKET": "testBucket",
             "SCENARIOS_TABLE": {
               "Ref": "TestTable5769773A",
             },
             "SOLUTION_ID": "testId",
-            "TASK_CANCELER_ARN": {
-              "Fn::GetAtt": [
-                "TaskRunnerLambdaFunctionsTaskCancelerNew4B46C8FD",
-                "Arn",
-              ],
-            },
+            "UUID": "testId",
             "VERSION": "testVersion",
           },
         },
@@ -736,7 +1692,7 @@ exports[`DLT Task Lambda Test 1`] = `
           ],
         },
         "Runtime": "nodejs24.x",
-        "Timeout": 180,
+        "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -774,8 +1730,188 @@ exports[`DLT Task Lambda Test 1`] = `
             "PolicyDocument": {
               "Statement": [
                 {
+                  "Action": "ecs:ListTasks",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "EcsUnscopedActionsPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "ecs:DescribeTasks",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                {
+                  "Action": "s3:ListBucket",
+                  "Effect": "Allow",
+                  "Resource": "testBucketArn",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "TaskStatusPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TaskRunnerLambdaFunctionsTestCleanup3B9CF263": {
+      "DependsOn": [
+        "TaskRunnerLambdaFunctionsTestCleanupRole5D7EE947",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "Cleans up ECS resources for one region and sets final DDB status",
+        "Environment": {
+          "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
+            "HISTORY_TABLE": {
+              "Ref": "TestTable5769773A",
+            },
+            "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
+            "SCENARIOS_TABLE": {
+              "Ref": "TestTable5769773A",
+            },
+            "SOLUTION_ID": "testId",
+            "UUID": "testId",
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "TaskRunnerLambdaFunctionsTestCleanupRole5D7EE947",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TaskRunnerLambdaFunctionsTestCleanupInvokePolicy9C6D3C10": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "TaskRunnerLambdaFunctionsTestCleanup3B9CF263",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TaskRunnerLambdaFunctionsTestCleanupInvokePolicy9C6D3C10",
+        "Roles": [
+          {
+            "Ref": "TaskRunnerLambdaFunctionsLambdaTaskCancelerRoleEEC6795B",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TaskRunnerLambdaFunctionsTestCleanupLambdaLogGroupC30CD4D8": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "TaskRunnerLambdaFunctionsTestCleanup3B9CF263",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TaskRunnerLambdaFunctionsTestCleanupRole5D7EE947": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W11",
+              "reason": "ecs:ListTasks and ecs:DeregisterTaskDefinition do not support resource level permissions",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
                   "Action": [
-                    "ecs:DescribeTasks",
+                    "ecs:DeregisterTaskDefinition",
+                    "ecs:ListTaskDefinitions",
                     "ecs:ListTasks",
                   ],
                   "Effect": "Allow",
@@ -784,7 +1920,237 @@ exports[`DLT Task Lambda Test 1`] = `
               ],
               "Version": "2012-10-17",
             },
-            "PolicyName": "TaskStatusPolicy",
+            "PolicyName": "EcsUnscopedActionsPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "ecs:UpdateService",
+                    "ecs:DeleteService",
+                    "ecs:DescribeServices",
+                    "ecs:DeleteTaskDefinitions",
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:ResourceTag/SolutionId": "testId",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "EcsTagScopedPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "logs:DescribeMetricFilters",
+                    "logs:DeleteMetricFilter",
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:ResourceTag/SolutionId": "testId",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "MetricFilterPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "cloudwatch:PutMetricData",
+                  "Condition": {
+                    "StringEquals": {
+                      "cloudwatch:namespace": "distributed-load-testing",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "CloudWatchMetricPolicy",
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "dynamodb:UpdateItem",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "TestTable5769773A",
+                      "Arn",
+                    ],
+                  },
+                },
+                {
+                  "Action": "dynamodb:PutItem",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "TestTable5769773A",
+                      "Arn",
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "DynamoDbPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TaskRunnerLambdaFunctionsTestStatusUpdater36E293B9": {
+      "DependsOn": [
+        "TaskRunnerLambdaFunctionsTestStatusUpdaterRole32C43C3C",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "CloudWatchLogsPolicy covers a permission to write CloudWatch logs.",
+            },
+            {
+              "id": "W89",
+              "reason": "This Lambda function does not require a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "Does not run concurrent executions",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "Omitted to remove snapshot dependency on hash",
+        },
+        "Description": "Updates scenario and history DynamoDB records with current test status",
+        "Environment": {
+          "Variables": {
+            "HISTORY_TABLE": {
+              "Ref": "TestTable5769773A",
+            },
+            "SCENARIOS_TABLE": {
+              "Ref": "TestTable5769773A",
+            },
+            "SOLUTION_ID": "testId",
+            "VERSION": "testVersion",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "TaskRunnerLambdaFunctionsTestStatusUpdaterRole32C43C3C",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 30,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TaskRunnerLambdaFunctionsTestStatusUpdaterLambdaLogGroupA162F68A": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "TaskRunnerLambdaFunctionsTestStatusUpdater36E293B9",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TaskRunnerLambdaFunctionsTestStatusUpdaterRole32C43C3C": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:UpdateItem",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "TestTable5769773A",
+                      "Arn",
+                    ],
+                  },
+                },
+                {
+                  "Action": "dynamodb:UpdateItem",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "TestTable5769773A",
+                      "Arn",
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "DynamoDbPolicy",
           },
         ],
       },
@@ -843,14 +2209,6 @@ exports[`DLT Task Lambda Test 1`] = `
       },
       "Type": "AWS::IAM::Policy",
     },
-    "TestLogsGroup54B681C7": {
-      "DeletionPolicy": "Retain",
-      "Properties": {
-        "RetentionInDays": 731,
-      },
-      "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Retain",
-    },
     "TestPolicyCC05E598": {
       "Properties": {
         "PolicyDocument": {
@@ -878,7 +2236,28 @@ exports[`DLT Task Lambda Test 1`] = `
             "Ref": "TaskRunnerLambdaFunctionsTaskStatusRole4B498DE5",
           },
           {
-            "Ref": "TaskRunnerLambdaFunctionsMetricFilterCleanerRole672CE84C",
+            "Ref": "TaskRunnerLambdaFunctionsTestCleanupRole5D7EE947",
+          },
+          {
+            "Ref": "TaskRunnerLambdaFunctionsStabilizationCheckerRoleB001855B",
+          },
+          {
+            "Ref": "TaskRunnerLambdaFunctionsStartCommandRoleF9102D66",
+          },
+          {
+            "Ref": "TaskRunnerLambdaFunctionsRegionalSyncRole9B35161B",
+          },
+          {
+            "Ref": "TaskRunnerLambdaFunctionsTaskFailureHandlerRole960EAB27",
+          },
+          {
+            "Ref": "TaskRunnerLambdaFunctionsOrphanCleanupRoleFD4C0A71",
+          },
+          {
+            "Ref": "TaskRunnerLambdaFunctionsSFNFailureHandlerRoleBF311DB1",
+          },
+          {
+            "Ref": "TaskRunnerLambdaFunctionsTestStatusUpdaterRole32C43C3C",
           },
         ],
       },

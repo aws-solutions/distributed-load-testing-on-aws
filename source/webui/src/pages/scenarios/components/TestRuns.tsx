@@ -13,6 +13,8 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { useTestRuns } from "../hooks/useTestRuns";
+import { sendConsoleMetric } from "../../../utils/consoleMetrics";
+import { usePageLoadMetric } from "../../../hooks/usePageLoadMetric";
 import { useTestRunColumns } from "../hooks/useTestRunColumns";
 import { TestRunsBaselineContainer } from "./TestRunsBaselineContainer";
 import { TestRunsDateFilter } from "./TestRunsDateFilter";
@@ -31,6 +33,7 @@ const INITIAL_PREFERENCES = {
   contentDisplay: [
     { id: "testRun", visible: true },
     { id: "testRunId", visible: true },
+    { id: "status", visible: true },
     { id: "requests", visible: true },
     { id: "success", visible: true },
     { id: "errors", visible: true },
@@ -68,11 +71,19 @@ export function TestRuns({ testId }: TestRunsProps) {
     refetch,
   } = useTestRuns(testId);
 
+  // extra is only emitted in PageDataReady (not PageInitialLoad), so
+  // BaselineEnabled reflects the actual loaded baseline state.
+  usePageLoadMetric("TestRuns", {
+    dataReady: !isLoading && !isLoadingMore && !error && !baselineError && allTestRuns.length > 0,
+    testId,
+    extra: { BaselineEnabled: baselineTestRun ? "true" : "false" },
+  });
+
   const handleTestRunClick = (testRunId: string) => {
     navigate(`/scenarios/${testId}/testruns/${testRunId}`);
   };
 
-  const { allColumns, getFilteredColumns } = useTestRunColumns(baselineTestRun, handleTestRunClick);
+  const { allColumns, getFilteredColumns } = useTestRunColumns(testId, baselineTestRun, handleTestRunClick);
 
   const [preferences, setPreferences] = useState(() => {
     try {
@@ -108,12 +119,24 @@ export function TestRuns({ testId }: TestRunsProps) {
       setTestRunsToDelete([]);
     } catch (error) {
       console.error('Failed to delete test runs:', error);
+    } finally {
+      sendConsoleMetric("ButtonClick", {
+        Page: "TestRuns",
+        Action: "DeleteTestRuns",
+        TestId: testId,
+        NumTestRunsToDelete: testRunsToDelete.length,
+      });
     }
   };
 
 
 
   const handleDownloadCSV = () => {
+    sendConsoleMetric("ButtonClick", { 
+      Page: "TestRuns", 
+      Action: "DownloadTestRunsCSV", 
+      TestId: testId 
+    });
     // Generate CSV content
     const csvContent = generateCSV(filteredColumns as TableColumn<TestRun>[], allTestRuns, !!baselineTestRun);
     

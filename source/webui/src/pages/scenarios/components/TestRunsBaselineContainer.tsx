@@ -18,7 +18,7 @@ export const TestRunsBaselineContainer: React.FC<BaselineContainerProps> = ({
   isRemovingBaseline,
 }) => {
   const formattedDate = useMemo(() => 
-    baselineTestRun ? formatToLocalTime(baselineTestRun.startTime, { hour12: false }) : null, 
+    baselineTestRun ? formatToLocalTime(baselineTestRun.startTime, { hour12: false, timeZoneName: "short" }) : null, 
     [baselineTestRun?.startTime]
   );
 

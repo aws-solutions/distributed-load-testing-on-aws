@@ -1,21 +1,26 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { AgentCoreEvent } from "../../src/lib/common.js";
 import { AppError } from "../../src/lib/errors.js";
-import type { HttpResponse, IAMHttpClient } from "../../src/lib/http-client.js";
+import type { HttpResponse } from "../../src/lib/http-client.js";
 import { handleListScenarios } from "../../src/tools/list-scenarios.js";
+import {
+  createMockHttpClient,
+  expectGetCalledWith,
+  mockErrorResponse,
+  mockNetworkError,
+  mockSuccessResponse,
+  type MockHttpClient,
+} from "../test-utils.js";
 
 describe("handleListScenarios", () => {
-  let mockHttpClient: IAMHttpClient;
+  let mockHttpClient: MockHttpClient;
   const apiEndpoint = "https://api.example.com";
 
   beforeEach(() => {
-    mockHttpClient = {
-      get: vi.fn(),
-      request: vi.fn(),
-    } as any;
+    mockHttpClient = createMockHttpClient();
   });
 
   it("should successfully list scenarios", async () => {
@@ -32,12 +37,12 @@ describe("handleListScenarios", () => {
       headers: {},
     };
 
-    vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+    mockHttpClient.get.mockResolvedValue(mockResponse);
 
     const event: AgentCoreEvent = {};
     const result = await handleListScenarios(mockHttpClient, apiEndpoint, event);
 
-    expect(mockHttpClient.get).toHaveBeenCalledWith(`${apiEndpoint}/scenarios`);
+    expectGetCalledWith(mockHttpClient, `${apiEndpoint}/scenarios`);
     expect(result).toEqual(mockScenarios);
   });
 
@@ -48,7 +53,7 @@ describe("handleListScenarios", () => {
       headers: {},
     };
 
-    vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+    mockHttpClient.get.mockResolvedValue(mockResponse);
 
     const event: AgentCoreEvent = {};
     const result = await handleListScenarios(mockHttpClient, apiEndpoint, event);
@@ -57,41 +62,21 @@ describe("handleListScenarios", () => {
   });
 
   it("should throw AppError when API returns non-200 status", async () => {
-    const mockResponse: HttpResponse = {
-      statusCode: 500,
-      body: "Internal server error",
-      headers: {},
-    };
-
-    vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+    mockErrorResponse(mockHttpClient, 500, "Internal server error");
 
     const event: AgentCoreEvent = {};
 
-    await expect(handleListScenarios(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-      AppError
-    );
-    await expect(handleListScenarios(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-      "Internal server error"
-    );
+    await expect(handleListScenarios(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
+    await expect(handleListScenarios(mockHttpClient, apiEndpoint, event)).rejects.toThrow("Internal server error");
   });
 
   it("should throw AppError with 404 when no scenarios found", async () => {
-    const mockResponse: HttpResponse = {
-      statusCode: 200,
-      body: JSON.stringify(null),
-      headers: {},
-    };
-
-    vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+    mockSuccessResponse(mockHttpClient, null);
 
     const event: AgentCoreEvent = {};
 
-    await expect(handleListScenarios(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-      AppError
-    );
-    await expect(handleListScenarios(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-      "No scenarios found"
-    );
+    await expect(handleListScenarios(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
+    await expect(handleListScenarios(mockHttpClient, apiEndpoint, event)).rejects.toThrow("No scenarios found");
 
     try {
       await handleListScenarios(mockHttpClient, apiEndpoint, event);
@@ -101,16 +86,12 @@ describe("handleListScenarios", () => {
   });
 
   it("should throw AppError with 500 when HTTP client throws", async () => {
-    vi.mocked(mockHttpClient.get).mockRejectedValue(new Error("Network error"));
+    mockNetworkError(mockHttpClient, "Network error");
 
     const event: AgentCoreEvent = {};
 
-    await expect(handleListScenarios(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-      AppError
-    );
-    await expect(handleListScenarios(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-      "Internal request failed"
-    );
+    await expect(handleListScenarios(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
+    await expect(handleListScenarios(mockHttpClient, apiEndpoint, event)).rejects.toThrow("Internal request failed");
 
     try {
       await handleListScenarios(mockHttpClient, apiEndpoint, event);
@@ -126,7 +107,7 @@ describe("handleListScenarios", () => {
       headers: {},
     };
 
-    vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+    mockHttpClient.get.mockResolvedValue(mockResponse);
 
     const event: AgentCoreEvent = {};
     await expect(handleListScenarios(mockHttpClient, apiEndpoint, event)).resolves.toBeDefined();
@@ -139,7 +120,7 @@ describe("handleListScenarios", () => {
       headers: {},
     };
 
-    vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+    mockHttpClient.get.mockResolvedValue(mockResponse);
 
     const event: AgentCoreEvent = {};
 

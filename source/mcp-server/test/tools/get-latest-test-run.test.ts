@@ -1,21 +1,26 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { AgentCoreEvent } from "../../src/lib/common.js";
 import { AppError } from "../../src/lib/errors.js";
-import type { HttpResponse, IAMHttpClient } from "../../src/lib/http-client.js";
+import type { HttpResponse } from "../../src/lib/http-client.js";
 import { handleGetLatestTestRun } from "../../src/tools/get-latest-test-run.js";
+import {
+  createMockHttpClient,
+  expectGetCalledWith,
+  mockErrorResponse,
+  mockNetworkError,
+  mockSuccessResponse,
+  type MockHttpClient,
+} from "../test-utils.js";
 
 describe("handleGetLatestTestRun", () => {
-  let mockHttpClient: IAMHttpClient;
+  let mockHttpClient: MockHttpClient;
   const apiEndpoint = "https://api.example.com";
 
   beforeEach(() => {
-    mockHttpClient = {
-      get: vi.fn(),
-      request: vi.fn(),
-    } as any;
+    mockHttpClient = createMockHttpClient();
   });
 
   describe("Successful requests", () => {
@@ -33,7 +38,7 @@ describe("handleGetLatestTestRun", () => {
         headers: {},
       };
 
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+      mockHttpClient.get.mockResolvedValue(mockResponse);
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",
@@ -41,9 +46,7 @@ describe("handleGetLatestTestRun", () => {
 
       const result = await handleGetLatestTestRun(mockHttpClient, apiEndpoint, event);
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith(
-        `${apiEndpoint}/scenarios/test-12345/testruns?limit=1`
-      );
+      expectGetCalledWith(mockHttpClient, `${apiEndpoint}/scenarios/test-12345/testruns?limit=1`);
       expect(result).toEqual(mockLatestRun);
     });
 
@@ -59,7 +62,7 @@ describe("handleGetLatestTestRun", () => {
         headers: {},
       };
 
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+      mockHttpClient.get.mockResolvedValue(mockResponse);
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",
@@ -79,15 +82,13 @@ describe("handleGetLatestTestRun", () => {
         headers: {},
       };
 
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+      mockHttpClient.get.mockResolvedValue(mockResponse);
 
       const event: AgentCoreEvent = {
         test_id: "abc-123-xy",
       };
 
-      await expect(
-        handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)
-      ).resolves.toBeDefined();
+      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).resolves.toBeDefined();
     });
   });
 
@@ -95,9 +96,7 @@ describe("handleGetLatestTestRun", () => {
     it("should throw AppError for missing test_id", async () => {
       const event: AgentCoreEvent = {};
 
-      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
+      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
 
       try {
         await handleGetLatestTestRun(mockHttpClient, apiEndpoint, event);
@@ -112,9 +111,7 @@ describe("handleGetLatestTestRun", () => {
         test_id: "short",
       };
 
-      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
+      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
 
       try {
         await handleGetLatestTestRun(mockHttpClient, apiEndpoint, event);
@@ -129,9 +126,7 @@ describe("handleGetLatestTestRun", () => {
         test_id: "test_12345",
       };
 
-      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
+      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
 
       try {
         await handleGetLatestTestRun(mockHttpClient, apiEndpoint, event);
@@ -144,24 +139,14 @@ describe("handleGetLatestTestRun", () => {
 
   describe("Error handling", () => {
     it("should throw AppError when API returns non-200 status", async () => {
-      const mockResponse: HttpResponse = {
-        statusCode: 404,
-        body: "Test not found",
-        headers: {},
-      };
-
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+      mockErrorResponse(mockHttpClient, 404, "Test not found");
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",
       };
 
-      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
-      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        "Test not found"
-      );
+      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
+      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow("Test not found");
 
       try {
         await handleGetLatestTestRun(mockHttpClient, apiEndpoint, event);
@@ -170,76 +155,52 @@ describe("handleGetLatestTestRun", () => {
       }
     });
 
-    it("should throw AppError with 404 when response data is null", async () => {
-      const mockResponse: HttpResponse = {
-        statusCode: 200,
-        body: JSON.stringify(null),
-        headers: {},
-      };
-
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+    it("should throw AppError with 500 when response data is null", async () => {
+      mockSuccessResponse(mockHttpClient, null);
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",
       };
 
+      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
       await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
-      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        "Test run data not found: test-12345"
+        "Unexpected response format"
       );
 
       try {
         await handleGetLatestTestRun(mockHttpClient, apiEndpoint, event);
       } catch (error) {
-        expect((error as AppError).code).toBe(404);
+        expect((error as AppError).code).toBe(500);
       }
     });
 
-    it("should throw AppError with 404 when testRuns array is missing", async () => {
-      const mockResponse: HttpResponse = {
-        statusCode: 200,
-        body: JSON.stringify({}),
-        headers: {},
-      };
-
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+    it("should throw AppError with 500 when testRuns array is missing", async () => {
+      mockSuccessResponse(mockHttpClient, {});
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",
       };
 
+      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
       await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
-      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        "No test runs found for test_id: test-12345"
+        "Unexpected response format"
       );
 
       try {
         await handleGetLatestTestRun(mockHttpClient, apiEndpoint, event);
       } catch (error) {
-        expect((error as AppError).code).toBe(404);
+        expect((error as AppError).code).toBe(500);
       }
     });
 
     it("should throw AppError with 404 when testRuns array is empty", async () => {
-      const mockResponse: HttpResponse = {
-        statusCode: 200,
-        body: JSON.stringify({ testRuns: [] }),
-        headers: {},
-      };
-
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+      mockSuccessResponse(mockHttpClient, { testRuns: [] });
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",
       };
 
-      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
+      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
       await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
         "No test runs found for test_id: test-12345"
       );
@@ -252,15 +213,13 @@ describe("handleGetLatestTestRun", () => {
     });
 
     it("should throw AppError with 500 when HTTP client throws", async () => {
-      vi.mocked(mockHttpClient.get).mockRejectedValue(new Error("Network error"));
+      mockNetworkError(mockHttpClient, "Network error");
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",
       };
 
-      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
-        AppError
-      );
+      await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
       await expect(handleGetLatestTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(
         "Internal request failed"
       );
@@ -279,7 +238,7 @@ describe("handleGetLatestTestRun", () => {
         headers: {},
       };
 
-      vi.mocked(mockHttpClient.get).mockResolvedValue(mockResponse);
+      mockHttpClient.get.mockResolvedValue(mockResponse);
 
       const event: AgentCoreEvent = {
         test_id: "test-12345",

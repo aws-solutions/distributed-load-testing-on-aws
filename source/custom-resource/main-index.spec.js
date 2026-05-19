@@ -26,11 +26,21 @@ const mockStoreConfig = {
   delTestingResourcesConfigFile: jest.fn(),
 };
 
+const mockBackCompat = {
+  updateScheduledTests: jest.fn(),
+};
+
+const mockScenarioClean = {
+  cleanUpTestScenarioResources: jest.fn(),
+};
+
 jest.mock("./lib/cfn", () => mockCfn);
 jest.mock("./lib/metrics", () => mockMetrics);
 jest.mock("./lib/s3", () => mockS3);
 jest.mock("./lib/iot", () => mockIot);
 jest.mock("./lib/config-storage", () => mockStoreConfig);
+jest.mock("./lib/backcompat", () => mockBackCompat);
+jest.mock("./lib/scenarios", () => mockScenarioClean);
 
 const lambda = require("./main-index.js");
 
@@ -239,17 +249,52 @@ describe("#MAIN-INDEX HANDLER::", () => {
     it("should call metrics.send on Create request", async () => {
       const event = {
         RequestType: "Create",
+        StackId: "arn:aws:cloudformation:us-east-1:123456789012:stack/my-stack/guid",
         ResourceProperties: {
           Resource: "Metric",
           SolutionId: "SO0062",
         },
       };
-
       await lambda.handler(event, context);
-
-      expect(mockMetrics.send).toHaveBeenCalledWith(event.ResourceProperties, "Create");
+      expect(mockMetrics.send).toHaveBeenCalledWith(event.ResourceProperties, "Create", event.StackId);
       expect(mockCfn.send).toHaveBeenCalledWith(event, context, "SUCCESS", {}, "Metric");
     });
+  });
+
+  describe("V3toV4BackCompat Resource", () => {
+    ["Create", "Update", "Delete"].forEach(requesType => {
+      it("should call backCompat.updateScheduledTests() on Create request", async () => {
+        const event = {
+          RequestType: requesType,
+          ResourceProperties: {
+            Resource: "V3toV4BackCompat",
+          },
+        };
+
+        await lambda.handler(event, context);
+
+        if (requesType == "Create") expect(mockBackCompat.updateScheduledTests).toHaveBeenCalledTimes(1)
+        else expect(mockBackCompat.updateScheduledTests).not.toHaveBeenCalled()
+      });
+    })
+  });
+
+  describe("CleanUpTestScenarios Resource", () => {
+    ["Create", "Update", "Delete"].forEach(requesType => {
+      it("should call scenarios.cleanUpTestScenarioResources() on Delete request", async () => {
+        const event = {
+          RequestType: requesType,
+          ResourceProperties: {
+            Resource: "CleanUpTestScenarios",
+          },
+        };
+
+        await lambda.handler(event, context);
+
+        if (requesType == "Delete") expect(mockScenarioClean.cleanUpTestScenarioResources).toHaveBeenCalledTimes(1)
+        else expect(mockScenarioClean.cleanUpTestScenarioResources).not.toHaveBeenCalled()
+      });
+    })
   });
 
   describe("Error Handling", () => {

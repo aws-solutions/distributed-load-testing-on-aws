@@ -1,11 +1,12 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { useContext } from "react";
 import { TopNavigation, TopNavigationProps } from "@cloudscape-design/components";
-import { useAuthenticator } from "@aws-amplify/ui-react";
+import { UserContext } from "../../contexts/UserContext";
 
 export default function TopNavigationBar() {
-  const { user, signOut } = useAuthenticator();
+  const { user, signOut } = useContext(UserContext);
 
   const solutionIdentity: TopNavigationProps.Identity = {
     href: "/",
@@ -19,8 +20,15 @@ export default function TopNavigationBar() {
 
   const utilities: TopNavigationProps.Utility[] = [
     {
+      type: "button",
+      text: "Talk to the DLT team",
+      href: "https://amazonmr.au1.qualtrics.com/jfe/form/SV_8xnvsbMpmWqrUxM",
+      external: true,
+      externalIconAriaLabel: " (opens in new tab)",
+    },
+    {
       type: "menu-dropdown",
-      text: user.username ?? "User",
+      text: user?.username ?? "User",
       iconName: "user-profile",
       items: [
         {
@@ -43,5 +51,5 @@ export default function TopNavigationBar() {
     },
   ];
 
-  return <TopNavigation identity={solutionIdentity} i18nStrings={i18nStrings} utilities={utilities} />;
+  return <TopNavigation identity={solutionIdentity} i18nStrings={i18nStrings} utilities={utilities} data-cy="top-navigation" />;
 }

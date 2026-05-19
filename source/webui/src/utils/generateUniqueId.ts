@@ -9,5 +9,6 @@
  */
 export const generateUniqueId = (length = 10) => {
   const ALPHA_NUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  return Array.from({ length }, () => ALPHA_NUMERIC[Math.floor(Math.random() * ALPHA_NUMERIC.length)]).join("");
+  const randomValues = crypto.getRandomValues(new Uint8Array(length));
+  return Array.from(randomValues, (byte) => ALPHA_NUMERIC[byte % ALPHA_NUMERIC.length]).join("");
 };

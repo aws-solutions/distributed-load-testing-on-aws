@@ -3,6 +3,7 @@
 
 import { BaseQueryApi, BaseQueryFn, createApi, FetchArgs, FetchBaseQueryError } from "@reduxjs/toolkit/query/react";
 import { del, get, patch, post, put } from "aws-amplify/api";
+import { sendConsoleMetric } from "../utils/consoleMetrics";
 
 export enum ApiEndpoints {
   USER = "/users/self",
@@ -58,13 +59,21 @@ export const dynamicBaseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBas
     const data = await runAmplifyAxiosRequest();
     return { data };
   } catch (error: any) {
+    const endpoint = typeof args === "string" ? args : args.url;
+    const method = typeof args === "string" ? "GET" : (args.method || "GET");
     const errorMessage = error?.response?.body || error?.message || 'An unexpected error occurred';
     
     // Catch timeout errors coming back from API Gateway (when 30s timeout limit is exceeded)
     const isNetworkError = error?.name === 'NetworkError' || 
                            errorMessage.includes('network error') ||
                            errorMessage.includes('Network error');
-    
+
+    const statusCode = isNetworkError ? 504 : (error?.response?.statusCode || 0);
+    sendConsoleMetric(
+      "ApiCallFailed",
+      { Endpoint: endpoint, Method: method, StatusCode: statusCode, ErrorMessage: String(errorMessage).slice(0, 256), CurrentPath: window.location.pathname?.slice(0, 128) },
+    );
+
     return {
       error: {
         status: isNetworkError ? 504 : 'CUSTOM_ERROR',

@@ -10,11 +10,14 @@ const { DynamoDB } = require("@aws-sdk/client-dynamodb");
 const { ECS } = require("@aws-sdk/client-ecs");
 const { Lambda } = require("@aws-sdk/client-lambda");
 const { S3 } = require("@aws-sdk/client-s3");
+const { isDeepStrictEqual } = require("util");
+const { Scheduler } = require("@aws-sdk/client-scheduler");
 const { ServiceQuotas } = require("@aws-sdk/client-service-quotas");
 const { SFN } = require("@aws-sdk/client-sfn");
 
 const utils = require("solution-utils");
 const cronParser = require("cron-parser");
+const { checkRegionalCompatibility, isUpdateAvailable, getLatestVersionFromRss } = require("@amzn/dlt-common");
 
 const {
   HISTORY_TABLE,
@@ -23,6 +26,7 @@ const {
   SCENARIOS_BUCKET,
   STATE_MACHINE_ARN,
   TASK_CANCELER_ARN,
+  SCHEDULER_ROLE_ARN,
   STACK_ID,
   STACK_NAME,
 } = process.env;
@@ -33,7 +37,50 @@ const lambda = new Lambda(options);
 const dynamoDB = DynamoDBDocument.from(new DynamoDB(options));
 const stepFunctions = new SFN(options);
 const cloudwatchevents = new CloudWatchEvents(options);
+const scheduler = new Scheduler(options);
 const cloudformation = new CloudFormation(options);
+
+/**
+ * Default minimum percentage of healthy ECS tasks across all regions.
+ * Used when the client does not provide healthyThreshold in the request.
+ */
+const DEFAULT_HEALTHY_THRESHOLD = 90;
+
+/**
+ * Fields tracked for change detection when updating a scenario.
+ * Used by computeChangedFields to determine which fields differ
+ * between an existing DynamoDB entry and the incoming config.
+ */
+const TRACKED_FIELDS = [
+  'testName', 'testDescription', 'testType', 'fileType',
+  'showLive', 'testTaskConfigs', 'testScenario', 'tags',
+  'cronValue', 'cronExpiryDate', 'scheduleTimezone', 'healthyThreshold',
+];
+
+/**
+ * Compares an existing DynamoDB test entry against the incoming config
+ * and returns the list of tracked field names that have changed.
+ *
+ * testScenario is stored as a JSON string in DynamoDB, so it is
+ * compared against the serialized form of the incoming value.
+ *
+ * @param {object} existingEntry - The current DynamoDB item
+ * @param {object} newConfig     - The incoming request config
+ * @returns {string[]} Names of the fields that differ
+ */
+const computeChangedFields = (existingEntry, newConfig) => {
+  return TRACKED_FIELDS.filter(field => {
+    let oldVal = existingEntry[field];
+    const newVal = newConfig[field];
+
+    // testScenario is persisted as a JSON string in DynamoDB
+    if (field === 'testScenario' && typeof oldVal === 'string') {
+      oldVal = JSON.parse(oldVal);
+    }
+
+    return !isDeepStrictEqual(oldVal, newVal);
+  });
+};
 
 const StatusCodes = {
   OK: 200,
@@ -41,10 +88,13 @@ const StatusCodes = {
   FORBIDDEN: 403,
   NOT_FOUND: 404,
   NOT_ALLOWED: 405,
+  CONFLICT: 409,
   REQUEST_TOO_LONG: 413,
   INTERNAL_SERVER_ERROR: 500,
   TIMEOUT: 503,
 };
+
+const ERROR_INCOMPATIBLE_REGIONAL_STACKS = "INCOMPATIBLE_REGIONAL_STACKS";
 
 /**
  * Class to throw errors
@@ -63,6 +113,30 @@ class ErrorException extends Error {
     return `${this.code}: ${this.message}`;
   }
 }
+
+/**
+ * Formats a Date into its timezone-localized parts using Intl.DateTimeFormat.
+ * Returns a lookup function that retrieves a part value by type (e.g. "year", "month").
+ * @param {Date} date - The date to format
+ * @param {string} timezone - IANA timezone identifier
+ * @returns {function(string): string} - Lookup function: (type) => value
+ */
+const getTimezoneParts = (date, timezone) => {
+  if (!date || isNaN(date.getTime())) {
+    throw new ErrorException("InvalidParameter", "Invalid date for timezone conversion");
+  }
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  return (type) => {
+    const part = parts.find((t) => t.type === type);
+    if (!part) throw new Error(`Unknown date part type: ${type}`);
+    return part.value;
+  };
+};
 
 /**
  * Normalizes a tag by converting to lowercase, replacing spaces with hyphens,
@@ -165,7 +239,20 @@ const getAllRegionConfigs = async () => {
       response.push(...regionConfigs.Items);
       params.ExclusiveStartKey = regionConfigs.LastEvaluatedKey;
     } while (params.ExclusiveStartKey);
-    return response;
+
+    const mainVersion = process.env.VERSION;
+    const minVersion = process.env.MIN_COMPATIBLE_VERSION;
+
+    return response.map((region) => {
+      const result = checkRegionalCompatibility(mainVersion, region.version, minVersion);
+      return {
+        ...region,
+        version: region.version,
+        compatible: result.compatible,
+        incompatibilityReason: result.compatible ? undefined : result.reason,
+        deploymentDate: region.deploymentDate,
+      };
+    });
   } catch (err) {
     console.error(err);
     throw err;
@@ -244,6 +331,28 @@ const getTestAndRegionConfigs = async (testId) => {
 };
 
 /**
+ * Returns the number of test runs for a given testId.
+ * @param {string} testId
+ * @returns {number|null} Run count, or null on error
+ */
+const getTestRunCount = async (testId) => {
+  try {
+    const params = {
+      TableName: HISTORY_TABLE,
+      Select: "COUNT",
+      KeyConditionExpression: "#t = :t",
+      ExpressionAttributeNames: { "#t": "testId" },
+      ExpressionAttributeValues: { ":t": testId },
+    };
+    const response = await dynamoDB.query(params);
+    return response.Count;
+  } catch (err) {
+    console.error("Failed to get test run count:", err);
+    return null;
+  }
+};
+
+/**
  * getTestHistoryEntries
  * @param {string} testId
  * @returns {object} List of all history objects for testId
@@ -286,7 +395,7 @@ const listTests = async (filterTags = null) => {
     const params = {
       TableName: SCENARIOS_TABLE,
       ProjectionExpression:
-        "testId, testName, testDescription, #status, startTime, nextRun, scheduleRecurrence, cronValue, tags",
+        "testId, testName, testDescription, #status, startTime, nextRun, scheduleRecurrence, cronValue, scheduleTimezone, tags",
       ExpressionAttributeNames: {
         "#status": "status", // "status" is a reserved word in DynamoDB
       },
@@ -391,15 +500,16 @@ const convertLinuxCronToAwsCron = (linuxCron, cronExpiryDate) => {
   return `${minute} ${hour} ${awsDayOfMonth} ${month} ${awsDayOfWeek} ${cronYear}`;
 };
 
-const checkEnoughIntervalDiff = (cronValue, cronExpiryDate, holdFor, rampUp, testTaskConfigs) => {
+const checkEnoughIntervalDiff = (cronValue, cronExpiryDate, holdFor, rampUp, testTaskConfigs, scheduleTimezone = "UTC") => {
   if (!holdFor || !rampUp) return "";
   let cronExpiry = new Date(cronExpiryDate);
+  cronExpiry.setUTCHours(23, 59, 59, 999);
   const parts = cronValue.trim().split(" ");
   if (parts.length !== 5) throw new ErrorException("Invalid Linux cron expression", "Expected format: 0 * * * *");
 
   let cronInterval;
   try {
-    cronInterval = cronParser.parseExpression(cronValue, { utc: true });
+    cronInterval = cronParser.parseExpression(cronValue, { tz: scheduleTimezone });
   } catch (err) {
     throw new ErrorException("Invalid Linux cron expression", "Expected format: 0 * * * *");
   }
@@ -447,37 +557,44 @@ const checkEnoughIntervalDiff = (cronValue, cronExpiryDate, holdFor, rampUp, tes
  * @param {string} linux cron input
  * @returns A map of nextRunDate object and its string value.
  */
-const cronNextRun = (cronValue, cronExpiryDate = "", scheduleStep = "") => {
+const cronNextRun = (cronValue, cronExpiryDate = "", scheduleStep = "", scheduleTimezone = "UTC") => {
   const parts = cronValue.trim().split(" ");
   if (parts.length !== 5) throw new ErrorException("Invalid Linux cron expression", "Expected format: 0 * * * *");
 
   let cronInterval;
   try {
-    cronInterval = cronParser.parseExpression(cronValue, { utc: true });
+    cronInterval = cronParser.parseExpression(cronValue, { tz: scheduleTimezone });
   } catch (err) {
     throw new ErrorException("Invalid Linux cron expression", "Expected format: 0 * * * *");
   }
 
   const initRun = cronInterval.next().toString();
   const nextRunDate = new Date(initRun);
-  if (cronExpiryDate && new Date(cronExpiryDate) < nextRunDate) {
-    if (scheduleStep) {
-      throw new ErrorException("Invalid Parameter", "Cron Expiry Date older than the next run.");
+  if (cronExpiryDate) {
+    const expiryDate = new Date(cronExpiryDate);
+    expiryDate.setUTCHours(23, 59, 59, 999);
+    if (expiryDate < nextRunDate) {
+      if (scheduleStep) {
+        throw new ErrorException("Invalid Parameter", "Cron Expiry Date older than the next run.");
+      }
+      return { nextRunDate: "", nextRun: "" };
     }
-    return { nextRunDate: "", nextRun: "" };
   }
 
-  const year = nextRunDate.getUTCFullYear();
-  const month = String(nextRunDate.getUTCMonth() + 1).padStart(2, "0"); // Months are 0-indexed
-  const day = String(nextRunDate.getUTCDate()).padStart(2, "0");
-  const hour = String(nextRunDate.getUTCHours()).padStart(2, "0");
-  const minute = String(nextRunDate.getUTCMinutes()).padStart(2, "0");
-  const time = `${hour}:${minute}:00`;
-  const date = `${year}-${month}-${day}`;
+  // Format the next run in the schedule's timezone (not UTC)
+  const getTzPart = getTimezoneParts(nextRunDate, scheduleTimezone);
+  const date = `${getTzPart("year")}-${getTzPart("month")}-${getTzPart("day")}`;
+  const time = `${getTzPart("hour")}:${getTzPart("minute")}:${getTzPart("second")}`;
   const nextRun = `${date} ${time}`;
   return { nextRunDate: nextRunDate, nextRun: nextRun };
 };
 
+/**
+ * Build an EventBridge Scheduler schedule expression.
+ * EventBridge Scheduler accepts: cron(min hour day-of-month month day-of-week year)
+ * or rate(value unit) or at(yyyy-mm-ddThh:mm:ss).
+ * Timezone is handled separately via ScheduleExpressionTimezone.
+ */
 const getScheduleString = (props) => {
   const { recurrence, cronValue, minute, hour, day, month, year, cronExpiryDate } = props;
   if (recurrence && !cronValue) {
@@ -505,11 +622,10 @@ const getScheduleString = (props) => {
 };
 
 /**
- * remove eventbirdge rules and targets
- * @param {object} testId
- * @param {object} lambda function name that is the target
- * @param {object} recurrence
- * @returns
+ * Remove EventBridge Scheduler schedule created during the "create" step
+ * @param {string} testId
+ * @param {string} functionName (unused, kept for backward compatibility)
+ * @param {string} recurrence
  */
 const removeRules = async (testId, functionName, recurrence) => {
   if (recurrence) {
@@ -541,7 +657,8 @@ const isValidDate = (date) => {
   if (date < today) throw new ErrorException("InvalidParameter", "Date cannot be in the past");
 };
 /**
- * Schedules test and returns a consolidated list of test scenarios
+ * Schedules test using EventBridge Scheduler and returns a consolidated list of test scenarios.
+ * Uses the Scheduler API (CreateSchedule) which supports timezone-aware scheduling.
  * @param {object} event test event information
  * @param {object} context the lambda context information
  * @returns A map of attribute values in Dynamodb after scheduled.
@@ -562,6 +679,7 @@ const scheduleTest = async (event, context) => { // NOSONAR
       testTaskConfigs,
       regionalTaskDetails,
     } = config;
+    const scheduleTimezone = config.scheduleTimezone || "UTC";
     cronExpiryDate = cronExpiryDate ? cronExpiryDate : "";
     let hour, minute, year, month, day;
     if (scheduleTime && scheduleDate) {
@@ -577,16 +695,14 @@ const scheduleTest = async (event, context) => { // NOSONAR
         "InvalidParameter",
         "Missing cronValue, scheduleDate and ScheduleTime. Cannot schedule the Test."
       );
-    // check if rule exists, delete rule if exists
-    let rulesResponse = await cloudwatchevents.listRules({ NamePrefix: testId });
 
-    for (let rule of rulesResponse.Rules) {
-      let ruleName = rule.Name;
-      await cloudwatchevents.removeTargets({ Rule: ruleName, Ids: [ruleName] });
-      await lambda.removePermission({ FunctionName: functionName, StatementId: ruleName });
-      await cloudwatchevents.deleteRule({ Name: ruleName });
+    // Clean up any existing schedules (new Scheduler + legacy CloudWatch Events rules)
+    if (testId) {
+      await deleteSchedules(testId, functionArn);
     }
-
+    // generate new testId if not provided
+    testId = setTestId(testId);
+    config.testId = testId;
     let createRun;
     if (config.scheduleStep === "create") {
       testTaskConfigs = validateTaskCountConcurrency(testTaskConfigs, regionalTaskDetails);
@@ -596,10 +712,11 @@ const scheduleTest = async (event, context) => { // NOSONAR
           cronExpiryDate,
           testScenario.execution[0]["hold-for"],
           testScenario.execution[0]["ramp-up"],
-          testTaskConfigs
+          testTaskConfigs,
+          scheduleTimezone
         );
 
-        const cronNextRunObj = cronNextRun(cronValue, cronExpiryDate, config.scheduleStep);
+        const cronNextRunObj = cronNextRun(cronValue, cronExpiryDate, config.scheduleStep, scheduleTimezone);
         createRun = cronNextRunObj.nextRunDate;
         nextRun = cronNextRunObj.nextRun;
         [scheduleDate, scheduleTime] = nextRun.split(" ");
@@ -610,99 +727,79 @@ const scheduleTest = async (event, context) => { // NOSONAR
         isValidDateString(scheduleDate);
         createRun = new Date(year, parseInt(month, 10) - 1, day, hour, minute);
         isValidDate(createRun);
-      } // Schedule for 1 min prior to account for time it takes to create rule
-      // getMonth() returns Jan with index Zero that is why months need a +1
-      // refrence https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/getMonth
+      }
+
+      // Schedule for 1 min prior to account for time it takes to create the recurring schedule
       createRun.setMinutes(createRun.getMinutes() - 1);
-      const cronStart = `cron(${createRun.getMinutes()} ${createRun.getHours()} ${createRun.getDate()} ${
-        createRun.getMonth() + 1
-      } ? ${createRun.getFullYear()})`;
 
-      //Create rule to create schedule
-      const createRuleParams = {
-        Name: `${testId}Create`,
-        Description: `Create test schedule for: ${testId}`,
-        ScheduleExpression: cronStart,
-        State: "ENABLED",
-      };
-      let ruleArn = await cloudwatchevents.putRule(createRuleParams);
+      // Format the at() expression in the user's timezone so EventBridge
+      // interprets it consistently with the recurring schedule.
+      const getTzPart = getTimezoneParts(createRun, scheduleTimezone);
+      const atExpression = `at(${getTzPart("year")}-${getTzPart("month")}-${getTzPart("day")}T${getTzPart("hour")}:${getTzPart("minute")}:${getTzPart("second")})`;
 
-      //Add permissions to lambda
-      let permissionParams = {
-        Action: "lambda:InvokeFunction",
-        FunctionName: functionName,
-        Principal: "events.amazonaws.com",
-        SourceArn: ruleArn.RuleArn,
-        StatementId: `${testId}Create`,
-      };
-      await lambda.addPermission(permissionParams);
-
-      //modify schedule step in input params
+      // Modify schedule step so when the schedule fires, it creates the recurring schedule
       config.scheduleStep = "start";
       event.body = JSON.stringify(config);
 
-      //add target
-      let createTargetParams = {
-        Rule: `${testId}Create`,
-        Targets: [
-          {
-            Arn: functionArn,
-            Id: `${testId}Create`,
-            Input: JSON.stringify(event),
-          },
-        ],
-      };
-      await cloudwatchevents.putTargets(createTargetParams);
+      // Create one-time schedule via EventBridge Scheduler
+      await scheduler.createSchedule({
+        Name: `${testId}Create`,
+        Description: `Create test schedule for: ${testId}`,
+        ScheduleExpression: atExpression,
+        ScheduleExpressionTimezone: scheduleTimezone,
+        FlexibleTimeWindow: { Mode: "OFF" },
+        Target: {
+          Arn: functionArn,
+          RoleArn: SCHEDULER_ROLE_ARN,
+          Input: JSON.stringify(event),
+        },
+        ActionAfterCompletion: "DELETE",
+      });
     } else {
-      //create schedule expression
+      // Create the recurring schedule expression
       const getScheduleStringProps = { recurrence, cronValue, minute, hour, day, month, year, cronExpiryDate };
       let scheduleString = getScheduleString(getScheduleStringProps);
 
-      //Create rule to run on schedule
-      const ruleParams = {
-        Name: `${testId}Scheduled`,
-        Description: `Scheduled tests for ${testId}`,
-        ScheduleExpression: scheduleString,
-        State: "ENABLED",
-      };
-      let ruleArn = await cloudwatchevents.putRule(ruleParams);
+      // Build end date from cronExpiryDate if present
+      let endDate;
+      if (cronExpiryDate) {
+        endDate = new Date(`${cronExpiryDate}T23:59:59`);
+      }
 
-      //Add permissions to lambda
-      let permissionParams = {
-        Action: "lambda:InvokeFunction",
-        FunctionName: functionName,
-        Principal: "events.amazonaws.com",
-        SourceArn: ruleArn.RuleArn,
-        StatementId: `${testId}Scheduled`,
-      };
-      await lambda.addPermission(permissionParams);
-
-      //remove schedule step in params
+      // Remove schedule step so the target invocation runs the test directly
       delete config.scheduleStep;
       event.body = JSON.stringify(config);
 
-      //add target to rule
-      let targetParams = {
-        Rule: `${testId}Scheduled`,
-        Targets: [
-          {
-            Arn: functionArn,
-            Id: `${testId}Scheduled`,
-            Input: JSON.stringify(event),
-          },
-        ],
+      // Create recurring schedule via EventBridge Scheduler
+      const scheduleParams = {
+        Name: `${testId}Scheduled`,
+        Description: `Scheduled tests for ${testId}`,
+        ScheduleExpression: scheduleString,
+        ScheduleExpressionTimezone: scheduleTimezone,
+        FlexibleTimeWindow: { Mode: "OFF" },
+        Target: {
+          Arn: functionArn,
+          RoleArn: SCHEDULER_ROLE_ARN,
+          Input: JSON.stringify(event),
+        },
       };
-      await cloudwatchevents.putTargets(targetParams);
+      if (endDate) {
+        scheduleParams.EndDate = endDate;
+      }
+      await scheduler.createSchedule(scheduleParams);
 
-      // Remove rule created during create schedule step
+      // Remove legacy rule created during create schedule step if exists
       await removeRules(testId, functionName, recurrence);
     }
 
-    //Update DynamoDB if table was not already updated by "create" schedule step
+    // Update DynamoDB if table was not already updated by "create" schedule step
     if (config.scheduleStep || !recurrence) {
       // Validate and normalize tags
       const validatedTags = validateTags(config.tags);
-      
+
+      // Compute the total desired task count across all regions for threshold checking
+      const desiredTaskCount = config.testTaskConfigs.reduce((sum, c) => sum + (parseInt(c.taskCount) || 0), 0);
+
       const updateDBData = {
         testId,
         testName: config.testName,
@@ -718,14 +815,17 @@ const scheduleTest = async (event, context) => { // NOSONAR
         fileType: config.fileType,
         cronValue,
         cronExpiryDate,
+        scheduleTimezone,
         tags: validatedTags,
+        healthyThreshold: config.healthyThreshold ?? DEFAULT_HEALTHY_THRESHOLD,
+        desiredTaskCount,
       };
       let data = await updateTestDBEntry(updateDBData);
       console.log(`Schedule test complete: testId=${testId}, status=scheduled`);
 
       return data.Attributes;
     } else {
-      console.log(`Succesfully created schedule rule for test: ${testId}`);
+      console.log(`Successfully created schedule for test: ${testId}`);
     }
   } catch (err) {
     console.error(err);
@@ -765,9 +865,9 @@ const setTestId = (testId) =>
  * @param {string} scheduleRecurrence
  * @returns nextRun
  */
-const setNextRun = (scheduledTime, scheduleRecurrence = "", cronValue = "", cronExpiryDate = "") => {
+const setNextRun = (scheduledTime, scheduleRecurrence = "", cronValue = "", cronExpiryDate = "", scheduleTimezone = "UTC") => {
   if (cronValue) {
-    const nextRunObj = cronNextRun(cronValue, cronExpiryDate);
+    const nextRunObj = cronNextRun(cronValue, cronExpiryDate, "", scheduleTimezone);
     return nextRunObj.nextRun;
   }
   if (!scheduleRecurrence) return "";
@@ -790,7 +890,7 @@ const setNextRun = (scheduledTime, scheduleRecurrence = "", cronValue = "", cron
     default:
       throw new ErrorException("InvalidParameter", "Invalid recurrence value.");
   }
-  return convertDateToString(newDate);
+  return convertDateToString(newDate, scheduleTimezone);
 };
 /**
  * Validates the setting for task count and task concurrency
@@ -801,6 +901,12 @@ const validateTaskCountConcurrency = (testTaskConfigs, regionalTaskDetails) => {
   // For each regional config, parse the task count and concurrency
   for (const regionalTestConfig of testTaskConfigs) {
     const region = regionalTestConfig.region;
+    if (!regionalTaskDetails[region]) {
+      throw new ErrorException(
+        "InvalidRegionalStack",
+        `The regional stack for "${region}" no longer exists. Please remove this region from the scenario or redeploy the regional stack.`
+      );
+    }
     const availableTasks = parseInt(regionalTaskDetails[region].dltAvailableTasks);
     if (typeof regionalTestConfig.taskCount === "string") {
       regionalTestConfig.taskCount = regionalTestConfig.taskCount.trim();
@@ -962,21 +1068,27 @@ const writeTestScenarioToS3 = async (testTaskConfigs, testScenario, testId) => {
 };
 
 /**
- *
+ * Fetch the regional test configuration (could be hub or regional stack) and pass along the hub stack's
+ * task definition, which acts as the single source of truth for regional stacks.
  * @param {object} testTaskConfigs
  * @returns the scheduled test config for tasks and regional
  *          ecs infrastructure configuration in one object
  */
 const mergeTestAndInfraConfiguration = async (testTaskConfigs) => {
+  const hubRegion = process.env.AWS_REGION;
+  const hubConfig = await getRegionInfraConfigs(hubRegion);
+  const hubTaskDefinition = hubConfig.taskDefinition;
+
   const regionalTestAndInfraConfiguration = [];
   for (const regionalTestConfig of testTaskConfigs) {
-    const regionalInfraConfiguration = await getRegionInfraConfigs(regionalTestConfig.region);
+    const regionalInfraConfiguration =
+      regionalTestConfig.region === hubRegion ? hubConfig : await getRegionInfraConfigs(regionalTestConfig.region);
     regionalTestAndInfraConfiguration.push({
       ...regionalTestConfig,
       ...regionalInfraConfiguration,
     });
   }
-  return regionalTestAndInfraConfiguration;
+  return { testTaskConfig: regionalTestAndInfraConfiguration, hubTaskDefinition };
 };
 
 /**
@@ -992,8 +1104,11 @@ const startStepFunctionExecution = async (stepFunctionParams) => {
       .replace(/\.\d{3}Z$/, "")
       .replace(/:/g, "-");
     const prefix = timestamp + "_" + testRunId;
+    // When api-services is migrated to TS, import buildExecutionName from @amzn/dlt-common
+    const executionName = `scenario-${stepFunctionParams.testId}-run-${testRunId}`;
     await stepFunctions.startExecution({
       stateMachineArn: STATE_MACHINE_ARN,
+      name: executionName,
       input: JSON.stringify({
         ...stepFunctionParams,
         prefix,
@@ -1028,17 +1143,20 @@ const updateTestDBEntry = async (updateTestConfigs) => {
       fileType,
       cronExpiryDate,
       tags,
+      healthyThreshold,
+      desiredTaskCount,
     } = updateTestConfigs;
 
     let cronValue = updateTestConfigs.cronValue || "";
-    let endTime = status == "running" ? "running" : "";
+    let scheduleTimezone = updateTestConfigs.scheduleTimezone || "UTC";
+    let endTime = "";
     const params = {
       TableName: SCENARIOS_TABLE,
       Key: {
         testId: testId,
       },
       UpdateExpression:
-        "set #n = :n, #d = :d, #tc = :tc, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #nr = :nr, #sr = :sr, #sl = :sl, #tt = :tt, #ft = :ft, #cv = :cv, #ced = :ced, #tg = :tg",
+        "set #n = :n, #d = :d, #tc = :tc, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #nr = :nr, #sr = :sr, #sl = :sl, #tt = :tt, #ft = :ft, #cv = :cv, #ced = :ced, #tg = :tg, #stz = :stz, #ht = :ht, #dtc = :dtc, #tfc = :zero",
       ExpressionAttributeNames: {
         "#n": "testName",
         "#d": "testDescription",
@@ -1056,6 +1174,10 @@ const updateTestDBEntry = async (updateTestConfigs) => {
         "#cv": "cronValue",
         "#ced": "cronExpiryDate",
         "#tg": "tags",
+        "#stz": "scheduleTimezone",
+        "#ht": "healthyThreshold",
+        "#dtc": "desiredTaskCount",
+        "#tfc": "taskFailureCount",
       },
       ExpressionAttributeValues: {
         ":n": testName,
@@ -1074,6 +1196,10 @@ const updateTestDBEntry = async (updateTestConfigs) => {
         ":cv": cronValue,
         ":ced": cronExpiryDate,
         ":tg": tags || [],
+        ":stz": scheduleTimezone,
+        ":ht": healthyThreshold,
+        ":dtc": desiredTaskCount,
+        ":zero": 0,
       },
       ReturnValues: "ALL_NEW",
     };
@@ -1096,10 +1222,19 @@ const updateTestDBEntry = async (updateTestConfigs) => {
  * Description: Formats the date to a YYYY-MM-DD HH:MM:SS format
  * @config {string} a formatted string date
  *  */
-const convertDateToString = (date) => {
+/**
+ * Formats a Date to a "YYYY-MM-DD HH:MM:SS" string.
+ * When a timezone is provided the output is in that timezone's wall-clock time.
+ * Otherwise the output is UTC (legacy behaviour).
+ */
+const convertDateToString = (date, timezone) => {
   // Validate date to prevent RangeError with invalid Date objects
   if (!date || isNaN(date.getTime())) {
     throw new ErrorException("InvalidParameter", "Invalid date provided for conversion");
+  }
+  if (timezone) {
+    const getTzPart = getTimezoneParts(date, timezone);
+    return `${getTzPart("year")}-${getTzPart("month")}-${getTzPart("day")} ${getTzPart("hour")}:${getTzPart("minute")}:${getTzPart("second")}`;
   }
   return date
     .toISOString()
@@ -1108,18 +1243,39 @@ const convertDateToString = (date) => {
 };
 
 /**
- * Description: handle eventbridge scheduled test start time
- * @param {string} cronValue
- * @param {string} scheduleTime
- @returns {Date} startTime
- *  */
-const getEbSchedTestStartTime = (cronValue, scheduleTime, cronExpiryDate) => {
+ * Parses a "YYYY-MM-DD HH:MM:SS" string that was stored in a given IANA
+ * timezone back into an absolute Date object.
+ * @param {string} dateString - e.g. "2026-03-20 17:00:00"
+ * @param {string} timezone - IANA timezone, e.g. "America/Los_Angeles"
+ * @returns {Date}
+ */
+const localizedStringToDate = (dateString, timezone) => {
+  const isoish = dateString.replace(" ", "T");
+  // Parse as-if UTC to get a rough instant
+  const rough = new Date(isoish + "Z");
+  // Determine the offset between UTC and the source timezone at this instant
+  const utcStr = rough.toLocaleString("en-US", { timeZone: "UTC" });
+  const tzStr = rough.toLocaleString("en-US", { timeZone: timezone });
+  const offsetMs = new Date(utcStr).getTime() - new Date(tzStr).getTime();
+  return new Date(rough.getTime() + offsetMs);
+};
+
+/**
+ * Returns the start time for a scheduled test, or "Cron Expiry Reached" if expired.
+ * @param {string} cronValue - Linux cron expression (falsy for one-time schedules)
+ * @param {string} scheduleTime - HH:MM time string
+ * @param {string} cronExpiryDate - ISO date when the schedule expires
+ * @param {string} [scheduleTimezone="UTC"] - IANA timezone for cron evaluation
+ * @returns {Date} startTime
+ */
+const getEbSchedTestStartTime = (cronValue, scheduleTime, cronExpiryDate, scheduleTimezone = "UTC") => {
   if (!cronValue) {
     const startDate = new Date().toISOString().slice(0, 10);
     return new Date(`${startDate} ${scheduleTime}:00`);
   }
   const cronExpiry = new Date(cronExpiryDate);
-  let cronInterval = cronParser.parseExpression(cronValue, { utc: true });
+  cronExpiry.setUTCHours(23, 59, 59, 999);
+  let cronInterval = cronParser.parseExpression(cronValue, { tz: scheduleTimezone });
   const startTime = new Date(cronInterval.prev().toString());
   if (startTime > cronExpiry) return "Cron Expiry Reached";
 
@@ -1132,12 +1288,12 @@ const getEbSchedTestStartTime = (cronValue, scheduleTime, cronExpiryDate) => {
  * @config {object} test scenario configuration
  */
 const createTest = async (config, functionName) => {
-  console.log("Create test: ");
   try {
     const { testName, testDescription, testType, showLive, regionalTaskDetails, cronValue } = config;
     let { testId, testScenario, testTaskConfigs, fileType, scheduleTime, eventBridge, recurrence, cronExpiryDate } =
       config;
     cronExpiryDate = cronExpiryDate ? cronExpiryDate : "";
+    const scheduleTimezone = config.scheduleTimezone || "UTC";
     let nextRun;
     fileType = setFileType(testType, fileType);
     testId = setTestId(testId);
@@ -1148,22 +1304,47 @@ const createTest = async (config, functionName) => {
     const testEntry = await getTestEntry(testId);
     if (testEntry && testEntry.nextRun) nextRun = new Date(testEntry.nextRun);
 
+    const operation = testEntry ? 'update' : 'create';
+    console.log(`${operation} test: testId=${testId}`)
+
     let startTime = new Date();
 
-    if (eventBridge) startTime = getEbSchedTestStartTime(cronValue, scheduleTime, cronExpiryDate);
+    if (eventBridge) startTime = getEbSchedTestStartTime(cronValue, scheduleTime, cronExpiryDate, scheduleTimezone);
     if (startTime == "Cron Expiry Reached") {
       console.log("Cron Expiry Reached");
-      await deleteRules(testId, functionName);
+      await deleteSchedules(testId, functionName);
       return null;
     }
 
-    if (nextRun && startTime < nextRun) nextRun = convertDateToString(nextRun);
-    else nextRun = setNextRun(startTime, recurrence, cronValue, cronExpiryDate);
+    if (nextRun && startTime < nextRun) nextRun = convertDateToString(nextRun, scheduleTimezone);
+    else nextRun = setNextRun(startTime, recurrence, cronValue, cronExpiryDate, scheduleTimezone);
 
     const scheduleRecurrence = recurrence ? recurrence : "";
     startTime = convertDateToString(startTime);
 
     testTaskConfigs = validateTaskCountConcurrency(testTaskConfigs, regionalTaskDetails);
+
+    // Compute the total desired task count across all regions for threshold checking
+    const desiredTaskCount = testTaskConfigs.reduce((sum, c) => sum + c.taskCount, 0);
+
+    // Validate regional stack version compatibility
+    const regionalConfigs = await getAllRegionConfigs();
+    
+    const incompatibleStacks = testTaskConfigs
+      .map(tc => regionalConfigs.find(c => c.region === tc.region))
+      .filter(rc => rc && rc.compatible === false);
+
+    if (incompatibleStacks.length > 0) {
+      const regionList = incompatibleStacks
+        .map(rc => `${rc.region}: ${rc.incompatibilityReason}`)
+        .join("; ");
+      throw new ErrorException(
+        ERROR_INCOMPATIBLE_REGIONAL_STACKS,
+        `Incompatible regional stacks: ${regionList}`,
+        StatusCodes.BAD_REQUEST
+      );
+    }
+
 
     // Ramp up
     testScenario = validateTimeUnit(testScenario, "ramp-up", 0);
@@ -1184,7 +1365,7 @@ const createTest = async (config, functionName) => {
       },
     ];
 
-    console.log(`Test scenario created: testId=${testId}, type=${testType}, regions=${testTaskConfigs?.length}`);
+    console.log(`Test scenario ${operation}d: testId=${testId}, type=${testType}, regions=${testTaskConfigs?.length}`);
 
     // 1. Write test scenario to S3
     await writeTestScenarioToS3(testTaskConfigs, testScenario, testId);
@@ -1193,14 +1374,21 @@ const createTest = async (config, functionName) => {
 
     // Based on the selected regions for the test, retrieve the test infrastructure configuration
     // for each region and create an object for the specific region and add it to the list sent to the step functions
-    const regionalTestAndInfraConfiguration = await mergeTestAndInfraConfiguration(testTaskConfigs);
+    const { testTaskConfig: regionalTestAndInfraConfiguration, hubTaskDefinition } = await mergeTestAndInfraConfiguration(testTaskConfigs);
 
     /**
      * Start Step Functions execution
      */
-    const testDuration = getTestDurationSeconds(testScenario.execution[0]["hold-for"]);
+    // testDuration is used by the completion monitor's deadline calculation
+    // (testDuration + grace period). Must include ramp-up + hold-for.
+    const holdFor = getTestDurationSeconds(testScenario.execution[0]["hold-for"]);
+    const rampUp = testScenario.execution[0]["ramp-up"]
+      ? getTestDurationSeconds(String(testScenario.execution[0]["ramp-up"]))
+      : 0;
+    const testDuration = holdFor + rampUp;
     const stepFunctionParams = {
       testTaskConfig: regionalTestAndInfraConfiguration,
+      hubTaskDefinition,
       testId,
       testType,
       fileType,
@@ -1209,14 +1397,16 @@ const createTest = async (config, functionName) => {
     };
     await startStepFunctionExecution(stepFunctionParams);
 
-    // Update DynamoDB values
+    // Update DynamoDB values.
+    // Status is "queued" — the Task Runner Lambda promotes to "running"
+    // after successfully creating the ECS service.
     const updateDBData = {
       testId,
       testName,
       testDescription,
       testTaskConfigs,
       testScenario,
-      status: "running",
+      status: "queued",
       startTime,
       nextRun,
       scheduleRecurrence,
@@ -1225,90 +1415,96 @@ const createTest = async (config, functionName) => {
       fileType,
       cronValue,
       cronExpiryDate,
+      scheduleTimezone,
       tags: validatedTags,
+      healthyThreshold: config.healthyThreshold ?? DEFAULT_HEALTHY_THRESHOLD,
+      desiredTaskCount,
     };
 
     const data = await updateTestDBEntry(updateDBData);
 
-    console.log(`Create test complete: testId=${testId}, status=${data.Attributes?.status}`);
+    console.log(`${operation} test complete: testId=${testId}, status=${data.Attributes?.status}`);
 
     return data.Attributes;
   } catch (err) {
+    // Write a failure history entry for existing tests that hit incompatible regional stacks.
+    // This is useful for scheduled tests where no caller is waiting for the API response.
+    // For new tests, the API response itself notifies the user of the failed test creation.
+    if (err.code === ERROR_INCOMPATIBLE_REGIONAL_STACKS && config.testId) {
+      try {
+        const now = convertDateToString(new Date());
+        await dynamoDB.put({
+          TableName: HISTORY_TABLE,
+          Item: {
+            testId: config.testId,
+            testRunId: utils.generateUniqueId(10),
+            startTime: now,
+            endTime: now,
+            status: "failed",
+            errorReason: err.message,
+            testTaskConfigs: config.testTaskConfigs,
+            testType: config.testType,
+            testDescription: config.testDescription,
+          },
+        });
+      } catch (historyErr) {
+        console.error("Failed to write history entry:", historyErr);
+      }
+    }
     console.error(err);
     throw err;
   }
 };
 
 /**
+ * Returns aggregate task counts for a single region using describeServices.
+ * Replaces the paginated listTasks + describeTasks pattern with a single API
+ * call, resolving 30-second API Gateway timeout issues on large tests.
  *
- * @param {object} ecs The client is created in the region in which the tasks are running
- * @param {Array} tasks List of tasks
+ * The service name is deterministic: dlt-{testId}-{region} (see naming.ts).
+ *
+ * Note: describeServices does not report stopped/failed task counts. The
+ * Task Failure Handler tracks unexpected task exits via taskFailureCount
+ * in DynamoDB. The frontend reads taskFailureCount from the scenario
+ * record to populate the "stopped" column in the task status table.
+ *
+ * @param {object} ecs Region-specific ECS client
  * @param {string} taskCluster Name of ECS cluster
- * @param {object} tasksInRegion Object storing the region the tasks are running in
- * @returns object with region and tasks in region
+ * @param {string} serviceName ECS service name (dlt-{testId}-{region})
+ * @param {string} region AWS region identifier
+ * @returns {{ region, running, pending, desired }}
  */
-
-const getRunningTasks = async (ecs, tasks, taskCluster, tasksInRegion) => {
-  const params = {
+const describeServiceTaskCounts = async (ecs, taskCluster, serviceName, region) => {
+  const response = await ecs.describeServices({
     cluster: taskCluster,
-  };
-  let describeTasksResponse;
-  while (tasks.length > 0) {
-    //get groups of 100 tasks
-    params.tasks = tasks.splice(0, 100);
-    describeTasksResponse = await ecs.describeTasks(params);
-    
-    // Select relevant subset of task data
-    const taskData = describeTasksResponse.tasks.map(task => ({
-      taskArn: task.taskArn,
-      lastStatus: task.lastStatus,
-      desiredStatus: task.desiredStatus,
-      startedAt: task.startedAt,
-      cpu: task.cpu,
-      memory: task.memory,
-      containers: task.containers?.map(container => ({
-        name: container.name,
-        lastStatus: container.lastStatus,
-        exitCode: container.exitCode
-      })) || []
-    }));
-    
-    tasksInRegion.tasks = tasksInRegion.tasks.concat(taskData);
+    services: [serviceName],
+  });
+
+  const service = response.services && response.services[0];
+  if (!service) {
+    throw new ErrorException(
+      "ServiceNotFound",
+      `ECS service ${serviceName} not found in cluster ${taskCluster} (region: ${region})`
+    );
   }
-  return tasksInRegion;
-};
 
-/**
- *
- * @param {object} ecs The client is created in the region in which the tasks are running
- * @param {string} taskCluster Name of ECS cluster
- * @param {string} testId
- * @returns array of task ARNs
- */
-
-const getListOfTasksInRegion = async (ecs, taskCluster, testId) => {
-  let params = {
-    cluster: taskCluster,
-    startedBy: testId,
+  return {
+    region,
+    running: service.runningCount,
+    pending: service.pendingCount,
+    desired: service.desiredCount,
   };
-  let tasks = [];
-  let tasksResponse;
-  do {
-    tasksResponse = await ecs.listTasks(params);
-    tasks = tasks.concat(tasksResponse.taskArns);
-    params.nextToken = tasksResponse.nextToken;
-  } while (tasksResponse.nextToken);
-  return tasks;
 };
 
 /**
+ * Returns aggregate task counts per region using describeServices.
+ * Service names are derived from testId and region (see naming.ts).
  *
- * @param {object} data
+ * @param {object} data Scenario data with testTaskConfigs
  * @param {string} testId
- * @returns test run data augmented with tasks running per region, if any
+ * @returns data augmented with tasksPerRegion array
  */
 const listTasksPerRegion = async (data, testId) => {
-  // Process all regions in parallel using Promise.all for better performance
   const regionalPromises = data.testTaskConfigs.map(async (testRegion) => {
     if (!testRegion.taskCluster) {
       const errorMessage = new ErrorException(
@@ -1320,21 +1516,21 @@ const listTasksPerRegion = async (data, testId) => {
     }
 
     const region = testRegion.region;
-    let tasksInRegion = { region: region, tasks: [] };
     
-    // Create region-specific options to avoid race conditions
-    const regionalOptions = { ...options, region: region };
-    const ecs = new ECS(regionalOptions);
-    
-    const tasks = await getListOfTasksInRegion(ecs, testRegion.taskCluster, testId);
-    if (tasks.length !== 0) {
-      tasksInRegion = await getRunningTasks(ecs, tasks, testRegion.taskCluster, tasksInRegion);
+    try {
+      const regionalOptions = { ...options, region: region };
+      const ecs = new ECS(regionalOptions);
+      const serviceName = `dlt-${testId}-${region}`;
+      
+      return await describeServiceTaskCounts(ecs, testRegion.taskCluster, serviceName, region);
+    } catch (err) {
+      // If the ECS service or cluster does not yet exist (e.g., during early provisioning),
+      // return zero counts for this region instead of failing the entire request.
+      console.error(`Error describing ECS service for region ${region}, testId ${testId}:`, err);
+      return { region: region, running: 0, pending: 0, desired: 0 };
     }
-    
-    return tasksInRegion;
   });
 
-  // Wait for all regional task fetches to complete in parallel
   data.tasksPerRegion = await Promise.all(regionalPromises);
   return data;
 };
@@ -1365,8 +1561,9 @@ const getTest = async (testId, queryParams = {}) => {
       data.totalTestRuns = 0;
     }
 
-    if (data.status === "running") {
-      console.log(`testId: ${testId} is still running`);
+    const TASK_DATA_STATES = new Set(["provisioning", "running", "cancelling", "cleaning up"]);
+    if (TASK_DATA_STATES.has(data.status)) {
+      console.log(`testId: ${testId} is in active state: ${data.status}`);
 
       // Get the list of tasks for testId for each test region
       data.tasksPerRegion = [];
@@ -1563,7 +1760,11 @@ const deleteDashboards = async (testId, testAndRegionalInfraConfigs) => {
       dashboardNames.push(`EcsLoadTesting-${testId}-${regionConfig.region}`);
       options.region = regionConfig.region;
       const cloudwatch = new CloudWatch(options);
-      await deleteMetricFilter(testId, regionConfig.taskCluster, regionConfig.ecsCloudWatchLogGroup);
+      if (regionConfig.ecsCloudWatchLogGroup) {
+        await deleteMetricFilter(testId, regionConfig.taskCluster, regionConfig.ecsCloudWatchLogGroup);
+      } else {
+        console.log(`Skipping metric filter deletion for region ${regionConfig.region}: no log group configured`);
+      }
       //Delete Dashboard
       console.log("deleting dash:", dashboardNames);
       const deleteDashboardParams = { DashboardNames: dashboardNames };
@@ -1575,23 +1776,62 @@ const deleteDashboards = async (testId, testAndRegionalInfraConfigs) => {
   }
 };
 
-const deleteRules = async (testId, functionName) => {
-  try {
-    //Get Rules
-    let rulesResponse = await cloudwatchevents.listRules({ NamePrefix: testId });
-    //Delete Rule
-    for (let rule of rulesResponse.Rules) {
-      let ruleName = rule.Name;
+/**
+ * Delete legacy CloudWatch Events rules for a test (pre-migration cleanup).
+ * @param {string} testId
+ * @param {string} functionName - Lambda function name or ARN
+ */
+const deleteLegacyRules = async (testId, functionName) => {
+  const rulesResponse = await cloudwatchevents.listRules({ NamePrefix: testId });
+  let isErred = false;
+  for (const rule of rulesResponse.Rules) {
+    const ruleName = rule.Name;
+    try {
       await cloudwatchevents.removeTargets({ Rule: ruleName, Ids: [ruleName] });
-      await lambda.removePermission({ FunctionName: functionName, StatementId: ruleName });
-      await cloudwatchevents.deleteRule({ Name: ruleName });
+    } catch (err) {
+      console.error(`Failed to remove targets for rule ${ruleName}:`, err);
+      isErred = true;
     }
+    try {
+      await lambda.removePermission({ FunctionName: functionName, StatementId: ruleName });
+    } catch (err) {
+      console.error(`Failed to remove permission for rule ${ruleName}:`, err);
+      isErred = true;
+    }
+    try {
+      await cloudwatchevents.deleteRule({ Name: ruleName });
+    } catch (err) {
+      console.error(`Failed to delete rule ${ruleName}:`, err);
+      isErred = true;
+    }
+  }
+
+  if (isErred) {
+    throw new ErrorException("InternalError", "One or more legacy rules failed to delete.");
+  }
+}
+
+/**
+ * Delete all schedules for a test (Scheduler + legacy CloudWatch Events).
+ * @param {string} testId
+ * @param {string} functionName - Lambda function name or ARN for legacy cleanup
+ */
+const deleteSchedules = async (testId, functionName) => {
+  try {
+    const scheduleNames = [`${testId}Create`, `${testId}Scheduled`];
+    for (const name of scheduleNames) {
+      try {
+        await scheduler.deleteSchedule({ Name: name });
+      } catch (err) {
+        if (err.name !== "ResourceNotFoundException") throw err;
+      }
+    }
+    await deleteLegacyRules(testId, functionName);
   } catch (err) {
     console.error(err);
     throw err;
   }
 };
-
 /**
  * Deletes all data related to a specific testId
  * @param {string} testId the unique id of test scenario to delete
@@ -1603,10 +1843,20 @@ const deleteTest = async (testId, functionName) => {
   // Get test regions then get config info
   // Get test and regional test infrastructure configuration
   const testAndRegionalInfraConfigs = await getTestAndRegionConfigs(testId);
+  const status = testAndRegionalInfraConfigs.status;
+
+  if (status && !["complete", "cancelled", "failed", "scheduled"].includes(status)) {
+    throw new ErrorException(
+      "TEST_RUNNING",
+      `testId '${testId}' is currently ${testAndRegionalInfraConfigs.status}. Please cancel the test before deleting.`,
+      StatusCodes.CONFLICT
+    );
+  }
+
   await deleteDashboards(testId, testAndRegionalInfraConfigs);
 
   try {
-    await deleteRules(testId, functionName);
+    await deleteSchedules(testId, functionName);
     await deleteDDBTestEntry(testId);
     const testRunIds = await getTestHistoryTestRunIds(testId);
     const testRuns = createBatchRequestItems(testId, testRunIds);
@@ -1627,49 +1877,88 @@ const cancelTest = async (testId) => {
   console.log(`Cancel test for testId: ${testId}`);
 
   try {
-    // Get test and regional infrastructure configuration
-    const listTestsRes = await listTests();
-    const allTests = listTestsRes.Items;
-
-    // Check if the testId exists in the list of tests
-    const testExists = allTests.some((test) => test.testId === testId);
-    if (!testExists) {
-      throw new ErrorException("TEST_NOT_FOUND", `testId '${testId}' not found`, StatusCodes.NOT_FOUND);
-    }
-
+    // Throws TEST_NOT_FOUND internally if testId doesn't exist.
     const testAndRegionalInfraConfigs = await getTestAndRegionConfigs(testId);
+    
+    // Collect cancellation metrics before triggering the cancel flow
+    let tasksLaunched = 0;
+    let tasksRunning = 0;
+    
     if (testAndRegionalInfraConfigs.testTaskConfigs) {
       for (const regionalConfig of testAndRegionalInfraConfigs.testTaskConfigs) {
-        //cancel tasks
-        const taskCancelerParams = {
-          FunctionName: TASK_CANCELER_ARN,
-          InvocationType: "Event",
-          Payload: JSON.stringify({
-            testId: testId,
-            testTaskConfig: regionalConfig,
-          }),
-        };
-        await lambda.invoke(taskCancelerParams);
+        tasksLaunched += regionalConfig.taskCount || 0;
       }
+      
+      // Count currently running tasks across all regions (in parallel)
+      const runningTasksPromises = testAndRegionalInfraConfigs.testTaskConfigs.map(async (regionalConfig) => {
+        if (!regionalConfig.taskCluster) return 0;
+        try {
+          const regionalOptions = { ...options, region: regionalConfig.region };
+          const ecs = new ECS(regionalOptions);
+          const serviceName = `dlt-${testId}-${regionalConfig.region}`;
+          const counts = await describeServiceTaskCounts(ecs, regionalConfig.taskCluster, serviceName, regionalConfig.region);
+          return counts.running;
+        } catch (err) {
+          console.warn(`Failed to count running tasks in ${regionalConfig.region}: ${err.message}`);
+          return 0;
+        }
+      });
+      const runningTasksCounts = await Promise.all(runningTasksPromises);
+      tasksRunning = runningTasksCounts.reduce((sum, count) => sum + count, 0);
+    }
+    
+    const tasksCompleted = tasksLaunched - tasksRunning;
+
+    // Optimistically set status so the UI reflects the cancel immediately.
+    // The canceler sets it again after stopping the SF (idempotent).
+    await dynamoDB.update({
+      TableName: SCENARIOS_TABLE,
+      Key: { testId },
+      UpdateExpression: "set #s = :s",
+      ExpressionAttributeNames: { "#s": "status" },
+      ExpressionAttributeValues: { ":s": "cancelling" },
+    });
+
+    // Single async invocation — the canceler queries SFN for the active
+    // execution, extracts testRunId and region configs from the execution
+    // input, stops the execution via StopExecution, and invokes test-cleanup
+    // per region with finalStatus: cancelled.
+    await lambda.invoke({
+      FunctionName: TASK_CANCELER_ARN,
+      InvocationType: "Event",
+      Payload: JSON.stringify({ testId }),
+    });
+
+    // Calculate run duration in seconds
+    // startTime is stored in the schedule's timezone (or UTC for non-scheduled tests)
+    let runDuration = null;
+    if (testAndRegionalInfraConfigs.startTime) {
+      const tz = testAndRegionalInfraConfigs.scheduleTimezone || "UTC";
+      const startDate = localizedStringToDate(testAndRegionalInfraConfigs.startTime, tz);
+      runDuration = Math.floor((Date.now() - startDate.getTime()) / 1000);
     }
 
-    //Update the status in the scenarios table.
-    const params = {
-      TableName: SCENARIOS_TABLE,
-      Key: {
-        testId: testId,
-      },
-      UpdateExpression: "set #s = :s",
-      ExpressionAttributeNames: {
-        "#s": "status",
-      },
-      ExpressionAttributeValues: {
-        ":s": "cancelling",
-      },
-    };
-    await dynamoDB.update(params);
+    // Check if any result files exist in S3 (tasks upload results when they complete)
+    let hadResults = false;
+    try {
+      const s3Results = await s3.listObjectsV2({
+        Bucket: SCENARIOS_BUCKET,
+        Prefix: `results/${testId}/`,
+        MaxKeys: 1,
+      });
+      hadResults = (s3Results.Contents?.length || 0) > 0;
+    } catch (err) {
+      console.warn(`Failed to check S3 for results: ${err.message}`);
+    }
 
-    return "test cancelling";
+    return {
+      status: "test cancelling",
+      testType: testAndRegionalInfraConfigs.testType,
+      runDuration,
+      tasksLaunched,
+      tasksCompleted,
+      hadResults,
+    };
   } catch (err) {
     console.error(err);
     throw err;
@@ -1870,10 +2159,10 @@ const getRegionDLTvCPUsPerTask = async (ecs, taskDefinition) => {
 };
 
 /**
- * Returns the Fargate resource limit, vCPUs per task, and vCPU usage for the region. This function will have undefined
+ * Returns the Fargate resource limit and vCPU usage for the region. This function will have undefined
  * values for each of the API calls that fail.
- * @param {Object} regionConfig a DLT regional config. Should include region and taskDefinition
- * @returns {Promise<Object>} the Fargate resource limit, limit type, and usage for the given region
+ * @param {Object} regionConfig a DLT regional config. Should include region
+ * @returns {Promise<Object>} the Fargate resource limit and usage for the given region
  */
 const getRegionFargatevCPUDetails = async (regionConfig) => {
   console.log("Getting Fargate resource usage for a region");
@@ -1887,12 +2176,10 @@ const getRegionFargatevCPUDetails = async (regionConfig) => {
 
     // Return a null value if any of the functions fail
     const vCPUFargateLimitPromise = getRegionFargatevCPULimit(servicequotas).catch(() => undefined);
-    const vCPUsPerTaskPromise = getRegionDLTvCPUsPerTask(ecs, regionConfig.taskDefinition).catch(() => undefined);
     const vCPUsInUsePromise = getRegionFargatevCPUsInUse(ecs).catch(() => undefined);
 
     return {
       vCPULimit: await vCPUFargateLimitPromise,
-      vCPUsPerTask: await vCPUsPerTaskPromise,
       vCPUsInUse: await vCPUsInUsePromise,
     };
   } catch (error) {
@@ -1911,6 +2198,13 @@ const getAccountFargatevCPUDetails = async () => {
   try {
     const regionalConfigs = await getAllRegionConfigs();
 
+    // The hub's task definition is the single source of truth for vCPUs per task
+    const hubRegion = process.env.AWS_REGION;
+    const hubConfig = regionalConfigs.find((config) => config.region === hubRegion);
+    const vCPUsPerTask = hubConfig?.taskDefinition
+      ? await getRegionDLTvCPUsPerTask(new ECS(utils.getOptions({ region: hubRegion })), hubConfig.taskDefinition).catch(() => undefined)
+      : undefined;
+
     const regionalPromises = [];
     const accountFargatevCPUDetails = {};
     for (const regionalConfig of regionalConfigs) {
@@ -1923,7 +2217,7 @@ const getAccountFargatevCPUDetails = async () => {
 
       regionalPromises.push(
         getRegionFargatevCPUDetails(regionalConfig).then(
-          (details) => (accountFargatevCPUDetails[regionalConfig.region] = details)
+          (details) => (accountFargatevCPUDetails[regionalConfig.region] = { ...details, vCPUsPerTask })
         )
       );
     }
@@ -2140,6 +2434,7 @@ const formatTestRunItems = (items) =>
         startTime: item.startTime,
         endTime: item.endTime,
         status: item.status || "complete",
+        scheduleTimezone: item.scheduleTimezone || "UTC",
         ...extractMetrics(item.results),
       }))
     : [];
@@ -2263,6 +2558,7 @@ const getTestRun = async (testId, testRunId) => {
     }
 
     console.log(`Successfully retrieved test run ${testRunId} for test ${testId}`);
+
     return response.Item;
   } catch (err) {
     console.error(`Error retrieving test run ${testRunId} for test ${testId}:`, err);
@@ -2308,15 +2604,43 @@ const getStackInfo = async () => {
       version = versionMatch ? versionMatch[0] : "unknown";
     }
 
-    // Find the McpEndpoint output from the outputs array
+    // Find outputs from the outputs array
     const mcpEndpointOutput = stack.Outputs?.find(output => output.OutputKey === 'McpEndpoint');
     const mcpEndpoint = mcpEndpointOutput?.OutputValue;
+    const deploymentIdOutput = stack.Outputs?.find(output => output.OutputKey === 'SolutionUUID');
+    const deploymentId = deploymentIdOutput?.OutputValue;
+
+    // Extract account_id from the stack ARN
+    const accountId = stack.StackId.split(":")[4];
+
+    // Detect deployment method from stack tags
+    const isLaunchWizard = stack.Tags?.some((tag) => tag.Key === "LaunchWizardResourceGroupID");
+    const deploymentMethod = isLaunchWizard ? "launch-wizard" : "cloudformation";
+    const solutionTemplate = stack.Outputs?.find((output) => output.OutputKey === "SolutionTemplate")?.OutputValue;
+    if (!solutionTemplate) {
+      throw new ErrorException(
+        "MISSING_SOLUTION_TEMPLATE_OUTPUT",
+        "Stack is missing the required SolutionTemplate output",
+        StatusCodes.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    // Fetch the latest published version from the public AWS Solutions RSS feed.
+    // Fails soft: returns undefined on error or high latency so the dashboard still renders.
+    const latestVersion = await getLatestVersionFromRss();
 
     return {
       created_time: stack.CreationTime.toISOString(),
       region: stack.StackId.split(":")[3],
       version: version || "unknown",
       mcp_endpoint: mcpEndpoint,
+      deployment_id: deploymentId,
+      account_id: accountId,
+      deployment_method: deploymentMethod,
+      stack_id: stack.StackId,
+      solution_template: solutionTemplate,
+      latest_version: latestVersion,
+      is_update_available: isUpdateAvailable(version, latestVersion),
     };
   } catch (err) {
     console.error(err);
@@ -2587,6 +2911,7 @@ const getBaseline = async (testId, includeResults = false) => {
           endTime: historyEntry.Item.endTime,
           status: historyEntry.Item.status,
           results: historyEntry.Item.results,
+          scheduleTimezone: historyEntry.Item.scheduleTimezone || "UTC",
         };
       } else {
         // Baseline test run not found in history (orphaned baseline)
@@ -2626,6 +2951,8 @@ module.exports = {
   clearBaseline: clearBaseline,
   getBaseline: getBaseline,
   normalizeTag: normalizeTag,
+  getTestRunCount: getTestRunCount,
+  computeChangedFields: computeChangedFields,
   ErrorException: ErrorException,
   StatusCodes: StatusCodes,
 };

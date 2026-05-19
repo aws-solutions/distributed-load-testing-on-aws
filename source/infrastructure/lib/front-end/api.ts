@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { ArnFormat, Aws, CfnResource, Duration, RemovalPolicy, Stack } from "aws-cdk-lib";
+import { ArnFormat, Aws, CfnCondition, CfnResource, Duration, Fn, RemovalPolicy, Stack } from "aws-cdk-lib";
 import {
   AccessLogFormat,
   AuthorizationType,
@@ -20,13 +20,14 @@ import {
   Stage,
 } from "aws-cdk-lib/aws-apigateway";
 import { Effect, Policy, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
-import { Runtime } from "aws-cdk-lib/aws-lambda";
+import { Architecture, Runtime } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { ILogGroup, LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 import * as path from "path";
 import { Solution, SOLUTIONS_METRICS_ENDPOINT } from "../../bin/solution";
 import { addCfnGuardSuppression } from "../common-resources/add-cfn-guard-suppression";
+import regionalCompat from "../../../../regional-compatibility.json";
 
 /**
  * @interface DLTAPIProps
@@ -38,6 +39,8 @@ export interface DLTAPIProps {
   readonly ecsCloudWatchLogGroup: LogGroup;
   // ECS Task Execution Role ARN
   readonly ecsTaskExecutionRoleArn: string;
+  // ECS Task Role ARN
+  readonly ecsTaskRoleArn: string;
   // History DynamoDB table policy
   readonly historyDynamoDbPolicy: Policy;
   // History DynamoDB table
@@ -113,7 +116,12 @@ export class DLTAPI extends Construct {
             new PolicyStatement({
               effect: Effect.ALLOW,
               actions: ["iam:PassRole"],
-              resources: [props.ecsTaskExecutionRoleArn],
+              resources: [props.ecsTaskExecutionRoleArn, props.ecsTaskRoleArn],
+              conditions: {
+                StringEquals: {
+                  "iam:PassedToService": "ecs-tasks.amazonaws.com",
+                },
+              },
             }),
             new PolicyStatement({
               effect: Effect.ALLOW,
@@ -146,6 +154,7 @@ export class DLTAPI extends Construct {
                 "ecs:DescribeTasks",
                 "ecs:DescribeClusters",
                 "ecs:DescribeTaskDefinition",
+                "ecs:DescribeServices",
               ],
               resources: ["*"],
             }),
@@ -165,6 +174,7 @@ export class DLTAPI extends Construct {
     dltApiServicesLambdaRole.attachInlinePolicy(props.scenariosS3Policy);
     dltApiServicesLambdaRole.attachInlinePolicy(props.taskCancelerInvokePolicy);
 
+    // Legacy CloudWatch Events permissions (kept for backward compatibility with pre-migration schedules)
     const ruleSchedArn = Stack.of(this).formatArn({ service: "events", resource: "rule", resourceName: "*Scheduled" });
     const ruleCreateArn = Stack.of(this).formatArn({ service: "events", resource: "rule", resourceName: "*Create" });
     const ruleListArn = Stack.of(this).formatArn({ service: "events", resource: "rule", resourceName: "*" });
@@ -185,6 +195,45 @@ export class DLTAPI extends Construct {
     });
     dltApiServicesLambdaRole.attachInlinePolicy(lambdaApiEventsPolicy);
 
+    // EventBridge Scheduler execution role — assumed by Scheduler to invoke the API Lambda
+    const schedulerExecutionRole = new Role(this, "SchedulerExecutionRole", {
+      assumedBy: new ServicePrincipal("scheduler.amazonaws.com"),
+    });
+
+    addCfnGuardSuppression(schedulerExecutionRole, "IAM_NO_INLINE_POLICY_CHECK");
+
+    // EventBridge Scheduler permissions for the API Lambda role
+    const schedulerCreateArn = Stack.of(this).formatArn({
+      service: "scheduler",
+      resource: "schedule",
+      resourceName: "default/*Create",
+    });
+    const schedulerScheduledArn = Stack.of(this).formatArn({
+      service: "scheduler",
+      resource: "schedule",
+      resourceName: "default/*Scheduled",
+    });
+    const lambdaApiSchedulerPolicy = new Policy(this, "LambdaApiSchedulerPolicy", {
+      statements: [
+        new PolicyStatement({
+          effect: Effect.ALLOW,
+          actions: ["scheduler:CreateSchedule", "scheduler:DeleteSchedule", "scheduler:GetSchedule"],
+          resources: [schedulerCreateArn, schedulerScheduledArn],
+        }),
+        new PolicyStatement({
+          effect: Effect.ALLOW,
+          actions: ["iam:PassRole"],
+          resources: [schedulerExecutionRole.roleArn],
+          conditions: {
+            StringEquals: {
+              "iam:PassedToService": "scheduler.amazonaws.com",
+            },
+          },
+        }),
+      ],
+    });
+    dltApiServicesLambdaRole.attachInlinePolicy(lambdaApiSchedulerPolicy);
+
     const apiLambdaRoleResource = dltApiServicesLambdaRole.node.defaultChild as CfnResource;
     apiLambdaRoleResource.addMetadata("cfn_nag", {
       rules_to_suppress: [
@@ -202,7 +251,10 @@ export class DLTAPI extends Construct {
     const dltApiServicesLambda = new NodejsFunction(this, "DLTAPIServicesLambdaNew", {
       description: "API microservices for creating, updating, listing and deleting test scenarios",
       entry: path.join(__dirname, "../../../api-services/index.js"),
+      projectRoot: path.join(__dirname, "../../../api-services"),
+      depsLockFilePath: path.join(__dirname, "../../../api-services/package-lock.json"),
       runtime: Runtime.NODEJS_24_X,
+      architecture: Architecture.ARM_64,
       timeout: Duration.seconds(120),
       environment: {
         HISTORY_TABLE: props.historyTable,
@@ -210,17 +262,31 @@ export class DLTAPI extends Construct {
         METRIC_URL: SOLUTIONS_METRICS_ENDPOINT,
         SCENARIOS_BUCKET: props.scenariosBucketName,
         SCENARIOS_TABLE: props.scenariosTableName,
+        AWS_ACCOUNT_ID: Aws.ACCOUNT_ID,
         SOLUTION_ID: props.solution.id,
         STACK_ID: Aws.STACK_ID,
         STACK_NAME: Aws.STACK_NAME,
         STATE_MACHINE_ARN: props.taskRunnerStepFunctionsArn,
         TASK_CANCELER_ARN: props.taskCancelerArn,
+        SCHEDULER_ROLE_ARN: schedulerExecutionRole.roleArn,
         UUID: props.uuid,
         VERSION: props.solution.version,
+        MIN_COMPATIBLE_VERSION: regionalCompat.minimumCompatibleVersion,
       },
       role: dltApiServicesLambdaRole,
     });
     const apiLambdaResource = dltApiServicesLambda.node.defaultChild as CfnResource;
+
+    const schedulerInvokeLambdaPolicy = new Policy(this, "SchedulerInvokeLambdaPolicy", {
+      statements: [
+        new PolicyStatement({
+          effect: Effect.ALLOW,
+          actions: ["lambda:InvokeFunction"],
+          resources: [dltApiServicesLambda.functionArn],
+        }),
+      ],
+    });
+    schedulerExecutionRole.attachInlinePolicy(schedulerInvokeLambdaPolicy);
     apiLambdaResource.addMetadata("cfn_nag", {
       rules_to_suppress: [
         {
@@ -323,7 +389,23 @@ export class DLTAPI extends Construct {
       deploy: true,
       deployOptions: {
         accessLogDestination: new LogGroupLogDestination(apiLogs),
-        accessLogFormat: AccessLogFormat.jsonWithStandardFields(),
+        // Custom access log format: all fields from AccessLogFormat.jsonWithStandardFields()
+        // plus userAgent to enable audit trail of CLI vs MCP server vs web UI usage.
+        accessLogFormat: AccessLogFormat.custom(
+          JSON.stringify({
+            extendedRequestId: "$context.extendedRequestId",
+            ip: "$context.identity.sourceIp",
+            caller: "$context.identity.caller",
+            user: "$context.identity.user",
+            userAgent: "$context.identity.userAgent",
+            requestTime: "$context.requestTime",
+            httpMethod: "$context.httpMethod",
+            resourcePath: "$context.resourcePath",
+            status: "$context.status",
+            protocol: "$context.protocol",
+            responseLength: "$context.responseLength",
+          })
+        ),
         loggingLevel: MethodLoggingLevel.INFO,
         stageName: "prod",
         tracingEnabled: true,
@@ -331,6 +413,15 @@ export class DLTAPI extends Construct {
       description: `Distributed Load Testing API - version ${props.solution.version}`,
       endpointTypes: [EndpointType.EDGE],
     });
+
+    // GovCloud doesn't support EDGE endpoints — override to REGIONAL via escape hatch
+    const isGovCloud = new CfnCondition(this, "IsGovCloudPartition", {
+      expression: Fn.conditionEquals(Aws.PARTITION, "aws-us-gov"),
+    });
+    const cfnApi = api.node.defaultChild as CfnResource;
+    cfnApi.addPropertyOverride("EndpointConfiguration.Types", [
+      Fn.conditionIf(isGovCloud.logicalId, "REGIONAL", "EDGE").toString(),
+    ]);
 
     this.apiId = api.restApiId;
     this.apiEndpointPath = api.url.slice(0, -1);

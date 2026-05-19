@@ -6,9 +6,20 @@
 # The if/then blocks are for error handling. They will cause the script to stop executing if an error is thrown from the
 # node process running the test case(s). Removing them or not using them for additional calls with result in the
 # script continuing to execute despite an error being thrown.
+# 
+# Options:
+#   --skip-install  Skip npm ci and npm install:all steps (useful when dependencies are already installed).
 
 [ "$DEBUG" == 'true' ] && set -x
 set -e
+
+skip_install=false
+for arg in "$@"; do
+  case $arg in
+    --skip-install) skip_install=true ;;
+    --skip-installs) skip_install=true ;;
+  esac
+done
 
 
 prepare_jest_coverage_report() {
@@ -19,10 +30,10 @@ prepare_jest_coverage_report() {
         exit 129
     fi
 
-	# prepare coverage reports
+	  # prepare coverage reports
     rm -fr coverage/lcov-report
-    mkdir -p $coverage_reports_top_path/jest
-    coverage_report_path=$coverage_reports_top_path/jest/$component_name
+    mkdir -p $coverage_reports_top_path
+    coverage_report_path=$coverage_reports_top_path/$component_name
     rm -fr $coverage_report_path
     mv coverage $coverage_report_path
 }
@@ -45,13 +56,75 @@ run_tests() {
 
 }
 
+check_version_consistency() {
+  local project_root=$1
+  local version_file="$project_root/VERSION.txt"
+  local manifest_file="$project_root/solution-manifest.yaml"
+  local ecr_tags_file="$project_root/deployment/ecr_image_tags.json"
+
+  echo "Running version consistency check"
+
+  if [ ! -f "$version_file" ]; then
+    echo "******************************************************************************"
+    echo "VERSION.txt not found"
+    echo "******************************************************************************"
+    exit 1
+  fi
+
+  local version
+  version=$(<"$version_file")
+  version=$(echo "$version" | tr -d '[:space:]')
+
+  local manifest_version
+  manifest_version=$(grep '^version:' "$manifest_file" | sed 's/version: v//' | tr -d '[:space:]')
+
+  if [ "$version" != "$manifest_version" ]; then
+    echo "******************************************************************************"
+    echo "Version mismatch: VERSION.txt ($version) != solution-manifest.yaml ($manifest_version)"
+    echo "******************************************************************************"
+    exit 1
+  fi
+
+  local major_minor
+  major_minor=$(echo "$version" | cut -d. -f1,2)
+
+  if [ -f "$ecr_tags_file" ]; then
+    if ! command -v jq &> /dev/null; then
+      echo "******************************************************************************"
+      echo "jq is required for ECR image tag validation but is not installed"
+      echo "******************************************************************************"
+      exit 1
+    fi
+
+    local invalid_tags
+    invalid_tags=$(jq -r --arg prefix "v${major_minor}" 'to_entries[] | select(.value | startswith($prefix) | not) | "\(.key): \(.value)"' "$ecr_tags_file")
+    if [ -n "$invalid_tags" ]; then
+      echo "******************************************************************************"
+      echo "ECR image tag(s) do not match VERSION.txt major.minor (v${major_minor}):"
+      echo "$invalid_tags"
+      echo "******************************************************************************"
+      exit 1
+    fi
+  fi
+
+  echo "Version consistency check passed"
+}
+
 # Get reference for source folder
 source_dir="$(cd $PWD/../source; pwd -P)"
-coverage_reports_top_path=$source_dir/test/coverage-reports
+coverage_reports_top_path=$source_dir/coverage-reports
 
-#install dependencies
+if [ "$skip_install" = false ]; then
+  # Install workspace dependencies
+  cd $source_dir/..
+  npm ci
+
+  # Install legacy package dependencies (via source/ package.json script)
+  cd $source_dir
+  npm run install:all
+fi
+
 cd $source_dir
-npm run install:all
 
 #run prettier
 echo "Running prettier formatting check"
@@ -79,6 +152,48 @@ else
   exit 1
 fi
 
+check_version_consistency "$source_dir/.."
+
+# # Run workspace checks (root eslint.config.ts + root prettier)
+# echo "Running workspace formatting check"
+# cd $source_dir/..
+# npm run fmt:check
+# if [ $? -eq 0 ]
+# then
+#   echo "Workspace formatting check passed"
+# else
+#   echo "******************************************************************************"
+#   echo "Test FAILED workspace formatting check"
+#   echo "******************************************************************************"
+#   exit 1
+# fi
+
+# echo "Running workspace linting check"
+# cd $source_dir/..
+# npm run lint
+# if [ $? -eq 0 ]
+# then
+#   echo "Workspace linting check passed"
+# else
+#   echo "******************************************************************************"
+#   echo "Test FAILED workspace linting check"
+#   echo "******************************************************************************"
+#   exit 1
+# fi
+
+# echo "Running workspace unit tests"
+cd $source_dir/..
+npm test
+if [ $? -eq 0 ]
+then
+  echo "Workspace unit tests passed"
+else
+  echo "******************************************************************************"
+  echo "Workspace unit tests FAILED"
+  echo "******************************************************************************"
+  exit 1
+fi
+
 # Build webui for infrastructure tests
 echo "Building webui for infrastructure tests"
 cd $source_dir/webui
@@ -96,22 +211,23 @@ fi
 # Run unit tests
 echo "Running unit tests"
 
-# Test packages
-declare -a packages=(
-    "solution-utils"
-    "api-services"
-    "custom-resource"
-    "infrastructure"
-    "real-time-data-publisher"
-    "task-canceler"
-    "task-runner"
-    "results-parser"
-    "task-status-checker"
-    "webui"
-    "metrics-utils"
-    "metric-filter-cleaner"
-    "mcp-server"
-)
+rm -rf $source_dir/test # clean up legacy coverage files
+rm -rf $source_dir/coverage-reports # clean up past coverage files
+
+# Workspace packages are already tested by root npm test above; collect their directory names to skip
+workspace_pkgs=" $(jq -r '.workspaces[] | split("/")[-1]' "$source_dir/../package.json" | tr '\n' ' ')"
+
+# Discover legacy packages dynamically: any folder under source/ with a test script that is not a workspace package
+declare -a packages=()
+for dir in "$source_dir"/*/; do
+  package=$(basename "$dir")
+  [[ "$workspace_pkgs" == *" $package "* ]] && continue
+  if [ -f "$dir/package.json" ] && jq -e '.scripts.test' "$dir/package.json" > /dev/null 2>&1; then
+    packages+=("$package")
+  fi
+done
+
+echo "Discovered test packages: ${packages[*]}"
 
 for package in "${packages[@]}"; do
   run_tests $source_dir/$package $package
@@ -127,13 +243,16 @@ for package in "${packages[@]}"; do
   fi
 done
 
-# Removing node_modules post tests executions
-for package in "${packages[@]}"; do
-  cd $source_dir/$package
-  if [ $package = "solution-utils" ]
-  then
-    rm -rf coverage
-  else
-    rm -rf coverage node_modules
+# Collect workspace package coverage reports into source/coverage-reports/
+echo "Collecting workspace package coverage reports"
+for ws in $(jq -r '.workspaces[]' "$source_dir/../package.json"); do
+  ws_dir="$source_dir/../$ws"
+  ws_name=$(basename "$ws")
+  if [ -d "$ws_dir/coverage" ]; then
+    rm -fr "$ws_dir/coverage/lcov-report"
+    coverage_report_path="$coverage_reports_top_path/$ws_name"
+    rm -fr "$coverage_report_path"
+    mv "$ws_dir/coverage" "$coverage_report_path"
+    echo "  Collected coverage for $ws_name"
   fi
 done

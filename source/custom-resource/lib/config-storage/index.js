@@ -18,6 +18,8 @@ const dynamoDB = DynamoDBDocument.from(new DynamoDB(options));
  */
 const testingResourcesConfigFile = async (config) => {
   try {
+    const deploymentDate = new Date().toISOString();
+
     // Write the testing-resources configs to DDB
     const ddbParams = {
       TableName: DDB_TABLE,
@@ -29,8 +31,12 @@ const testingResourcesConfigFile = async (config) => {
         subnetB: config.subnetB,
         taskSecurityGroup: config.taskSecurityGroup,
         taskCluster: config.taskCluster,
-        taskDefinition: config.taskDefinition,
-        taskImage: config.taskImage,
+        ...(config.taskDefinition != null && { taskDefinition: config.taskDefinition }),
+        version: config.version,
+        stackId: config.stackId,
+        taskRoleArn: config.taskRoleArn,
+        executionRoleArn: config.executionRoleArn,
+        deploymentDate: deploymentDate,
       },
     };
     await dynamoDB.put(ddbParams);
@@ -54,8 +60,8 @@ const delTestingResourcesConfigFile = async (config) => {
         subnetB: "",
         taskSecurityGroup: "",
         taskCluster: "",
-        taskDefinition: "",
-        taskImage: "",
+        taskRoleArn: "",
+        executionRoleArn: "",
       },
     };
     await dynamoDB.put(ddbParams);
