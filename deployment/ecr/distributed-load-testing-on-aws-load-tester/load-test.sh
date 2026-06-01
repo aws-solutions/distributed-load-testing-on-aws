@@ -499,10 +499,32 @@ echo "Waiting for S3 start signal..."
 # AWS_REGION is set by ECS Fargate to the region where this task is running
 # (e.g., us-west-2) and is used as the region segment in the S3 key path.
 # The S3 API call goes to MAIN_STACK_REGION where the scenarios bucket lives.
-while ! aws s3api head-object \
-  --bucket "$S3_BUCKET" \
-  --key "start-signal/$TEST_ID/$PREFIX/$AWS_REGION/start" \
-  --region "$MAIN_STACK_REGION" > /dev/null 2>&1; do
+#
+# Replacement tasks (spun up by ECS to maintain desired count) would start the
+# test from scratch, out of sync with the original cohort, and cannot finish
+# within the expected duration. We detect them by checking signal age: originals
+# find it within ~2s, replacements arrive 60-120s after the signal was written.
+SIGNAL_KEY="start-signal/$TEST_ID/$PREFIX/$AWS_REGION/start"
+STALE_THRESHOLD=30
+
+while true; do
+  RESPONSE=$(aws s3api head-object --bucket "$S3_BUCKET" --key "$SIGNAL_KEY" \
+    --region "$MAIN_STACK_REGION" --output json 2>/dev/null) && {
+    LAST_MODIFIED=$(echo "$RESPONSE" | jq -r '.LastModified')
+    SIGNAL_EPOCH=$(date -d "$LAST_MODIFIED" +%s)
+    NOW_EPOCH=$(date +%s)
+    AGE=$((NOW_EPOCH - SIGNAL_EPOCH))
+
+    if [ "$AGE" -le "$STALE_THRESHOLD" ]; then
+      break
+    else
+      log_json "WARN" "REPLACEMENT_TASK_SKIPPED" "Start signal is ${AGE}s old (threshold: ${STALE_THRESHOLD}s). Skipping load."
+      echo -n | aws s3 cp - "s3://$S3_BUCKET/results/${TEST_ID}/${PREFIX}/completion/${AWS_REGION}/${TASK_ID}" --region "$MAIN_STACK_REGION"
+      log_json "INFO" "TASK_COMPLETED" "Replacement task - wrote completion marker"
+      trap 'echo "Received SIGTERM, shutting down"; exit 0' SIGTERM
+      sleep infinity & wait $!
+    fi
+  }
   sleep 2
 done
 log_json "INFO" "TASK_STARTED" "Start signal received"

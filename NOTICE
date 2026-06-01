@@ -2018,7 +2018,6 @@ vite under the MIT license
 vitest under the MIT license
 msw under the MIT license
 eslint-plugin-react-refresh under the MIT license
-node-fetch under the MIT license
 exit under the MIT license
 @rollup/rollup-linux-loong64-gnu under the MIT license
 @rollup/rollup-win32-x64-gnu under the MIT license
@@ -2045,12 +2044,14 @@ nginx/nginx under the BSD-2-Clause license
 @jsonjoy.com/fs-print under the Apache-2.0 license
 @jsonjoy.com/fs-snapshot under the Apache-2.0 license
 @jsonjoy.com/json-pointer under the Apache-2.0 license
-amazon-cognito-identity-js under the Apache-2.0 license
-fast-base64-decode under the MIT license
 glob-to-regex.js under the Apache-2.0 license
-isomorphic-unfetch under the MIT license
-unfetch under the MIT license
 fast-check under the MIT license
+@aws-sdk/client-cognito-identity-provider under the Apache-2.0 license
+cognito-srp-helper under the Apache-2.0 license
+crypto-js under the MIT license
+xml-naming under the MIT license
+@types/crypto-js under the MIT license
+@types/jsbn under the MIT license
 path-expression-matcher under the MIT license
 @nodable/entities under the MIT license
 

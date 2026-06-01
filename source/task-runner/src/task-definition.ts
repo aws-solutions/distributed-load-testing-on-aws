@@ -89,7 +89,19 @@ export async function createTestTaskDefinition(params: CreateTestTaskDefinitionP
     runtimePlatform: hubDef.runtimePlatform,
   });
 
-  const environment = Object.entries(envVars).map(([name, value]) => ({ name, value }));
+  // Merge hub container environment variables with test-specific ones.
+  // Hub env vars (e.g. JVM_ARGS) provide baseline configuration that customers
+  // can customize by editing the hub task definition. Test-specific envVars
+  // always take precedence over hub values.
+  // @see ./index.ts — envVars object defines per-execution overrides.
+  const hubEnv: Record<string, string> = {};
+  for (const entry of hubContainer.environment ?? []) {
+    if (entry.name && entry.value != null) {
+      hubEnv[entry.name] = entry.value;
+    }
+  }
+  const mergedEnv = { ...hubEnv, ...envVars };
+  const environment = Object.entries(mergedEnv).map(([name, value]) => ({ name, value }));
 
   const containerDefinitions = [
     {

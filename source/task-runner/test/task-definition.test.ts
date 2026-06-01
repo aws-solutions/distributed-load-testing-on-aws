@@ -165,6 +165,67 @@ describe("createTestTaskDefinition", () => {
     await expect(createTestTaskDefinition(baseParams())).rejects.toThrow("no ARN returned");
   });
 
+  it("should merge hub env vars with test-specific env vars (test wins on conflict)", async () => {
+    const hubContainerWithEnv = {
+      ...HUB_CONTAINER,
+      environment: [
+        { name: "JVM_ARGS", value: "-Xmx512m" },
+        { name: "CUSTOM_VAR", value: "customer-value" },
+        { name: "TEST_TYPE", value: "hub-default" },
+      ],
+    };
+    mockHubSend.mockResolvedValueOnce({
+      taskDefinition: { ...HUB_TASK_DEF, containerDefinitions: [hubContainerWithEnv] },
+    });
+    mockSpokeSend.mockResolvedValueOnce({
+      taskDefinition: {
+        taskDefinitionArn: "arn:aws:ecs:us-west-2:123456789:task-definition/dlt-worker-test-abc123:1",
+        revision: 1,
+      },
+    });
+
+    await createTestTaskDefinition(baseParams());
+
+    const registerInput = spokeCallInput(0) as RegisterTaskDefinitionCommandInput;
+    const env = registerInput.containerDefinitions?.[0]?.environment;
+
+    // Hub-only vars propagate
+    expect(env).toContainEqual({ name: "JVM_ARGS", value: "-Xmx512m" });
+    expect(env).toContainEqual({ name: "CUSTOM_VAR", value: "customer-value" });
+    // Test-specific var overrides hub value
+    expect(env).toContainEqual({ name: "TEST_TYPE", value: "jmeter" });
+    expect(env).not.toContainEqual({ name: "TEST_TYPE", value: "hub-default" });
+  });
+
+  it("should exclude hub env entries with null or undefined values", async () => {
+    const hubContainerWithNulls = {
+      ...HUB_CONTAINER,
+      environment: [
+        { name: "VALID", value: "keep" },
+        { name: "NULL_VALUE", value: null },
+        { name: undefined, value: "no-name" },
+      ],
+    };
+    mockHubSend.mockResolvedValueOnce({
+      taskDefinition: { ...HUB_TASK_DEF, containerDefinitions: [hubContainerWithNulls] },
+    });
+    mockSpokeSend.mockResolvedValueOnce({
+      taskDefinition: {
+        taskDefinitionArn: "arn:aws:ecs:us-west-2:123456789:task-definition/dlt-worker-test-abc123:1",
+        revision: 1,
+      },
+    });
+
+    await createTestTaskDefinition(baseParams());
+
+    const registerInput = spokeCallInput(0) as RegisterTaskDefinitionCommandInput;
+    const env = registerInput.containerDefinitions?.[0]?.environment;
+
+    expect(env).toContainEqual({ name: "VALID", value: "keep" });
+    expect(env?.find(e => e.name === "NULL_VALUE")).toBeUndefined();
+    expect(env?.find(e => e.value === "no-name")).toBeUndefined();
+  });
+
   it("should use hub container shape but NOT hub roles", async () => {
     mockHubSend.mockResolvedValueOnce({ taskDefinition: HUB_TASK_DEF });
     mockSpokeSend.mockResolvedValueOnce({
