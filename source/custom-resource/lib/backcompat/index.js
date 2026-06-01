@@ -173,7 +173,7 @@ const getRuleTargetsToUpdate = (targets) => {
       inputBodyJson.testScenario = scenario;
       shouldUpdate = true;
     }
-    ['cronValue', 'cronExpiryDate', 'recurrence', 'fileType'].map(field => {
+    ['cronValue', 'cronExpiryDate', 'recurrence', 'fileType'].forEach(field => {
       if (inputBodyJson[field] === "" || inputBodyJson[field] === null) {
         delete inputBodyJson[field];
         shouldUpdate = true;

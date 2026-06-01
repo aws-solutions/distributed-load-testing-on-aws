@@ -81,6 +81,7 @@ describe("createEcsService", () => {
     expect(input.networkConfiguration?.awsvpcConfiguration?.assignPublicIp).toBe("ENABLED");
     expect(input.networkConfiguration?.awsvpcConfiguration?.securityGroups).toEqual(["sg-123"]);
     expect(input.networkConfiguration?.awsvpcConfiguration?.subnets).toEqual(["subnet-aaa", "subnet-bbb"]);
+    expect(input.availabilityZoneRebalancing).toBe("DISABLED");
     expect(input.deploymentConfiguration?.deploymentCircuitBreaker).toEqual({
       enable: true,
       rollback: false,

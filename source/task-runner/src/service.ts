@@ -3,7 +3,13 @@
 
 import type { Logger } from "@amzn/dlt-common";
 import type { ECSClient } from "@aws-sdk/client-ecs";
-import { AssignPublicIp, CreateServiceCommand, LaunchType, PropagateTags } from "@aws-sdk/client-ecs";
+import {
+  AssignPublicIp,
+  AvailabilityZoneRebalancing,
+  CreateServiceCommand,
+  LaunchType,
+  PropagateTags,
+} from "@aws-sdk/client-ecs";
 
 export interface CreateEcsServiceParams {
   readonly ecs: ECSClient;
@@ -67,6 +73,7 @@ export async function createEcsService(params: CreateEcsServiceParams): Promise<
           subnets,
         },
       },
+      availabilityZoneRebalancing: AvailabilityZoneRebalancing.DISABLED,
       deploymentConfiguration: {
         deploymentCircuitBreaker: {
           enable: true,
