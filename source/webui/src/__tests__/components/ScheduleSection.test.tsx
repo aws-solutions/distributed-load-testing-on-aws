@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi, type Mock } from "vitest";
 import fc from "fast-check";
 import { ScheduleSection } from "../../pages/scenarios/components/ScheduleSection";
 import { TestTypes } from "../../pages/scenarios/constants";
 import { FormData } from "../../pages/scenarios/types";
 
 describe("ScheduleSection", () => {
-  let mockUpdateFormData: ReturnType<typeof vi.fn>;
+  let mockUpdateFormData: Mock<(updates: Partial<FormData>) => void>;
   let mockFormData: FormData;
 
   beforeEach(() => {
@@ -154,7 +154,7 @@ describe("ScheduleSection", () => {
     beforeEach(() => {
       vi.stubEnv("TZ", "America/Los_Angeles");
       const DateTimeFormat = Intl.DateTimeFormat;
-      vi.spyOn(global.Intl, "DateTimeFormat").mockImplementation((locale, options) => {
+      vi.spyOn(global.Intl, "DateTimeFormat").mockImplementation(function (locale, options) {
         if (!locale) {
           locale = "en-US";
           options = { timeZone: "America/Los_Angeles", calendar: "gregory", numberingSystem: "latn" };
@@ -175,6 +175,7 @@ describe("ScheduleSection", () => {
     afterEach(() => {
       vi.unstubAllEnvs();
       vi.useRealTimers();
+      vi.restoreAllMocks();
     });
 
     test("shows Next Runs when valid cron expression and expiry date provided", () => {
@@ -266,14 +267,14 @@ describe("ScheduleSection", () => {
  * Next Runs entries.
  */
 describe("ScheduleSection Bug Condition Exploration", () => {
-  let mockUpdateFormData: ReturnType<typeof vi.fn>;
+  let mockUpdateFormData: Mock<(updates: Partial<FormData>) => void>;
   let baseFormData: FormData;
 
   beforeEach(() => {
     mockUpdateFormData = vi.fn();
     vi.stubEnv("TZ", "America/Los_Angeles");
     const DateTimeFormat = Intl.DateTimeFormat;
-    vi.spyOn(global.Intl, "DateTimeFormat").mockImplementation((locale, options) => {
+    vi.spyOn(global.Intl, "DateTimeFormat").mockImplementation(function (locale, options) {
       if (!locale) {
         locale = "en-US";
         options = { timeZone: "America/Los_Angeles", calendar: "gregory", numberingSystem: "latn" };
@@ -477,14 +478,14 @@ describe("ScheduleSection Bug Condition Exploration", () => {
  * must remain unchanged.
  */
 describe("ScheduleSection Preservation Properties", () => {
-  let mockUpdateFormData: ReturnType<typeof vi.fn>;
+  let mockUpdateFormData: Mock<(updates: Partial<FormData>) => void>;
   let baseFormData: FormData;
 
   beforeEach(() => {
     mockUpdateFormData = vi.fn();
     vi.stubEnv("TZ", "America/Los_Angeles");
     const DateTimeFormat = Intl.DateTimeFormat;
-    vi.spyOn(global.Intl, "DateTimeFormat").mockImplementation((locale, options) => {
+    vi.spyOn(global.Intl, "DateTimeFormat").mockImplementation(function (locale, options) {
       if (!locale) {
         locale = "en-US";
         options = { timeZone: "America/Los_Angeles", calendar: "gregory", numberingSystem: "latn" };
@@ -832,14 +833,14 @@ describe("ScheduleSection Preservation Properties", () => {
  * 6. No console errors for valid configurations
  */
 describe("ScheduleSection Cron Comprehensive Tests", () => {
-  let mockUpdateFormData: ReturnType<typeof vi.fn>;
+  let mockUpdateFormData: Mock<(updates: Partial<FormData>) => void>;
   let baseFormData: FormData;
 
   beforeEach(() => {
     mockUpdateFormData = vi.fn();
     vi.stubEnv("TZ", "America/Los_Angeles");
     const DateTimeFormat = Intl.DateTimeFormat;
-    vi.spyOn(global.Intl, "DateTimeFormat").mockImplementation((locale, options) => {
+    vi.spyOn(global.Intl, "DateTimeFormat").mockImplementation(function (locale, options) {
       if (!locale) {
         locale = "en-US";
         options = { timeZone: "America/Los_Angeles", calendar: "gregory", numberingSystem: "latn" };

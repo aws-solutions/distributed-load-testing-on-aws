@@ -6,9 +6,9 @@ import { attachIoTPolicy } from "../../utils/iotPolicy";
 
 // Mock AWS SDK
 const mockSend = vi.fn();
-const mockIoTClient = vi.fn().mockImplementation(() => ({
-  send: mockSend,
-}));
+const mockIoTClient = vi.fn().mockImplementation(function () {
+  return { send: mockSend };
+});
 const mockAttachPolicyCommand = vi.fn();
 
 vi.mock("@aws-sdk/client-iot", () => ({

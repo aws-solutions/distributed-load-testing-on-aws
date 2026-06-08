@@ -841,8 +841,11 @@ exports[`DLT API Test 1`] = `
           "test.com/",
           "http://localhost:3000",
           "http://localhost:3000/",
-          "http://localhost:7521/callback",
           "http://localhost:3000/callback",
+          "http://localhost:7521/callback",
+          "http://localhost:7521",
+          "http://127.0.0.1:7521",
+          "cursor://anysphere.cursor-mcp/oauth/callback",
         ],
         "ClientName": {
           "Fn::Join": [
@@ -865,8 +868,11 @@ exports[`DLT API Test 1`] = `
           "test.com/",
           "http://localhost:3000",
           "http://localhost:3000/",
-          "http://localhost:7521/callback",
           "http://localhost:3000/callback",
+          "http://localhost:7521/callback",
+          "http://localhost:7521",
+          "http://127.0.0.1:7521",
+          "cursor://anysphere.cursor-mcp/oauth/callback",
         ],
         "RefreshTokenRotation": {
           "Feature": "ENABLED",
@@ -1825,8 +1831,11 @@ exports[`DLT Auth with isConsoleHostedExternally 1`] = `
         "CallbackURLs": [
           "http://localhost:3000",
           "http://localhost:3000/",
-          "http://localhost:7521/callback",
           "http://localhost:3000/callback",
+          "http://localhost:7521/callback",
+          "http://localhost:7521",
+          "http://127.0.0.1:7521",
+          "cursor://anysphere.cursor-mcp/oauth/callback",
         ],
         "ClientName": {
           "Fn::Join": [
@@ -1847,8 +1856,11 @@ exports[`DLT Auth with isConsoleHostedExternally 1`] = `
         "LogoutURLs": [
           "http://localhost:3000",
           "http://localhost:3000/",
-          "http://localhost:7521/callback",
           "http://localhost:3000/callback",
+          "http://localhost:7521/callback",
+          "http://localhost:7521",
+          "http://127.0.0.1:7521",
+          "cursor://anysphere.cursor-mcp/oauth/callback",
         ],
         "RefreshTokenRotation": {
           "Feature": "ENABLED",

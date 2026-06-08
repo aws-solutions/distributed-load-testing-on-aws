@@ -1,6 +1,6 @@
 {
   "name": "@amzn/dlt-task-runner",
-  "version": "4.1.1",
+  "version": "4.1.2",
   "private": true,
   "description": "Task Runner Lambda for DLT — creates ephemeral ECS services for load tests",
   "type": "module",
