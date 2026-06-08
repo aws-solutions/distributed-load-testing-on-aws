@@ -247,31 +247,24 @@ export class CognitoAuthConstruct extends Construct {
     const authSubdomain = Fn.conditionIf(isGovCloudRegion.logicalId, ".auth-fips.", ".auth.").toString();
     this.cognitoUserPoolDomain = Fn.join("", [domainPrefix, authSubdomain, Aws.REGION, ".amazoncognito.com"]);
 
-    const localWebRedirectUrl = "http://localhost:3000";
-    const cliCallbackUrl = "http://localhost:7521/callback";
-    const cliCallbackFallbackUrl = "http://localhost:3000/callback";
+    const callbackUrls = [
+      // Deployed web console (excluded for self-hosted stacks where URL is unknown at deploy time)
+      ...(props.isConsoleHostedExternally ? [] : [props.webAppURL, `${props.webAppURL}/`]),
 
-    // Build callback URLs - exclude webAppURL for self-hosted web console stack (unknown at deploy time)
-    const callbackUrls = props.isConsoleHostedExternally
-      ? [localWebRedirectUrl, `${localWebRedirectUrl}/`, cliCallbackUrl, cliCallbackFallbackUrl]
-      : [
-          props.webAppURL,
-          `${props.webAppURL}/`,
-          localWebRedirectUrl,
-          `${localWebRedirectUrl}/`,
-          cliCallbackUrl,
-          cliCallbackFallbackUrl,
-        ];
-    const logoutUrls = props.isConsoleHostedExternally
-      ? [localWebRedirectUrl, `${localWebRedirectUrl}/`, cliCallbackUrl, cliCallbackFallbackUrl]
-      : [
-          props.webAppURL,
-          `${props.webAppURL}/`,
-          localWebRedirectUrl,
-          `${localWebRedirectUrl}/`,
-          cliCallbackUrl,
-          cliCallbackFallbackUrl,
-        ];
+      // Local dev server
+      "http://localhost:3000",
+      "http://localhost:3000/",
+      "http://localhost:3000/callback",
+
+      // OAuth callback port (shared by CLI and MCP clients that support configurable ports)
+      "http://localhost:7521/callback",
+      "http://localhost:7521",
+      "http://127.0.0.1:7521", // Kiro requires explicit IP address
+
+      // MCP clients with fixed callback schemes
+      "cursor://anysphere.cursor-mcp/oauth/callback",
+    ];
+    const logoutUrls = callbackUrls;
 
     const cognitoUserPoolClient = new UserPoolClient(this, "DLTUserPoolClient", {
       userPoolClientName: `${Aws.STACK_NAME}-userpool-client`,

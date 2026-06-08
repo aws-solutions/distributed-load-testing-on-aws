@@ -3347,8 +3347,11 @@ exports[`Distributed Load Testing stack test 1`] = `
           },
           "http://localhost:3000",
           "http://localhost:3000/",
-          "http://localhost:7521/callback",
           "http://localhost:3000/callback",
+          "http://localhost:7521/callback",
+          "http://localhost:7521",
+          "http://127.0.0.1:7521",
+          "cursor://anysphere.cursor-mcp/oauth/callback",
         ],
         "ClientName": {
           "Fn::Join": [
@@ -3398,8 +3401,11 @@ exports[`Distributed Load Testing stack test 1`] = `
           },
           "http://localhost:3000",
           "http://localhost:3000/",
-          "http://localhost:7521/callback",
           "http://localhost:3000/callback",
+          "http://localhost:7521/callback",
+          "http://localhost:7521",
+          "http://127.0.0.1:7521",
+          "cursor://anysphere.cursor-mcp/oauth/callback",
         ],
         "RefreshTokenRotation": {
           "Feature": "ENABLED",

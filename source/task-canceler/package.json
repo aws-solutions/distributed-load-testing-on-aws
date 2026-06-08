@@ -1,6 +1,6 @@
 {
   "name": "@amzn/dlt-task-canceler",
-  "version": "4.1.1",
+  "version": "4.1.2",
   "private": true,
   "description": "Task Canceler Lambda for DLT — coordinates test cancellation by invoking test-cleanup per region",
   "type": "module",

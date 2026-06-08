@@ -49,7 +49,7 @@ describe("TaskStatus Chart.js functionality", () => {
 
     // Mock PubSub constructor
     const { PubSub } = await import("@aws-amplify/pubsub");
-    vi.mocked(PubSub).mockImplementation(() => mockPubSubInstance);
+    vi.mocked(PubSub).mockImplementation(function () { return mockPubSubInstance; });
 
     // Mock chart helper
     const { createRegionalTimeSeriesChart } = await import("../../utils/chartHelpers");

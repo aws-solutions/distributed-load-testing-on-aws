@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { render, screen } from "@testing-library/react";
-import { describe, expect, test, beforeEach, afterEach, vi } from "vitest";
+import { describe, expect, test, beforeEach, afterEach, vi, type Mock } from "vitest";
 import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
 import { TrafficShapeStep } from "../../pages/scenarios/components/TrafficShapeStep";
@@ -78,7 +78,7 @@ function createFormData(overrides: Partial<FormData> = {}): FormData {
   };
 }
 
-function renderComponent(formData: FormData, updateFormData: ReturnType<typeof vi.fn>, store = createStore()) {
+function renderComponent(formData: FormData, updateFormData: Mock<(updates: Partial<FormData>) => void>, store = createStore()) {
   return render(
     <Provider store={store}>
       <TrafficShapeStep formData={formData} updateFormData={updateFormData} showValidationErrors={false} />
@@ -87,7 +87,7 @@ function renderComponent(formData: FormData, updateFormData: ReturnType<typeof v
 }
 
 describe("TrafficShapeStep", () => {
-  let mockUpdateFormData: ReturnType<typeof vi.fn>;
+  let mockUpdateFormData: Mock<(updates: Partial<FormData>) => void>;
 
   beforeEach(() => {
     mockUpdateFormData = vi.fn();

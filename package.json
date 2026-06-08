@@ -1,0 +1,59 @@
+{
+  "name": "distributed-load-testing-on-aws",
+  "version": "4.1.2",
+  "private": true,
+  "description": "Workspace for Distributed Load Testing on AWS",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions"
+  },
+  "workspaces": [
+    "source/common",
+    "source/mcp-server",
+    "source/cli",
+    "source/stabilization-checker",
+    "source/start-command",
+    "source/task-runner",
+    "source/task-status-checker",
+    "source/task-canceler",
+    "source/task-failure-handler",
+    "source/orphan-cleanup",
+    "source/regional-sync",
+    "source/sfn-failure-handler",
+    "source/test-cleanup",
+    "source/test-metadata-updater"
+  ],
+  "scripts": {
+    "lint": "eslint . && npm run lint --workspaces --if-present",
+    "lint:fix": "eslint . --fix && npm run lint:fix --workspaces --if-present",
+    "fmt": "prettier . --write",
+    "fmt:check": "prettier . --check",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "overrides": {
+    "vite": "^7.0.0"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.57.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "aws-sdk-client-mock": "^4.1.0",
+    "esbuild": "^0.27.0",
+    "@types/node": "^24.11.0",
+    "@vitest/coverage-v8": "^4.0.18",
+    "eslint": "^9.39.2",
+    "globals": "^17.3.0",
+    "jiti": "^2.6.1",
+    "prettier": "^3.8.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.54.0",
+    "vitest": "^4.0.18"
+  }
+}

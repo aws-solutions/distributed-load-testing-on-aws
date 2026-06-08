@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { defineConfig, UserConfig } from "vite";
-import { CoverageV8Options, UserConfig as VitestUserConfig } from "vitest/node";
+import { CoverageOptions, UserConfig as VitestUserConfig } from "vitest/node";
 import react from "@vitejs/plugin-react-swc";
 import { resolve } from "path";
 
-const coverageConfig: { provider: "v8" } & CoverageV8Options = {
+const coverageConfig: { provider: "v8" } & CoverageOptions = {
   provider: "v8",
   enabled: true,
   reportsDirectory: resolve(__dirname, "./coverage"),

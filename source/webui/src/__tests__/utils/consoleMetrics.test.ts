@@ -13,6 +13,7 @@ import {
 let mockFetch: MockInstance;
 
 beforeEach(() => {
+  vi.clearAllMocks();
   // Spy on whatever fetch is installed (undici via setupTests.ts).
   // Must happen in beforeEach so it wraps the current globalThis.fetch.
   mockFetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));

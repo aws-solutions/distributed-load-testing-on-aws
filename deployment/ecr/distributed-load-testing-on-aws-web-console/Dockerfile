@@ -13,7 +13,7 @@ FROM public.ecr.aws/nginx/nginx:alpine@sha256:72c9b856fee09b02f9e5ee29ab2b55ae9a
 # Upgrade curl to 8.19.0-r0 to pick up CVE-2025-14017, CVE-2025-14524, CVE-2025-14819,
 # CVE-2026-1965, CVE-2026-3783, CVE-2026-3784, and CVE-2026-3805 fixes
 # Install AWS CLI for S3 operations
-RUN apk upgrade --no-cache zlib musl musl-utils libcrypto3 libssl3 libpng libuuid nghttp2-libs xz-libs curl && \
+RUN apk upgrade --no-cache zlib musl musl-utils libcrypto3 libssl3 libpng libuuid nghttp2-libs xz-libs curl libxml2 && \
     apk add --no-cache aws-cli
 
 # Copy nginx configuration and entrypoint script
