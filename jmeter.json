@@ -1,0 +1,22 @@
+{
+  "version": "5.6.3",
+  "download": {
+    "binary": "https://dlcdn.apache.org//jmeter/binaries/apache-jmeter-{version}.tgz",
+    "sha512": "https://www.apache.org/dist/jmeter/binaries/apache-jmeter-{version}.tgz.sha512",
+    "plugins": "https://jmeter-plugins.org/files/packages/{plugin}-{version}.zip"
+  },
+  "plugins": {
+    "jpgc-json": "2.7",
+    "jpgc-casutg": "3.1.1",
+    "jpgc-dummy": "0.4",
+    "jpgc-ffw": "2.0",
+    "jpgc-fifo": "0.2",
+    "jpgc-functions": "2.2",
+    "jpgc-perfmon": "2.1",
+    "jpgc-prmctl": "0.4",
+    "jpgc-tst": "2.6",
+    "jpgc-udp": "0.4",
+    "bzm-http2": "2.0.6",
+    "bzm-random-csv": "0.8"
+  }
+}

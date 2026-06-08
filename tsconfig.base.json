@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    // Environment Settings
+    "target": "esnext",
+    "lib": [
+      "ESNext"
+    ],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": [
+      "node"
+    ],
+    // Strict Type Checking
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    // Module & Imports
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "noUncheckedSideEffectImports": true,
+    // Output Options
+    "noEmit": true,
+    "incremental": true
+  }
+}
