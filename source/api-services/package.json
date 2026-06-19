@@ -1,6 +1,6 @@
 {
   "name": "api-services",
-  "version": "4.1.2",
+  "version": "4.1.3",
   "description": "REST API micro services",
   "repository": {
     "type": "git",
@@ -49,7 +49,7 @@
   },
   "readme": "./README.md",
   "overrides": {
-    "form-data": "4.0.4",
+    "form-data": "4.0.6",
     "fast-xml-parser": ">=5.5.6"
   }
 }

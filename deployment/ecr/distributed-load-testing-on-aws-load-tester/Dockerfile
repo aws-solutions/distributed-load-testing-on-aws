@@ -1,4 +1,4 @@
-FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:25fb18d93f8f27b0812bdc61354ce1fd27f4aea43c5883b23590d1ccf4a35f61
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:af07dc2c8c9bd3c6b8c46016131dc2b968267e2c0b09e875d1015d7c61b05b09
 
 # Install system dependencies
 # Upgrade curl-minimal and libcurl-minimal to pick up CVE-2026-3805 fix (8.17.0-1.amzn2023.0.3)

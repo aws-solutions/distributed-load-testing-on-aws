@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.3] - 2026-06-17
+
+### Security
+
+- Upgraded npm packages for security patching
+- Upgrade load-tester image library for security patching
+
 ## [4.1.2] - 2026-06-08
 
 ### Fixed
