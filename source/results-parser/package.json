@@ -1,6 +1,6 @@
 {
   "name": "results-parser",
-  "version": "4.1.2",
+  "version": "4.1.3",
   "description": "result parser for indexing xml test results to DynamoDB",
   "repository": {
     "type": "git",
@@ -33,7 +33,7 @@
   },
   "readme": "./README.md",
   "overrides": {
-    "form-data": "4.0.4",
+    "form-data": "4.0.6",
     "fast-xml-parser": ">=5.5.6"
   }
 }

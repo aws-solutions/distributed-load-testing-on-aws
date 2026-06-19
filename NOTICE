@@ -35,11 +35,12 @@ This software includes third party software subject to the following copyrights:
 @aws-solutions-constructs/aws-cloudfront-s3 under the Apache-2.0 license
 @aws-solutions-constructs/aws-eventbridge-lambda under the Apache-2.0 license
 @aws-solutions-constructs/aws-lambda-sqs-lambda under the Apache-2.0 license
-@aws-sdk/client-s3 under the Apache-2.0 license
-@aws-sdk/client-scheduler under the Apache-2.0 license
+@aws-sdk/checksums under the Apache-2.0 license
 @aws-sdk/client-cloudfront under the Apache-2.0 license
 @aws-sdk/client-cloudwatch under the Apache-2.0 license
 @aws-sdk/client-cloudwatch-logs under the Apache-2.0 license
+@aws-sdk/client-s3 under the Apache-2.0 license
+@aws-sdk/client-scheduler under the Apache-2.0 license
 @aws-sdk/client-sqs under the Apache-2.0 license
 @types/jest under the MIT license
 @types/node under the MIT license
@@ -212,6 +213,7 @@ escape-string-regexp under the MIT license
 @babel/helpers under the MIT license
 @babel/highlight under the MIT license
 @babel/parser under the MIT license
+@babel/plugin-bugfix-safari-rest-destructuring-rhs-array under the MIT license
 @babel/plugin-syntax-async-generators under the MIT license
 @babel/plugin-syntax-bigint under the MIT license
 @babel/plugin-syntax-class-properties under the MIT license
@@ -552,6 +554,7 @@ ansi-regex under the MIT license
 antd under the MIT license
 any-promise under the MIT license
 anymatch under the ISC license
+anynum under the MIT license
 archiver under the MIT license
 archiver-utils under the MIT license
 arg under the MIT license
@@ -1066,6 +1069,7 @@ ecc-jsbn under the MIT license
 jsbn under the MIT license
 getpass under the MIT license
 is-typedarray under the MIT license
+is-unsafe under the MIT license
 isstream under the MIT license
 json-stringify-safe under the ISC license
 performance-now under the MIT license

@@ -1,6 +1,6 @@
 {
   "name": "metrics-utils",
-  "version": "4.1.2",
+  "version": "4.1.3",
   "main": "index.ts",
   "license": "Apache-2.0",
   "description": "Distributed Load Testing on AWS Ops Metrics",
@@ -35,11 +35,11 @@
     "@aws-solutions-constructs/aws-lambda-sqs-lambda": "^2.100.1",
     "@types/aws-lambda": "^8.10.143",
     "axios": "^1.13.5",
-    "esbuild": "^0.25.5",
+    "esbuild": "^0.28.1",
     "constructs": "^10.5.1"
   },
   "overrides": {
-    "form-data": "4.0.4",
+    "form-data": "4.0.6",
     "fast-xml-parser": ">=5.5.6"
   }
 }
