@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws",
-  "version": "4.1.3",
+  "version": "4.1.4",
   "private": true,
   "description": "Workspace for Distributed Load Testing on AWS",
   "license": "Apache-2.0",
@@ -25,7 +25,8 @@
     "source/regional-sync",
     "source/sfn-failure-handler",
     "source/test-cleanup",
-    "source/test-metadata-updater"
+    "source/test-metadata-updater",
+    "deployment/launch-wizard-assets/test"
   ],
   "scripts": {
     "lint": "eslint . && npm run lint --workspaces --if-present",

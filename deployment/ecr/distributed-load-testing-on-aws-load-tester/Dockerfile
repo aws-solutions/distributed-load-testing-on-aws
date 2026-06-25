@@ -1,11 +1,8 @@
-FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:af07dc2c8c9bd3c6b8c46016131dc2b968267e2c0b09e875d1015d7c61b05b09
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:8073d921f4ac1bf17fca94e16b0bc575e3fc17e4ccbe53b563160f02f0c7ccfc
 
 # Install system dependencies
-# Upgrade curl-minimal and libcurl-minimal to pick up CVE-2026-3805 fix (8.17.0-1.amzn2023.0.3)
-# Upgrade libgcrypt to pick up CVE-2026-41989 fix (1.10.2-1.amzn2023.0.3)
 RUN dnf upgrade -y --refresh && \
     dnf install -y python3.11 python3.11-pip java-21-amazon-corretto bc procps jq findutils unzip tar gzip wget shadow-utils && \
-    dnf upgrade -y giflib curl-minimal libcurl-minimal libgcrypt && \
     dnf clean all
 
 ENV PIP_INSTALL="pip3.11 install --no-cache-dir"
