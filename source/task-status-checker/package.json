@@ -1,6 +1,6 @@
 {
   "name": "@amzn/dlt-task-status-checker",
-  "version": "4.1.3",
+  "version": "4.1.4",
   "private": true,
   "description": "Task Status Checker Lambda for DLT — pre-test running check and S3 completion monitoring",
   "type": "module",

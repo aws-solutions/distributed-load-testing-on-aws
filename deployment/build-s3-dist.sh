@@ -162,7 +162,11 @@ main() {
 
     header "[Packing] Launch Wizard Assets"
     if [ -d "${launch_wizard_dir}" ]; then
+        # Materialize versioned asset folders,
+        # substituting ${VERSION} from VERSION.txt.
+        bash "${launch_wizard_dir}/apply-version.sh"
         for profile_dir in "${launch_wizard_dir}"/*; do
+            [[ "$(basename "${profile_dir}")" == "test" ]] && continue
             if [ -d "${profile_dir}" ]; then
                 for version_dir in "${profile_dir}"/*; do
                     if [ -d "${version_dir}/helpPanels" ]; then
