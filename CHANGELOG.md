@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgraded npm packages for security patching
 - Upgraded libexpat to >= 2.8.1 to address security vulnerability
 
-## [4.1.3] - 2026-06-17
+## [4.1.3] - 2026-06-19
 
 ### Security
 
