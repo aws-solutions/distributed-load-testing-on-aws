@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws",
-  "version": "4.1.4",
+  "version": "4.1.5",
   "private": true,
   "description": "Workspace for Distributed Load Testing on AWS",
   "license": "Apache-2.0",
