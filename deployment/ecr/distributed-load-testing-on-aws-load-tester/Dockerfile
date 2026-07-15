@@ -1,4 +1,4 @@
-FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:8073d921f4ac1bf17fca94e16b0bc575e3fc17e4ccbe53b563160f02f0c7ccfc
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:947fbf6b0de94bc3d39def14962942a92b14132d7e068d366572898a09a4cc34
 
 # Install system dependencies
 RUN dnf upgrade -y --refresh && \
