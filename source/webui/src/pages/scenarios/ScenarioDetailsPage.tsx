@@ -194,17 +194,14 @@ export default function ScenarioDetailsPage() {
   const handleCopy = () => {
     if (scenario) {
       sendConsoleMetric("ButtonClick", { Page: "ScenarioDetails", Action: "CopyScenario", TestId: testId });
-      const { ...scenarioWithoutId } = scenario;
-      const encodedData = encodeURIComponent(JSON.stringify(scenarioWithoutId));
-      navigate(`/create-scenario?step=0&copyData=${encodedData}`);
+      navigate(`/scenarios/create?cloneFrom=${testId}`);
     }
   };
 
   const handleEdit = () => {
     if (scenario) {
       sendConsoleMetric("ButtonClick", { Page: "ScenarioDetails", Action: "EditScenario", TestId: testId });
-      const encodedData = encodeURIComponent(JSON.stringify(scenario));
-      navigate(`/create-scenario?step=0&editData=${encodedData}`);
+      navigate(`/scenarios/${testId}/edit`);
     }
   };
 

@@ -59,6 +59,8 @@
         ],
         "@typescript-eslint/no-throw-literal": ["error"],
         "@typescript-eslint/no-empty-interface": ["off"],
+        "dot-notation": ["off"],
+        "@typescript-eslint/dot-notation": ["error"],
         "no-new": 0
       }
     },

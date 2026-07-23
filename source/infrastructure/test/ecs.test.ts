@@ -41,6 +41,7 @@ test("DLT ECS Hub Test", () => {
     solutionId: "SO0062",
     stableTagCondition: stableTagCondition.logicalId,
     buildFromSource: false,
+    loadTesterImageUri: "",
   });
 
   expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();

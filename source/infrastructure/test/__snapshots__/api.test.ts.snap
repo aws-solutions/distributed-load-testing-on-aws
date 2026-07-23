@@ -187,11 +187,13 @@ exports[`DLT API Test 1`] = `
         "Description": "API microservices for creating, updating, listing and deleting test scenarios",
         "Environment": {
           "Variables": {
+            "AGENT_SPACES_TABLE": "testAgentSpacesTable",
             "AWS_ACCOUNT_ID": {
               "Ref": "AWS::AccountId",
             },
             "HISTORY_TABLE": "testHistoryDDBTable",
             "HISTORY_TABLE_GSI_NAME": "testId-startTime-index",
+            "INVESTIGATIONS_TABLE": "testInvestigationsTable",
             "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
             "MIN_COMPATIBLE_VERSION": "4.1.0",
             "SCENARIOS_BUCKET": "testScenarioBucketName",
@@ -452,9 +454,20 @@ exports[`DLT API Test 1`] = `
       "Type": "AWS::IAM::Role",
       "UpdateReplacePolicy": "Retain",
     },
-    "TestAPIDLTApiDeployment7935ADA20b72ba8dcaa47e6e0c4facd26917148f": {
+    "TestAPIDLTApiDeployment7935ADA2b0025b42fa39dd36b1fde438eb71f433": {
       "DependsOn": [
         "TestAPIAPIAllRequestValidator9A179146",
+        "TestAPIDLTApiagentspacesidDELETE807DC1E9",
+        "TestAPIDLTApiagentspacesidOPTIONS8BD9E02E",
+        "TestAPIDLTApiagentspacesidPUTB8823FE7",
+        "TestAPIDLTApiagentspacesid78274EAF",
+        "TestAPIDLTApiagentspacesGET4E12F2DC",
+        "TestAPIDLTApiagentspacesOPTIONSF88FCBF2",
+        "TestAPIDLTApiagentspacesPOST4400C11C",
+        "TestAPIDLTApiagentspaces1D128371",
+        "TestAPIDLTApiagentspacestestconnectionOPTIONSADAEA2B7",
+        "TestAPIDLTApiagentspacestestconnectionPOSTA2155361",
+        "TestAPIDLTApiagentspacestestconnection9339B86C",
         "TestAPIDLTApiOPTIONS380FFB97",
         "TestAPIDLTApiregionsANYC5A4C4FB",
         "TestAPIDLTApiregionsOPTIONSB6A98797",
@@ -468,6 +481,20 @@ exports[`DLT API Test 1`] = `
         "TestAPIDLTApiscenariostestIdOPTIONSF10FECFD",
         "TestAPIDLTApiscenariostestId0D5FBA86",
         "TestAPIDLTApiscenariostestIdtestrunstestRunIdANY6C65B399",
+        "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdDELETEFA059347",
+        "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdfindingsGETB367AE1B",
+        "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdfindingsOPTIONS68D5BF37",
+        "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdfindings44651979",
+        "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdOPTIONS7CC1BE1C",
+        "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdPUT220709D6",
+        "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationId50C6566A",
+        "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdstatusGETA94D8C01",
+        "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdstatusOPTIONS73B13FFE",
+        "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdstatusD1637ECE",
+        "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsGETFAA79634",
+        "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsOPTIONS8278E427",
+        "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsPOSTF4B7A842",
+        "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigations53BFA547",
         "TestAPIDLTApiscenariostestIdtestrunstestRunIdOPTIONS1E9BA02A",
         "TestAPIDLTApiscenariostestIdtestrunstestRunId033ADD53",
         "TestAPIDLTApiscenariostestIdtestrunsANYBCE64269",
@@ -535,7 +562,7 @@ exports[`DLT API Test 1`] = `
           "Format": "{"extendedRequestId":"$context.extendedRequestId","ip":"$context.identity.sourceIp","caller":"$context.identity.caller","user":"$context.identity.user","userAgent":"$context.identity.userAgent","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.resourcePath","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength"}",
         },
         "DeploymentId": {
-          "Ref": "TestAPIDLTApiDeployment7935ADA20b72ba8dcaa47e6e0c4facd26917148f",
+          "Ref": "TestAPIDLTApiDeployment7935ADA2b0025b42fa39dd36b1fde438eb71f433",
         },
         "MethodSettings": [
           {
@@ -589,6 +616,455 @@ exports[`DLT API Test 1`] = `
             "TestAPIDLTApi434DC190",
             "RootResourceId",
           ],
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiagentspaces1D128371": {
+      "Properties": {
+        "ParentId": {
+          "Fn::GetAtt": [
+            "TestAPIDLTApi434DC190",
+            "RootResourceId",
+          ],
+        },
+        "PathPart": "agent-spaces",
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "TestAPIDLTApiagentspacesGET4E12F2DC": {
+      "Properties": {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "GET",
+        "Integration": {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "TestAPIDLTAPIServicesLambdaNew475B08B2",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": [
+          {
+            "ResponseModels": {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": {
+          "Ref": "TestAPIAPIAllRequestValidator9A179146",
+        },
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiagentspaces1D128371",
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiagentspacesOPTIONSF88FCBF2": {
+      "Properties": {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": {
+          "IntegrationResponses": [
+            {
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Headers": "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "200",
+            },
+          ],
+          "RequestTemplates": {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": [
+          {
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiagentspaces1D128371",
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiagentspacesPOST4400C11C": {
+      "Properties": {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "POST",
+        "Integration": {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "TestAPIDLTAPIServicesLambdaNew475B08B2",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": [
+          {
+            "ResponseModels": {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": {
+          "Ref": "TestAPIAPIAllRequestValidator9A179146",
+        },
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiagentspaces1D128371",
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiagentspacesid78274EAF": {
+      "Properties": {
+        "ParentId": {
+          "Ref": "TestAPIDLTApiagentspaces1D128371",
+        },
+        "PathPart": "{id}",
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "TestAPIDLTApiagentspacesidDELETE807DC1E9": {
+      "Properties": {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "DELETE",
+        "Integration": {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "TestAPIDLTAPIServicesLambdaNew475B08B2",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": [
+          {
+            "ResponseModels": {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": {
+          "Ref": "TestAPIAPIAllRequestValidator9A179146",
+        },
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiagentspacesid78274EAF",
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiagentspacesidOPTIONS8BD9E02E": {
+      "Properties": {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": {
+          "IntegrationResponses": [
+            {
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Headers": "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "200",
+            },
+          ],
+          "RequestTemplates": {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": [
+          {
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiagentspacesid78274EAF",
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiagentspacesidPUTB8823FE7": {
+      "Properties": {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "PUT",
+        "Integration": {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "TestAPIDLTAPIServicesLambdaNew475B08B2",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": [
+          {
+            "ResponseModels": {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": {
+          "Ref": "TestAPIAPIAllRequestValidator9A179146",
+        },
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiagentspacesid78274EAF",
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiagentspacestestconnection9339B86C": {
+      "Properties": {
+        "ParentId": {
+          "Ref": "TestAPIDLTApiagentspaces1D128371",
+        },
+        "PathPart": "test-connection",
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "TestAPIDLTApiagentspacestestconnectionOPTIONSADAEA2B7": {
+      "Properties": {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": {
+          "IntegrationResponses": [
+            {
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Headers": "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "200",
+            },
+          ],
+          "RequestTemplates": {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": [
+          {
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiagentspacestestconnection9339B86C",
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiagentspacestestconnectionPOSTA2155361": {
+      "Properties": {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "POST",
+        "Integration": {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "TestAPIDLTAPIServicesLambdaNew475B08B2",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": [
+          {
+            "ResponseModels": {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": {
+          "Ref": "TestAPIAPIAllRequestValidator9A179146",
+        },
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiagentspacestestconnection9339B86C",
         },
         "RestApiId": {
           "Ref": "TestAPIDLTApi434DC190",
@@ -1371,6 +1847,562 @@ exports[`DLT API Test 1`] = `
         ],
         "ResourceId": {
           "Ref": "TestAPIDLTApiscenariostestIdtestrunstestRunId033ADD53",
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigations53BFA547": {
+      "Properties": {
+        "ParentId": {
+          "Ref": "TestAPIDLTApiscenariostestIdtestrunstestRunId033ADD53",
+        },
+        "PathPart": "investigations",
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsGETFAA79634": {
+      "Properties": {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "GET",
+        "Integration": {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "TestAPIDLTAPIServicesLambdaNew475B08B2",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": [
+          {
+            "ResponseModels": {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": {
+          "Ref": "TestAPIAPIAllRequestValidator9A179146",
+        },
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigations53BFA547",
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsOPTIONS8278E427": {
+      "Properties": {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": {
+          "IntegrationResponses": [
+            {
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Headers": "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "200",
+            },
+          ],
+          "RequestTemplates": {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": [
+          {
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigations53BFA547",
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsPOSTF4B7A842": {
+      "Properties": {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "POST",
+        "Integration": {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "TestAPIDLTAPIServicesLambdaNew475B08B2",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": [
+          {
+            "ResponseModels": {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": {
+          "Ref": "TestAPIAPIAllRequestValidator9A179146",
+        },
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigations53BFA547",
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationId50C6566A": {
+      "Properties": {
+        "ParentId": {
+          "Ref": "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigations53BFA547",
+        },
+        "PathPart": "{investigationId}",
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdDELETEFA059347": {
+      "Properties": {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "DELETE",
+        "Integration": {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "TestAPIDLTAPIServicesLambdaNew475B08B2",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": [
+          {
+            "ResponseModels": {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": {
+          "Ref": "TestAPIAPIAllRequestValidator9A179146",
+        },
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationId50C6566A",
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdOPTIONS7CC1BE1C": {
+      "Properties": {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": {
+          "IntegrationResponses": [
+            {
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Headers": "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "200",
+            },
+          ],
+          "RequestTemplates": {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": [
+          {
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationId50C6566A",
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdPUT220709D6": {
+      "Properties": {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "PUT",
+        "Integration": {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "TestAPIDLTAPIServicesLambdaNew475B08B2",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": [
+          {
+            "ResponseModels": {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": {
+          "Ref": "TestAPIAPIAllRequestValidator9A179146",
+        },
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationId50C6566A",
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdfindings44651979": {
+      "Properties": {
+        "ParentId": {
+          "Ref": "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationId50C6566A",
+        },
+        "PathPart": "findings",
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdfindingsGETB367AE1B": {
+      "Properties": {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "GET",
+        "Integration": {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "TestAPIDLTAPIServicesLambdaNew475B08B2",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": [
+          {
+            "ResponseModels": {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": {
+          "Ref": "TestAPIAPIAllRequestValidator9A179146",
+        },
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdfindings44651979",
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdfindingsOPTIONS68D5BF37": {
+      "Properties": {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": {
+          "IntegrationResponses": [
+            {
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Headers": "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "200",
+            },
+          ],
+          "RequestTemplates": {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": [
+          {
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdfindings44651979",
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdstatusD1637ECE": {
+      "Properties": {
+        "ParentId": {
+          "Ref": "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationId50C6566A",
+        },
+        "PathPart": "status",
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdstatusGETA94D8C01": {
+      "Properties": {
+        "AuthorizationType": "AWS_IAM",
+        "HttpMethod": "GET",
+        "Integration": {
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_MATCH",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "TestAPIDLTAPIServicesLambdaNew475B08B2",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": [
+          {
+            "ResponseModels": {
+              "application/json": "Empty",
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "RequestValidatorId": {
+          "Ref": "TestAPIAPIAllRequestValidator9A179146",
+        },
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdstatusD1637ECE",
+        },
+        "RestApiId": {
+          "Ref": "TestAPIDLTApi434DC190",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdstatusOPTIONS73B13FFE": {
+      "Properties": {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": {
+          "IntegrationResponses": [
+            {
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Headers": "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "200",
+            },
+          ],
+          "RequestTemplates": {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": [
+          {
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "200",
+          },
+        ],
+        "ResourceId": {
+          "Ref": "TestAPIDLTApiscenariostestIdtestrunstestRunIdinvestigationsinvestigationIdstatusD1637ECE",
         },
         "RestApiId": {
           "Ref": "TestAPIDLTApi434DC190",

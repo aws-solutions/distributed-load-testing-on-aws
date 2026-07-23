@@ -6,7 +6,7 @@ import { Match, Template } from "aws-cdk-lib/assertions";
 import { DLTConsoleAlbEcsConstruct } from "../lib/front-end/console-alb-ecs";
 import { Bucket } from "aws-cdk-lib/aws-s3";
 import { createTemplateWithoutS3Key } from "./snapshot_helpers";
-import { ECR_IMAGE_URI_PATTERN } from "../lib/distributed-load-testing-on-aws-alb-ecs-stack";
+import { ECR_IMAGE_URI_PATTERN } from "../lib/distributed-load-testing-on-aws-base-stack";
 
 test("DLT Console ALB ECS Construct Test", () => {
   const app = new App({ context: { "aws:cdk:bundling-stacks": [] } });

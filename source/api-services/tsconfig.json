@@ -1,32 +1,10 @@
 {
+  "extends": "../../tsconfig.base.json",
+  "include": ["src/**/*", "test/**/*", "lib/**/*", "types/**/*", "handlers/**/*", "*.js", "*.ts"],
+  "exclude": ["node_modules", "dist", "coverage"],
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "commonjs",
-    "lib": ["ES2020"],
-    "outDir": "./dist",
-    "rootDir": "./",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "moduleResolution": "node",
+    "noEmit": true,
     "allowJs": true,
-    "checkJs": false,
-    "noEmit": false
-  },
-  "include": [
-    "types/**/*",
-    "lib/validation/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "coverage",
-    "**/*.spec.ts",
-    "**/*.spec.js"
-  ]
+    "checkJs": false
+  }
 }

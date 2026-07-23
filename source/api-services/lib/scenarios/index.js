@@ -16,8 +16,18 @@ const { ServiceQuotas } = require("@aws-sdk/client-service-quotas");
 const { SFN } = require("@aws-sdk/client-sfn");
 
 const utils = require("solution-utils");
-const cronParser = require("cron-parser");
-const { checkRegionalCompatibility, isUpdateAvailable, getLatestVersionFromRss } = require("@amzn/dlt-common");
+const {
+  checkRegionalCompatibility,
+  isUpdateAvailable,
+  getLatestVersionFromRss,
+  incrementTestRunCount,
+  decrementTestRunCount,
+  validateCronExpression,
+  parseCronExpression,
+  timezoneAwareNow,
+  parseExpiryDate,
+  parseISODate
+} = require("@amzn/dlt-common");
 
 const {
   HISTORY_TABLE,
@@ -82,37 +92,9 @@ const computeChangedFields = (existingEntry, newConfig) => {
   });
 };
 
-const StatusCodes = {
-  OK: 200,
-  BAD_REQUEST: 400,
-  FORBIDDEN: 403,
-  NOT_FOUND: 404,
-  NOT_ALLOWED: 405,
-  CONFLICT: 409,
-  REQUEST_TOO_LONG: 413,
-  INTERNAL_SERVER_ERROR: 500,
-  TIMEOUT: 503,
-};
+const { StatusCodes, ErrorException } = require("../constants");
 
 const ERROR_INCOMPATIBLE_REGIONAL_STACKS = "INCOMPATIBLE_REGIONAL_STACKS";
-
-/**
- * Class to throw errors
- * @param {string} code
- * @param {string} errMsg
- */
-class ErrorException extends Error {
-  constructor(code, errMsg, statusCode = StatusCodes.BAD_REQUEST) {
-    super(errMsg);
-    this.code = code;
-    this.message = errMsg;
-    this.statusCode = statusCode;
-  }
-
-  toString() {
-    return `${this.code}: ${this.message}`;
-  }
-}
 
 /**
  * Formats a Date into its timezone-localized parts using Intl.DateTimeFormat.
@@ -395,7 +377,7 @@ const listTests = async (filterTags = null) => {
     const params = {
       TableName: SCENARIOS_TABLE,
       ProjectionExpression:
-        "testId, testName, testDescription, #status, startTime, nextRun, scheduleRecurrence, cronValue, scheduleTimezone, tags",
+        "testId, testName, testDescription, #status, startTime, nextRun, scheduleRecurrence, cronValue, scheduleTimezone, tags, totalTestRuns",
       ExpressionAttributeNames: {
         "#status": "status", // "status" is a reserved word in DynamoDB
       },
@@ -442,16 +424,7 @@ const listTests = async (filterTags = null) => {
       return bTime - aTime;
     });
 
-    for (const scenario of response) {
-      try {
-        scenario.totalTestRuns = await getTotalCount(scenario.testId);
-      } catch (err) {
-        console.error(`Error getting test run count for testId ${scenario.testId}:`, err);
-        scenario.totalTestRuns = 0;
-      }
-    }
-
-    return { Items: response };
+    return { Items: response.map((item) => ({ ...item, totalTestRuns: item.totalTestRuns || 0 })) };
   } catch (err) {
     console.error(err);
     throw err;
@@ -463,7 +436,7 @@ const listTests = async (filterTags = null) => {
  * @param {string} linux cron input
  * @returns An equivalent string in AWS cron format
  */
-const convertLinuxCronToAwsCron = (linuxCron, cronExpiryDate) => {
+const convertLinuxCronToAwsCron = (linuxCron, cronExpiryDate, scheduleTimezone) => {
   const parts = linuxCron.trim().split(" ");
 
   const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
@@ -482,18 +455,23 @@ const convertLinuxCronToAwsCron = (linuxCron, cronExpiryDate) => {
     awsDayOfWeek = "?";
   }
 
-  // Handle ranges and steps in the day_of_week field
-  awsDayOfWeek = awsDayOfWeek.replace(/\b[0-7]\b/g, (match) => {
+  // Handle ranges and steps in the day_of_week field.
+  // If wildcard '#' is used, the fields only allows a single expression
+  // and the number following the '#' must not be adjusted. So we only
+  // perform the replacement on anything before '#'.
+  const dayOfWeekParts = awsDayOfWeek.split("#");
+  dayOfWeekParts[0] = dayOfWeekParts[0].replace(/\b[0-7]\b/g, (match) => {
     if (match === "0" || match === "7") {
       return "1";
     } else {
       return (parseInt(match) + 1).toString();
     }
   });
+  awsDayOfWeek = dayOfWeekParts.join("#");
 
-  let cronYear = new Date().getFullYear();
-  if (cronExpiryDate && cronYear < new Date(cronExpiryDate).getFullYear()) {
-    const cronExpiryYear = new Date(cronExpiryDate).getFullYear();
+  let cronYear = timezoneAwareNow(scheduleTimezone).year;
+  const cronExpiryYear = parseExpiryDate(cronExpiryDate, scheduleTimezone)?.year || cronYear;
+  if (cronExpiryDate && cronYear < cronExpiryYear) {
     cronYear = `${cronYear}-${cronExpiryYear}`;
   }
 
@@ -502,53 +480,29 @@ const convertLinuxCronToAwsCron = (linuxCron, cronExpiryDate) => {
 
 const checkEnoughIntervalDiff = (cronValue, cronExpiryDate, holdFor, rampUp, testTaskConfigs, scheduleTimezone = "UTC") => {
   if (!holdFor || !rampUp) return "";
-  let cronExpiry = new Date(cronExpiryDate);
-  cronExpiry.setUTCHours(23, 59, 59, 999);
-  const parts = cronValue.trim().split(" ");
-  if (parts.length !== 5) throw new ErrorException("Invalid Linux cron expression", "Expected format: 0 * * * *");
 
-  let cronInterval;
-  try {
-    cronInterval = cronParser.parseExpression(cronValue, { tz: scheduleTimezone });
-  } catch (err) {
-    throw new ErrorException("Invalid Linux cron expression", "Expected format: 0 * * * *");
-  }
+  const cronInterval = parseCronExpression(cronValue, cronExpiryDate, scheduleTimezone);
 
-  let fields = JSON.parse(JSON.stringify(cronInterval.fields));
   let totalTaskCount = 0;
   for (const testTaskConfig of testTaskConfigs) totalTaskCount += testTaskConfig.taskCount;
   let estimatedTestDuration = 2 * Math.floor(Math.ceil(totalTaskCount / 10) * 1.5 + 600);
   estimatedTestDuration += getTestDurationSeconds(holdFor);
   estimatedTestDuration += getTestDurationSeconds(rampUp);
-  let prev = cronInterval.next();
-  let next = cronInterval.next();
 
-  let prevDate = new Date(prev);
-  let nextDate = new Date(next);
+  // Test no more than 10 intervals so we don't run on forever if there is no expiry date.
+  const cronDates = cronInterval.take(10);
+  let prev = cronDates.shift();
 
-  // Only one run exist
-  if (nextDate > cronExpiry) return null;
-
-  // Making sure only one integer in the minute field
-  // and diff of two tests are at least one hour
-  if (fields.minute.length !== 1) {
-    throw new ErrorException("Invalid Parameter", "The interval between scheduled tests cannot be less than an hour.");
-  }
-
-  while (next && prev) {
-    prevDate = new Date(prev);
-    nextDate = new Date(next);
+  for (const next of cronDates) {
+    const prevDate = prev.toDate();
+    const nextDate = next.toDate();
     if (nextDate - prevDate < estimatedTestDuration * 1000)
       throw new ErrorException(
         "Invalid Parameter",
         "The interval between scheduled tests is too short. Please ensure there is enough time between test runs to accommodate the duration of each test."
       );
 
-    if (prevDate > cronExpiry) {
-      break;
-    }
     prev = next;
-    next = cronInterval.next();
   }
 };
 
@@ -558,27 +512,20 @@ const checkEnoughIntervalDiff = (cronValue, cronExpiryDate, holdFor, rampUp, tes
  * @returns A map of nextRunDate object and its string value.
  */
 const cronNextRun = (cronValue, cronExpiryDate = "", scheduleStep = "", scheduleTimezone = "UTC") => {
-  const parts = cronValue.trim().split(" ");
-  if (parts.length !== 5) throw new ErrorException("Invalid Linux cron expression", "Expected format: 0 * * * *");
+  const cronInterval = parseCronExpression(cronValue, cronExpiryDate, scheduleTimezone);
 
-  let cronInterval;
-  try {
-    cronInterval = cronParser.parseExpression(cronValue, { tz: scheduleTimezone });
-  } catch (err) {
-    throw new ErrorException("Invalid Linux cron expression", "Expected format: 0 * * * *");
-  }
+  // The cron has the expiration built in so it will not return times after the end.
+  // CronExpression.take() returns an array limited to the max number specified.
+  // So CronExpression.take(1) will return an array with one or zero element depending on whether
+  // the next scheduled time is before or after the expiry date respectively.
+  const nextRunDate = cronInterval.take(1)[0]?.toDate();
 
-  const initRun = cronInterval.next().toString();
-  const nextRunDate = new Date(initRun);
-  if (cronExpiryDate) {
-    const expiryDate = new Date(cronExpiryDate);
-    expiryDate.setUTCHours(23, 59, 59, 999);
-    if (expiryDate < nextRunDate) {
-      if (scheduleStep) {
-        throw new ErrorException("Invalid Parameter", "Cron Expiry Date older than the next run.");
-      }
-      return { nextRunDate: "", nextRun: "" };
+  if (!nextRunDate) {
+    // The next run date is beyond expiry date
+    if (scheduleStep) {
+      throw new ErrorException("Invalid Parameter", "Cron Expiry Date older than the next run.");
     }
+    return { nextRunDate: "", nextRun: "" };
   }
 
   // Format the next run in the schedule's timezone (not UTC)
@@ -596,7 +543,7 @@ const cronNextRun = (cronValue, cronExpiryDate = "", scheduleStep = "", schedule
  * Timezone is handled separately via ScheduleExpressionTimezone.
  */
 const getScheduleString = (props) => {
-  const { recurrence, cronValue, minute, hour, day, month, year, cronExpiryDate } = props;
+  const { recurrence, cronValue, minute, hour, day, month, year, cronExpiryDate, scheduleTimezone } = props;
   if (recurrence && !cronValue) {
     switch (recurrence) {
       case "daily":
@@ -611,7 +558,7 @@ const getScheduleString = (props) => {
         throw new ErrorException("InvalidParameter", "Invalid recurrence value.");
     }
   } else if (cronValue) {
-    const scheduleString = `cron(${convertLinuxCronToAwsCron(cronValue, cronExpiryDate)})`;
+    const scheduleString = `cron(${convertLinuxCronToAwsCron(cronValue, cronExpiryDate, scheduleTimezone)})`;
     console.log(`scheduleString: ${scheduleString}`);
     return scheduleString;
   } else {
@@ -651,10 +598,7 @@ const isValidDateString = (dateString) => {
 };
 
 const isValidDate = (date) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  if (date < today) throw new ErrorException("InvalidParameter", "Date cannot be in the past");
+  if (date <= new Date()) throw new ErrorException("InvalidParameter", "Schedule time must be in the future.");
 };
 /**
  * Schedules test using EventBridge Scheduler and returns a consolidated list of test scenarios.
@@ -680,7 +624,7 @@ const scheduleTest = async (event, context) => { // NOSONAR
       regionalTaskDetails,
     } = config;
     const scheduleTimezone = config.scheduleTimezone || "UTC";
-    cronExpiryDate = cronExpiryDate ? cronExpiryDate : "";
+    cronExpiryDate = cronExpiryDate || "";
     let hour, minute, year, month, day;
     if (scheduleTime && scheduleDate) {
       [hour, minute] = scheduleTime.split(":");
@@ -689,12 +633,20 @@ const scheduleTest = async (event, context) => { // NOSONAR
     let nextRun = scheduleTime && scheduleDate ? `${year}-${month}-${day} ${hour}:${minute}:00` : "";
     const functionName = context.functionName;
     const functionArn = context.functionArn;
-    let scheduleRecurrence = recurrence ? recurrence : "";
+    let scheduleRecurrence = recurrence || "";
     if (!cronValue && !scheduleDate && !scheduleTime)
       throw new ErrorException(
         "InvalidParameter",
         "Missing cronValue, scheduleDate and ScheduleTime. Cannot schedule the Test."
       );
+
+    // Verify that the cron expression is acceptable before we move on.
+    if (cronValue) {
+      const message = validateCronExpression(cronValue);
+      if (message) {
+        throw new ErrorException("Invalid Linux cron expression", message);
+      }
+    }
 
     // Clean up any existing schedules (new Scheduler + legacy CloudWatch Events rules)
     if (testId) {
@@ -725,7 +677,7 @@ const scheduleTest = async (event, context) => { // NOSONAR
       } else {
         isValidTimeString(scheduleTime);
         isValidDateString(scheduleDate);
-        createRun = new Date(year, parseInt(month, 10) - 1, day, hour, minute);
+        createRun = parseISODate(`${scheduleDate}T${scheduleTime}`, scheduleTimezone).toJSDate();
         isValidDate(createRun);
       }
 
@@ -757,14 +709,11 @@ const scheduleTest = async (event, context) => { // NOSONAR
       });
     } else {
       // Create the recurring schedule expression
-      const getScheduleStringProps = { recurrence, cronValue, minute, hour, day, month, year, cronExpiryDate };
+      const getScheduleStringProps = { recurrence, cronValue, minute, hour, day, month, year, cronExpiryDate, scheduleTimezone };
       let scheduleString = getScheduleString(getScheduleStringProps);
 
       // Build end date from cronExpiryDate if present
-      let endDate;
-      if (cronExpiryDate) {
-        endDate = new Date(`${cronExpiryDate}T23:59:59`);
-      }
+      const endDate = parseExpiryDate(cronExpiryDate, scheduleTimezone)?.toJSDate();
 
       // Remove schedule step so the target invocation runs the test directly
       delete config.scheduleStep;
@@ -1150,13 +1099,15 @@ const updateTestDBEntry = async (updateTestConfigs) => {
     let cronValue = updateTestConfigs.cronValue || "";
     let scheduleTimezone = updateTestConfigs.scheduleTimezone || "UTC";
     let endTime = "";
+
     const params = {
       TableName: SCENARIOS_TABLE,
       Key: {
         testId: testId,
       },
       UpdateExpression:
-        "set #n = :n, #d = :d, #tc = :tc, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #nr = :nr, #sr = :sr, #sl = :sl, #tt = :tt, #ft = :ft, #cv = :cv, #ced = :ced, #tg = :tg, #stz = :stz, #ht = :ht, #dtc = :dtc, #tfc = :zero",
+        "set #n = :n, #d = :d, #tc = :tc, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #nr = :nr, #sr = :sr, #sl = :sl, #tt = :tt, #ft = :ft, #cv = :cv, #ced = :ced, #tg = :tg, #stz = :stz, #ht = :ht, #dtc = :dtc, #tfc = :zero" +
+        (status === "queued" ? " remove #e" : ""),
       ExpressionAttributeNames: {
         "#n": "testName",
         "#d": "testDescription",
@@ -1178,6 +1129,7 @@ const updateTestDBEntry = async (updateTestConfigs) => {
         "#ht": "healthyThreshold",
         "#dtc": "desiredTaskCount",
         "#tfc": "taskFailureCount",
+        ...(status === "queued" && { "#e": "errorReason" }),
       },
       ExpressionAttributeValues: {
         ":n": testName,
@@ -1270,16 +1222,16 @@ const localizedStringToDate = (dateString, timezone) => {
  */
 const getEbSchedTestStartTime = (cronValue, scheduleTime, cronExpiryDate, scheduleTimezone = "UTC") => {
   if (!cronValue) {
-    const startDate = new Date().toISOString().slice(0, 10);
-    return new Date(`${startDate} ${scheduleTime}:00`);
+    const startDate = timezoneAwareNow(scheduleTimezone);
+    const [ hour = 0, minute = 0, second = 0, millisecond = 0 ] = scheduleTime.split(":").map(n => Number.parseInt(n, 10));
+    return startDate.set({ hour, minute, second, millisecond }).toJSDate();
   }
-  const cronExpiry = new Date(cronExpiryDate);
-  cronExpiry.setUTCHours(23, 59, 59, 999);
-  let cronInterval = cronParser.parseExpression(cronValue, { tz: scheduleTimezone });
-  const startTime = new Date(cronInterval.prev().toString());
-  if (startTime > cronExpiry) return "Cron Expiry Reached";
-
-  return startTime;
+  const cronInterval = parseCronExpression(cronValue, cronExpiryDate, scheduleTimezone);
+  try {
+    return cronInterval.prev().toDate();
+  } catch {
+    return "Cron Expiry Reached";
+  }
 };
 
 /**
@@ -1292,7 +1244,7 @@ const createTest = async (config, functionName) => {
     const { testName, testDescription, testType, showLive, regionalTaskDetails, cronValue } = config;
     let { testId, testScenario, testTaskConfigs, fileType, scheduleTime, eventBridge, recurrence, cronExpiryDate } =
       config;
-    cronExpiryDate = cronExpiryDate ? cronExpiryDate : "";
+    cronExpiryDate = cronExpiryDate || "";
     const scheduleTimezone = config.scheduleTimezone || "UTC";
     let nextRun;
     fileType = setFileType(testType, fileType);
@@ -1301,11 +1253,30 @@ const createTest = async (config, functionName) => {
     // Validate and normalize tags
     const validatedTags = validateTags(config.tags);
 
+    // Verify that the cron expression is acceptable before we move on.
+    if (cronValue) {
+      const message = validateCronExpression(cronValue);
+      if (message) {
+        throw new ErrorException("Invalid Linux cron expression", message);
+      }
+    }
+
     const testEntry = await getTestEntry(testId);
-    if (testEntry && testEntry.nextRun) nextRun = new Date(testEntry.nextRun);
+    if (testEntry && testEntry.nextRun) nextRun = parseISODate(testEntry.nextRun, scheduleTimezone).toJSDate();
 
     const operation = testEntry ? 'update' : 'create';
     console.log(`${operation} test: testId=${testId}`)
+
+    if (config.saveOnly && testEntry) {
+      const safeToEdit = ["complete", "cancelled", "failed", "scheduled", "created"];
+      if (testEntry.status && !safeToEdit.includes(testEntry.status)) {
+        throw new ErrorException(
+          "TEST_RUNNING",
+          `testId '${testId}' is currently ${testEntry.status}. Cancel before saving edits.`,
+          StatusCodes.CONFLICT
+        );
+      }
+    }
 
     let startTime = new Date();
 
@@ -1319,7 +1290,7 @@ const createTest = async (config, functionName) => {
     if (nextRun && startTime < nextRun) nextRun = convertDateToString(nextRun, scheduleTimezone);
     else nextRun = setNextRun(startTime, recurrence, cronValue, cronExpiryDate, scheduleTimezone);
 
-    const scheduleRecurrence = recurrence ? recurrence : "";
+    const scheduleRecurrence = recurrence || "";
     startTime = convertDateToString(startTime);
 
     testTaskConfigs = validateTaskCountConcurrency(testTaskConfigs, regionalTaskDetails);
@@ -1377,36 +1348,45 @@ const createTest = async (config, functionName) => {
     const { testTaskConfig: regionalTestAndInfraConfiguration, hubTaskDefinition } = await mergeTestAndInfraConfiguration(testTaskConfigs);
 
     /**
-     * Start Step Functions execution
+     * Start Step Functions execution (skip when saveOnly is true)
      */
-    // testDuration is used by the completion monitor's deadline calculation
-    // (testDuration + grace period). Must include ramp-up + hold-for.
-    const holdFor = getTestDurationSeconds(testScenario.execution[0]["hold-for"]);
-    const rampUp = testScenario.execution[0]["ramp-up"]
-      ? getTestDurationSeconds(String(testScenario.execution[0]["ramp-up"]))
-      : 0;
-    const testDuration = holdFor + rampUp;
-    const stepFunctionParams = {
-      testTaskConfig: regionalTestAndInfraConfiguration,
-      hubTaskDefinition,
-      testId,
-      testType,
-      fileType,
-      showLive,
-      testDuration,
-    };
-    await startStepFunctionExecution(stepFunctionParams);
+    if (!config.saveOnly) {
+      // testDuration is used by the completion monitor's deadline calculation
+      // (testDuration + grace period). Must include ramp-up + hold-for.
+      const holdFor = getTestDurationSeconds(testScenario.execution[0]["hold-for"]);
+      const rampUp = testScenario.execution[0]["ramp-up"]
+        ? getTestDurationSeconds(String(testScenario.execution[0]["ramp-up"]))
+        : 0;
+      const testDuration = holdFor + rampUp;
+      const stepFunctionParams = {
+        testTaskConfig: regionalTestAndInfraConfiguration,
+        hubTaskDefinition,
+        testId,
+        testType,
+        fileType,
+        showLive,
+        testDuration,
+      };
+      await startStepFunctionExecution(stepFunctionParams);
+    }
+
+    // Determine status: saveOnly preserves existing status (or "created" for new tests)
+    let status;
+    if (config.saveOnly) {
+      status = testEntry ? testEntry.status : "created";
+      startTime = testEntry ? testEntry.startTime : "";
+    } else {
+      status = "queued";
+    }
 
     // Update DynamoDB values.
-    // Status is "queued" — the Task Runner Lambda promotes to "running"
-    // after successfully creating the ECS service.
     const updateDBData = {
       testId,
       testName,
       testDescription,
       testTaskConfigs,
       testScenario,
-      status: "queued",
+      status,
       startTime,
       nextRun,
       scheduleRecurrence,
@@ -1447,6 +1427,9 @@ const createTest = async (config, functionName) => {
             testDescription: config.testDescription,
           },
         });
+        // Increment here for the incompatible-stacks error path: the SFN never starts,
+        // so the metadata handler (which increments for normal test runs) is never invoked.
+        await incrementTestRunCount(dynamoDB, SCENARIOS_TABLE, config.testId);
       } catch (historyErr) {
         console.error("Failed to write history entry:", historyErr);
       }
@@ -1845,7 +1828,7 @@ const deleteTest = async (testId, functionName) => {
   const testAndRegionalInfraConfigs = await getTestAndRegionConfigs(testId);
   const status = testAndRegionalInfraConfigs.status;
 
-  if (status && !["complete", "cancelled", "failed", "scheduled"].includes(status)) {
+  if (status && !["complete", "cancelled", "failed", "scheduled", "created"].includes(status)) {
     throw new ErrorException(
       "TEST_RUNNING",
       `testId '${testId}' is currently ${testAndRegionalInfraConfigs.status}. Please cancel the test before deleting.`,
@@ -2816,6 +2799,15 @@ const deleteTestRuns = async (testId, testRunIds) => {
       return { deletedCount: 0 };
     }
 
+    // Prevent deletion of the baseline test run
+    if (testEntry.baselineId && testRunIds.includes(testEntry.baselineId)) {
+      throw new ErrorException(
+        "BASELINE_CONFLICT",
+        `Cannot delete test run '${testEntry.baselineId}' because it is currently set as the baseline. Remove it as the baseline before deleting.`,
+        StatusCodes.CONFLICT
+      );
+    }
+
     // Validate each testRunId exists before attempting deletion
     const existingTestRunIds = [];
     for (const testRunId of testRunIds) {
@@ -2849,6 +2841,7 @@ const deleteTestRuns = async (testId, testRunIds) => {
     // Use existing batch delete functionality
     const testRuns = createBatchRequestItems(testId, existingTestRunIds);
     await parseBatchRequests(testRuns);
+    await decrementTestRunCount(dynamoDB, SCENARIOS_TABLE, testId, existingTestRunIds.length);
 
     console.log(`Successfully deleted ${existingTestRunIds.length} test runs for testId: ${testId}`);
     return { deletedCount: existingTestRunIds.length };

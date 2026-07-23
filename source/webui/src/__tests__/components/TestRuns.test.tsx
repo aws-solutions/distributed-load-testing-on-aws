@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { Provider } from "react-redux";
@@ -90,5 +90,70 @@ describe("TestRuns", () => {
     expect(screen.getByText("500")).toBeInTheDocument();
     expect(screen.queryByText("Loading test runs...")).not.toBeInTheDocument();
     expect(screen.queryByText(/Failed to load baseline data/)).not.toBeInTheDocument();
+  });
+});
+
+describe("TestRuns - baseline delete prevention", () => {
+  test("shows alert and disables Delete button when baseline test run is selected for deletion", async () => {
+    const useTestRunsMock = await import("../../pages/scenarios/hooks/useTestRuns");
+    vi.spyOn(useTestRunsMock, "useTestRuns").mockReturnValue({
+      dateFilter: null,
+      baselineTestRun: {
+        testRunId: "run-001",
+        startTime: "2025-01-01 00:00:00",
+        endTime: "2025-01-01 00:10:00",
+        status: "complete",
+        isBaseline: true,
+        requests: 1000,
+        success: 950,
+        errors: 50,
+        requestsPerSecond: 16.67,
+        avgResponseTime: 120,
+      },
+      allTestRuns: [
+        {
+          testRunId: "run-001",
+          startTime: "2025-01-01 00:00:00",
+          endTime: "2025-01-01 00:10:00",
+          status: "complete",
+          isBaseline: true,
+          requests: 1000,
+          success: 950,
+          errors: 50,
+          requestsPerSecond: 16.67,
+          avgResponseTime: 120,
+        },
+      ],
+      isLoadingMore: false,
+      isLoading: false,
+      error: undefined,
+      baselineError: undefined,
+      firstPageData: { testRuns: [], pagination: { total_count: 1 } },
+      isSettingBaseline: false,
+      isRemovingBaseline: false,
+      handleSetBaseline: vi.fn(),
+      handleRemoveBaseline: vi.fn(),
+      handleDateFilterChange: vi.fn(),
+      refetch: vi.fn(),
+    });
+
+    renderComponent();
+
+    // Select the baseline test run via the row checkbox
+    const checkbox = screen.getAllByRole("checkbox")[1];
+    fireEvent.click(checkbox);
+
+    // Click the Delete button in the table header (first one)
+    const deleteButtons = screen.getAllByRole("button", { name: "Delete" });
+    fireEvent.click(deleteButtons[0]);
+
+    // Verify the modal shows the baseline alert
+    await waitFor(() => {
+      expect(screen.getByText(/currently set as the baseline/)).toBeInTheDocument();
+    });
+
+    // Verify the modal's Delete button is disabled
+    const modalDeleteButton = screen.getByTestId("modal-delete-button");
+    expect(modalDeleteButton).toBeDisabled();
   });
 });

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getLatestVersionFromRss } from "../src/latest-version.js";
+import { getLatestVersionFromRss } from "../src/latest-version.ts";
 
 const buildRssBody = (titleVersion: string): string => `<?xml version="1.0"?>
 <rss version="2.0">

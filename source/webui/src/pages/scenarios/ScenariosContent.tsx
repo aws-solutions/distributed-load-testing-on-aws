@@ -227,11 +227,11 @@ export default function ScenariosContent({ scenarios, refetch, isFetching }: { s
                     switch (id) {
                       case "edit":
                         sendConsoleMetric("ButtonClick", { Page: "Scenarios", Action: "EditScenario", TestId: selectedScenario.testId });
-                        handleAction(() => editScenario(selectedScenario.testId));
+                        editScenario(selectedScenario.testId);
                         break;
                       case "copy":
                         sendConsoleMetric("ButtonClick", { Page: "Scenarios", Action: "CopyScenario", TestId: selectedScenario.testId });
-                        handleAction(() => copyScenario(selectedScenario.testId));
+                        copyScenario(selectedScenario.testId);
                         break;
                       case "cancel":
                         sendConsoleMetric("ButtonClick", { Page: "Scenarios", Action: "CancelTestRun", TestId: selectedScenario.testId });
@@ -250,7 +250,7 @@ export default function ScenariosContent({ scenarios, refetch, isFetching }: { s
                 </ButtonDropdown>
                 <Button variant="primary" onClick={() => {
                   sendConsoleMetric("ButtonClick", { Page: "Scenarios", Action: "NewScenario" });
-                  navigate("/create-scenario");
+                  navigate("/scenarios/create");
                 }}>
                   New Scenario
                 </Button>

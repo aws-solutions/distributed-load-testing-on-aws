@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.0] - 2026-07-23
+
+### Added
+
+- **AWS DevOps Agent integration**: Register an AWS DevOps Agent Agent Space per deployment, trigger investigations from load test runs, and review findings from the web console. Adds Agent Space CRUD, test-connection, and investigation create, list, status, findings, cancel, and archive API routes.
+- **Private load tester image**: Added a `LoadTesterImageUri` deployment parameter to pull the load tester image from a private ECR repository, enabling GovCloud and other restricted-registry deployments.
+- **Save without running**: Added a Save action so run-now scenarios can be saved without immediately executing them.
+
+### Changed
+
+- **Agent Integration page**: Renamed the MCP Server page to Agent Integration and added a redirect from `/mcp-server` to `/agent-integration`.
+- **Single-page scenario editor**: Replaced the multi-step create and edit wizard with a single-page form.
+- **Faster scenarios list**: Track per-scenario test-run counts to speed up rendering with large numbers of scenarios.
+
+### Fixed
+
+- **Past schedule times**: Reject a schedule with a past date and time and return a clear validation error instead of a cryptic EventBridge failure.
+- **Scheduling under ECS capacity limits**: Allow scheduling a future test even when current ECS capacity is exhausted.
+- **Baseline test-run deletion**: Prevent deleting a test run that is set as the baseline.
+
 ## [4.1.5] - 2026-07-15
 
 ### Security

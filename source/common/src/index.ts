@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Existing utilities
-export { getRequiredEnv } from "./environment.js";
-export { generateUniqueId } from "./id.js";
+export { getRequiredEnv } from "./environment.ts";
+export { generateUniqueId } from "./id.ts";
 export {
     METRICS_NAMESPACE,
     OPERATIONAL_METRIC_EVENT_VERSION,
@@ -11,20 +11,32 @@ export {
     sendOperationalMetric,
     type OperationalMetricData,
     type OperationalMetricEnvelope
-} from "./metrics.js";
-export { getAwsClientConfig, type AwsClientConfig } from "./sdk-options.js";
+} from "./metrics.ts";
+export { getAwsClientConfig, type AwsClientConfig } from "./sdk-options.ts";
 
 // Structured logging
-export { createLogger, type CreateLoggerParams, type Logger } from "./logger.js";
+export { createLogger, type CreateLoggerParams, type Logger } from "./logger.ts";
 
 // Task orchestration types
-export { TestStatus } from "./test-execution.js";
-export type { TestExecutionInput, TestTaskRegionConfig, TestType } from "./test-execution.js";
+export { TestStatus, FRAMEWORKS, TEST_TYPE_TO_FRAMEWORK, MAX_TEST_DURATION_SECONDS } from "./test-execution.ts";
+export type {
+  TestExecutionInput,
+  TestTaskRegionConfig,
+  TestType,
+  FileType,
+  LoadTestFramework,
+} from "./test-execution.ts";
+
+// Native-mode wire schemas
+export { LIVE_DATA_V1_SCHEMA } from "./schemas/live-data.ts";
+export type { LiveDataEvent } from "./schemas/live-data.ts";
+export { DLT_RESULT_V1_SCHEMA } from "./schemas/result.ts";
+export type { DltResultV1, LabelAggregate, ResponseCodeCount, TaskMetadata } from "./schemas/result.ts";
 
 // JSON utilities
-export { parseSafeJson } from "./json.js";
+export { parseSafeJson } from "./json.ts";
 
-export { EcsServiceStatus, StabilizationStatus } from "./orchestration.js";
+export { EcsServiceStatus, StabilizationStatus } from "./orchestration.ts";
 export type {
     CompletionMonitoringEvent,
     RegionalSyncResult,
@@ -32,13 +44,13 @@ export type {
     TaskCancelEvent,
     TaskRunnerResult,
     TestCleanupEvent
-} from "./orchestration.js";
+} from "./orchestration.ts";
 
-export { classifyStopCode, StopCategory } from "./task-failure.js";
-export type { TaskFailureTrackingFields } from "./task-failure.js";
+export { classifyStopCode, StopCategory } from "./task-failure.ts";
+export type { TaskFailureTrackingFields } from "./task-failure.ts";
 
 // Structured log event identifiers
-export { LogEvent } from "./log-events.js";
+export { LogEvent } from "./log-events.ts";
 
 // ECS resource naming conventions and Step Functions execution naming
 export {
@@ -47,12 +59,18 @@ export {
     buildTaskDefinitionFamily,
     DLT_SERVICE_PREFIX,
     parseExecutionName
-} from "./naming.js";
+} from "./naming.ts";
 
 // Stack compatibility
-export { checkRegionalCompatibility, isUpdateAvailable } from "./stack-compatibility.js";
-export type { CompatibilityResult } from "./stack-compatibility.js";
-export { getLatestVersionFromRss } from "./latest-version.js";
+export { checkRegionalCompatibility, isUpdateAvailable } from "./stack-compatibility.ts";
+export type { CompatibilityResult } from "./stack-compatibility.ts";
+export { getLatestVersionFromRss } from "./latest-version.ts";
 
 // Date formatting utilities
-export * from './date-utils.js';
+export * from './date-utils.ts';
+
+// Cron utilities
+export * from './cron.ts';
+
+// Scenario counter
+export { incrementTestRunCount, decrementTestRunCount } from './scenario-counter.ts';

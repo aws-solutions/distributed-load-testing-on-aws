@@ -13,7 +13,7 @@ export default function SideNavigationBar() {
   const navigationItems: SideNavigationProps["items"] = [
     { type: "link", text: "Dashboard", href: "/" },
     { type: "link", text: "Test Scenarios", href: "/scenarios" },
-    { type: "link", text: "MCP Server", href: "/mcp-server" },
+    { type: "link", text: "Agent Integration", href: "/agent-integration" },
     { type: "divider" },
     {
       type: "link",

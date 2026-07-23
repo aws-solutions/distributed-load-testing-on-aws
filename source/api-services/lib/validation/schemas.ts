@@ -34,7 +34,7 @@ const isoDateString = z
  * Supports hour step values and comma lists, day-of-week ranges and lists
  */
 const CRON_EXPRESSION_REGEX =
-  /^([0-5]?\d) (\*|\*\/\d+|([01]?\d|2[0-3])(,([01]?\d|2[0-3]))*) (\*|[1-9]|[12]\d|3[01]) (\*|[1-9]|1[0-2]) (\*|[0-6]([-,][0-6])*)$/; // NOSONAR
+  /^([0-5]?\d) ((\*|\*\/\d+|([01]?\d|2[0-3])(-([01]?\d|2[0-3]))?(\/\d+)?)(,(\*|\*\/\d+|([01]?\d|2[0-3])(-([01]?\d|2[0-3]))?(\/\d+)?))*) (\?|(\*|L|([1-9]|[12]\d|3[01])(-([1-9]|[12]\d|3[01]))?)(\/\d+)?(,(\*|L|([1-9]|[12]\d|3[01])(-([1-9]|[12]\d|3[01]))?)(\/\d+)?)*) ((\*|0[1-9]|1[0-2]?|[2-9]|[jJ][aA][nN]|[fF][eE][bB]|[mM][aA][rRyY]|[aA][pP][rR]|[jJ][uU][nNlL]|[aA][uU][gG]|[sS][eE][pP]|[oO][cC][tT]|[nN][oO][vV]|[dD][eE][cC])(-(\*|0[1-9]|1[0-2]?|[2-9]|[jJ][aA][nN]|[fF][eE][bB]|[mM][aA][rRyY]|[aA][pP][rR]|[jJ][uU][nNlL]|[aA][uU][gG]|[sS][eE][pP]|[oO][cC][tT]|[nN][oO][vV]|[dD][eE][cC]))?(\/\d+)?(,((\*|0[1-9]|1[0-2]?|[2-9]|[jJ][aA][nN]|[fF][eE][bB]|[mM][aA][rRyY]|[aA][pP][rR]|[jJ][uU][nNlL]|[aA][uU][gG]|[sS][eE][pP]|[oO][cC][tT]|[nN][oO][vV]|[dD][eE][cC])(-(\*|0[1-9]|1[0-2]?|[2-9]|[jJ][aA][nN]|[fF][eE][bB]|[mM][aA][rRyY]|[aA][pP][rR]|[jJ][uU][nNlL]|[aA][uU][gG]|[sS][eE][pP]|[oO][cC][tT]|[nN][oO][vV]|[dD][eE][cC]))?(\/\d+)?))*) (\?|L|(\*|[0-6]|[sS][uU][nN]|[mM][oO][nN]|[tT][uU][eE]|[wW][eE][dD]|[tT][hH][uU]|[fF][rR][iI]|[sS][aA][tT])(#[1-5]|L?(-([0-6]|[sS][uU][nN]|[mM][oO][nN]|[tT][uU][eE]|[wW][eE][dD]|[tT][hH][uU]|[fF][rR][iI]|[sS][aA][tT])L?)?(,(L|(\*|[0-6]|[sS][uU][nN]|[mM][oO][nN]|[tT][uU][eE]|[wW][eE][dD]|[tT][hH][uU]|[fF][rR][iI]|[sS][aA][tT])(L?(-([0-6]|[sS][uU][nN]|[mM][oO][nN]|[tT][uU][eE]|[wW][eE][dD]|[tT][hH][uU]|[fF][rR][iI]|[sS][aA][tT])L?)?)?))*)?)$/; // NOSONAR
 
 const cronExpressionSchema = z.string().regex(
   CRON_EXPRESSION_REGEX, // NOSONAR
@@ -404,6 +404,7 @@ export const createTestSchema = z
     cronExpiryDate: scheduleDateSchema.optional(),
     scheduleTimezone: z.string().max(64, "scheduleTimezone must not exceed 64 characters").optional(),
     eventBridge: z.string().optional(),
+    saveOnly: z.boolean().optional(),
     healthyThreshold: z
       .number()
       .int("healthyThreshold must be an integer")

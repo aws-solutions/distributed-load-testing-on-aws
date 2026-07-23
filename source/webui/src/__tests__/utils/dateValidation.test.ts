@@ -117,10 +117,10 @@ describe("validateExpiryDate", () => {
       expect(result.errorMessage).toBe("");
     });
 
-    test("handles non-leap year February 29th (auto-corrects to March 1)", () => {
+    test("rejects non-leap year February 29th", () => {
       const result = validateExpiryDate("2023/02/29");
       expect(result.isValid).toBe(false);
-      expect(result.errorMessage).toBe("Expiry date must be in the future");
+      expect(result.errorMessage).toBe("Invalid date format");
     });
 
     test("handles leap year boundaries correctly", () => {

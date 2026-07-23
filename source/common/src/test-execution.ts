@@ -9,8 +9,27 @@
  * scheduler (recurring tests).
  */
 
-/** Supported load testing frameworks */
+/** Maximum allowed test duration in seconds (24 hours). */
+export const MAX_TEST_DURATION_SECONDS = 86_400;
+
+/** Supported load testing frameworks. */
 export type TestType = "simple" | "jmeter" | "k6" | "locust";
+
+/** Form of the user-supplied test script associated with a test. */
+export type FileType = "none" | "script" | "zip";
+
+/** Load testing framework that executes the test. */
+export type LoadTestFramework = "jmeter" | "k6" | "locust";
+
+export const FRAMEWORKS: readonly LoadTestFramework[] = ["jmeter", "k6", "locust"];
+
+/** Maps each TestType to the framework that executes it. */
+export const TEST_TYPE_TO_FRAMEWORK: Readonly<Record<TestType, LoadTestFramework>> = {
+  simple: "locust",
+  jmeter: "jmeter",
+  k6: "k6",
+  locust: "locust",
+};
 
 /** Possible states of a test scenario in DynamoDB. */
 export enum TestStatus {
@@ -45,15 +64,28 @@ export interface TestExecutionInput {
   readonly testId: string;
   readonly testRunId: string;
   readonly testType: TestType;
-  readonly fileType: string;
+  readonly fileType: FileType;
   readonly showLive: boolean;
   /** Total test duration in seconds (used by the Wait state) */
   readonly testDuration: number;
   /** S3 prefix for this test run's results, unique per execution */
   readonly prefix: string;
-  /** Hub's task definition ARN — the single source of truth for task definition */
+
+  /** When true, uses native-mode task definitions and execution paths. */
+  readonly runNativeMode: boolean;
+
+  /** Safety timeout (seconds) for native-mode tests. Container aborts
+   *  the framework process if this limit is exceeded. Zero when legacy. */
+  readonly maxTestDurationSeconds: number;
+
+  /** Taurus task definition ARN. Used when runNativeMode is false. */
   readonly hubTaskDefinition: string;
-  /** One entry per region — the Map state fans out over this array */
+
+  /** Per-framework native task definition ARNs. Task-runner selects the
+   *  ARN matching the test's framework when runNativeMode is true. */
+  readonly nativeTaskDefinitions: Readonly<Record<LoadTestFramework, string>>;
+
+  /** One entry per region — the Map state fans out over this array. */
   readonly testTaskConfig: TestTaskRegionConfig[];
 }
 

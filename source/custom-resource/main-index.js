@@ -104,6 +104,11 @@ exports.handler = async (event, context) => {
           await scenarios.cleanUpTestScenarioResources();
         }
         break;
+      case "BackfillTestRunCounts":
+        if (requestType !== RequestType.DELETE) {
+          await scenarios.backfillTestRunCounts();
+        }
+        break;
       default:
         throw Error(`${resource} not supported`);
     }

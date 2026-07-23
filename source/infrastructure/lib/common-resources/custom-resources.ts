@@ -114,8 +114,8 @@ export class CustomResourcesConstruct extends Construct {
     });
   }
 
-  public putRegionalTemplate(props: PutRegionalTemplateProps) {
-    this.createCustomResource("PutRegionalTemplate", this.customResourceLambda, {
+  public putRegionalTemplate(props: PutRegionalTemplateProps): CustomResource {
+    return this.createCustomResource("PutRegionalTemplate", this.customResourceLambda, {
       Resource: "PutRegionalTemplate",
       SrcBucket: props.sourceCodeBucketName,
       SrcPath: props.regionalTemplatePrefix,
@@ -356,6 +356,12 @@ export class CustomResourcesConstruct extends Construct {
 
     this.createCustomResource("CleanUpTestScenarios", this.customResourceLambda, {
       Resource: "CleanUpTestScenarios",
+    });
+  }
+
+  public backfillTestRunCounts() {
+    this.createCustomResource("BackfillTestRunCounts", this.customResourceLambda, {
+      Resource: "BackfillTestRunCounts",
     });
   }
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { getRequiredEnv } from "../src/environment.js";
+import { getRequiredEnv } from "../src/environment.ts";
 
 describe("getRequiredEnv", () => {
   const OLD_ENV = process.env;

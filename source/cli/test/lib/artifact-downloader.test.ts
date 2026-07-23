@@ -21,7 +21,10 @@ vi.mock("@aws-sdk/client-s3", () => ({
 vi.mock("node:fs", () => ({
   createWriteStream: vi.fn(() => {
     const { PassThrough } = require("node:stream");
-    return new PassThrough();
+    const stream = new PassThrough();
+    // Emit 'close' after a tick so archiveFinished resolves
+    process.nextTick(() => stream.emit("close"));
+    return stream;
   }),
   mkdirSync: vi.fn(),
   existsSync: vi.fn(() => false),
@@ -47,6 +50,11 @@ vi.mock("archiver", () => {
   };
 });
 
+// Mock prompt
+vi.mock("../../src/lib/prompt.js", () => ({
+  confirmOverwrite: vi.fn().mockResolvedValue(undefined),
+}));
+
 import {
   filterFiles,
   buildArtifactPrefix,
@@ -54,6 +62,10 @@ import {
   listArtifacts,
   resolveArtifactPrefix,
   createS3Client,
+  downloadArtifactsToDir,
+  downloadArtifactsToZip,
+  getArtifactInfo,
+  downloadRunArtifacts,
   type ArtifactFile,
 } from "../../src/lib/artifact-downloader.js";
 import { S3Client } from "@aws-sdk/client-s3";
@@ -253,6 +265,330 @@ describe("artifact-downloader", () => {
     it("returns an S3Client instance", () => {
       const client = createS3Client("us-east-1", fakeCreds);
       expect(client).toBeDefined();
+    });
+  });
+
+  describe("downloadArtifactsToDir", () => {
+    it("downloads files to local directory", async () => {
+      const { Readable } = await import("node:stream");
+      const client = new S3Client({});
+      const files: ArtifactFile[] = [
+        { key: "results/t1/run/file1.xml", relativePath: "file1.xml", size: 100 },
+      ];
+
+      mockSend.mockResolvedValueOnce({
+        Body: Readable.from(["file content"]),
+      });
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      await downloadArtifactsToDir("my-bucket", files, "/tmp/out", "us-east-1", fakeCreds, client);
+      consoleSpy.mockRestore();
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+    });
+
+    it("skips files with empty body", async () => {
+      const client = new S3Client({});
+      const files: ArtifactFile[] = [
+        { key: "results/t1/run/empty.xml", relativePath: "empty.xml", size: 0 },
+      ];
+
+      mockSend.mockResolvedValueOnce({ Body: undefined });
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      await downloadArtifactsToDir("my-bucket", files, "/tmp/out", "us-east-1", fakeCreds, client);
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Warning: empty body"));
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("downloadArtifactsToZip", () => {
+    it("downloads files into a zip archive", async () => {
+      const { Readable } = await import("node:stream");
+      const client = new S3Client({});
+      const files: ArtifactFile[] = [
+        { key: "results/t1/run/file1.xml", relativePath: "file1.xml", size: 100 },
+      ];
+
+      mockSend.mockResolvedValueOnce({
+        Body: Readable.from(["file content"]),
+      });
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      await downloadArtifactsToZip("my-bucket", files, "/tmp/out.zip", "us-east-1", fakeCreds, client);
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("file1.xml"));
+      consoleSpy.mockRestore();
+    });
+
+    it("skips files with empty body", async () => {
+      const client = new S3Client({});
+      const files: ArtifactFile[] = [
+        { key: "results/t1/run/empty.xml", relativePath: "empty.xml", size: 0 },
+      ];
+
+      mockSend.mockResolvedValueOnce({ Body: undefined });
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      await downloadArtifactsToZip("my-bucket", files, "/tmp/out.zip", "us-east-1", fakeCreds, client);
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Warning: empty body"));
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("getArtifactInfo", () => {
+    function createMockApi(runData: any, config?: any) {
+      return {
+        get: vi.fn().mockResolvedValue(runData),
+        config: config ?? { scenariosBucket: "my-bucket", region: "us-east-1" },
+        awsCredentialIdentity: fakeCreds,
+      } as any;
+    }
+
+    it("resolves artifact prefix when startTime and scenariosBucket are present", async () => {
+      // resolveArtifactPrefix: exact match found
+      mockSend.mockResolvedValueOnce({
+        Contents: [{ Key: "results/t1/2025-01-15T10-30-00_run-001/file.xml" }],
+      });
+
+      const api = createMockApi({
+        testRunId: "run-001",
+        startTime: "2025-01-15 10:30:00",
+        testType: "simple",
+      });
+
+      const info = await getArtifactInfo(api, "t1", "run-001");
+
+      expect(info.testId).toBe("t1");
+      expect(info.runId).toBe("run-001");
+      expect(info.startTime).toBe("2025-01-15 10:30:00");
+      expect(info.testType).toBe("simple");
+      expect(info.artifactPrefix).toBe("results/t1/2025-01-15T10-30-00_run-001");
+    });
+
+    it("falls back to buildArtifactPrefix when resolveArtifactPrefix returns null", async () => {
+      // resolveArtifactPrefix: exact miss, then search miss
+      mockSend.mockResolvedValueOnce({ Contents: [] });
+      mockSend.mockResolvedValueOnce({ CommonPrefixes: [] });
+
+      const api = createMockApi({
+        testRunId: "run-001",
+        startTime: "2025-01-15 10:30:00",
+        testType: "jmeter",
+      });
+
+      const info = await getArtifactInfo(api, "t1", "run-001");
+
+      expect(info.artifactPrefix).toBe("results/t1/2025-01-15T10-30-00_run-001");
+    });
+
+    it("uses buildArtifactPrefix when scenariosBucket is not configured", async () => {
+      const api = createMockApi(
+        { testRunId: "run-001", startTime: "2025-01-15 10:30:00", testType: "k6" },
+        { scenariosBucket: undefined, region: "us-east-1" }
+      );
+
+      const info = await getArtifactInfo(api, "t1", "run-001");
+
+      expect(info.artifactPrefix).toBe("results/t1/2025-01-15T10-30-00_run-001");
+      expect(mockSend).not.toHaveBeenCalled(); // No S3 calls
+    });
+
+    it("returns unable to determine when startTime is missing", async () => {
+      const api = createMockApi({
+        testRunId: "run-001",
+        startTime: undefined,
+        testType: "simple",
+      });
+
+      const info = await getArtifactInfo(api, "t1", "run-001");
+
+      expect(info.artifactPrefix).toContain("unable to determine");
+    });
+  });
+
+  describe("downloadRunArtifacts", () => {
+    function createMockApi(runData: any, config?: any) {
+      return {
+        get: vi.fn().mockResolvedValue(runData),
+        config: config ?? { scenariosBucket: "my-bucket", region: "us-east-1" },
+        awsCredentialIdentity: fakeCreds,
+      } as any;
+    }
+
+    it("throws when scenariosBucket is not configured", async () => {
+      const api = createMockApi(
+        {},
+        { scenariosBucket: undefined, region: "us-east-1" }
+      );
+
+      await expect(downloadRunArtifacts(api, "t1", "run-001", {})).rejects.toThrow(
+        "Scenarios bucket not configured"
+      );
+    });
+
+    it("throws when test run has no startTime", async () => {
+      const api = createMockApi({
+        testRunId: "run-001",
+        startTime: undefined,
+      });
+
+      await expect(downloadRunArtifacts(api, "t1", "run-001", {})).rejects.toThrow(
+        "Test run has no startTime"
+      );
+    });
+
+    it("returns early when no artifact folder found in S3", async () => {
+      // resolveArtifactPrefix returns null
+      mockSend.mockResolvedValueOnce({ Contents: [] });
+      mockSend.mockResolvedValueOnce({ CommonPrefixes: [] });
+
+      const api = createMockApi({
+        testRunId: "run-001",
+        startTime: "2025-01-15 10:30:00",
+      });
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      await downloadRunArtifacts(api, "t1", "run-001", {});
+
+      expect(consoleSpy).toHaveBeenCalledWith("No artifact folder found for this test run in S3.");
+      consoleSpy.mockRestore();
+    });
+
+    it("returns early when no artifacts found after listing", async () => {
+      // resolveArtifactPrefix: exact match found
+      mockSend.mockResolvedValueOnce({
+        Contents: [{ Key: "results/t1/2025-01-15T10-30-00_run-001/x" }],
+      });
+      // listArtifacts: empty
+      mockSend.mockResolvedValueOnce({ Contents: [], IsTruncated: false });
+
+      const api = createMockApi({
+        testRunId: "run-001",
+        startTime: "2025-01-15 10:30:00",
+      });
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      await downloadRunArtifacts(api, "t1", "run-001", {});
+
+      expect(consoleSpy).toHaveBeenCalledWith("No artifacts found for this test run.");
+      consoleSpy.mockRestore();
+    });
+
+    it("returns early when filter matches nothing", async () => {
+      // resolveArtifactPrefix: exact match
+      mockSend.mockResolvedValueOnce({
+        Contents: [{ Key: "results/t1/2025-01-15T10-30-00_run-001/x" }],
+      });
+      // listArtifacts: returns files
+      mockSend.mockResolvedValueOnce({
+        Contents: [{ Key: "results/t1/2025-01-15T10-30-00_run-001/file.xml", Size: 100 }],
+        IsTruncated: false,
+      });
+
+      const api = createMockApi({
+        testRunId: "run-001",
+        startTime: "2025-01-15 10:30:00",
+      });
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      await downloadRunArtifacts(api, "t1", "run-001", { filter: "*.csv" });
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No artifacts match the filter'));
+      consoleSpy.mockRestore();
+    });
+
+    it("lists files in dry-run mode without downloading", async () => {
+      // resolveArtifactPrefix: exact match
+      mockSend.mockResolvedValueOnce({
+        Contents: [{ Key: "results/t1/2025-01-15T10-30-00_run-001/x" }],
+      });
+      // listArtifacts
+      mockSend.mockResolvedValueOnce({
+        Contents: [
+          { Key: "results/t1/2025-01-15T10-30-00_run-001/file1.xml", Size: 100 },
+          { Key: "results/t1/2025-01-15T10-30-00_run-001/file2.json", Size: 200 },
+        ],
+        IsTruncated: false,
+      });
+
+      const api = createMockApi({
+        testRunId: "run-001",
+        startTime: "2025-01-15 10:30:00",
+      });
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      await downloadRunArtifacts(api, "t1", "run-001", { dryRun: true });
+
+      // Should log file names to stdout
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("file1.xml"));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("file2.json"));
+      // No download (GetObject) calls after the listing
+      expect(mockSend).toHaveBeenCalledTimes(2); // only resolve + list
+      consoleSpy.mockRestore();
+      logSpy.mockRestore();
+    });
+
+    it("downloads to directory by default", async () => {
+      const { Readable } = await import("node:stream");
+      // resolveArtifactPrefix: exact match
+      mockSend.mockResolvedValueOnce({
+        Contents: [{ Key: "results/t1/2025-01-15T10-30-00_run-001/x" }],
+      });
+      // listArtifacts
+      mockSend.mockResolvedValueOnce({
+        Contents: [{ Key: "results/t1/2025-01-15T10-30-00_run-001/file.xml", Size: 50 }],
+        IsTruncated: false,
+      });
+      // GetObject for download
+      mockSend.mockResolvedValueOnce({ Body: Readable.from(["data"]) });
+
+      const api = createMockApi({
+        testRunId: "run-001",
+        startTime: "2025-01-15 10:30:00",
+      });
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      await downloadRunArtifacts(api, "t1", "run-001", { force: true });
+
+      // 3 calls: resolve, list, getObject
+      expect(mockSend).toHaveBeenCalledTimes(3);
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Done."));
+      consoleSpy.mockRestore();
+    });
+
+    it("applies filter before downloading", async () => {
+      const { Readable } = await import("node:stream");
+      // resolveArtifactPrefix: exact match
+      mockSend.mockResolvedValueOnce({
+        Contents: [{ Key: "results/t1/2025-01-15T10-30-00_run-001/x" }],
+      });
+      // listArtifacts
+      mockSend.mockResolvedValueOnce({
+        Contents: [
+          { Key: "results/t1/2025-01-15T10-30-00_run-001/file.xml", Size: 50 },
+          { Key: "results/t1/2025-01-15T10-30-00_run-001/file.json", Size: 75 },
+        ],
+        IsTruncated: false,
+      });
+      // GetObject for download (only xml should be fetched)
+      mockSend.mockResolvedValueOnce({ Body: Readable.from(["data"]) });
+
+      const api = createMockApi({
+        testRunId: "run-001",
+        startTime: "2025-01-15 10:30:00",
+      });
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      await downloadRunArtifacts(api, "t1", "run-001", { filter: "*.xml", force: true });
+
+      // 3 calls: resolve, list, getObject (only 1 file matches filter)
+      expect(mockSend).toHaveBeenCalledTimes(3);
+      consoleSpy.mockRestore();
     });
   });
 });

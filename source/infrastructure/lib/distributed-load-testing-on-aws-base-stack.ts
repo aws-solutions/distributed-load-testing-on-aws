@@ -31,6 +31,7 @@ import { Construct, IConstruct } from "constructs";
 import * as path from "path";
 import { SolutionsMetrics } from "../../metrics-utils";
 import { Solution, SOLUTIONS_METRICS_ENDPOINT } from "../bin/solution";
+import { DevOpsAgentConstruct } from "./back-end/devops-agent";
 import { SavedQueriesConstruct } from "./back-end/saved-queries";
 import { ScenarioTestRunnerStorageConstruct } from "./back-end/scenarios-storage";
 import { TaskRunnerStepFunctionConstruct } from "./back-end/step-functions";
@@ -45,6 +46,10 @@ import { MCPServer } from "./mcp/mcp-infra";
 import { ECSResourcesConstruct } from "./testing-resources/ecs";
 import { RealTimeDataConstruct } from "./testing-resources/real-time-data";
 import { FargateVpcConstruct } from "./testing-resources/vpc";
+
+// Allowed pattern for ECR image URIs
+export const ECR_IMAGE_URI_PATTERN =
+  "^$|^\\d{12}\\.dkr\\.ecr\\.[a-z]{2}(-gov)?-(central|north|south|east|west|northeast|southeast|northwest|southwest)-\\d\\.amazonaws\\.com\\/[a-z0-9._\\/-]+(:[a-zA-Z0-9._-]+|@sha256:[a-fA-F0-9]{64})?$";
 
 /**
  * CDK Aspect implementation to set up conditions to the entire Construct resources
@@ -197,6 +202,15 @@ export abstract class DLTBaseStack extends Stack {
       allowedValues: ["Yes", "No"],
     });
 
+    const loadTesterImageUri = new CfnParameter(this, "LoadTesterImageUri", {
+      type: "String",
+      default: "",
+      description: "URI of load tester container image. If empty, the default public image is used.",
+      allowedPattern: ECR_IMAGE_URI_PATTERN,
+      constraintDescription:
+        "Must be empty or a valid ECR image URI (e.g., 123456789012.dkr.ecr.us-east-1.amazonaws.com/my-repo:tag or .../my-repo@sha256:<64-hex-chars>).",
+    });
+
     const deployMcpServer = new CfnParameter(this, "DeployMCPServer", {
       description:
         "Deploy a remote MCP server to connect AI applications to DLT. See the Implementation Guide for more details.",
@@ -226,6 +240,11 @@ export abstract class DLTBaseStack extends Stack {
               egressCidrBlock.logicalId,
             ],
           },
+
+          {
+            Label: { default: "Load tester container image configuration" },
+            Parameters: [stableTagging.logicalId, loadTesterImageUri.logicalId],
+          },
         ],
         ParameterLabels: {
           [this.adminName.logicalId]: { default: "* Administrator Name" },
@@ -247,6 +266,7 @@ export abstract class DLTBaseStack extends Stack {
             default: "Provide CIDR block for allowing outbound traffic of AWS Fargate tasks",
           },
           [stableTagging.logicalId]: { default: "Auto-update Container Image" },
+          [loadTesterImageUri.logicalId]: { default: "Load Tester Container Image" },
         },
       },
     };
@@ -359,10 +379,12 @@ export abstract class DLTBaseStack extends Stack {
     // add permission and environment variables on custom resource backed lambda function
     dltStorage.scenariosBucket.grantWrite(this.commonResources.customResourceLambda.nodejsLambda);
     dltStorage.scenariosTable.grantReadWriteData(this.commonResources.customResourceLambda.nodejsLambda);
+    dltStorage.historyTable.grantReadData(this.commonResources.customResourceLambda.nodejsLambda);
     this.commonResources.customResourceLambda.addEnvironmentVariables({
       MAIN_REGION: Aws.REGION,
       S3_BUCKET: dltStorage.scenariosBucket.bucketName,
       DDB_TABLE: dltStorage.scenariosTable.tableName,
+      HISTORY_TABLE: dltStorage.historyTable.tableName,
     });
 
     const customResources = new CustomResourcesConstruct(
@@ -385,6 +407,7 @@ export abstract class DLTBaseStack extends Stack {
       solutionId: props.solution.id,
       stableTagCondition: stableTagCondition.logicalId,
       buildFromSource: this.shouldBuildFromSource,
+      loadTesterImageUri: loadTesterImageUri.valueAsString,
     });
 
     const realTimeDataConstruct = new RealTimeDataConstruct(this, "RealTimeData", {
@@ -543,14 +566,21 @@ export abstract class DLTBaseStack extends Stack {
       targets: [new LambdaFunctionTarget(stepLambdaFunctions.sfnFailureHandler)],
     });
 
+    const devOpsAgent = new DevOpsAgentConstruct(this, "DevOpsAgent");
+
     const dltApi = new DLTAPI(this, "DLTApi", {
+      agentSpacesDynamoDbPolicy: devOpsAgent.agentSpacesDynamoDbPolicy,
+      agentSpacesTableName: devOpsAgent.agentSpacesTable.tableName,
       cloudWatchLogsPolicy: this.commonResources.cloudWatchLogsPolicy,
+      devOpsAgentPolicy: devOpsAgent.policy,
       ecsCloudWatchLogGroup: fargateResources.ecsCloudWatchLogGroup,
       ecsTaskExecutionRoleArn: fargateResources.taskExecutionRoleArn,
       ecsTaskRoleArn: fargateResources.taskRoleArn,
       historyDynamoDbPolicy: dltStorage.historyDynamoDbPolicy,
       historyTable: dltStorage.historyTable.tableName,
       historyTableGSIName: dltStorage.historyTableGSIName,
+      investigationsDynamoDbPolicy: devOpsAgent.investigationsDynamoDbPolicy,
+      investigationsTableName: devOpsAgent.investigationsTable.tableName,
       scenariosBucketName: dltStorage.scenariosBucket.bucketName,
       scenariosDynamoDbPolicy: dltStorage.scenarioDynamoDbPolicy,
       scenariosS3Policy: dltStorage.scenariosS3Policy,
@@ -587,6 +617,7 @@ export abstract class DLTBaseStack extends Stack {
 
     // Cleans up resources created for test scenarios
     customResources.cleanUpTestScenarioResources();
+    customResources.backfillTestRunCounts();
 
     // Pass exact Cognito domain to ALB+ECS container for CSP tightening.
     // The entrypoint.sh replaces the nginx.conf placeholder with this value at container start.
@@ -634,19 +665,27 @@ export abstract class DLTBaseStack extends Stack {
     });
     Aspects.of(mcpServer).add(new ConditionAspect(deployMcpServerCondition));
 
+    // Reads the base regional template from S3, injects stack-specific values
+    // (role ARN, table, region), and writes it to the scenarios bucket for users
+    // to deploy via CloudFormation in other regions.
+    const regionalTemplateProps = {
+      scenariosBucket: dltStorage.scenariosBucket.bucketName,
+      scenariosTable: dltStorage.scenariosTable.tableName,
+      lambdaTaskRoleArn: stepLambdaFunctions.lambdaTaskRole.roleArn,
+      mainStackRegion,
+      timestamp: Date.now().toString(),
+    };
+
     const { DIST_OUTPUT_BUCKET, SOLUTION_NAME, VERSION, PUBLIC_ECR_REGISTRY, PUBLIC_ECR_TAG } = process.env;
     if (DIST_OUTPUT_BUCKET && SOLUTION_NAME && VERSION && PUBLIC_ECR_REGISTRY && PUBLIC_ECR_TAG) {
+      // Source: Solutions distribution bucket ({DIST_OUTPUT_BUCKET}-{region}/{SOLUTION_NAME}/{VERSION}/)
       const sourceBucketName = Fn.join("-", [DIST_OUTPUT_BUCKET, Aws.REGION]);
       const sourceBucket = Bucket.fromBucketName(this, "SourceCodeBucket", sourceBucketName.toString());
       sourceBucket.grantReadWrite(this.commonResources.customResourceLambda.nodejsLambda);
       customResources.putRegionalTemplate({
+        ...regionalTemplateProps,
         sourceCodeBucketName: sourceBucketName,
         regionalTemplatePrefix: `${SOLUTION_NAME}/${VERSION}`,
-        scenariosBucket: dltStorage.scenariosBucket.bucketName,
-        scenariosTable: dltStorage.scenariosTable.tableName,
-        lambdaTaskRoleArn: stepLambdaFunctions.lambdaTaskRole.roleArn,
-        mainStackRegion,
-        timestamp: Date.now().toString(),
       });
       customResources.copyJMeterBundle({
         sourceCodeBucketName: sourceBucketName,
@@ -654,6 +693,24 @@ export abstract class DLTBaseStack extends Stack {
         scenariosBucket: dltStorage.scenariosBucket.bucketName,
         timestamp: Date.now().toString(),
       });
+    } else if (this.shouldBuildFromSource) {
+      // Source: scenarios bucket (template staged there by BucketDeployment from local synth output)
+      const sourcePrefix = "regional-template-source";
+      const regionalTemplatePath = path.join(__dirname, "../../../deployment/regional-template-assets");
+      const regionalTemplateStaging = new BucketDeployment(this, "RegionalTemplateFromSource", {
+        sources: [Source.asset(regionalTemplatePath)],
+        destinationBucket: dltStorage.scenariosBucket,
+        destinationKeyPrefix: sourcePrefix,
+        retainOnDelete: false,
+        memoryLimit: 512,
+      });
+      dltStorage.scenariosBucket.grantRead(this.commonResources.customResourceLambda.nodejsLambda, `${sourcePrefix}/*`);
+      const putRegionalTemplateCR = customResources.putRegionalTemplate({
+        ...regionalTemplateProps,
+        sourceCodeBucketName: dltStorage.scenariosBucket.bucketName,
+        regionalTemplatePrefix: sourcePrefix,
+      });
+      putRegionalTemplateCR.node.addDependency(regionalTemplateStaging);
     }
 
     if (!fargateResources.taskDefinitionArn) {

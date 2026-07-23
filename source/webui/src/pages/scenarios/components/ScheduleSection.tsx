@@ -9,7 +9,6 @@ import {
   Container,
   DatePicker,
   FormField,
-  Header,
   RadioGroup,
   Select,
   SpaceBetween,
@@ -22,8 +21,10 @@ import { DateTime } from "luxon";
 import { getTimeZones } from "@vvo/tzdb";
 import { FormData } from "../types";
 import { CronExpressionParser, CronExpressionOptions } from "cron-parser";
-import { validateExpiryDate } from "../../../utils/dateValidation";
-import { validateCronFields } from "../../../utils/cronValidation";
+import { validateExpiryDate, parseExpiryDate, checkScheduleInFuture } from "../../../utils/dateValidation";
+import { validateCronFields, formatCronValidationExpression } from "../../../utils/cronValidation";
+import { FormSection } from "./FormSection";
+import { SECTION_IDS } from "../utils/scenarioValidation";
 
 
 /**
@@ -83,8 +84,26 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
 
   const expiryDateError = useMemo(() => {
     if (formData.executionTiming !== "run-schedule" || !formData.cronExpiryDate) return "";
-    return validateExpiryDate(formData.cronExpiryDate).errorMessage;
-  }, [formData.cronExpiryDate, formData.executionTiming]);
+    return validateExpiryDate(formData.cronExpiryDate, formData.scheduleTimezone).errorMessage;
+  }, [formData.cronExpiryDate, formData.executionTiming, formData.scheduleTimezone]);
+
+  const scheduleDateTimeError = useMemo(() => {
+    if (formData.executionTiming !== "run-once") return "";
+    if (checkScheduleInFuture(formData.scheduleDate, formData.scheduleTime, formData.scheduleTimezone)) {
+      return "";
+    }
+    return "Scheduled date and time must be in the future";
+  }, [formData.executionTiming, formData.scheduleDate, formData.scheduleTime, formData.scheduleTimezone]);
+
+  const isDateEnabled = useMemo(() => {
+    const tz = formData.scheduleTimezone || "UTC";
+    const today = DateTime.now().setZone(tz);
+    const todayY = today.year, todayM = today.month, todayD = today.day;
+    return (date: Date) => {
+      const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
+      return (y * 10000 + m * 100 + d) >= (todayY * 10000 + todayM * 100 + todayD);
+    };
+  }, [formData.scheduleTimezone]);
 
   const nextRun = useMemo(() => {
     const { cronMinutes, cronHours, cronDayOfMonth, cronMonth, cronDayOfWeek, cronExpiryDate, scheduleTimezone } =
@@ -95,27 +114,19 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
     if (cronDayOfMonth === "" || cronMonth === "" || cronDayOfWeek === "") return { dates: [], error: "" };
 
     try {
-      // Convert ? to * for cron-parser compatibility
-      const dayOfMonth = cronDayOfMonth === "?" ? "*" : cronDayOfMonth;
-      const dayOfWeek = cronDayOfWeek === "?" ? "*" : cronDayOfWeek;
-
       // Build Linux cron expression (5 fields)
-      const cronExpression = `${cronMinutes} ${cronHours} ${dayOfMonth} ${cronMonth} ${dayOfWeek}`;
+      const cronExpression = formatCronValidationExpression({
+        cronMinutes, cronHours, cronDayOfMonth, cronMonth, cronDayOfWeek
+      });
 
       // Use the selected schedule timezone for cron parsing
       const parserOptions: CronExpressionOptions = { tz: scheduleTimezone || "UTC" };
 
       // Configure expiration for the cron parser
       if (cronExpiryDate) {
-        const dateParts = cronExpiryDate.split(/[-/]/);
-        if (dateParts.length === 3) {
-          const year = parseInt(dateParts[0]);
-          const month = parseInt(dateParts[1]);
-          const day = parseInt(dateParts[2]);
-          if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-            const expiryDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
-            parserOptions.endDate = expiryDate;
-          }
+        const expiryDate = parseExpiryDate(cronExpiryDate, scheduleTimezone);
+        if (expiryDate) {
+          parserOptions.endDate = expiryDate;
         }
       }
 
@@ -148,7 +159,7 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
   ]);
 
   return (
-    <Container header={<Header variant="h2">Schedule</Header>}>
+    <FormSection sectionId={SECTION_IDS.SCHEDULE} headerText="Schedule">
       <SpaceBetween direction="vertical" size="s">
         <Box variant="small">Configure when the load test should run</Box>
 
@@ -211,7 +222,8 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
                     label="Run time"
                     constraintText="Time must be in 24-hour format"
                     errorText={
-                      showValidationErrors && !formData.scheduleTime?.trim() ? "Run time is required" : undefined
+                      scheduleDateTimeError ||
+                      (showValidationErrors && !formData.scheduleTime?.trim() ? "Run time is required" : undefined)
                     }
                   >
                     <Input
@@ -219,7 +231,7 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
                       value={formData.scheduleTime}
                       onChange={({ detail }) => updateFormData({ scheduleTime: detail.value })}
                       placeholder="00:00"
-                      invalid={showValidationErrors && !formData.scheduleTime?.trim()}
+                      invalid={!!scheduleDateTimeError || (showValidationErrors && !formData.scheduleTime?.trim())}
                     />
                   </FormField>
                   <FormField
@@ -233,6 +245,8 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
                       value={formData.scheduleDate}
                       onChange={({ detail }) => updateFormData({ scheduleDate: detail.value })}
                       placeholder="YYYY/MM/DD"
+                      isDateEnabled={isDateEnabled}
+                      dateDisabledReason={() => "Date must be today or later"}
                       invalid={showValidationErrors && !formData.scheduleDate?.trim()}
                     />
                   </FormField>
@@ -404,6 +418,6 @@ export const ScheduleSection = ({ formData, updateFormData, showValidationErrors
           </Checkbox>
         </FormField>
       </SpaceBetween>
-    </Container>
+    </FormSection>
   );
 };

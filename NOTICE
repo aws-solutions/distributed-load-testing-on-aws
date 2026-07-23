@@ -15,6 +15,7 @@ THIRD PARTY COMPONENTS
 
 This software includes third party software subject to the following copyrights:
 
+@amzn/dlt-api-services under the Apache-2.0 license
 @amzn/dlt-common under the Apache-2.0 license
 @amzn/dlt-mcp-server under the Apache-2.0 license
 @amzn/dlt-stabilization-checker under the Apache-2.0 license
@@ -25,6 +26,7 @@ This software includes third party software subject to the following copyrights:
 @amzn/dlt-sfn-failure-handler under the Apache-2.0 license
 @amzn/dlt-task-failure-handler under the Apache-2.0 license
 @amzn/dlt-test-cleanup under the Apache-2.0 license
+@amzn/dlt-real-time-data-publisher under the Apache-2.0 license
 @amzn/dlt-task-runner under the Apache-2.0 license
 @amzn/dlt-task-status-checker under the Apache-2.0 license
 @amzn/dlt-test-metadata-updater under the Apache-2.0 license
@@ -302,6 +304,7 @@ isexe under the ISC license
 @aws-sdk/util-user-agent-browser under the Apache-2.0 license
 @aws-sdk/util-user-agent-node under the Apache-2.0 license
 @aws-sdk/util-utf8-browser under the Apache-2.0 license
+@aws/cloudformation-validate under the Apache-2.0 license
 @bcoe/v8-coverage under the MIT license
 @csstools/normalize.css under the CC0-1.0 license
 @csstools/postcss-cascade-layers under the CC0-1.0 license
@@ -1323,6 +1326,7 @@ babel-plugin-polyfill-regenerator under the MIT license
 @babel/plugin-bugfix-firefox-class-in-computed-class-key under the MIT license
 @babel/plugin-bugfix-safari-class-field-initializer-scope under the MIT license
 @babel/plugin-bugfix-safari-id-destructuring-collision-in-function-expression under the MIT license
+@babel/plugin-bugfix-safari-rest-destructuring-rhs-array under the MIT license
 @babel/plugin-bugfix-v8-spread-parameters-in-optional-chaining under the MIT license
 @babel/plugin-transform-optional-chaining under the MIT license
 @babel/plugin-bugfix-v8-static-class-fields-redefine-readonly under the MIT license
@@ -1849,6 +1853,7 @@ wsl-utils under the MIT license.
 @aws-sdk/client-cloudwatch-events under the Apache-2.0 license.
 @aws-sdk/client-service-quotas under the Apache-2.0 license.
 @aws-sdk/client-sfn under the Apache-2.0 license.
+@aws-sdk/client-devops-agent under the Apache-2.0 license
 @aws/lambda-invoke-store under the Apache-2.0 license
 @smithy/uuid under the Apache-2.0 license
 @cloudscape-design/collection-hooks under the Apache-2.0 license
@@ -2058,6 +2063,7 @@ xml-naming under the MIT license
 @types/jsbn under the MIT license
 path-expression-matcher under the MIT license
 @nodable/entities under the MIT license
+xml-naming under the MIT license
 
 OPEN SOURCE LICENSES
 

@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Container,
   StatusIndicator,
@@ -34,6 +34,7 @@ const INITIAL_PREFERENCES = {
     { id: "testRun", visible: true },
     { id: "testRunId", visible: true },
     { id: "status", visible: true },
+    { id: "investigation", visible: true },
     { id: "requests", visible: true },
     { id: "success", visible: true },
     { id: "errors", visible: true },
@@ -105,6 +106,12 @@ export function TestRuns({ testId }: TestRunsProps) {
   ), [refetch]);
 
 
+
+  const selectedIncludesBaseline = useCallback(
+    (selectedTestRuns: TestRun[]) =>
+      !!baselineTestRun && selectedTestRuns.some(run => run.testRunId === baselineTestRun.testRunId),
+    [baselineTestRun]
+  );
 
   const handleDeleteTestRuns = (selectedTestRuns: TestRun[]) => {
     setTestRunsToDelete(selectedTestRuns);
@@ -206,13 +213,24 @@ export function TestRuns({ testId }: TestRunsProps) {
             <Button variant="link" onClick={() => setShowDeleteModal(false)}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={confirmDeleteTestRuns} loading={isDeletingTestRuns}>
+            <Button
+              variant="primary"
+              onClick={confirmDeleteTestRuns}
+              loading={isDeletingTestRuns}
+              disabled={selectedIncludesBaseline(testRunsToDelete)}
+              data-testid="modal-delete-button"
+            >
               Delete
             </Button>
           </SpaceBetween>
         }
       >
         <SpaceBetween size="m">
+          {selectedIncludesBaseline(testRunsToDelete) && (
+            <Alert type="error">
+              One or more selected test runs is currently set as the baseline. Remove it as the baseline before deleting.
+            </Alert>
+          )}
           <p>Are you sure you want to delete {testRunsToDelete.length} test run{testRunsToDelete.length !== 1 ? 's' : ''}? This action cannot be undone.</p>
           <p><strong>Note:</strong> Only database records will be deleted. Results and logs in S3 are preserved and must be manually deleted if needed. <a href="https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/uninstall-the-solution.html#deleting-the-amazon-s3-buckets" target="_blank" rel="noopener noreferrer">Learn more</a></p>
         </SpaceBetween>

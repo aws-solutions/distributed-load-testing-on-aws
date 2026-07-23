@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { describe, it, expect } from "vitest";
 import {
   baselineQuerySchema,
   createTestSchema,
@@ -931,6 +932,33 @@ describe("Validation Schemas", () => {
           },
         };
         expect(() => createTestSchema.parse(test2)).toThrow(/Number must be greater than 0/);
+      });
+    });
+
+    describe("saveOnly validation", () => {
+      it("should accept saveOnly=true", () => {
+        const test = { ...validBaseTest, saveOnly: true };
+        expect(() => createTestSchema.parse(test)).not.toThrow();
+        expect(createTestSchema.parse(test).saveOnly).toBe(true);
+      });
+
+      it("should accept saveOnly=false", () => {
+        const test = { ...validBaseTest, saveOnly: false };
+        expect(() => createTestSchema.parse(test)).not.toThrow();
+        expect(createTestSchema.parse(test).saveOnly).toBe(false);
+      });
+
+      it("should accept absent saveOnly (optional)", () => {
+        expect(() => createTestSchema.parse(validBaseTest)).not.toThrow();
+        expect(createTestSchema.parse(validBaseTest).saveOnly).toBeUndefined();
+      });
+
+      it("should reject non-boolean saveOnly values", () => {
+        const invalidValues: unknown[] = ["true", "false", 1, 0, null, [], {}];
+        invalidValues.forEach((value) => {
+          const test = { ...validBaseTest, saveOnly: value };
+          expect(() => createTestSchema.parse(test)).toThrow();
+        });
       });
     });
   });

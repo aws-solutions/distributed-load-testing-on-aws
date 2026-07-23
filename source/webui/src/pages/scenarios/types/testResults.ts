@@ -61,6 +61,7 @@ export interface TestScenarioExecution {
 
 export interface TestScenario {
   execution?: TestScenarioExecution[];
+  scenarios?: Record<string, unknown>;
 }
 
 export interface TestRunDetails {

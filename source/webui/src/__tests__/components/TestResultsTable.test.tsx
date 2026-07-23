@@ -154,3 +154,73 @@ describe("TestResultsTable via TestRunDetailsPage", () => {
     expect(screen.getByText("/api/orders")).toBeInTheDocument();
   });
 });
+
+// --- Additional coverage tests ---
+
+describe("TestResultsTable - filtering and sorting", () => {
+  test("shows empty message when filter matches nothing", () => {
+    const { wrapper } = renderTable();
+    const filter = wrapper.findTextFilter()!;
+    filter.findInput()!.setInputValue("nonexistent-endpoint-xyz");
+    expect(screen.getByText("No test results match your search")).toBeInTheDocument();
+  });
+
+  test("renders By Region view mode", () => {
+    const { wrapper } = renderTable({ viewMode: ViewMode.ByRegion });
+    expect(wrapper.findTable()!.findRows().length).toBeGreaterThan(0);
+  });
+
+  test("renders By Endpoint view mode", () => {
+    const { wrapper } = renderTable({ viewMode: ViewMode.ByEndpoint });
+    expect(wrapper.findTable()!.findRows().length).toBeGreaterThan(0);
+  });
+
+  test("auto-selects first row when switching to Overall mode", () => {
+    const { wrapper, onSelectionChange } = renderTable({ viewMode: ViewMode.ByEndpoint });
+    // Click "Overall" segment (first one)
+    wrapper.findSegmentedControl()!.findSegments()[0].click();
+    expect(onSelectionChange).toHaveBeenCalled();
+  });
+
+  test("clears selection when switching away from Overall mode", () => {
+    const { wrapper, onSelectionChange } = renderTable({ viewMode: ViewMode.Overall });
+    // Click "By Endpoint" segment (second one)
+    wrapper.findSegmentedControl()!.findSegments()[1].click();
+    expect(onSelectionChange).toHaveBeenCalledWith([]);
+  });
+
+  test("renders download button", () => {
+    renderTable();
+    expect(screen.getByLabelText("Download test results as CSV")).toBeInTheDocument();
+  });
+});
+
+describe("TestResultsTable - with baseline", () => {
+  const mockBaseline = {
+    baselineId: "run-baseline",
+    testRunDetails: {
+      testRunId: "run-baseline",
+      startTime: "2024-12-01 00:00:00",
+      status: "complete",
+      results: {
+        total: {
+          ...makeLabelMetrics("https://example.com", 3, 97),
+          labels: [makeLabelMetrics("https://example.com", 3, 97)],
+        },
+      },
+    },
+  };
+
+  test("renders baseline comparison columns when baseline is set", () => {
+    const { wrapper } = renderTable({ baseline: mockBaseline as any });
+    const table = wrapper.findTable()!;
+    // Should have more columns with baseline
+    expect(table.findColumnHeaders().length).toBeGreaterThan(5);
+  });
+
+  test("renders without errors when baseline has no matching data", () => {
+    const emptyBaseline = { baselineId: "run-x", testRunDetails: { results: {} } };
+    const { wrapper } = renderTable({ baseline: emptyBaseline as any });
+    expect(wrapper.findTable()!.findRows().length).toBeGreaterThan(0);
+  });
+});

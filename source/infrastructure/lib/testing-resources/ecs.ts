@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Aws, CfnResource, Duration, Fn, Tags } from "aws-cdk-lib";
+import { Aws, CfnCondition, CfnResource, Duration, Fn, Stack, Tags } from "aws-cdk-lib";
 import { Alarm, ComparisonOperator, Metric, TreatMissingData } from "aws-cdk-lib/aws-cloudwatch";
 import { CfnSecurityGroup, CfnSecurityGroupEgress } from "aws-cdk-lib/aws-ec2";
 import { DockerImageAsset, Platform } from "aws-cdk-lib/aws-ecr-assets";
@@ -17,6 +17,7 @@ interface HubContainerProps {
   readonly containerMode: "hub";
   readonly stableTagCondition: string;
   readonly buildFromSource: boolean;
+  readonly loadTesterImageUri: string;
 }
 
 interface RegionalContainerProps {
@@ -164,14 +165,23 @@ export class ECSResourcesConstruct extends Construct {
             }`
           : "";
 
+      const usePublicImageCondition = new CfnCondition(Stack.of(this), "UsePublicLoadTestingImageCondition", {
+        expression: Fn.conditionEquals(props.loadTesterImageUri, ""),
+      });
+
       const imageTag = Fn.conditionIf(props.stableTagCondition, stageTagForImage, versionTagForImage).toString();
+      const imageChoice = Fn.conditionIf(
+        usePublicImageCondition.logicalId,
+        imageTag,
+        props.loadTesterImageUri
+      ).toString();
 
       const imageAsset = props.buildFromSource
         ? new DockerImageAsset(this, "LoadTesterImage", {
             directory: path.join(__dirname, `../../../../deployment/ecr/${dockerRepoName}`),
             platform: Platform.LINUX_AMD64,
           })
-        : ContainerImage.fromRegistry(`${imageTag}`);
+        : ContainerImage.fromRegistry(`${imageChoice}`);
 
       dltTaskDefinition.addContainer("LoadTestContainer", {
         containerName: `${Aws.STACK_NAME}-load-tester`,

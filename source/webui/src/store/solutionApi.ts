@@ -10,6 +10,7 @@ export enum ApiEndpoints {
   SCENARIOS = "/scenarios",
   REGIONS = "/regions",
   STACK_INFO = "/stack-info",
+  AGENT_SPACES = "/agent-spaces",
 }
 
 // Boilerplate code. Do not change.
@@ -94,5 +95,5 @@ export const solutionApi = createApi({
     // for a more modular app, instead of defining more endpoints here, create apiSlice files and inject endpoints there
   }),
   refetchOnMountOrArgChange: true,
-  tagTypes: ["Scenarios", "User", "StackInfo", "TestRuns"],
+  tagTypes: ["Scenarios", "User", "StackInfo", "TestRuns", "AgentSpaces", "Investigations"],
 });
