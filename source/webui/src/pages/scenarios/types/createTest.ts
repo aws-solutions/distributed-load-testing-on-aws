@@ -21,6 +21,7 @@ export type CreateScenarioRequest = {
   scheduleTimezone?: string;
   recurrence?: string;
   healthyThreshold?: number;
+  saveOnly?: boolean;
 };
 
 export type TestTaskConfig = {

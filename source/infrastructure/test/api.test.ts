@@ -30,11 +30,16 @@ test("DLT API Test", () => {
   const testSourceBucket = Bucket.fromBucketName(stack, "SourceCodeBucket", "test-bucket-region");
 
   const api = new DLTAPI(stack, "TestAPI", {
+    agentSpacesDynamoDbPolicy: testPolicy,
+    agentSpacesTableName: "testAgentSpacesTable",
     cloudWatchLogsPolicy: testPolicy,
+    devOpsAgentPolicy: testPolicy,
     ecsCloudWatchLogGroup: testLog,
     historyDynamoDbPolicy: testPolicy,
     historyTable: "testHistoryDDBTable",
     historyTableGSIName: "testId-startTime-index",
+    investigationsDynamoDbPolicy: testPolicy,
+    investigationsTableName: "testInvestigationsTable",
     scenariosDynamoDbPolicy: testPolicy,
     taskCancelerInvokePolicy: testPolicy,
     scenariosS3Policy: testPolicy,
@@ -99,11 +104,16 @@ test("API Gateway GovCloud support: IsGovCloudPartition condition and endpoint t
   });
 
   new DLTAPI(stack, "TestAPI", {
+    agentSpacesDynamoDbPolicy: testPolicy,
+    agentSpacesTableName: "testAgentSpacesTable",
     cloudWatchLogsPolicy: testPolicy,
+    devOpsAgentPolicy: testPolicy,
     ecsCloudWatchLogGroup: testLog,
     historyDynamoDbPolicy: testPolicy,
     historyTable: "testHistoryDDBTable",
     historyTableGSIName: "testId-startTime-index",
+    investigationsDynamoDbPolicy: testPolicy,
+    investigationsTableName: "testInvestigationsTable",
     scenariosDynamoDbPolicy: testPolicy,
     taskCancelerInvokePolicy: testPolicy,
     scenariosS3Policy: testPolicy,

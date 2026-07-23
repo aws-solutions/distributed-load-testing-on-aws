@@ -1,16 +1,23 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+// Legacy test runner for CJS spec files.
+// New tests go in test/ and use vitest.
 process.env.TZ = "UTC";
 module.exports = {
   roots: ["<rootDir>/lib", "<rootDir>"],
-  testMatch: ["**/*.spec.js", "**/*.spec.ts"],
+  testMatch: ["**/*.spec.js"],
+  testPathIgnorePatterns: ["/node_modules/", "<rootDir>/src/", "<rootDir>/test/"],
   collectCoverageFrom: [
     "**/*.js",
     "**/*.ts",
     "!**/*.d.ts",
     "!**/node_modules/**",
-    "!**/coverage/**"
+    "!**/coverage/**",
+    "!**/test/**",
+    "!**/*.test.ts",
+    "!**/*.spec.ts",
+    "!**/*.spec.js"
   ],
   coverageReporters: ["text", "clover", "json", ["lcov", { projectRoot: "../../" }]],
   coveragePathIgnorePatterns: ["/node_modules/", "/coverage/", "jest.config.js"],
@@ -24,14 +31,5 @@ module.exports = {
   },
   transform: {
     "^.+\\.(ts|tsx)$": ["babel-jest", { presets: ["@babel/preset-typescript"] }]
-  },
-  moduleNameMapper: {
-    // @amzn/dlt-common is consumed as TS source (no build step). Its barrel
-    // uses ESM-style .js extensions in imports. This mapper strips the .js
-    // so Jest resolves to the .ts files via babel-jest.
-    // 
-    // When compiling for Lambda packages, esbuild is used which handles ESM 
-    // imports correctly.
-    "^(\\.{1,2}/.*)\\.js$": "$1"
   }
 };

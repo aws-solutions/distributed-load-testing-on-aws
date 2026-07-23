@@ -622,7 +622,7 @@ describe("ScheduleSection Preservation Properties", () => {
   /**
    * **Validates: Requirements 3.2, 3.4**
    *
-   * Observe: "?" is not valid in standard Linux cron (5-field format).
+   * Observe: "?" is not valid in fields other than the two "Day-of" feilds.
    * The regex correctly rejects it, and Next Runs is hidden when validation error is present.
    * This test verifies that "?" produces a validation error and no Next Runs.
    */
@@ -633,8 +633,8 @@ describe("ScheduleSection Preservation Properties", () => {
       cronMinutes: "0",
       cronHours: "22",
       cronDayOfMonth: "?",
-      cronMonth: "*",
-      cronDayOfWeek: "?",
+      cronMonth: "?",
+      cronDayOfWeek: "*",
       cronExpiryDate: "2026/04/01",
     };
 
@@ -644,7 +644,7 @@ describe("ScheduleSection Preservation Properties", () => {
     expect(screen.getByText("Next Runs (Local time)")).toBeInTheDocument();
     expect(screen.queryAllByText(/^• /)).toHaveLength(0);
     expect(
-      screen.getByText("Day of month must be * or a single value (1-31). Ranges and lists are not supported.")
+      screen.getByText("Month must be *, a value (1-12), name prefix (JAN-DEC), or a range/list (e.g., 1-5, 1,5). Use '/N' to increment by N.")
     ).toBeInTheDocument();
     consoleErrorSpy.mockRestore();
   });
@@ -907,7 +907,7 @@ describe("ScheduleSection Cron Comprehensive Tests", () => {
       const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       const formData: FormData = {
         ...baseFormData,
-        cronMinutes: "abc",
+        cronMinutes: "1,5",
         cronHours: "9",
         cronDayOfMonth: "*",
         cronMonth: "*",
@@ -939,7 +939,7 @@ describe("ScheduleSection Cron Comprehensive Tests", () => {
       render(<ScheduleSection formData={formData} updateFormData={mockUpdateFormData} />);
 
       expect(
-        screen.getByText("Hours must be *, a value (0-23), a step value (*/N), or a comma-separated list.")
+        screen.getByText("Constraint error, got value 99 expected range 0-23")
       ).toBeInTheDocument();
       const bulletItems = screen.queryAllByText(/^• /);
       expect(bulletItems).toHaveLength(0);
@@ -960,7 +960,7 @@ describe("ScheduleSection Cron Comprehensive Tests", () => {
       render(<ScheduleSection formData={formData} updateFormData={mockUpdateFormData} />);
 
       expect(
-        screen.getByText("Month must be * or a single value (1-12). Ranges and lists are not supported.")
+        screen.getByText("Constraint error, got value 13 expected range 1-12")
       ).toBeInTheDocument();
       const bulletItems = screen.queryAllByText(/^• /);
       expect(bulletItems).toHaveLength(0);
@@ -981,7 +981,7 @@ describe("ScheduleSection Cron Comprehensive Tests", () => {
       render(<ScheduleSection formData={formData} updateFormData={mockUpdateFormData} />);
 
       expect(
-        screen.getByText("Day of week must be *, a value (0-6), or a range/list (e.g., 1-5, 0,6).")
+        screen.getByText("Constraint error, got value 8 expected range 0-7")
       ).toBeInTheDocument();
       const bulletItems = screen.queryAllByText(/^• /);
       expect(bulletItems).toHaveLength(0);
@@ -1002,7 +1002,7 @@ describe("ScheduleSection Cron Comprehensive Tests", () => {
       render(<ScheduleSection formData={formData} updateFormData={mockUpdateFormData} />);
 
       expect(
-        screen.getByText("Minutes must be a single value (0-59). Step values and lists are not supported.")
+        screen.getByText("Constraint error, got value 60 expected range 0-59")
       ).toBeInTheDocument();
       // Verify no bullet-point entries are rendered
       const bulletItems = screen.queryAllByText(/^• /);
@@ -1191,8 +1191,7 @@ describe("ScheduleSection Cron Comprehensive Tests", () => {
       expect(screen.getByText("• Mar 5, 2026, 8:00 PM")).toBeInTheDocument();
     });
 
-    test("cronDayOfMonth '?' and cronDayOfWeek '?' are rejected as invalid Linux cron syntax", () => {
-      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    test("cronDayOfMonth '?' and cronDayOfWeek '?' are allowed as valid cron syntax", () => {
       const formData: FormData = {
         ...baseFormData,
         cronMinutes: "30",
@@ -1201,24 +1200,26 @@ describe("ScheduleSection Cron Comprehensive Tests", () => {
         cronMonth: "*",
         cronDayOfWeek: "?",
         cronExpiryDate: "2026/04/01",
+        scheduleTimezone: "America/Phoenix",
       };
 
       render(<ScheduleSection formData={formData} updateFormData={mockUpdateFormData} />);
 
-      // ? is not valid in standard 5-field Linux cron — shows validation error, title shown but no dates
+      // ? is valid in the "day-of" fields of the cron
       expect(screen.getByText("Next Runs (Local time)")).toBeInTheDocument();
-      expect(screen.queryAllByText(/^• /)).toHaveLength(0);
-      expect(
-        screen.getByText("Day of month must be * or a single value (1-31). Ranges and lists are not supported.")
-      ).toBeInTheDocument();
-      consoleErrorSpy.mockRestore();
+      // Current time is Mar 5, 2026 3:00 PM PST. Next runs at 12:30 PM each day
+      expect(screen.getByText("• Mar 6, 2026, 11:30 AM")).toBeInTheDocument();
+      expect(screen.getByText("• Mar 7, 2026, 11:30 AM")).toBeInTheDocument();
+      expect(screen.getByText("• Mar 8, 2026, 12:30 PM")).toBeInTheDocument();
+      expect(screen.getByText("• Mar 9, 2026, 12:30 PM")).toBeInTheDocument();
+      expect(screen.getByText("• Mar 10, 2026, 12:30 PM")).toBeInTheDocument();
     });
 
     test("expiry date same day (2026/03/05) shows limited or no entries for remaining hours", () => {
       const formData: FormData = {
         ...baseFormData,
         cronMinutes: "0",
-        cronHours: "*",
+        cronHours: "0-14,20-23",
         cronDayOfMonth: "*",
         cronMonth: "*",
         cronDayOfWeek: "*",
@@ -1228,14 +1229,17 @@ describe("ScheduleSection Cron Comprehensive Tests", () => {
 
       render(<ScheduleSection formData={formData} updateFormData={mockUpdateFormData} />);
 
-      // Expiry is set as Date.UTC(2026, 2, 5, 23, 59, 59, 999) = Mar 5 23:59:59 UTC.
+      // Expiry is set as Mar 5 7:59:59.999 AM UTC = Mar 6 11:59:59.999 PM PST.
       // Current time is Mar 5 23:00 UTC = Mar 5 3:00 PM PST.
-      // Next hourly run in LA at 4PM PST = Mar 6 00:00 UTC > expiry.
-      // cron-parser endDate is absolute, so 4PM PST exceeds the expiry.
-      // The component shows "Next Runs (Local time)" with "No matching dates found"
-      // because all next occurrences in LA timezone exceed the UTC-based expiry.
+      // Skipping hours 3PM-7PM, the next hourly run in LA should be 8PM PST.
+      // Next runs should be 8PM, 9PM, 10PM, 11PM, then expiry so no fifth time.
+      // endDate ends after the end of the full day in the specified time zone.
       expect(screen.getByText("Next Runs (Local time)")).toBeInTheDocument();
-      expect(screen.getByText("No matching dates found")).toBeInTheDocument();
+      expect(screen.getByText("• Mar 5, 2026, 8:00 PM")).toBeInTheDocument();
+      expect(screen.getByText("• Mar 5, 2026, 9:00 PM")).toBeInTheDocument();
+      expect(screen.getByText("• Mar 5, 2026, 10:00 PM")).toBeInTheDocument();
+      expect(screen.getByText("• Mar 5, 2026, 11:00 PM")).toBeInTheDocument();
+      expect(screen.queryAllByText(/^• /)).toHaveLength(4);
     });
 
     test("cronMinutes '0', cronHours '2' near DST transition (March 8, 2026 2AM) handled gracefully", () => {

@@ -254,7 +254,7 @@ export default function IntroductionPage() {
                 actions={
                   <Button variant="primary" onClick={() => {
                     sendConsoleMetric("ButtonClick", { Page: "Dashboard", Action: "NewScenario" });
-                    navigate("/create-scenario");
+                    navigate("/scenarios/create");
                   }} data-cy="intro-new-scenario-btn">
                     + New Test Scenario
                   </Button>

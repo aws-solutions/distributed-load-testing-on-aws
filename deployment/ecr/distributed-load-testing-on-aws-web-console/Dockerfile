@@ -1,7 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-FROM public.ecr.aws/nginx/nginx:alpine@sha256:e2a398d7d1295a56d5b8548f3d34f7f439692720a0da099548bc06a8dfc36b4a
+FROM public.ecr.aws/nginx/nginx:alpine@sha256:238132c0a2231df8741a1dc77b362584b8a2169050686d85968aebc24fb9a71d
 
 # Upgrade libexpat to pick up CVE-2026-45186 and CVE-2026-41080 fixes (>= 2.8.1).
 # Install AWS CLI for S3 operations

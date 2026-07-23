@@ -154,6 +154,19 @@ fi
 
 check_version_consistency "$source_dir/.."
 
+# Regression test for command injection through .env values in the Makefile
+echo "Running Makefile .env injection test"
+bash "$source_dir/../scripts/test/makefile-env-injection-test.sh"
+if [ $? -eq 0 ]
+then
+  echo "Makefile .env injection test passed"
+else
+  echo "******************************************************************************"
+  echo "Test FAILED Makefile .env injection test"
+  echo "******************************************************************************"
+  exit 1
+fi
+
 # # Run workspace checks (root eslint.config.ts + root prettier)
 # echo "Running workspace formatting check"
 # cd $source_dir/..

@@ -19,8 +19,8 @@
  * needing to query DynamoDB.
  */
 
-import type { TestTaskRegionConfig, TestType } from "./test-execution.js";
-import { TestStatus } from "./test-execution.js";
+import type { TestTaskRegionConfig, TestType } from "./test-execution.ts";
+import { TestStatus } from "./test-execution.ts";
 
 /**
  * ECS service lifecycle status values.

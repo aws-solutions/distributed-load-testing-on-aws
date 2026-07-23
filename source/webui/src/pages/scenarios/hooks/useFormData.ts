@@ -43,20 +43,10 @@ export const useFormData = () => {
   const [formData, setFormData] = useState<FormData>(() => ({ ...INITIAL_FORM_DATA }));
 
   const updateFormData = useCallback((updates: Partial<FormData>) => {
-    setFormData(prev => {
-      const newData = { ...prev, ...updates };
-      try {
-        const dataToSave = { ...newData, scriptFile: [] };
-        localStorage.setItem('dlt-current-draft', JSON.stringify(dataToSave));
-      } catch (error) {
-        console.warn('Failed to save form data:', error);
-      }
-      return newData;
-    });
+    setFormData(prev => ({ ...prev, ...updates }));
   }, []);
 
   const resetFormData = useCallback(() => {
-    localStorage.removeItem('dlt-current-draft');
     setFormData({ ...INITIAL_FORM_DATA });
   }, []);
 

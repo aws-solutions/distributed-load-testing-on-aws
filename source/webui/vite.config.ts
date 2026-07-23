@@ -29,7 +29,7 @@ const config: VitestUserConfig & UserConfig = {
     globals: true, // makes describe, it, expect available without import
     environment: "jsdom",
     setupFiles: ["./src/setupTests.ts"], // runs this file before all tests
-    include: ["./src/__tests__/**/*.test.ts?(x)"],
+    include: ["./src/**/__tests__/**/*.test.ts?(x)"],
     coverage: coverageConfig,
     maxConcurrency: 1, // set to 1 to run tests serially, one file at a time
     testTimeout: 25000, // 25s test timeout unless specified otherwise in the test suite

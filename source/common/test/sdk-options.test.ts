@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { getAwsClientConfig } from "../src/sdk-options.js";
+import { getAwsClientConfig } from "../src/sdk-options.ts";
 
 describe("getAwsClientConfig", () => {
   it("sets customUserAgent from solutionId and version", () => {

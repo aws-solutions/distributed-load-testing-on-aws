@@ -105,7 +105,7 @@ export function TestResultsErrors({ testRunDetails }: TestResultsErrorsProps) {
       }
     });
     return Array.from(uniqueEndpoints)
-      .sort()
+      .sort((a, b) => a.localeCompare(b))
       .map(endpoint => ({
         label: endpoint,
         value: endpoint

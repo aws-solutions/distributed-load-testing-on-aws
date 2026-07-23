@@ -1,4 +1,4 @@
-FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:947fbf6b0de94bc3d39def14962942a92b14132d7e068d366572898a09a4cc34
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:0caa7d3c2a199a700f488b055058b0798cff190bc0cf08bacd6003b9d03e9dfd
 
 # Install system dependencies
 RUN dnf upgrade -y --refresh && \
@@ -23,25 +23,12 @@ COPY ./k6.json ./locust.json /frameworks/
 
 RUN chmod 755 /bzt-configs/load-test.sh
 
-# Remove vulnerable jaraco.context 5.3.0 vendored in setuptools (GHSA-58pv-8j8x-9vj2)
-RUN rm -rf /usr/local/lib/python3.11/site-packages/setuptools/_vendor/jaraco.context-5.3.0.dist-info && \
-    rm -rf /usr/local/lib/python3.11/site-packages/setuptools/_vendor/jaraco/context.py
-
-# Remove vulnerable vendored wheel from setuptools 79.0.1.
-# bzt will find wheel at /usr/local/lib/python3.11/site-packages/wheel/
-RUN rm -rf /usr/local/lib/python3.11/site-packages/setuptools/_vendor/wheel* && \
-    rm -rf /usr/local/lib/python3.11/site-packages/setuptools/_vendor/__pycache__/wheel*
-
 # Add settings file to capture the output logs from bzt cli
 RUN mkdir -p /etc/bzt.d && echo '{"settings": {"artifacts-dir": "/tmp/artifacts"}}' > /etc/bzt.d/90-artifacts-dir.json
 
-# Temporary fix for CVE-2026-44431
-# This must be upgraded after bzt setup to satisfy bzt requirements.txt
-RUN $PIP_INSTALL 'urllib3>=2.7.0'
-
-# Temporary fix for CVE-2025-66221 in Werkzeug < 3.1.4
-# This must be upgraded after bzt setup to satisfy bzt requirements.txt
-RUN $PIP_INSTALL 'werkzeug>=3.1.4'
+# Temporary fix for CVE-2026-59890 in setuptools < 83.0.0
+# bzt pins setuptools==79.0.1, so this must be upgraded after bzt setup
+RUN $PIP_INSTALL 'setuptools>=83.0.0'
 
 # Install Locust at the version pinned in locust.json
 RUN LOCUST_VERSION=$(jq -r '.version' /frameworks/locust.json) && \

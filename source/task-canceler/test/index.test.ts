@@ -40,6 +40,9 @@ vi.mock("@amzn/dlt-common", async () => {
 const mockDdbSend = vi.fn();
 vi.mock("@aws-sdk/client-dynamodb", () => ({
   DynamoDBClient: vi.fn(),
+  ConditionalCheckFailedException: class ConditionalCheckFailedException extends Error {
+    override readonly name = "ConditionalCheckFailedException";
+  },
 }));
 vi.mock("@aws-sdk/lib-dynamodb", () => ({
   DynamoDBDocumentClient: { from: vi.fn(() => ({ send: mockDdbSend })) },
@@ -154,8 +157,8 @@ describe("handler", () => {
     expect(vi.mocked(StopExecutionCommand)).toHaveBeenCalledWith(
       expect.objectContaining({ executionArn: EXECUTION_ARN })
     );
-    // DDB status set to CANCELLING
-    expect(vi.mocked(UpdateCommand)).toHaveBeenCalledOnce();
+    // DDB status set to CANCELLING + incrementTestRunCount
+    expect(vi.mocked(UpdateCommand)).toHaveBeenCalledTimes(2);
     const ddbUpdateArgs = vi.mocked(UpdateCommand).mock.calls[0]?.[0];
     expect(ddbUpdateArgs?.ExpressionAttributeValues).toHaveProperty(":s", TestStatus.CANCELLING);
     // DDB put history_table
@@ -312,10 +315,52 @@ describe("handler", () => {
   });
 
     await handler(makeEvent());
-    expect(vi.mocked(UpdateCommand)).toHaveBeenCalledOnce();
+    expect(vi.mocked(UpdateCommand)).toHaveBeenCalledTimes(2);
     expect(vi.mocked(PutCommand)).toHaveBeenCalledOnce();
     const ddbPutArgs = vi.mocked(PutCommand).mock.calls[0]?.[0];
     expect(ddbPutArgs?.Item?.["testScenario"]).toEqual({});
     expect(vi.mocked(InvokeCommand)).toHaveBeenCalledOnce();
+  });
+
+  it("should handle ConditionalCheckFailedException in no-active-execution path", async () => {
+    // No active execution
+    mockSfnSend.mockResolvedValueOnce({ executions: [] });
+    // DDB update throws ConditionalCheckFailedException
+    mockDdbSend.mockReset();
+    const { ConditionalCheckFailedException } = await import("@aws-sdk/client-dynamodb");
+    mockDdbSend.mockRejectedValueOnce(new ConditionalCheckFailedException({ message: "Condition not met", $metadata: {} }));
+
+    const result = await handler(makeEvent());
+
+    // Should succeed — status already moved to terminal state
+    expect(result).toBe("cancellation completed (no active execution)");
+    expect(vi.mocked(StopExecutionCommand)).not.toHaveBeenCalled();
+  });
+
+  it("should handle ConditionalCheckFailedException when history entry already exists", async () => {
+    setupSfnMocks();
+    mockDdbSend.mockReset();
+    // First call: UpdateCommand for status succeeds
+    mockDdbSend.mockResolvedValueOnce({
+      Attributes: {
+        testId: "test-abc123",
+        startTime: "2000-01-01 00:00:00",
+        testType: "jmeter",
+        testDescription: "test desc",
+        scheduleTimezone: "UTC",
+        testScenario: '{"execution":[{"hold-for":"1m"}]}',
+      },
+    });
+    // Second call: PutCommand for history throws conditional
+    const { ConditionalCheckFailedException } = await import("@aws-sdk/client-dynamodb");
+    mockDdbSend.mockRejectedValueOnce(new ConditionalCheckFailedException({ message: "Already exists", $metadata: {} }));
+
+    const result = await handler(makeEvent());
+
+    // Should still proceed with cleanup
+    expect(result).toBe("cancellation initiated");
+    expect(vi.mocked(InvokeCommand)).toHaveBeenCalledOnce();
+    // incrementTestRunCount should NOT be called since history already exists
+    expect(vi.mocked(UpdateCommand)).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,8 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect } from "vitest";
-import { formatJson, formatTable, cellValue } from "../../src/lib/output.js";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { formatJson, formatTable, cellValue, printResult, formatOption } from "../../src/lib/output.js";
 
 describe("output", () => {
   describe("formatJson", () => {
@@ -115,5 +115,86 @@ describe("output", () => {
       // The truncated value should be 120 x's
       expect(dataLine.trim()).toBe("x".repeat(120));
     });
+  });
+});
+
+describe("printResult", () => {
+  let stdoutSpy: ReturnType<typeof vi.spyOn>;
+  let stderrSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    stdoutSpy.mockRestore();
+    stderrSpy.mockRestore();
+  });
+
+  it("prints table format for array of objects", () => {
+    printResult([{ id: "t1", name: "Test" }], { format: "table" });
+    expect(stdoutSpy).toHaveBeenCalled();
+    const output = stdoutSpy.mock.calls[0]![0] as string;
+    expect(output).toContain("t1");
+    expect(output).toContain("Test");
+  });
+
+  it("prints table format for single object", () => {
+    printResult({ id: "t1", name: "Test" }, { format: "table" });
+    expect(stdoutSpy).toHaveBeenCalled();
+    const output = stdoutSpy.mock.calls[0]![0] as string;
+    expect(output).toContain("t1");
+  });
+
+  it("prints no results message to stderr for empty array in table format", () => {
+    printResult([], { format: "table" });
+    expect(stderrSpy).toHaveBeenCalledWith("(no results)");
+    expect(stdoutSpy).not.toHaveBeenCalled();
+  });
+
+  it("prints JSON format to stdout", () => {
+    printResult({ id: "t1" }, { format: "json" });
+    expect(stdoutSpy).toHaveBeenCalled();
+    const output = stdoutSpy.mock.calls[0]![0] as string;
+    expect(JSON.parse(output)).toEqual({ id: "t1" });
+  });
+
+  it("prints empty JSON array for empty data", () => {
+    printResult([], { format: "json" });
+    expect(stdoutSpy).toHaveBeenCalled();
+    const output = stdoutSpy.mock.calls[0]![0] as string;
+    expect(JSON.parse(output)).toEqual([]);
+  });
+
+  it("defaults to table format when no format specified", () => {
+    printResult([{ id: "t1" }]);
+    expect(stdoutSpy).toHaveBeenCalled();
+    const output = stdoutSpy.mock.calls[0]![0] as string;
+    expect(output).toContain("t1");
+  });
+
+  it("handles non-object non-array data in table format", () => {
+    printResult(null, { format: "table" });
+    expect(stderrSpy).toHaveBeenCalledWith("(no results)");
+  });
+});
+
+describe("formatOption", () => {
+  it("returns a Commander Option", () => {
+    const opt = formatOption();
+    expect(opt).toBeDefined();
+    expect(opt.long).toBe("--format");
+  });
+
+  it("has choices json and table", () => {
+    const opt = formatOption();
+    expect(opt.argChoices).toContain("json");
+    expect(opt.argChoices).toContain("table");
+  });
+
+  it("defaults to table", () => {
+    const opt = formatOption();
+    expect(opt.defaultValue).toBe("table");
   });
 });

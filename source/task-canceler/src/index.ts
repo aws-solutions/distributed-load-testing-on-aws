@@ -12,6 +12,7 @@ import {
   createLogger,
   getAwsClientConfig,
   getRequiredEnv,
+  incrementTestRunCount,
   LogEvent,
   OPERATIONAL_METRIC_EVENT_VERSION,
   OperationalMetricEvent,
@@ -254,11 +255,17 @@ export async function handler(event: TaskCancelEvent): Promise<string> {
           testDescription: scenario?.["testDescription"],
           scheduleTimezone: (scenario?.["scheduleTimezone"] as string | undefined) ?? "UTC",
         },
+        ConditionExpression: "attribute_not_exists(testId)",
       })
     );
-    logger.info("History entry created for cancelled test run"); 
+    logger.info("History entry created for cancelled test run");
+    await incrementTestRunCount(ddb, SCENARIOS_TABLE, testId);
   } catch (error) {
-    logger.error("Failed to create history entry for cancelled test run", { testId, testRunId, error });
+    if (error instanceof ConditionalCheckFailedException) {
+      logger.info("History entry already exists for cancelled test run — skipping increment");
+    } else {
+      logger.error("Failed to create history entry for cancelled test run", { testId, testRunId, error });
+    }
   }
 
   // 5. Emit TestCancel operational metric
@@ -300,3 +307,4 @@ export async function handler(event: TaskCancelEvent): Promise<string> {
 
   return "cancellation initiated";
 }
+

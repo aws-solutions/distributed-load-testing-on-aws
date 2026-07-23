@@ -72,11 +72,12 @@ describe("handler", () => {
     mockDdbSend
       .mockResolvedValueOnce({ Item: scenario }) // getTestScenario
       .mockResolvedValueOnce({}) // updateTestScenarioStatus
-      .mockResolvedValueOnce({}); // updateTestHistoryStatus
+      .mockResolvedValueOnce({}) // updateTestHistoryStatus (new entry — no Attributes)
+      .mockResolvedValueOnce({}); // incrementTestRunCount
 
     await handler(makeEvent());
 
-    expect(mockDdbSend).toHaveBeenCalledTimes(3);
+    expect(mockDdbSend).toHaveBeenCalledTimes(4);
 
     // GetCommand for scenario lookup
     expect(vi.mocked(GetCommand)).toHaveBeenCalledWith({
@@ -85,7 +86,7 @@ describe("handler", () => {
     });
 
     // First UpdateCommand for scenario status
-    expect(vi.mocked(UpdateCommand)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(UpdateCommand)).toHaveBeenCalledTimes(3);
     const scenarioUpdateArgs = vi.mocked(UpdateCommand).mock.calls[0]?.[0];
     expect(scenarioUpdateArgs?.TableName).toBe("dlt-scenarios");
     expect(scenarioUpdateArgs?.Key).toEqual({ testId: "test-abc123" });
@@ -145,12 +146,13 @@ describe("updateTestScenarioStatus — terminal state guard", () => {
     mockDdbSend
       .mockResolvedValueOnce({ Item: scenario }) // getTestScenario
       .mockRejectedValueOnce(new ConditionalCheckFailedException({ $metadata: {}, message: "" })) // scenario update blocked
-      .mockResolvedValueOnce({}); // history update
+      .mockResolvedValueOnce({}) // history update (new entry — no Attributes)
+      .mockResolvedValueOnce({}); // incrementTestRunCount
 
     // Should not throw
     await handler(makeEvent());
 
-    expect(mockDdbSend).toHaveBeenCalledTimes(3);
+    expect(mockDdbSend).toHaveBeenCalledTimes(4);
   });
 
   it("should include terminal state condition values in the scenario update", async () => {
@@ -290,14 +292,50 @@ describe("edge cases", () => {
   it("should skip scenario update when status and endTime is not passed", async () => {
     const scenario = makeScenario();
     mockDdbSend
+      .mockResolvedValueOnce({ Item: scenario }) // getTestScenario
+      .mockResolvedValueOnce({}) // history update (new entry — no Attributes)
+      .mockResolvedValueOnce({}); // incrementTestRunCount
+
+    await handler(makeEvent({ status: undefined, endTime: undefined}));
+
+    expect(mockDdbSend).toHaveBeenCalledTimes(3);
+    const historyArgs = vi.mocked(UpdateCommand).mock.calls[0]?.[0];
+    expect(historyArgs?.ExpressionAttributeValues).toMatchObject({ ":startTime": "2025-01-01 00:00:00" });
+  });
+
+  it("should overwrite errorReason on scenarios table and use if_not_exists on history table", async () => {
+    const scenario = makeScenario();
+    mockDdbSend.mockReset();
+    mockDdbSend
+      .mockResolvedValueOnce({ Item: scenario }) // getTestScenario
+      .mockResolvedValueOnce({}) // updateTestScenarioStatus
+      .mockResolvedValueOnce({}); // updateTestHistoryStatus
+
+    await handler(makeEvent({ status: TestStatus.FAILED, errorReason: "Regional sync failed" }));
+
+    const scenarioArgs = vi.mocked(UpdateCommand).mock.calls[0]?.[0];
+    expect(scenarioArgs?.UpdateExpression).toContain("#e = :e");
+    expect(scenarioArgs?.UpdateExpression).not.toContain("if_not_exists(#e, :e)");
+    expect(scenarioArgs?.ExpressionAttributeNames).toMatchObject({ "#s": "status", "#e": "errorReason" });
+    expect(scenarioArgs?.ExpressionAttributeValues).toMatchObject({ ":e": "Regional sync failed" });
+
+    const historyArgs = vi.mocked(UpdateCommand).mock.calls[1]?.[0];
+    expect(historyArgs?.UpdateExpression).toContain("if_not_exists(#e, :e)");
+    expect(historyArgs?.ExpressionAttributeNames).toMatchObject({ "#s": "status", "#e": "errorReason" });
+    expect(historyArgs?.ExpressionAttributeValues).toMatchObject({ ":e": "Regional sync failed" });
+  });
+
+  it("should not write errorReason when it is an empty string", async () => {
+    const scenario = makeScenario();
+    mockDdbSend
       .mockResolvedValueOnce({ Item: scenario })
       .mockResolvedValueOnce({})
       .mockResolvedValueOnce({});
-  
-    await handler(makeEvent({ status: undefined, endTime: undefined}));
 
-    expect(mockDdbSend).toHaveBeenCalledTimes(2);
-    const historyArgs = vi.mocked(UpdateCommand).mock.calls[0]?.[0];
-    expect(historyArgs?.ExpressionAttributeValues).toMatchObject({ ":startTime": "2025-01-01 00:00:00" });
+    await handler(makeEvent({ status: TestStatus.COMPLETE, errorReason: "" }));
+
+    const scenarioArgs = vi.mocked(UpdateCommand).mock.calls[0]?.[0];
+    expect(scenarioArgs?.UpdateExpression).not.toContain("errorReason");
+    expect(scenarioArgs?.ExpressionAttributeValues).not.toHaveProperty(":e");
   });
 });

@@ -1,6 +1,6 @@
 {
   "name": "source",
-  "version": "4.1.5",
+  "version": "4.2.0",
   "private": true,
   "description": "ESLint and prettier dependencies to be used within the solution",
   "license": "Apache-2.0",
@@ -9,7 +9,7 @@
     "url": "https://aws.amazon.com/solutions"
   },
   "scripts": {
-    "lint": "NODE_OPTIONS='--max-old-space-size=4096' npx eslint . --ext .ts --ignore-pattern 'webui/*' && cd webui && npx eslint .",
+    "lint": "NODE_OPTIONS='--max-old-space-size=8192' npx eslint . --ext .ts --ignore-pattern 'webui/*' && cd webui && npx eslint .",
     "prettier-format": "npx prettier --config .prettierrc.yml '**/*.{js,ts}' --ignore-path '../.gitignore' --ignore-path 'webui/public/mockServiceWorker.js' --write",
     "prettier-check": "npx prettier --config .prettierrc.yml '**/*.{js,ts}' --check --ignore-path '../.gitignore' --ignore-path 'webui/public/mockServiceWorker.js'",
     "install:api-services": "cd ./api-services && npm ci",

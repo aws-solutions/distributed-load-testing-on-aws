@@ -8,7 +8,7 @@ import {
     buildTaskDefinitionFamily,
     DLT_SERVICE_PREFIX,
     parseExecutionName,
-} from "../src/naming.js";
+} from "../src/naming.ts";
 
 describe("buildServiceName", () => {
   it("builds service name from testId and region", () => {

@@ -67,7 +67,7 @@ export const CLOUDSCAPE_CATEGORICAL_COLORS = [
  */
 export function getRegionColor(region: string, allRegions: string[]): string {
   // Sort regions alphabetically to ensure consistent color assignment
-  const sortedRegions = [...allRegions].sort();
+  const sortedRegions = [...allRegions].sort((a, b) => a.localeCompare(b));
   const regionIndex = sortedRegions.indexOf(region);
   
   return CLOUDSCAPE_CATEGORICAL_COLORS[regionIndex];

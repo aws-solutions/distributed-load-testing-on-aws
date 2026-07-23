@@ -7,7 +7,7 @@ const { Scheduler } = require("@aws-sdk/client-scheduler");
 
 const utils = require("solution-utils");
 
-const { MAIN_REGION, DDB_TABLE } = process.env;
+const { MAIN_REGION, DDB_TABLE, HISTORY_TABLE } = process.env;
 let options = utils.getOptions({ region: MAIN_REGION });
 options = utils.getOptions(options);
 const dynamoDB = DynamoDBDocument.from(new DynamoDB(options));
@@ -73,6 +73,59 @@ const cleanUpTestScenarioResources = async () => {
   return "success";
 };
 
+const backfillTestRunCounts = async () => {
+  const params = {
+    TableName: DDB_TABLE,
+    FilterExpression: "attribute_not_exists(totalTestRuns) AND attribute_exists(testName)",
+    ProjectionExpression: "testId",
+  };
+
+  const items = [];
+  do {
+    const result = await dynamoDB.scan(params);
+    items.push(...result.Items);
+    params.ExclusiveStartKey = result.LastEvaluatedKey;
+  } while (params.ExclusiveStartKey);
+
+  if (items.length === 0) {
+    console.log("No scenarios need totalTestRuns backfill");
+    return "success";
+  }
+
+  console.log(`Backfilling totalTestRuns for ${items.length} scenarios`);
+
+  for (const item of items) {
+    try {
+      let totalCount = 0;
+      const countParams = {
+        TableName: HISTORY_TABLE,
+        Select: "COUNT",
+        KeyConditionExpression: "#t = :t",
+        ExpressionAttributeNames: { "#t": "testId" },
+        ExpressionAttributeValues: { ":t": item.testId },
+      };
+      do {
+        const countResult = await dynamoDB.query(countParams);
+        totalCount += countResult.Count || 0;
+        countParams.ExclusiveStartKey = countResult.LastEvaluatedKey;
+      } while (countParams.ExclusiveStartKey);
+
+      await dynamoDB.update({
+        TableName: DDB_TABLE,
+        Key: { testId: item.testId },
+        UpdateExpression: "SET totalTestRuns = :count",
+        ExpressionAttributeValues: { ":count": totalCount },
+      });
+    } catch (err) {
+      console.error(`Failed to backfill testId ${item.testId}:`, err);
+    }
+  }
+
+  console.log("Backfill complete");
+  return "success";
+};
+
 module.exports = {
   cleanUpTestScenarioResources: cleanUpTestScenarioResources,
+  backfillTestRunCounts: backfillTestRunCounts,
 };

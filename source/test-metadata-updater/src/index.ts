@@ -1,7 +1,14 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { getRequiredEnv, getAwsClientConfig, TestStatus, parseSafeJson, formatDate } from "@amzn/dlt-common";
+import {
+  formatDate,
+  getAwsClientConfig,
+  getRequiredEnv,
+  incrementTestRunCount,
+  parseSafeJson,
+  TestStatus,
+} from "@amzn/dlt-common";
 import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { ConditionalCheckFailedException, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 
@@ -15,6 +22,7 @@ export interface TestMetadataUpdateEvent {
   readonly testRunId: string;
   readonly status?: TestStatus;
   readonly endTime?: string;
+  readonly errorReason?: string;
 }
 
 interface TestScenario {
@@ -89,10 +97,15 @@ async function getTestScenario({ testId }: TestMetadataUpdateEvent): Promise<Tes
  * @param {string} status status to update the scenario to
  * @param {string?} endTime optional endTime value to update
  */
-async function updateTestScenarioStatus({ testId, status, endTime }: TestMetadataUpdateEvent): Promise<void> {
+async function updateTestScenarioStatus({
+  testId,
+  status,
+  endTime,
+  errorReason,
+}: TestMetadataUpdateEvent): Promise<void> {
   try {
     const updateList = [];
-    let ExpressionAttributeNames;
+    const ExpressionAttributeNames: Record<string, string> = {};
     const ExpressionAttributeValues: any = {};
     let terminalGuard;
 
@@ -105,7 +118,7 @@ async function updateTestScenarioStatus({ testId, status, endTime }: TestMetadat
         ":failed": TestStatus.FAILED,
       };
       updateList.push("#s = :s");
-      ExpressionAttributeNames = { "#s": "status" };
+      ExpressionAttributeNames["#s"] = "status";
       ExpressionAttributeValues[":s"] = status;
       Object.assign(ExpressionAttributeValues, conditionValues);
     }
@@ -113,17 +126,23 @@ async function updateTestScenarioStatus({ testId, status, endTime }: TestMetadat
       updateList.push("endTime = :endTime");
       ExpressionAttributeValues[":endTime"] = formatDate(new Date(endTime));
     }
+    if (errorReason) {
+      updateList.push("#e = :e");
+      ExpressionAttributeNames["#e"] = "errorReason";
+      ExpressionAttributeValues[":e"] = errorReason;
+    }
     if (!updateList.length) {
       // Do not update table entry if status and endTime not present
       return;
     }
+
     await ddb.send(
       new UpdateCommand({
         TableName: SCENARIOS_TABLE,
         Key: { testId },
         ConditionExpression: terminalGuard,
         UpdateExpression: `SET ${updateList.join(", ")}`,
-        ExpressionAttributeNames,
+        ExpressionAttributeNames: Object.keys(ExpressionAttributeNames).length ? ExpressionAttributeNames : undefined,
         ExpressionAttributeValues,
       })
     );
@@ -148,7 +167,7 @@ async function updateTestScenarioStatus({ testId, status, endTime }: TestMetadat
  * @param {string} scenario testScenario object configured in scenarios table
  */
 async function updateTestHistoryStatus(
-  { testRunId, status, endTime }: TestMetadataUpdateEvent,
+  { testRunId, status, endTime, errorReason }: TestMetadataUpdateEvent,
   scenario: TestScenario
 ): Promise<void> {
   try {
@@ -169,7 +188,7 @@ async function updateTestHistoryStatus(
       ":scheduleTimezone": scenario.scheduleTimezone,
       ":startTime": scenario.startTime,
     };
-    let ExpressionAttributeNames;
+    const ExpressionAttributeNames: Record<string, string> = {};
 
     // Update status, start, and end time field if present
     if (status) {
@@ -180,7 +199,7 @@ async function updateTestHistoryStatus(
         ":failed": TestStatus.FAILED,
       };
       updateList.push("#s = :s");
-      ExpressionAttributeNames = { "#s": "status" };
+      ExpressionAttributeNames["#s"] = "status";
       ExpressionAttributeValues[":s"] = status;
       Object.assign(ExpressionAttributeValues, conditionValues);
     }
@@ -188,17 +207,27 @@ async function updateTestHistoryStatus(
       updateList.push("endTime = if_not_exists(endTime, :endTime)");
       ExpressionAttributeValues[":endTime"] = formatDate(new Date(endTime));
     }
+    if (errorReason) {
+      updateList.push("#e = if_not_exists(#e, :e)");
+      ExpressionAttributeNames["#e"] = "errorReason";
+      ExpressionAttributeValues[":e"] = errorReason;
+    }
 
-    await ddb.send(
+    const result = await ddb.send(
       new UpdateCommand({
         TableName: HISTORY_TABLE,
         Key: { testId: scenario.testId, testRunId },
         UpdateExpression: `SET ${updateList.join(", ")}`,
         ConditionExpression: terminalGuard,
-        ExpressionAttributeNames,
+        ExpressionAttributeNames: Object.keys(ExpressionAttributeNames).length ? ExpressionAttributeNames : undefined,
         ExpressionAttributeValues,
+        ReturnValues: "ALL_OLD",
       })
     );
+
+    if (!result.Attributes) {
+      await incrementTestRunCount(ddb, SCENARIOS_TABLE, scenario.testId!);
+    }
   } catch (error) {
     if (error instanceof ConditionalCheckFailedException) {
       // Status is already in a protected state — nothing to do.

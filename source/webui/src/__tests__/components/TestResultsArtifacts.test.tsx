@@ -80,8 +80,9 @@ describe("TestResultsArtifacts", () => {
       items: [
         { path: "results/test-123/2025-01-01T00:00:01.123-abc-us-east-1.xml", lastModified: new Date(), size: 100, eTag: "abc" },
         { path: "results/test-123/bzt-2025-01-01T00:00:01.123-abc-us-east-1.log", lastModified: new Date(), size: 200, eTag: "def" },
+        { path: "results/test-123/2025-01-01T00:05:00.000-mid-us-east-1.xml", lastModified: new Date(), size: 150, eTag: "mno" },
         { path: "results/test-123/2024-12-31T23:59:56.000-xyz-us-east-1.xml", lastModified: new Date(), size: 150, eTag: "jkl" },
-        { path: "results/test-123/2025-01-01T00:00:04.000-fast-us-east-1.xml", lastModified: new Date(), size: 150, eTag: "mno" },
+        { path: "results/test-123/2025-01-01T00:10:01.000-after-end-us-east-1.xml", lastModified: new Date(), size: 150, eTag: "pqr" },
         { path: "results/test-123/2024-12-31T12:00:00.000-other-us-east-1.xml", lastModified: new Date(), size: 50, eTag: "ghi" },
       ],
     } as any);
@@ -91,12 +92,44 @@ describe("TestResultsArtifacts", () => {
     await waitFor(() => {
       expect(screen.getByText("2025-01-01T00:00:01.123-abc-us-east-1.xml")).toBeInTheDocument();
       expect(screen.getByText("bzt-2025-01-01T00:00:01.123-abc-us-east-1.log")).toBeInTheDocument();
+      expect(screen.getByText("2025-01-01T00:05:00.000-mid-us-east-1.xml")).toBeInTheDocument();
     });
 
-    // Files with timestamps outside the tolerance window should not appear
+    // Files with timestamps outside [startTime, endTime] should not appear
     expect(screen.queryByText("2024-12-31T23:59:56.000-xyz-us-east-1.xml")).not.toBeInTheDocument();
-    expect(screen.queryByText("2025-01-01T00:00:04.000-fast-us-east-1.xml")).not.toBeInTheDocument();
+    expect(screen.queryByText("2025-01-01T00:10:01.000-after-end-us-east-1.xml")).not.toBeInTheDocument();
     expect(screen.queryByText("2024-12-31T12:00:00.000-other-us-east-1.xml")).not.toBeInTheDocument();
+  });
+
+  test.each([
+    { label: "empty endTime", endTime: "" },
+    { label: "invalid endTime", endTime: "not-a-date" },
+  ])("falls back to 1.5-minute window from startTime when endTime is $label", async ({ endTime }) => {
+    vi.mocked(list).mockResolvedValue({
+      items: [
+        // within 1.5 minutes of startTime — should match
+        { path: "results/test-123/2025-01-01T00:00:01.000-abc-us-east-1.xml", lastModified: new Date(), size: 100, eTag: "abc" },
+        { path: "results/test-123/2025-01-01T00:01:29.000-late-us-east-1.xml", lastModified: new Date(), size: 100, eTag: "def" },
+        // before startTime — should not match
+        { path: "results/test-123/2024-12-31T23:59:59.000-before-us-east-1.xml", lastModified: new Date(), size: 100, eTag: "ghi" },
+        // more than 1.5 minutes after startTime — should not match
+        { path: "results/test-123/2025-01-01T00:01:31.000-outside-us-east-1.xml", lastModified: new Date(), size: 100, eTag: "jkl" },
+      ],
+    } as any);
+
+    render(
+      <TestResultsArtifacts
+        testRunDetails={{ ...mockTestRunDetails, endTime }}
+        testId="test-123"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("2025-01-01T00:00:01.000-abc-us-east-1.xml")).toBeInTheDocument();
+      expect(screen.getByText("2025-01-01T00:01:29.000-late-us-east-1.xml")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("2024-12-31T23:59:59.000-before-us-east-1.xml")).not.toBeInTheDocument();
+    expect(screen.queryByText("2025-01-01T00:01:31.000-outside-us-east-1.xml")).not.toBeInTheDocument();
   });
 
   test("shows error when list call fails", async () => {

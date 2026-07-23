@@ -5,6 +5,33 @@ ifeq (,$(wildcard .env))
 $(error .env file not found. Please copy .env.example to .env and configure it)
 endif
 
+# Guard against command injection through .env values, which are single-quoted
+# where expanded into the cdk/aws recipes below. Reject the two characters that
+# defeat that quoting: a single quote (closes the quoting) and a dollar sign
+# (Make expands $(...) before the shell runs). $(value VAR) reads the raw value
+# so the check itself cannot expand a $(shell ...) payload.
+SQUOTE := '
+DOLLAR := $$
+# Derive the guarded variable list from .env itself so any newly added variable
+# is covered automatically without a second list to maintain. The sed expression
+# captures the NAME from each NAME=value assignment and skips comment and blank
+# lines.
+DLT_ENV_VARS := $(shell sed -n 's/^[[:space:]]*\([A-Za-z_][A-Za-z0-9_]*\)[[:space:]]*=.*/\1/p' .env)
+define _dlt_check_env_var
+ifneq (,$$(findstring $$(SQUOTE),$$(value $(1))))
+$$(error $(1) from .env must not contain a single-quote character)
+endif
+ifneq (,$$(findstring $$(DOLLAR),$$(value $(1))))
+$$(error $(1) from .env must not contain a dollar-sign character)
+endif
+endef
+$(foreach v,$(DLT_ENV_VARS),$(eval $(call _dlt_check_env_var,$(v))))
+
+# Trim surrounding whitespace (e.g. the trailing space an inline .env comment
+# leaves behind) so it does not end up inside the quotes and reach cdk/aws. Runs
+# after the guard, so any dollar sign is already rejected and this is inert.
+$(foreach v,$(DLT_ENV_VARS),$(eval $(v) := $$(strip $$($(v)))))
+
 # Export AWS region variables
 export AWS_DEFAULT_REGION=$(TARGET_REGION)
 export AWS_REGION=$(TARGET_REGION)
@@ -15,7 +42,8 @@ export AWS_REGION=$(TARGET_REGION)
 # Declare all targets as phony (targets execute commands instead of making files)
 .PHONY: help dev install-deps test web-assets jmeter-assets \
 	deploy diff changeset regional-deploy \
-	_ensure-bootstrap-region _docker-pre-build _regional-deploy-single bundle-cli
+	_ensure-bootstrap-region _docker-pre-build _regional-deploy-single \
+	_synth-regional-template bundle-cli worktree-add worktree-remove
 
 # Display available commands and usage information
 help:
@@ -30,6 +58,16 @@ help:
 	echo "  make regional-deploy REGION=<region> - Deploy regional stack to a single region"
 	echo "  make test                             - Run all unit tests, linting, and formatting checks"
 	echo "  make bundle-cli                      - Bundle DLT CLI into a single portable file"
+	echo "  make worktree-add                    - Create a dev worktree (new branch, copies .env, installs deps)"
+	echo "  make worktree-remove                 - Remove a dev worktree (optionally deletes the branch)"
+
+# Create a development worktree (prompts for branch name if not given via BRANCH=)
+worktree-add:
+	bash scripts/worktree-add.sh $(BRANCH)
+
+# Remove a development worktree (prompts for branch name if not given via BRANCH=)
+worktree-remove:
+	bash scripts/worktree-remove.sh $(BRANCH)
 
 # Install npm dependencies for all workspace packages
 install-deps:
@@ -73,49 +111,64 @@ jmeter-assets:
 # Deploy main DLT stack to TARGET_REGION with required parameters from .env
 # Set MAIN_STACK_NAME in .env to choose deployment mode (standard, ALB+ECS, or headless)
 # ALB+ECS stack requires ConsoleDomainName and ACMCertificateArn (CDK will fail if missing)
-deploy: jmeter-assets web-assets _docker-pre-build
+deploy: jmeter-assets web-assets _docker-pre-build _synth-regional-template
 	echo "Deploying DLT stack: $(MAIN_STACK_NAME)"
-	cd source/infrastructure && npx cdk deploy $(MAIN_STACK_NAME) \
+	cd source/infrastructure && npx cdk deploy '$(MAIN_STACK_NAME)' \
 		--context buildFromSource=true \
-		--parameters AdminName=$(ADMIN_NAME) \
-		--parameters AdminEmail=$(ADMIN_EMAIL) \
+		--parameters AdminName='$(ADMIN_NAME)' \
+		--parameters AdminEmail='$(ADMIN_EMAIL)' \
 		--parameters DeployMCPServer="Yes" \
+		$(foreach tag,$(STACK_TAGS),--tags '$(tag)') \
 		--require-approval never
 
 # Show CloudFormation diff between current and proposed stack state
 diff: _docker-pre-build
 	echo "Showing differences for DLT stack"
-	cd source/infrastructure && npx cdk diff $(MAIN_STACK_NAME) \
+	cd source/infrastructure && npx cdk diff '$(MAIN_STACK_NAME)' \
 		--context buildFromSource=true \
-		--parameters AdminName=$(ADMIN_NAME) \
-		--parameters AdminEmail=$(ADMIN_EMAIL) \
-		--parameters DeployMCPServer="Yes"
+		--parameters AdminName='$(ADMIN_NAME)' \
+		--parameters AdminEmail='$(ADMIN_EMAIL)' \
+		--parameters DeployMCPServer="Yes" \
+		$(foreach tag,$(STACK_TAGS),--tags '$(tag)')
 
 # Create CloudFormation changeset without executing deployment
 changeset: jmeter-assets web-assets _docker-pre-build
 	echo "Creating changeset for DLT stack"
-	cd source/infrastructure && npx cdk deploy $(MAIN_STACK_NAME) \
+	cd source/infrastructure && npx cdk deploy '$(MAIN_STACK_NAME)' \
 		--context buildFromSource=true \
-		--parameters AdminName=$(ADMIN_NAME) \
-		--parameters AdminEmail=$(ADMIN_EMAIL) \
+		--parameters AdminName='$(ADMIN_NAME)' \
+		--parameters AdminEmail='$(ADMIN_EMAIL)' \
 		--parameters DeployMCPServer="Yes" \
+		$(foreach tag,$(STACK_TAGS),--tags '$(tag)') \
 		--require-approval never \
 		--no-execute
 
 # Run web UI development server locally (fetches config from deployed stack)
 dev:
 	echo "Running web app"
-	aws s3 cp s3://$$(aws cloudformation describe-stacks --stack-name $(MAIN_STACK_NAME) --query 'Stacks[0].Outputs[?OutputKey==`ConsoleResourceBucket`].OutputValue' --output text)/aws-exports.json source/webui/public/aws-exports.json
+	aws s3 cp s3://$$(aws cloudformation describe-stacks --stack-name '$(MAIN_STACK_NAME)' --query 'Stacks[0].Outputs[?OutputKey==`ConsoleResourceBucket`].OutputValue' --output text)/aws-exports.json source/webui/public/aws-exports.json
 	cd source/webui && npm run dev
 
 # Internal: Check if region is bootstrapped, bootstrap if needed
 _ensure-bootstrap-region:
-	if ! AWS_DEFAULT_REGION=$(REGION) AWS_REGION=$(REGION) aws cloudformation describe-stacks --stack-name CDKToolkit --region $(REGION) >/dev/null 2>&1; then \
+	if ! AWS_DEFAULT_REGION='$(REGION)' AWS_REGION='$(REGION)' aws cloudformation describe-stacks --stack-name CDKToolkit --region '$(REGION)' >/dev/null 2>&1; then \
 		echo "CDK not bootstrapped in $(REGION), bootstrapping..."; \
 		cd source/infrastructure && \
-		AWS_DEFAULT_REGION=$(REGION) AWS_REGION=$(REGION) \
-		npx cdk bootstrap --region $(REGION); \
+		AWS_DEFAULT_REGION='$(REGION)' AWS_REGION='$(REGION)' \
+		npx cdk bootstrap --region '$(REGION)'; \
 	fi
+
+# Internal: Synthesize regional template so it can be bundled as a CDK asset during main deploy.
+# A placeholder file is seeded first because cdk synth constructs all stacks in the app,
+# including the main stack which references this directory as a CDK asset source.
+_synth-regional-template:
+	echo "Synthesizing regional template..."
+	mkdir -p deployment/regional-template-assets
+	echo '{}' > deployment/regional-template-assets/distributed-load-testing-on-aws-regional.template
+	cd source/infrastructure && npx cdk synth distributed-load-testing-on-aws-regional \
+		--context buildFromSource=true --quiet
+	cp source/infrastructure/cdk.out/distributed-load-testing-on-aws-regional.template.json \
+		deployment/regional-template-assets/distributed-load-testing-on-aws-regional.template
 
 # Internal: Run pre-build scripts for all container images
 _docker-pre-build:
@@ -131,11 +184,11 @@ _docker-pre-build:
 #   make regional-deploy REGION=us-west-2 — deploys to a single region
 regional-deploy:
 	if [ -n "$(REGION)" ]; then \
-		$(MAKE) _regional-deploy-single REGION=$(REGION); \
+		$(MAKE) _regional-deploy-single REGION="$(REGION)"; \
 	elif [ -n "$(REGIONAL_STACKS)" ]; then \
-		for region in $(REGIONAL_STACKS); do \
+		for region in $(foreach r,$(REGIONAL_STACKS),'$(r)'); do \
 			echo "=== Deploying regional stack to $$region ==="; \
-			$(MAKE) _regional-deploy-single REGION=$$region; \
+			$(MAKE) _regional-deploy-single REGION="$$region"; \
 		done; \
 	else \
 		echo "Error: No regions specified."; \
@@ -151,14 +204,15 @@ _regional-deploy-single: _ensure-bootstrap-region _docker-pre-build
 		exit 1; \
 	fi
 	cd source/infrastructure && \
-	AWS_DEFAULT_REGION=$(REGION) AWS_REGION=$(REGION) \
-	npx cdk deploy $(REGIONAL_STACK_NAME) \
+	AWS_DEFAULT_REGION='$(REGION)' AWS_REGION='$(REGION)' \
+	npx cdk deploy '$(REGIONAL_STACK_NAME)' \
 		--context buildFromSource=true \
-		--context mainRegion=$(TARGET_REGION) \
-		--context scenariosBucket=$$(aws cloudformation describe-stacks --stack-name $(MAIN_STACK_NAME) --query 'Stacks[0].Outputs[?OutputKey==`ScenariosBucket`].OutputValue' --output text) \
-		--context scenariosTable=$$(aws cloudformation describe-stacks --stack-name $(MAIN_STACK_NAME) --query 'Stacks[0].Outputs[?OutputKey==`ScenariosTable`].OutputValue' --output text) \
-		--context lambdaTaskRoleArn=$$(aws cloudformation describe-stacks --stack-name $(MAIN_STACK_NAME) --query 'Stacks[0].Outputs[?OutputKey==`LambdaTaskRoleArn`].OutputValue' --output text) \
-		--region $(REGION) \
+		--context mainRegion='$(TARGET_REGION)' \
+		--context scenariosBucket=$$(aws cloudformation describe-stacks --stack-name '$(MAIN_STACK_NAME)' --query 'Stacks[0].Outputs[?OutputKey==`ScenariosBucket`].OutputValue' --output text) \
+		--context scenariosTable=$$(aws cloudformation describe-stacks --stack-name '$(MAIN_STACK_NAME)' --query 'Stacks[0].Outputs[?OutputKey==`ScenariosTable`].OutputValue' --output text) \
+		--context lambdaTaskRoleArn=$$(aws cloudformation describe-stacks --stack-name '$(MAIN_STACK_NAME)' --query 'Stacks[0].Outputs[?OutputKey==`LambdaTaskRoleArn`].OutputValue' --output text) \
+		$(foreach tag,$(STACK_TAGS),--tags '$(tag)') \
+		--region '$(REGION)' \
 		--require-approval never
 
 # Bundle the DLT CLI into a single portable file (requires: npm ci)

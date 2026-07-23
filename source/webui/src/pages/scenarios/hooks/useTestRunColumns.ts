@@ -7,6 +7,7 @@ import { formatToLocalTime } from "../../../utils/dateUtils";
 import { TableColumn, TestRun } from "../types";
 import { createBaselineCellWithStatus, getBaselineDelta, getBaselineText } from "../utils";
 import { STATUS_INDICATOR_MAP } from "../constants";
+import { InvestigationCell } from "../components/InvestigationCell";
 
 const METRICS_CONFIG = [
   { id: "requests", header: "Requests", metricType: 'higher-is-better' as const },
@@ -100,6 +101,12 @@ export const useTestRunColumns = (
         (item) => item.status || "-",
         undefined,
         "status"
+      ),
+      createColumn(
+        "investigation",
+        "Investigation",
+        (item) => React.createElement(InvestigationCell, { testId, testRunId: item.testRunId }),
+        () => "-",
       ),
     ];
 

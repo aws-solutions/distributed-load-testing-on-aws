@@ -55,11 +55,9 @@ export class RealTimeDataConstruct extends Construct {
 
     const realTimeDataPublisher = new NodejsFunction(this, "RealTimeDataPublisherNew", {
       description: "Real time data publisher",
-      handler: "index.handler",
       role: realTimeDataPublisherRole,
-      entry: path.join(__dirname, "../../../real-time-data-publisher/index.js"),
-      projectRoot: path.join(__dirname, "../../../real-time-data-publisher"),
-      depsLockFilePath: path.join(__dirname, "../../../real-time-data-publisher/package-lock.json"),
+      entry: path.join(__dirname, "../../../real-time-data-publisher/src/index.ts"),
+      projectRoot: path.join(__dirname, "../../../.."),
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
       timeout: Duration.seconds(180),

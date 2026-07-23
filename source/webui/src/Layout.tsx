@@ -5,7 +5,7 @@ import { useContext, useState } from "react";
 import { Alert, AppLayout, Flashbar, SpaceBetween } from "@cloudscape-design/components";
 import SideNavigationBar from "./components/navigation/SideNavigationBar.tsx";
 import { NotificationContext } from "./contexts/NotificationContext.tsx";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Breadcrumbs } from "./components/navigation/Breadcrumbs.tsx";
 import TopNavigationBar from "./components/navigation/TopNavigationBar.tsx";
 import { useSelector } from "react-redux";
@@ -16,6 +16,9 @@ import { useGetRegionsQuery } from "./store/regionsSlice.ts";
 export default function Layout() {
   const { notifications } = useContext(NotificationContext);
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  // The create/edit scenario form uses the form-optimized content width + panel defaults.
+  const isScenarioForm = pathname === "/scenarios/create" || /^\/scenarios\/[^/]+\/edit$/.test(pathname);
   const { data: stackInfo } = useGetStackInfoQuery(undefined, { refetchOnMountOrArgChange: STACK_INFO_CACHE_SECONDS });
   useGetRegionsQuery();
   const regionalStacks = useSelector((state: RootState) => state.regions.regionalStacks);
@@ -84,7 +87,7 @@ export default function Layout() {
               </SpaceBetween>
             </div>
           }
-          contentType={"dashboard"}
+          contentType={isScenarioForm ? "form" : "dashboard"}
           breadcrumbs={<Breadcrumbs />}
           navigation={<SideNavigationBar />}
           notifications={<Flashbar stackItems={true} items={notifications}></Flashbar>}

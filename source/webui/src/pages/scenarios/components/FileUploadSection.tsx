@@ -3,10 +3,12 @@
 
 // Component for JMeter file upload functionality
 
-import { Checkbox, Container, FileUpload, FormField, Header, Link, SpaceBetween } from "@cloudscape-design/components";
+import { Checkbox, FileUpload, FormField, Link, SpaceBetween } from "@cloudscape-design/components";
 import { TestTypes } from "../constants";
 import { FormData } from "../types";
 import { getFileExtension } from "../utils";
+import { FormSection } from "./FormSection";
+import { SECTION_IDS } from "../utils/scenarioValidation";
 
 interface Props {
   formData: FormData;
@@ -24,7 +26,7 @@ export const FileUploadSection = ({ formData, updateFormData, showValidationErro
   };
 
   return (
-    <Container header={<Header variant="h2">Upload Test File</Header>}>
+    <FormSection sectionId={SECTION_IDS.FILE_UPLOAD} headerText="Upload Test File">
       <SpaceBetween direction="vertical" size="m">
       {formData.testType === TestTypes.K6 && (
         <Checkbox
@@ -92,6 +94,6 @@ export const FileUploadSection = ({ formData, updateFormData, showValidationErro
         />
       </FormField>
       </SpaceBetween>
-    </Container>
+    </FormSection>
   );
 };

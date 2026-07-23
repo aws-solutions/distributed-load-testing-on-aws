@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws",
-  "version": "4.1.5",
+  "version": "4.2.0",
   "private": true,
   "description": "Workspace for Distributed Load Testing on AWS",
   "license": "Apache-2.0",
@@ -15,6 +15,7 @@
     "source/common",
     "source/mcp-server",
     "source/cli",
+    "source/api-services",
     "source/stabilization-checker",
     "source/start-command",
     "source/task-runner",
@@ -26,6 +27,7 @@
     "source/sfn-failure-handler",
     "source/test-cleanup",
     "source/test-metadata-updater",
+    "source/real-time-data-publisher",
     "deployment/launch-wizard-assets/test"
   ],
   "scripts": {

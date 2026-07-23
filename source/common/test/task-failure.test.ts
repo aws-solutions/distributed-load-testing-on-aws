@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { classifyStopCode, StopCategory } from "../src/task-failure.js";
+import { classifyStopCode, StopCategory } from "../src/task-failure.ts";
 
 describe("classifyStopCode", () => {
   it("returns OutOfMemory for exit code 137", () => {

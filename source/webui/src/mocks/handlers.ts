@@ -7,6 +7,7 @@
 import { delay, http, HttpResponse } from "msw";
 import { generateMockTestRunDetails, generateTestScenarios, ScenarioItem } from "../__tests__/test-data-factory";
 import { ApiEndpoints } from "../store/solutionApi.ts";
+import { investigationHandlers } from "./investigationHandlers.ts";
 
 /**
  * Return a 200 OK http response with the given payload.
@@ -54,6 +55,7 @@ export const getRegionsHandler = (apiUrl: string) =>
           testId: "region-us-east-1",
           subnetB: "subnet-0036b9d0136bf8b72",
           region: "us-east-1",
+          compatible: true,
           taskRoleArn: "arn:aws:iam::123456789012:role/dlt-task-role",
           executionRoleArn: "arn:aws:iam::123456789012:role/dlt-execution-role",
           subnetA: "subnet-0f0e5e5b70565bac9",
@@ -125,6 +127,7 @@ export const handlers = (apiUrl: string) => [
   getRegionsHandler(apiUrl),
   getVCPUDetailsHandler(apiUrl),
   getTasksHandler(apiUrl),
+  ...investigationHandlers(apiUrl),
 ];
 
 export const mockScenarios: ScenarioItem[] = generateTestScenarios(5); // Generate 5 mock scenarios

@@ -45,16 +45,19 @@ export function TestResultsArtifacts({ testRunDetails, testId }: TestResultsArti
           let matchingFiles = result.items.filter((item) => item.path.includes(`_${testRunId}/`));
 
           // Fallback for legacy format: files stored directly under results/<testId>/
-          // with timestamps in filenames. The file timestamp may differ from startTime
-          // by a few seconds, so match within a tolerance window.
+          // with timestamps in filenames. Match files whose timestamp falls within the
+          // test run's [startTime, endTime] window. If endTime is missing or invalid,
+          // use a 1.5-minute window from startTime.
           if (matchingFiles.length === 0 && testRunDetails.startTime) {
             const runStart = new Date(testRunDetails.startTime).getTime();
-            const toleranceMs = 3_000;
+            // Set the rundEnd time to fall back to startTime + 90 seconds in cases
+            // where endTime is not a valid Date.
+            const runEnd = new Date(testRunDetails.endTime).getTime() || runStart + 90_000;
             matchingFiles = result.items.filter((item) => {
               const match = item.path.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)/);
               if (!match) return false;
               const fileTime = new Date(match[1]).getTime();
-              return Math.abs(fileTime - runStart) <= toleranceMs;
+              return fileTime >= runStart && fileTime <= runEnd;
             });
           }
 

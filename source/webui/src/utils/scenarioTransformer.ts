@@ -75,7 +75,6 @@ export const transformScenarioToFormData = (scenario: any, preserveId = false) =
     cronDayOfMonth,
     cronMonth,
     cronDayOfWeek,
-    cronYear: "",
     cronExpiryDate,
     scheduleTimezone,
     regions:
@@ -88,5 +87,9 @@ export const transformScenarioToFormData = (scenario: any, preserveId = false) =
     rampUpUnit: parseTimeUnit(execution["ramp-up"] || "1m").unit,
     holdForValue: parseTimeUnit(execution["hold-for"] || "5m").value,
     holdForUnit: parseTimeUnit(execution["hold-for"] || "5m").unit,
+    healthyThreshold:
+      scenario.healthyThreshold !== undefined && scenario.healthyThreshold !== null
+        ? String(scenario.healthyThreshold)
+        : "90",
   };
 };

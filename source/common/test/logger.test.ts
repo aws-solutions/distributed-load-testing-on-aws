@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { createLogger } from "../src/logger.js";
+import { createLogger } from "../src/logger.ts";
 
 describe("createLogger", () => {
   const params = {

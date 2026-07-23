@@ -7,6 +7,36 @@ process.env.AWS_DEFAULT_REGION = "us-east-1";
 process.env.METRICS_ENDPOINT = "https://test.metrics.com";
 process.env.SEND_METRIC = "Yes";
 
+// Mock the DevOps Agent SDK
+jest.mock("@aws-sdk/client-devops-agent", () => ({
+  DevOpsAgentClient: jest.fn().mockImplementation(() => ({ send: jest.fn() })),
+  GetAgentSpaceCommand: jest.fn(),
+  CreateBacklogTaskCommand: jest.fn(),
+  GetBacklogTaskCommand: jest.fn(),
+  UpdateBacklogTaskCommand: jest.fn(),
+  ListExecutionsCommand: jest.fn(),
+  ListJournalRecordsCommand: jest.fn(),
+}));
+
+// Mock the investigations module
+jest.mock("./lib/investigations/", () => ({
+  createInvestigation: jest.fn().mockResolvedValue({ investigationId: "task-mock" }),
+  listInvestigations: jest.fn().mockResolvedValue([]),
+  getInvestigationStatus: jest.fn().mockResolvedValue({ status: "IN_PROGRESS" }),
+  getInvestigationFindings: jest.fn().mockResolvedValue({ findings: null }),
+  cancelInvestigation: jest.fn().mockResolvedValue({ status: "CANCELED", archived: true }),
+  archiveInvestigation: jest.fn().mockResolvedValue({ archived: true }),
+}));
+
+// Mock the agent-spaces module
+jest.mock("./lib/agent-spaces/", () => ({
+  listAgentSpaces: jest.fn().mockResolvedValue([]),
+  registerAgentSpace: jest.fn().mockResolvedValue({ id: "test-id", displayName: "Test" }),
+  updateAgentSpace: jest.fn().mockResolvedValue({ id: "test-id", displayName: "Updated" }),
+  deregisterAgentSpace: jest.fn().mockResolvedValue({ message: "Agent Space removed" }),
+  testConnection: jest.fn().mockResolvedValue([{ id: "test-id", status: "connected" }]),
+}));
+
 // Mock the scenarios module before importing
 jest.mock("./lib/scenarios/", () => ({
   ErrorException: jest.fn().mockImplementation((code, message, statusCode) => ({
@@ -51,6 +81,7 @@ jest.mock("./lib/scenarios/", () => ({
 
 jest.mock("solution-utils", () => ({
   sendMetric: jest.fn().mockResolvedValue(undefined),
+  getOptions: jest.fn((opts) => opts || {}),
 }));
 
 const apiServices = require("./index");

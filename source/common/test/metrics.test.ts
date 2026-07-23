@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { OperationalMetricEnvelope } from "../src/metrics.js";
-import { OperationalMetricEvent, sendOperationalMetric } from "../src/metrics.js";
+import type { OperationalMetricEnvelope } from "../src/metrics.ts";
+import { OperationalMetricEvent, sendOperationalMetric } from "../src/metrics.ts";
 
 describe("sendOperationalMetric", () => {
   const envelope: OperationalMetricEnvelope = {

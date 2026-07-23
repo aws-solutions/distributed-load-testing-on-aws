@@ -10,6 +10,8 @@ export type NotificationPayload = {
   header?: React.ReactNode;
   content?: React.ReactNode;
   type: "success" | "warning" | "info" | "error" | "in-progress";
+  /** When true, the notification is auto-removed a few seconds after it appears. */
+  autoDismiss?: boolean;
 };
 
 export type NotificationState = {

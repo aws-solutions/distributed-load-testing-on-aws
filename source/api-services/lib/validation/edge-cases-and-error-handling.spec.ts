@@ -5,6 +5,7 @@
 // This file tests boundary conditions, validation edge cases, and error scenarios
 // that are not covered by the main validation test suites
 
+import { describe, it, expect } from "vitest";
 import {
   validateCreateTestBody,
   validateTestId,

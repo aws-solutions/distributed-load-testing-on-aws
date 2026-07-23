@@ -88,10 +88,19 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
     const { executionMap } = this.buildExecutionPhase(props, setScenarioStatusParsingResults);
     const { cancelAllMap } = this.buildCancelAllMap(props, finalOutcomeFailed);
     const { regionalSync } = this.buildRegionalSync(props, executionMap, cancelAllMap);
-    const { stabilizationMap } = this.buildStabilizationPhase(props, regionalSync);
+
+    // Initialize $.errorReason after stabilization so it is present for all
+    // downstream paths (cancel, execution, cleanup) that converge at the final step.
+    const initErrorReason = new Pass(this, "Init Error Reason", {
+      result: { value: "" },
+      resultPath: "$.errorReason",
+    });
+    initErrorReason.next(regionalSync);
+
+    const { stabilizationMap } = this.buildStabilizationPhase(props, initErrorReason);
     const { testStart } = this.buildOperationalMetricStart(props, stabilizationMap);
 
-    // Full chain: TestStart → Stabilization → Sync → Execution → PostExecution → Done
+    // Full chain: TestStart → Stabilization → Init Error Reason → Sync → Execution → PostExecution → Done
     const definition = Chain.start(testStart);
 
     this.taskRunnerStepFunctions = new StateMachine(this, "TaskRunnerStepFunctions", {
@@ -239,12 +248,20 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
 
     setStatusRunning.next(executionMap);
 
+    // Set errorReason on the top-level state before entering the cancel map.
+    // The cancel map uses resultPath: DISCARD, so top-level state survives.
+    const setErrorReasonCancelled = new Pass(this, "Set Error Reason: stabilization failed", {
+      result: { value: "Regional sync failed — at least one region did not stabilize" },
+      resultPath: "$.errorReason",
+    });
+    setErrorReasonCancelled.next(cancelAllMap);
+
     const syncChoice = new Choice(this, "All regions ready?");
     syncChoice.when(Condition.booleanEquals("$.syncResult.Payload.allReady", true), setStatusRunning);
-    syncChoice.otherwise(cancelAllMap);
+    syncChoice.otherwise(setErrorReasonCancelled);
 
     regionalSync.next(syncChoice);
-    regionalSync.addCatch(cancelAllMap, { resultPath: "$.error" });
+    regionalSync.addCatch(setErrorReasonCancelled, { resultPath: "$.error" });
 
     return { regionalSync };
   }
@@ -530,6 +547,7 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
 
   // ─── Final Outcome Pass States ───────────────────────────
   // Set $.finalOutcome before TestEnd so it knows the result.
+  // Also normalizes $.errorReason so the final status writer always has it.
 
   private buildFinalOutcomeStates(testEnd: IChainable): {
     finalOutcomeComplete: Pass;
@@ -568,6 +586,7 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
         "testRunId.$": "$.testRunId",
         "status.$": "$.finalOutcome",
         "endTime.$": "$$.State.EnteredTime",
+        "errorReason.$": "$.errorReason",
       }),
       resultPath: JsonPath.DISCARD,
     });

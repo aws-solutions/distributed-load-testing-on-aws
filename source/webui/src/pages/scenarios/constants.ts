@@ -20,6 +20,7 @@ export enum TestStatus {
   CANCELLED = "cancelled",
   FAILED = "failed",
   SCHEDULED = "scheduled",
+  CREATED = "created",
 }
 
 export enum TestTypes {
@@ -42,13 +43,6 @@ export const HttpMethodOptions: Option[] = [
   { label: "PUT", value: "PUT" },
   { label: "DELETE", value: "DELETE" },
 ];
-
-export const STEPS = {
-  GENERAL_SETTINGS: 0,
-  SCENARIO_CONFIG: 1,
-  TRAFFIC_SHAPE: 2,
-  REVIEW: 3,
-} as const;
 
 export const VALIDATION_LIMITS = {
   MAX_REGIONS: 5,
@@ -96,6 +90,7 @@ export const STATUS_INDICATOR_MAP: Record<TestStatus, StatusConfig> = {
   [TestStatus.CANCELLED]: { type: StatusIndicatorType.STOPPED, label: "Cancelled" },
   [TestStatus.FAILED]: { type: StatusIndicatorType.ERROR, label: "Failed" },
   [TestStatus.SCHEDULED]: { type: StatusIndicatorType.PENDING, label: "Scheduled" },
+  [TestStatus.CREATED]: { type: StatusIndicatorType.PENDING, label: "Created" },
 };
 
 /** All non-terminal states — used to gate auto-refresh and API task data inclusion. */
@@ -126,6 +121,7 @@ const TERMINAL_TEST_STATES: ReadonlySet<string> = new Set<string>([
   TestStatus.CANCELLED,
   TestStatus.FAILED,
   TestStatus.SCHEDULED,
+  TestStatus.CREATED,
 ]);
 
 export const getPollingInterval = (status: string, userSelectedInterval: number): number =>

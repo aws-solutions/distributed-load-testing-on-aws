@@ -28,6 +28,7 @@ export default defineConfig([
       "*.ts",
       "source/common/**/*.ts",
       "source/mcp-server/**/*.ts",
+      "source/api-services/**/*.ts",
       "source/stabilization-checker/**/*.ts",
       "source/start-command/**/*.ts",
       "source/task-runner/**/*.ts",
@@ -38,6 +39,7 @@ export default defineConfig([
       "source/regional-sync/**/*.ts",
       "source/sfn-failure-handler/**/*.ts",
       "source/test-cleanup/**/*.ts",
+      "source/real-time-data-publisher/**/*.ts",
     ],
     extends: [
       eslint.configs.recommended,

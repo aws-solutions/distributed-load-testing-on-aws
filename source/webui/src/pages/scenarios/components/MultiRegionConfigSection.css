@@ -1,0 +1,8 @@
+/* Hide Cloudscape's selected-row highlight (blue fill + outline) for the region
+   table. Zero the border *color* rather than the border itself so the 2px width
+   Cloudscape's padding math assumes is preserved and selected rows don't shift.
+   The focus ring is left intact for keyboard navigation. */
+.region-table [class*="awsui_body-cell-selected"] {
+  background-color: transparent !important;
+  border-color: transparent !important;
+}

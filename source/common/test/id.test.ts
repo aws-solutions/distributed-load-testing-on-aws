@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { generateUniqueId } from "../src/id.js";
+import { generateUniqueId } from "../src/id.ts";
 
 const ALPHA_NUMERIC_PATTERN = /^[A-Za-z0-9]+$/;
 

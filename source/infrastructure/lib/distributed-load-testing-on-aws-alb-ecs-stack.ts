@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { CfnOutput, CfnParameter } from "aws-cdk-lib";
-import { DLTBaseStack, IDLTConsole } from "./distributed-load-testing-on-aws-base-stack";
+import { DLTBaseStack, IDLTConsole, ECR_IMAGE_URI_PATTERN } from "./distributed-load-testing-on-aws-base-stack";
 import { DLTConsoleAlbEcsConstruct } from "./front-end/console-alb-ecs";
 
 // S3 key for web console assets - shared between stack and construct
 const WEB_CONSOLE_ZIP_KEY = "dlt-web-console.zip";
-
-// Allowed pattern for ECR image URIs - exported for use in tests
-export const ECR_IMAGE_URI_PATTERN =
-  "^$|^\\d{12}\\.dkr\\.ecr\\.[a-z]{2}(-gov)?-(central|north|south|east|west|northeast|southeast|northwest|southwest)-\\d\\.amazonaws\\.com\\/[a-z0-9._\\/-]+(:[a-zA-Z0-9._-]+|@sha256:[a-fA-F0-9]{64})?$";
 
 /**
  * Distributed Load Testing on AWS - ALB + ECS Console Stack

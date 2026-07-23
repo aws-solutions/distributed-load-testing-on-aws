@@ -34,7 +34,11 @@ import regionalCompat from "../../../../regional-compatibility.json";
  * DLTAPI props
  */
 export interface DLTAPIProps {
+  readonly agentSpacesDynamoDbPolicy: Policy;
+  readonly agentSpacesTableName: string;
   readonly cloudWatchLogsPolicy: Policy;
+  // DevOps Agent integration policy (aidevops API actions)
+  readonly devOpsAgentPolicy: Policy;
   // ECS CloudWatch Log Group
   readonly ecsCloudWatchLogGroup: LogGroup;
   // ECS Task Execution Role ARN
@@ -47,6 +51,8 @@ export interface DLTAPIProps {
   readonly historyTable: string;
   // History DynamoDB table GSI name
   readonly historyTableGSIName: string;
+  readonly investigationsDynamoDbPolicy: Policy;
+  readonly investigationsTableName: string;
   // Test scenarios S3 bucket
   readonly scenariosBucketName: string;
   // Scenarios DynamoDB table policy
@@ -168,8 +174,11 @@ export class DLTAPI extends Construct {
       },
     });
     this.apiServicesLambdaRoleName = dltApiServicesLambdaRole.roleName;
+    dltApiServicesLambdaRole.attachInlinePolicy(props.agentSpacesDynamoDbPolicy);
     dltApiServicesLambdaRole.attachInlinePolicy(props.cloudWatchLogsPolicy);
+    dltApiServicesLambdaRole.attachInlinePolicy(props.devOpsAgentPolicy);
     dltApiServicesLambdaRole.attachInlinePolicy(props.historyDynamoDbPolicy);
+    dltApiServicesLambdaRole.attachInlinePolicy(props.investigationsDynamoDbPolicy);
     dltApiServicesLambdaRole.attachInlinePolicy(props.scenariosDynamoDbPolicy);
     dltApiServicesLambdaRole.attachInlinePolicy(props.scenariosS3Policy);
     dltApiServicesLambdaRole.attachInlinePolicy(props.taskCancelerInvokePolicy);
@@ -250,15 +259,37 @@ export class DLTAPI extends Construct {
 
     const dltApiServicesLambda = new NodejsFunction(this, "DLTAPIServicesLambdaNew", {
       description: "API microservices for creating, updating, listing and deleting test scenarios",
-      entry: path.join(__dirname, "../../../api-services/index.js"),
-      projectRoot: path.join(__dirname, "../../../api-services"),
-      depsLockFilePath: path.join(__dirname, "../../../api-services/package-lock.json"),
+      entry: path.join(__dirname, "../../../api-services/index.ts"),
+      projectRoot: path.join(__dirname, "../../../.."),
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
       timeout: Duration.seconds(120),
+      bundling: {
+        // @aws-sdk/client-devops-agent is not in the Lambda runtime, so it must be bundled.
+        // All other @aws-sdk/* packages are available in the runtime and listed as external
+        // to avoid bundling the full SDK.
+        bundleAwsSDK: false,
+        externalModules: [
+          "@aws-sdk/client-cloudformation",
+          "@aws-sdk/client-cloudwatch",
+          "@aws-sdk/client-cloudwatch-events",
+          "@aws-sdk/client-cloudwatch-logs",
+          "@aws-sdk/client-dynamodb",
+          "@aws-sdk/client-ecs",
+          "@aws-sdk/client-lambda",
+          "@aws-sdk/client-s3",
+          "@aws-sdk/client-scheduler",
+          "@aws-sdk/client-service-quotas",
+          "@aws-sdk/client-sfn",
+          "@aws-sdk/lib-dynamodb",
+        ],
+        // @aws-sdk/client-devops-agent is NOT listed here, so esbuild bundles it inline
+      },
       environment: {
+        AGENT_SPACES_TABLE: props.agentSpacesTableName,
         HISTORY_TABLE: props.historyTable,
         HISTORY_TABLE_GSI_NAME: props.historyTableGSIName,
+        INVESTIGATIONS_TABLE: props.investigationsTableName,
         METRIC_URL: SOLUTIONS_METRICS_ENDPOINT,
         SCENARIOS_BUCKET: props.scenariosBucketName,
         SCENARIOS_TABLE: props.scenariosTableName,
@@ -486,12 +517,20 @@ export class DLTAPI extends Construct {
     };
 
     /**
-     * Test scenario API
+     * API Routes
      * /regions
      * /scenarios
      * /scenarios/{testId}
+     * /scenarios/{testId}/baseline
+     * /scenarios/{testId}/testruns
+     * /scenarios/{testId}/testruns/{testRunId}
+     * /scenarios/{testId}/testruns/{testRunId}/investigations
+     * /scenarios/{testId}/testruns/{testRunId}/investigations/{investigationId}
+     * /scenarios/{testId}/testruns/{testRunId}/investigations/{investigationId}/status
+     * /scenarios/{testId}/testruns/{testRunId}/investigations/{investigationId}/findings
      * /tasks
      * /vCPUDetails
+     * /stack-info
      */
 
     const regionsResource = api.root.addResource("regions");
@@ -509,6 +548,21 @@ export class DLTAPI extends Construct {
     const testRunIdResource = testRunsResource.addResource("{testRunId}");
     testRunIdResource.addMethod("ANY", allIntegration, allMethodOptions);
 
+    // Investigation routes: /scenarios/{testId}/testruns/{testRunId}/investigations
+    const investigationsResource = testRunIdResource.addResource("investigations");
+    investigationsResource.addMethod("GET", allIntegration, allMethodOptions);
+    investigationsResource.addMethod("POST", allIntegration, allMethodOptions);
+
+    const investigationIdResource = investigationsResource.addResource("{investigationId}");
+    investigationIdResource.addMethod("PUT", allIntegration, allMethodOptions);
+    investigationIdResource.addMethod("DELETE", allIntegration, allMethodOptions);
+
+    const investigationStatusResource = investigationIdResource.addResource("status");
+    investigationStatusResource.addMethod("GET", allIntegration, allMethodOptions);
+
+    const investigationFindingsResource = investigationIdResource.addResource("findings");
+    investigationFindingsResource.addMethod("GET", allIntegration, allMethodOptions);
+
     // Baseline management resource: /scenarios/{testId}/baseline
     const baseline = testIds.addResource("baseline");
     baseline.addMethod("GET", allIntegration, allMethodOptions);
@@ -523,6 +577,18 @@ export class DLTAPI extends Construct {
 
     const stackInfoResource = api.root.addResource("stack-info");
     stackInfoResource.addMethod("ANY", allIntegration, allMethodOptions);
+
+    // Agent Spaces API: /agent-spaces, /agent-spaces/{id}, /agent-spaces/test-connection
+    const agentSpacesResource = api.root.addResource("agent-spaces");
+    agentSpacesResource.addMethod("GET", allIntegration, allMethodOptions);
+    agentSpacesResource.addMethod("POST", allIntegration, allMethodOptions);
+
+    const agentSpaceIdResource = agentSpacesResource.addResource("{id}");
+    agentSpaceIdResource.addMethod("PUT", allIntegration, allMethodOptions);
+    agentSpaceIdResource.addMethod("DELETE", allIntegration, allMethodOptions);
+
+    const testConnectionResource = agentSpacesResource.addResource("test-connection");
+    testConnectionResource.addMethod("POST", allIntegration, allMethodOptions);
 
     const invokeSourceArn = Stack.of(this).formatArn({
       service: "execute-api",

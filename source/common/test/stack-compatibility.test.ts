@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { checkRegionalCompatibility, isUpdateAvailable } from "../src/stack-compatibility.js";
+import { checkRegionalCompatibility, isUpdateAvailable } from "../src/stack-compatibility.ts";
 
 describe("checkRegionalCompatibility", () => {
   it("returns compatible when versions are equal", () => {

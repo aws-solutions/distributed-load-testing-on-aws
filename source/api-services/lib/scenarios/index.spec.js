@@ -87,7 +87,7 @@ jest.mock("@aws-sdk/lib-dynamodb", () => {
 
 const testId = "1234";
 const listData = {
-  Items: [{ testId: "1234" }, { testId: "5678" }],
+  Items: [{ testId: "1234", totalTestRuns: 5 }, { testId: "5678", totalTestRuns: 3 }],
 };
 
 const origData = {
@@ -777,9 +777,6 @@ describe("#SCENARIOS API:: ", () => {
   //Positive tests
   it('should return "SUCCESS" when "LISTTESTS" returns success', async () => {
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(listData));
-    // Mock the count queries for each test scenario
-    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 5 })); // for testId "1234"
-    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 3 })); // for testId "5678"
     const response = await lambda.listTests();
     expect(response.Items[0].testId).toEqual("1234");
     expect(response.Items[0].totalTestRuns).toEqual(5);
@@ -1770,16 +1767,12 @@ describe("#SCENARIOS API:: ", () => {
     }
   });
 
-  it('should return "SUCCESS" with totalTestRuns=0 when count query fails for a scenario', async () => {
-    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(listData));
-    // Mock the count query to fail for the first test scenario
-    mockDynamoDB.mockImplementationOnce(() => Promise.reject("COUNT ERROR"));
-    // Mock successful count for the second test scenario
-    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 2 }));
+  it('should default totalTestRuns to 0 when not present on item', async () => {
+    const listDataNoCount = { Items: [{ testId: "1234" }, { testId: "5678" }] };
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(listDataNoCount));
     const response = await lambda.listTests();
-    expect(response.Items[0].testId).toEqual("1234");
-    expect(response.Items[0].totalTestRuns).toEqual(0); // Should default to 0 on error
-    expect(response.Items[1].totalTestRuns).toEqual(2);
+    expect(response.Items[0].totalTestRuns).toEqual(0);
+    expect(response.Items[1].totalTestRuns).toEqual(0);
   });
 
   it('should return "DB ERROR" when "GETTEST" fails', async () => {
@@ -2675,6 +2668,54 @@ describe("deleteTestRuns", () => {
 
     const response = await lambda.deleteTestRuns("1234", ["invalid-format", "run-002", "non-existent"]);
     expect(response.deletedCount).toEqual(1); // Only run-002 should be deleted
+  });
+
+  it('should return "BASELINE_CONFLICT" when attempting to delete the baseline test run', async () => {
+    const testDataWithBaseline = {
+      Item: {
+        testId: "1234",
+        testName: "mytest",
+        status: "complete",
+        testScenario: '{"name":"example"}',
+        baselineId: "run-002",
+      },
+    };
+
+    // Mock getTestEntry returning a test with a baseline set
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testDataWithBaseline));
+
+    await expect(
+      lambda.deleteTestRuns("1234", ["run-001", "run-002", "run-003"])
+    ).rejects.toMatchObject({
+      code: "BASELINE_CONFLICT",
+      statusCode: 409,
+      message: expect.stringContaining("run-002"),
+    });
+  });
+
+  it('should allow deletion when baseline is set but not included in testRunIds', async () => {
+    const testDataWithBaseline = {
+      Item: {
+        testId: "1234",
+        testName: "mytest",
+        status: "complete",
+        testScenario: '{"name":"example"}',
+        baselineId: "run-baseline",
+      },
+    };
+
+    // Mock getTestEntry returning a test with a baseline set
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testDataWithBaseline));
+
+    // Mock get calls for validating test runs exist
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Item: { testId: "1234", testRunId: "run-001" } }));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Item: { testId: "1234", testRunId: "run-002" } }));
+
+    // Mock successful batch delete
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ UnprocessedItems: {} }));
+
+    const response = await lambda.deleteTestRuns("1234", ["run-001", "run-002"]);
+    expect(response.deletedCount).toEqual(2);
   });
 });
 
