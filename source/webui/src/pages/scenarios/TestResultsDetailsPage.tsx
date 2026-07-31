@@ -30,6 +30,7 @@ import { TableRow } from "./types/testResults";
 import { ViewMode } from "./types/viewMode";
 import { usePageLoadMetric } from "../../hooks/usePageLoadMetric";
 import { InvestigationsTable } from "./components/InvestigationsTable";
+import { extractErrorMessage } from "../../utils/errorUtils";
 
 export default function TestRunDetailsPage() {
   const { testId, testRunId } = useParams<{ testId: string; testRunId: string }>();
@@ -58,22 +59,34 @@ export default function TestRunDetailsPage() {
   const { activeInvestigation } = useInvestigationPolling(testId!, testRunId!);
 
   const [showSendModal, setShowSendModal] = useState(false);
+  const [submitError, setSubmitError] = useState<string>("");
 
   const handleInvestigate = () => {
     // Refresh the agent spaces list so the dropdown reflects any spaces
     // added or removed since this page was loaded.
     refetchAgentSpaces();
+    setSubmitError("");
     setShowSendModal(true);
   };
 
+  const handleDismissSendModal = () => {
+    setSubmitError("");
+    setShowSendModal(false);
+  };
+
   const handleSendToAgent = async (agentSpaceId: string, additionalContext: string, priority: InvestigationPriority) => {
-    const result = await createInvestigation({
-      testId: testId!,
-      testRunId: testRunId!,
-      body: { agentSpaceId, additionalContext: additionalContext || undefined, priority },
-    });
-    if ("data" in result) {
+    setSubmitError("");
+    try {
+      await createInvestigation({
+        testId: testId!,
+        testRunId: testRunId!,
+        body: { agentSpaceId, additionalContext: additionalContext || undefined, priority },
+      }).unwrap();
       setShowSendModal(false);
+    } catch (err) {
+      // Surface the failure to the user (e.g. sensitive-data rejection, throttling)
+      // instead of silently leaving the modal open with no feedback.
+      setSubmitError(extractErrorMessage(err));
     }
   };
   // extra is only emitted in PageDataReady (not PageInitialLoad), so
@@ -211,12 +224,13 @@ export default function TestRunDetailsPage() {
       {testRun && (
         <SendToAgentModal
           visible={showSendModal}
-          onDismiss={() => setShowSendModal(false)}
+          onDismiss={handleDismissSendModal}
           onSubmit={handleSendToAgent}
           isSubmitting={isCreatingInvestigation}
           testRun={testRun}
           agentSpaces={agentSpaces ?? []}
           baseline={baseline}
+          errorMessage={submitError}
         />
       )}
     </ContentLayout>

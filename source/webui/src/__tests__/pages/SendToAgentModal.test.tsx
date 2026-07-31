@@ -3,9 +3,15 @@
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { beforeAll, describe, it, expect, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import type { ReactElement } from "react";
+
+// jsdom does not implement scrollIntoView; the modal calls it when an error
+// Alert appears (to bring it into view on short screens).
+beforeAll(() => {
+  window.HTMLElement.prototype.scrollIntoView = vi.fn();
+});
 import { SendToAgentModal } from "../../pages/scenarios/components/SendToAgentModal";
 import type { SendToAgentModalProps } from "../../pages/scenarios/components/SendToAgentModal";
 import type { AgentSpace } from "../../models/agentSpace";
@@ -114,6 +120,33 @@ describe("SendToAgentModal", () => {
       renderModal(<SendToAgentModal {...makeDefaultProps()} />);
 
       expect(screen.getByText("Production Agent")).toBeInTheDocument();
+    });
+
+    it("shows an error alert and scrolls it into view when errorMessage is provided", async () => {
+      const scrollIntoView = vi.fn();
+      window.HTMLElement.prototype.scrollIntoView = scrollIntoView;
+
+      renderModal(
+        <SendToAgentModal
+          {...makeDefaultProps({
+            errorMessage: "The additional context contains text that resembles credentials or secrets.",
+          })}
+        />,
+      );
+
+      expect(
+        screen.getByText(/resembles credentials or secrets/),
+      ).toBeInTheDocument();
+
+      // Effect scrolls the alert into view via requestAnimationFrame.
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      expect(scrollIntoView).toHaveBeenCalled();
+    });
+
+    it("does not show an error alert when errorMessage is empty", () => {
+      renderModal(<SendToAgentModal {...makeDefaultProps({ errorMessage: "" })} />);
+
+      expect(screen.queryByText(/resembles credentials or secrets/)).not.toBeInTheDocument();
     });
   });
 

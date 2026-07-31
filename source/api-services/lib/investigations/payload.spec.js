@@ -239,6 +239,91 @@ describe("payload - buildDescription", () => {
     const result = buildDescription(baseTestRun, null, null, { testRunId: "x" });
     expect(result).not.toContain("Baseline Comparison");
   });
+
+  it("should include the artifacts section when artifactInfo is provided", () => {
+    const result = buildDescription(baseTestRun, null, null, null, { assetId: "asset-123", fileCount: 3 });
+    expect(result).toContain("Attached Artifacts");
+    expect(result).toContain("3 test artifact file(s) uploaded");
+    expect(result).toContain("Asset ID: asset-123");
+    expect(result.length).toBeLessThanOrEqual(MAX_DESCRIPTION_LENGTH);
+  });
+
+  it("should not include the artifacts section when artifactInfo is absent", () => {
+    const result = buildDescription(baseTestRun);
+    expect(result).not.toContain("Attached Artifacts");
+  });
+
+  it("should place the artifacts section before user context and endpoint breakdown", () => {
+    const testRun = {
+      ...baseTestRun,
+      results: { total: { ...baseTestRun.results.total, labels: [{ label: "/api/one", fail: 1, avg_rt: "0.1" }] } },
+    };
+    const userContext = { additionalContext: "Deployed v2.4 before this run." };
+    const result = buildDescription(testRun, userContext, null, null, { assetId: "asset-123", fileCount: 2 });
+    const artifactsIdx = result.indexOf("Attached Artifacts");
+    const contextIdx = result.indexOf("Additional Context");
+    const endpointIdx = result.indexOf("Per-Endpoint Breakdown");
+    expect(artifactsIdx).toBeGreaterThan(-1);
+    expect(artifactsIdx).toBeLessThan(contextIdx);
+    expect(contextIdx).toBeLessThan(endpointIdx);
+  });
+
+  it("should stay under the limit with many endpoints plus an artifacts section (regression)", () => {
+    const endpoints = [];
+    for (let i = 0; i < 150; i++) {
+      endpoints.push({
+        label: `/api/endpoint-${i}-with-a-long-path-to-consume-characters`,
+        avg_rt: "0.100",
+        p50_0: "0.100",
+        p90_0: "0.300",
+        p99_0: "0.900",
+        fail: i,
+        succ: 100,
+      });
+    }
+    const testRun = {
+      ...baseTestRun,
+      results: { total: { ...baseTestRun.results.total, labels: endpoints } },
+    };
+    const result = buildDescription(testRun, null, "https://dlt.example.com", null, { assetId: "asset-123", fileCount: 5 });
+    expect(result.length).toBeLessThanOrEqual(MAX_DESCRIPTION_LENGTH);
+    expect(result).toContain("Attached Artifacts");
+  });
+
+  it("should trim the endpoint breakdown before user context when over the limit", () => {
+    const endpoints = [];
+    for (let i = 0; i < 150; i++) {
+      endpoints.push({ label: `/api/endpoint-${i}-with-a-long-path-to-consume-characters`, avg_rt: "0.100", fail: i, succ: 100 });
+    }
+    const testRun = {
+      ...baseTestRun,
+      results: { total: { ...baseTestRun.results.total, labels: endpoints } },
+    };
+    const userContext = { additionalContext: "Payments API backed by DynamoDB. ".repeat(100) };
+    const result = buildDescription(testRun, userContext, "https://dlt.example.com", null, null);
+    expect(result.length).toBeLessThanOrEqual(MAX_DESCRIPTION_LENGTH);
+    // User context survives in full; the endpoint breakdown absorbs the trim.
+    expect(result).toContain(userContext.additionalContext);
+    expect(result).toContain("truncated");
+  });
+
+  it("should truncate user context but keep DLT sections when user context is oversized", () => {
+    const testRun = {
+      ...baseTestRun,
+      results: { total: { ...baseTestRun.results.total, labels: [{ label: "/api/one", fail: 1, avg_rt: "0.1" }] } },
+    };
+    const userContext = { additionalContext: "A".repeat(15000) };
+    const result = buildDescription(testRun, userContext, "https://dlt.example.com", null, null);
+    expect(result.length).toBeLessThanOrEqual(MAX_DESCRIPTION_LENGTH);
+    // DLT context survives in full.
+    expect(result).toContain("Test Configuration");
+    expect(result).toContain("Load Profile");
+    expect(result).toContain("DLT Console");
+    // User context is present but tail-truncated; endpoint breakdown got no room.
+    expect(result).toContain("Additional Context");
+    expect(result).toContain("truncated");
+    expect(result).not.toContain("Per-Endpoint Breakdown");
+  });
 });
 
 describe("payload - formatDuration", () => {

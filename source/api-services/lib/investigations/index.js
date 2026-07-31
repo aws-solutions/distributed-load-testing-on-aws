@@ -160,6 +160,13 @@ const throwSdkError = (err) => {
     error.cause = err;
     throw error;
   }
+  // Server-side agent failures carry no actionable detail for the user, so
+  // replace the raw SDK message with a friendly one.
+  if (err.$fault === "server" || err.$metadata?.httpStatusCode >= 500) {
+    const error = new ErrorException("AIDEVOPS_ERROR", "There was an error sending your investigation to DevOps Agent.", StatusCodes.INTERNAL_SERVER_ERROR);
+    error.cause = err;
+    throw error;
+  }
   const error = new ErrorException("AIDEVOPS_ERROR", `DevOps Agent API error: ${err.message}`, StatusCodes.INTERNAL_SERVER_ERROR);
   error.cause = err;
   throw error;
@@ -410,9 +417,13 @@ const createInvestigation = async ({ testId, testRunId, body, correlationId, req
     console.warn(`Artifact upload failed (non-blocking): ${err.message}`);
   }
 
-  // 6b. If artifacts were uploaded, append reference to description
+  // 6b. If artifacts were uploaded, rebuild the description with the artifact
+  // reference included so it counts toward the 10,000-char limit (appending it
+  // after the build would push a full description over the agent's cap). The
+  // added section is entirely DLT-generated, so the sensitive-data check from
+  // step 6 still stands.
   if (artifactResult) {
-    description += `\n\n## Attached Artifacts\n\n${artifactResult.fileCount} test artifact file(s) uploaded (error logs, stdout, execution logs). Read the .err files first for failure details. Asset ID: ${artifactResult.assetId}`;
+    description = buildDescription(testRun, userContext, CONSOLE_URL, baselineRun, artifactResult);
   }
 
   // 7. Call createBacklogTask

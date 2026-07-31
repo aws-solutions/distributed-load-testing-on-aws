@@ -245,6 +245,38 @@ describe("createInvestigation", () => {
     await expect(createInvestigation(baseParams)).rejects.toMatchObject({ code: "AIDEVOPS_ERROR", statusCode: 500 });
   });
 
+  it("should return a friendly message on a server-fault SDK error", async () => {
+    mockGet.mockResolvedValueOnce({ Item: mockTestRun }).mockResolvedValueOnce({ Item: mockAgentSpace });
+    const err = new Error("internal failure detail"); err.$fault = "server";
+    mockCreateBacklogTask.mockRejectedValueOnce(err);
+    await expect(createInvestigation(baseParams)).rejects.toMatchObject({
+      code: "AIDEVOPS_ERROR",
+      statusCode: 500,
+      message: "There was an error sending your investigation to DevOps Agent.",
+    });
+  });
+
+  it("should return a friendly message on a 5xx http status from the agent", async () => {
+    mockGet.mockResolvedValueOnce({ Item: mockTestRun }).mockResolvedValueOnce({ Item: mockAgentSpace });
+    const err = new Error("service unavailable"); err.$metadata = { httpStatusCode: 503 };
+    mockCreateBacklogTask.mockRejectedValueOnce(err);
+    await expect(createInvestigation(baseParams)).rejects.toMatchObject({
+      code: "AIDEVOPS_ERROR",
+      statusCode: 500,
+      message: "There was an error sending your investigation to DevOps Agent.",
+    });
+  });
+
+  it("should keep the raw message for unmapped 4xx errors", async () => {
+    mockGet.mockResolvedValueOnce({ Item: mockTestRun }).mockResolvedValueOnce({ Item: mockAgentSpace });
+    const err = new Error("1 validation error detected"); err.name = "ValidationException"; err.$fault = "client"; err.$metadata = { httpStatusCode: 400 };
+    mockCreateBacklogTask.mockRejectedValueOnce(err);
+    await expect(createInvestigation(baseParams)).rejects.toMatchObject({
+      code: "AIDEVOPS_ERROR",
+      message: "DevOps Agent API error: 1 validation error detected",
+    });
+  });
+
   it("should return 409 on ConditionalCheckFailedException (TOCTOU race)", async () => {
     mockGet
       .mockResolvedValueOnce({ Item: mockTestRun })
@@ -656,6 +688,25 @@ describe("investigation artifact cleanup", () => {
 
     await expect(createInvestigation(baseParams)).rejects.toMatchObject({ code: "INVESTIGATION_ALREADY_EXISTS", statusCode: 409 });
     expect(mockDeleteAsset).toHaveBeenCalledWith(expect.objectContaining({ assetId: "asset-xyz" }));
+  });
+
+  it("keeps the description within 10,000 chars when artifacts are uploaded", async () => {
+    // 150 endpoints push the description right up to the cap; before the fix,
+    // the artifacts section was appended after truncation and overflowed it.
+    const endpoints = [];
+    for (let i = 0; i < 150; i++) {
+      endpoints.push({ label: `/api/endpoint-${i}-with-a-long-path-to-consume-characters`, avg_rt: "0.100", fail: i, succ: 100 });
+    }
+    const bigTestRun = { ...mockTestRun, results: JSON.stringify({ total: { avg_rt: "0.245", fail: 12, succ: 9988, labels: endpoints } }) };
+    mockGet.mockResolvedValueOnce({ Item: bigTestRun }).mockResolvedValueOnce({ Item: mockAgentSpace });
+    configureArtifactUploadSuccess("asset-xyz");
+
+    await createInvestigation(baseParams);
+
+    const { description } = mockCreateBacklogTask.mock.calls[0][0];
+    expect(description.length).toBeLessThanOrEqual(10000);
+    expect(description).toContain("Attached Artifacts");
+    expect(description).toContain("Asset ID: asset-xyz");
   });
 
   it("does not attempt cleanup when no artifact was uploaded and task creation fails", async () => {
