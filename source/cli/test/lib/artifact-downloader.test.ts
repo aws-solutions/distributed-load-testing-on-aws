@@ -37,16 +37,21 @@ vi.mock("node:stream/promises", () => ({
 
 // Mock archiver
 vi.mock("archiver", () => {
+  const createMockArchive = () => {
+    const { EventEmitter } = require("node:events");
+    const emitter = new EventEmitter();
+    return Object.assign(emitter, {
+      pipe: vi.fn(),
+      append: vi.fn(),
+      finalize: vi.fn().mockResolvedValue(undefined),
+    });
+  };
   return {
-    default: vi.fn(() => {
-      const { EventEmitter } = require("node:events");
-      const emitter = new EventEmitter();
-      return Object.assign(emitter, {
-        pipe: vi.fn(),
-        append: vi.fn(),
-        finalize: vi.fn().mockResolvedValue(undefined),
-      });
+    // archiver 8 exposes named archive classes: new ZipArchive(options)
+    ZipArchive: vi.fn(function () {
+      return createMockArchive();
     }),
+    default: vi.fn(() => createMockArchive()),
   };
 });
 

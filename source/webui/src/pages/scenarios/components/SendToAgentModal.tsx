@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  Alert,
   Box,
   Button,
   Container,
@@ -12,7 +13,7 @@ import {
   SpaceBetween,
   Textarea,
 } from "@cloudscape-design/components";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AgentSpace } from "../../../models/agentSpace";
 import type { InvestigationPriority } from "../../../models/investigation";
 import type { TestRunDetails, TestResults, BaselineResponse } from "../types/testResults";
@@ -25,6 +26,7 @@ export interface SendToAgentModalProps {
   readonly testRun: TestRunDetails;
   readonly agentSpaces: AgentSpace[];
   readonly baseline?: BaselineResponse | null;
+  readonly errorMessage?: string;
 }
 
 const PRIORITY_OPTIONS: { label: string; value: InvestigationPriority }[] = [
@@ -43,10 +45,24 @@ export function SendToAgentModal({
   testRun,
   agentSpaces,
   baseline,
+  errorMessage,
 }: SendToAgentModalProps) {
   const [selectedAgentSpace, setSelectedAgentSpace] = useState<string>(agentSpaces[0]?.id ?? "");
   const [additionalContext, setAdditionalContext] = useState("");
   const [priority, setPriority] = useState<InvestigationPriority>("MEDIUM");
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  // The Start investigation button lives in the Modal footer, so on short
+  // screens the user may be scrolled to the bottom when a submit fails. Bring
+  // the error Alert into view so the feedback is never missed. Mirrors the
+  // scroll-into-view convention in scrollToFirstError.ts.
+  useEffect(() => {
+    if (errorMessage) {
+      requestAnimationFrame(() =>
+        errorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      );
+    }
+  }, [errorMessage]);
 
   // Keep the selection valid as the agent spaces list loads or changes.
   // Defaults to the first space when nothing is selected or the current
@@ -100,6 +116,12 @@ export function SendToAgentModal({
       }
     >
       <SpaceBetween size="l">
+        {errorMessage && (
+          <div ref={errorRef}>
+            <Alert type="error">{errorMessage}</Alert>
+          </div>
+        )}
+
         {/* Investigation Focus — read-only summary */}
         <Container
           header={

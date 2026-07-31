@@ -6,7 +6,7 @@ import { join, dirname } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
 import { S3Client, ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";
-import archiver from "archiver";
+import { ZipArchive } from "archiver";
 import { confirmOverwrite } from "./prompt.js";
 import type { AwsCredentialIdentity } from "./http-client.js";
 import type { ApiClient } from "./api-client.js";
@@ -104,7 +104,7 @@ export async function downloadArtifactsToZip(
   client: S3Client = createS3Client(region, credentials)
 ): Promise<void> {
   const output = createWriteStream(zipPath);
-  const archive = archiver("zip", { zlib: { level: 6 } });
+  const archive = new ZipArchive({ zlib: { level: 6 } });
 
   const archiveFinished = new Promise<void>((resolve, reject) => {
     output.on("close", resolve);

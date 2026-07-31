@@ -476,6 +476,7 @@ isexe under the ISC license
 @types/connect-history-api-fallback under the MIT license
 @types/connect under the MIT license
 @types/eslint under the MIT license
+@types/esrecurse under the MIT license
 @types/estree under the MIT license
 @types/express-serve-static-core under the MIT license
 @types/express under the MIT license

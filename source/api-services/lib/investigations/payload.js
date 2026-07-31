@@ -309,6 +309,21 @@ const buildContextSection = (userContext) => {
 };
 
 /**
+ * Reference to test artifacts uploaded to the agent space.
+ * @param {object} [artifactInfo]
+ * @param {string} artifactInfo.assetId
+ * @param {number} artifactInfo.fileCount
+ * @returns {string[]}
+ */
+const buildArtifactsSection = (artifactInfo) => {
+  if (!artifactInfo) return [];
+  return [
+    `\n## Attached Artifacts\n`,
+    `${artifactInfo.fileCount} test artifact file(s) uploaded (error logs, stdout, execution logs). Read the .err files first for failure details. Asset ID: ${artifactInfo.assetId}`,
+  ];
+};
+
+/**
  * Baseline comparison section. Shows the key metrics from both the current run
  * and the baseline side-by-side with percentage deltas so the agent can quickly
  * identify regressions.
@@ -370,9 +385,10 @@ const buildBaselineSection = (currentTotal, baselineRun) => {
  * @param {string} [userContext.additionalContext] - Free-text context from the operator.
  * @param {string} [consoleUrl] - DLT console base URL for deep links.
  * @param {object} [baselineRun] - The baseline test-run record (from history), or null/undefined.
+ * @param {object} [artifactInfo] - Uploaded artifact reference ({ assetId, fileCount }), or null/undefined.
  * @returns {string} Description payload (≤ 10,000 chars).
  */
-const buildDescription = (testRun, userContext, consoleUrl, baselineRun) => {
+const buildDescription = (testRun, userContext, consoleUrl, baselineRun, artifactInfo) => {
   // Parse results and scenario once up front. Both may be JSON strings, objects,
   // or malformed — safeParse never throws, so a bad record degrades gracefully
   // (sections are skipped) instead of failing investigation creation.
@@ -390,6 +406,7 @@ const buildDescription = (testRun, userContext, consoleUrl, baselineRun) => {
     ...buildBaselineSection(total, baselineRun),
     ...buildTargetSection(scenario, total),
     ...buildConsoleSection(testRun, consoleUrl),
+    ...buildArtifactsSection(artifactInfo),
     ...buildContextSection(userContext),
   ];
 
@@ -405,7 +422,9 @@ const buildDescription = (testRun, userContext, consoleUrl, baselineRun) => {
     }
   }
 
-  // Final safety truncation (should not happen with proper budgeting)
+  // Final safety truncation. Sections are ordered least-expendable first (DLT
+  // context, then user context, then endpoint breakdown), so a naive tail cut
+  // removes the least valuable content first.
   if (description.length > MAX_DESCRIPTION_LENGTH) {
     description = description.substring(0, MAX_DESCRIPTION_LENGTH - TRUNCATION_RESERVE) + TRUNCATION_NOTICE;
   }
