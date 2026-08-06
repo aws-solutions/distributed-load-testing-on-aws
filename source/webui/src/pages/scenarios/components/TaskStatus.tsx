@@ -184,7 +184,7 @@ export function TaskStatus({ scenario_definition, isRefreshing }: TaskStatusProp
       // Create chart instance
       avgRtChartInstance.current = createRegionalTimeSeriesChart(ctx, getFlatChartData(), {
         metric: ChartMetric.AverageResponseTime,
-        yAxisTitle: "Response Time (ms)",
+        yAxisTitle: "Response Time (s)",
         regionColors: getRegionColors(),
       });
     }
