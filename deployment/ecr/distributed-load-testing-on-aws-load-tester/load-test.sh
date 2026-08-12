@@ -580,7 +580,19 @@ if [ -n "$WATCHDOG_PID" ]; then
 fi
 
 
-CALCULATED_DURATION=`cat result.tmp | grep -m1 "Test duration" | awk -F ' ' '{ print $5 }' | awk -F ':' '{ print ($1 * 3600) + ($2 * 60) + $3 }'`
+# Taurus reports "Test duration:" as either "H:MM:SS" (< 24h) or "N days, H:MM:SS" (>= 24h).
+CALCULATED_DURATION=$(grep -m1 "Test duration" result.tmp | awk '{
+  n = index($0, "Test duration:")
+  s = substr($0, n + length("Test duration:"))
+  days = 0
+  if (match(s, /[0-9]+ days?,/)) {
+    days = substr(s, RSTART, RLENGTH) + 0
+    s = substr(s, RSTART + RLENGTH)
+  }
+  gsub(/^ +/, "", s)
+  split(s, t, ":")
+  print (days * 86400) + (t[1] * 3600) + (t[2] * 60) + t[3]
+}')
 
 # upload custom results to S3 if any
 # every file goes under $TEST_ID/$PREFIX/$UUID to distinguish the result correctly

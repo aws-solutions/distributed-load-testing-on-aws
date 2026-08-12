@@ -73,7 +73,7 @@ describe("MultiRegionConfigSection", () => {
         <MultiRegionConfigSection formData={createFormData([])} updateFormData={updateFormData} />
       </Provider>
     );
-    (screen.getByLabelText("Include us-east-1") as HTMLElement).click();
+    (screen.getByRole("checkbox", { name: "Include us-east-1" }) as HTMLElement).click();
     expect(updateFormData).toHaveBeenCalledWith(
       expect.objectContaining({ regions: [{ region: "us-east-1", taskCount: "", concurrency: "" }] })
     );

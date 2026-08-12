@@ -1051,19 +1051,25 @@ describe("Validation Schemas", () => {
       },
     };
 
-    describe("testName special characters validation", () => {
-      it("should accept valid testName with alphanumeric, spaces, hyphens, underscores, and parentheses", () => {
+    describe("testName character validation", () => {
+      it("should accept testName with punctuation, non-Latin characters, and emoji", () => {
         const validNames = [
           "Simple Test",
           "test-with-hyphens",
           "test_with_underscores",
-          "Test123",
-          "123Test",
-          "Test-123_Name",
-          "a b c",
           "Simple Test (Copy)",
-          "test(paren)",
-          "Test (1)",
+          // Previously rejected by the allowlist — now accepted (from customer telemetry):
+          "Scenario 2: Google Search",
+          "02. Baseline Positive",
+          "test.jmx",
+          "[KAN][UAT] stress test",
+          "600 rps / 3 instances",
+          "James' test scenario",
+          "PT01 – Homepage browsing", // en dash
+          "retired 7/7/26",
+          "負荷テスト ボタン5回連打", // CJK
+          "Résumé test", // accented
+          "Launch 🚀 test", // emoji
         ];
 
         validNames.forEach((testName) => {
@@ -1072,33 +1078,33 @@ describe("Validation Schemas", () => {
         });
       });
 
-      it("should reject testName with special characters that break UI", () => {
-        const invalidNames = [
-          "!\"#$%&/='.,:;-_{}",
-          "test@example.com",
-          "test.with.dots",
-          "test/with/slashes",
-          "test\\with\\backslashes",
-          "test:colon",
-          "test;semicolon",
-          "test,comma",
-          "test<bracket>",
-          "test[bracket]",
-          "test{brace}",
-          "test'quote",
-          'test"doublequote',
-          "test!exclamation",
-          "test?question",
-          "test*asterisk",
-          "test+plus",
-          "test=equals",
-          "test&ampersand",
-        ];
+      it("should reject testName containing control characters and name the offending character", () => {
+        expect(() => createTestSchema.parse({ ...validBaseTest, testName: "tab\there" })).toThrow(
+          /testName contains a disallowed control character: tab \(U\+0009\)/
+        );
+        expect(() => createTestSchema.parse({ ...validBaseTest, testName: "line\nbreak" })).toThrow(
+          /testName contains a disallowed control character: newline \(U\+000A\)/
+        );
+        // Uncommon control char falls back to the code point (Unicode line separator U+2028).
+        expect(() =>
+          createTestSchema.parse({ ...validBaseTest, testName: "sep" + String.fromCodePoint(0x2028) + "here" })
+        ).toThrow(/testName contains a disallowed control character: U\+2028/);
+      });
 
-        invalidNames.forEach((testName) => {
-          const test = { ...validBaseTest, testName };
-          expect(() => createTestSchema.parse(test)).toThrow(
-            /testName can only contain letters, numbers, spaces, hyphens, underscores, and parentheses/
+      it("should enforce testName length bounds", () => {
+        expect(() => createTestSchema.parse({ ...validBaseTest, testName: "ab" })).toThrow(
+          /testName must be at least 3 characters/
+        );
+        expect(() => createTestSchema.parse({ ...validBaseTest, testName: "a".repeat(256) })).toThrow(
+          /testName must not exceed 255 characters/
+        );
+      });
+
+      it("should reject testName with leading or trailing whitespace", () => {
+        // A lone char padded with spaces (e.g. "   a    ") would otherwise pass min-length.
+        ["   a    ", " padded", "padded ", "   "].forEach((testName) => {
+          expect(() => createTestSchema.parse({ ...validBaseTest, testName })).toThrow(
+            /testName cannot have leading or trailing whitespace/
           );
         });
       });
@@ -1123,15 +1129,17 @@ describe("Validation Schemas", () => {
           "scenario123",
           "UPPERCASE",
           "MixedCase",
-          "a",
+          "abc", // min length (3)
           "a".repeat(128), // max length
           "Demo Day Test",
-          "api test",
-          "load test 1",
-          "My Test Scenario",
           "Simple Test (Copy)",
           "scenario(with)parens",
-          "Test (1)",
+          // Previously rejected by the allowlist — now accepted:
+          "Scenario 2: Google Search",
+          "test.jmx",
+          "600 rps / 3 instances",
+          "James' scenario",
+          "負荷テスト", // CJK
         ];
 
         validScenarioNames.forEach((scenarioName) => {
@@ -1150,8 +1158,12 @@ describe("Validation Schemas", () => {
         });
       });
 
-      it("should reject invalid scenario names", () => {
-        const invalidScenarioNames = ["", "scenario.dot", "scenario@special", "scenario/slash", "scenario:colon"];
+      it("should reject scenario names containing control characters", () => {
+        const invalidScenarioNames = [
+          "scenario" + String.fromCodePoint(0x09) + "tab",
+          "scenario" + String.fromCodePoint(0x0a) + "newline",
+          "scenario" + String.fromCodePoint(0x00) + "null",
+        ];
 
         invalidScenarioNames.forEach((scenarioName) => {
           const test = {
@@ -1165,16 +1177,14 @@ describe("Validation Schemas", () => {
               },
             },
           };
-          expect(() => createTestSchema.parse(test)).toThrow(
-            /Scenario name can only contain letters, numbers, spaces, hyphens, underscores, and parentheses/
-          );
+          expect(() => createTestSchema.parse(test)).toThrow(/Scenario name contains a disallowed control character/);
         });
       });
 
-      it("should reject scenario names that are only whitespace", () => {
-        const whitespaceOnlyNames = [" ", "  ", "   "];
+      it("should reject scenario names with leading or trailing whitespace", () => {
+        const paddedNames = ["   ", "  scenario", "scenario  ", "   a    "];
 
-        whitespaceOnlyNames.forEach((scenarioName) => {
+        paddedNames.forEach((scenarioName) => {
           const test = {
             ...validBaseTest,
             testScenario: {
@@ -1186,12 +1196,14 @@ describe("Validation Schemas", () => {
               },
             },
           };
-          expect(() => createTestSchema.parse(test)).toThrow(/Scenario name cannot be only whitespace/);
+          expect(() => createTestSchema.parse(test)).toThrow(
+            /Scenario name cannot have leading or trailing whitespace/
+          );
         });
       });
 
       it("should reject scenario names exceeding maximum length", () => {
-        const scenarioName = "a".repeat(129); // exceeds max length
+        const scenarioName = "a".repeat(256); // exceeds max length
         const test = {
           ...validBaseTest,
           testScenario: {
@@ -1203,7 +1215,7 @@ describe("Validation Schemas", () => {
             },
           },
         };
-        expect(() => createTestSchema.parse(test)).toThrow(/Scenario name must not exceed 128 characters/);
+        expect(() => createTestSchema.parse(test)).toThrow(/Scenario name must not exceed 255 characters/);
       });
 
       it("should require at least one request per scenario when requests field is present", () => {
@@ -1514,7 +1526,7 @@ describe("Validation Schemas", () => {
       it("should reject test with multiple security violations", () => {
         const test = {
           ...validBaseTest,
-          testName: "invalid@name",
+          testName: "invalid" + String.fromCodePoint(0x09) + "name", // control char in name
           testTaskConfigs: [
             {
               region: "us-east-1",

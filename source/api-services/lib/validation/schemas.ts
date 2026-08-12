@@ -12,6 +12,64 @@ import { z } from "zod";
 // ============================================================================
 
 /**
+ * Shared length bounds for user-facing names (testName and scenario names).
+ * testName is used verbatim as the scenarios-map key, so both share limits.
+ */
+const NAME_MIN = 3;
+const NAME_MAX = 255;
+
+/**
+ * Matches a single disallowed control character: C0 controls, DEL + C1 controls,
+ * and Unicode line/paragraph separators. Everything else (punctuation, CJK,
+ * accents, emoji) is allowed — names are never used as an S3/DynamoDB/ECS/metric
+ * identifier (those use the generated testId), only as a JSON key + display text.
+ */
+// eslint-disable-next-line no-control-regex -- intentionally matches control characters in order to reject them
+const CONTROL_CHAR = /[\u0000-\u001F\u007F-\u009F\u2028\u2029]/u;
+
+/** Friendly names for the control chars a user is most likely to paste in. */
+const CONTROL_CHAR_NAMES: Record<number, string> = {
+  0x00: "null",
+  0x09: "tab",
+  0x0a: "newline",
+  0x0d: "carriage return",
+};
+
+/**
+ * Describes a control char as "name (U+XXXX)", or just "U+XXXX" if uncommon.
+ * @param codePoint
+ */
+function describeControlChar(codePoint: number): string {
+  const hex = `U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`;
+  const name = CONTROL_CHAR_NAMES[codePoint];
+  return name ? `${name} (${hex})` : hex;
+}
+
+/**
+ * Builds a Zod schema for a user-facing name (testName / scenario name).
+ * Rejects only control characters (naming the offending char) and leading/trailing
+ * whitespace, and enforces the shared min/max length. Disallowing surrounding
+ * whitespace keeps the min-length meaningful (no space padding) and avoids
+ * near-blank names; the name is stored verbatim as the scenarios-map key, so it
+ * is validated — not silently trimmed.
+ * @param label
+ */
+function nameSchema(label: string) {
+  return z
+    .string()
+    .min(NAME_MIN, `${label} must be at least ${NAME_MIN} characters`)
+    .max(NAME_MAX, `${label} must not exceed ${NAME_MAX} characters`)
+    .refine((val: string) => val === val.trim(), `${label} cannot have leading or trailing whitespace`)
+    .refine(
+      (val: string) => !CONTROL_CHAR.test(val),
+      (val: string) => {
+        const codePoint = CONTROL_CHAR.exec(val)![0].codePointAt(0)!;
+        return { message: `${label} contains a disallowed control character: ${describeControlChar(codePoint)}` };
+      }
+    );
+}
+
+/**
  * Validates that a string is a valid AWS region format.
  * Supports commercial (us-west-2), GovCloud (us-gov-west-1), and other partitions.
  */
@@ -291,18 +349,7 @@ const scenarioConfigSchema = z
  * Validates scenario names and ensures at least one scenario exists
  */
 const scenariosSchema = z
-  .record(
-    z
-      .string()
-      .min(1, "Scenario name cannot be empty")
-      .max(128, "Scenario name must not exceed 128 characters")
-      .regex(
-        /^[a-zA-Z0-9\s\-_()]+$/,
-        "Scenario name can only contain letters, numbers, spaces, hyphens, underscores, and parentheses"
-      )
-      .refine((val: string) => val.trim().length > 0, "Scenario name cannot be only whitespace"),
-    scenarioConfigSchema
-  )
+  .record(nameSchema("Scenario name"), scenarioConfigSchema)
   .refine(
     (scenarios: Record<string, unknown>) => Object.keys(scenarios).length > 0,
     "At least one scenario must be defined in scenarios object"
@@ -375,14 +422,7 @@ const scheduleTimeSchema = z
 export const createTestSchema = z
   .object({
     testId: testIdSchema.optional(),
-    testName: z
-      .string()
-      .min(3, "testName must be at least 3 characters")
-      .max(255, "testName must not exceed 255 characters")
-      .regex(
-        /^[a-zA-Z0-9\s\-_()]+$/,
-        "testName can only contain letters, numbers, spaces, hyphens, underscores, and parentheses"
-      ),
+    testName: nameSchema("testName"),
     testDescription: z
       .string()
       .min(3, "testDescription must be at least 3 characters")

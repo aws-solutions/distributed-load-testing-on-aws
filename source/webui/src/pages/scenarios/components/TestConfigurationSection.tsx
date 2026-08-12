@@ -28,14 +28,14 @@ export const TestConfigurationSection = ({ formData, updateFormData, showValidat
         <FormField
           label="Name"
           description="The name of your load test which makes it easy to identify"
-          constraintText={`${(formData.testName || "").length}/200 characters`}
+          constraintText={`${(formData.testName || "").length}/255 characters`}
           errorText={showValidationErrors && !formData.testName?.trim() ? "Name is required" : ""}
         >
           <Input
             data-cy="test-name-input"
             value={formData.testName}
             onChange={({ detail }) => {
-              if (detail.value.length <= 200) {
+              if (detail.value.length <= 255) {
                 updateFormData({ testName: detail.value });
               }
             }}

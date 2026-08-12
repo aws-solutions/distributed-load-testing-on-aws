@@ -217,6 +217,8 @@ export interface CompletionMonitoringEvent {
   readonly timedOut: boolean;
   /** Epoch millis when completion polling started — set on first invocation */
   readonly pollStartTime: number;
+  /** Seconds to wait before the next completion poll — read by the Wait state via `SecondsPath` */
+  readonly pollIntervalSeconds: number;
   /** Reason for failure — forwarded to test-cleanup when timedOut is true */
   readonly errorReason?: string;
 }
