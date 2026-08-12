@@ -71,19 +71,8 @@ export interface TestExecutionInput {
   /** S3 prefix for this test run's results, unique per execution */
   readonly prefix: string;
 
-  /** When true, uses native-mode task definitions and execution paths. */
-  readonly runNativeMode: boolean;
-
-  /** Safety timeout (seconds) for native-mode tests. Container aborts
-   *  the framework process if this limit is exceeded. Zero when legacy. */
-  readonly maxTestDurationSeconds: number;
-
-  /** Taurus task definition ARN. Used when runNativeMode is false. */
+  /** Taurus task definition ARN. */
   readonly hubTaskDefinition: string;
-
-  /** Per-framework native task definition ARNs. Task-runner selects the
-   *  ARN matching the test's framework when runNativeMode is true. */
-  readonly nativeTaskDefinitions: Readonly<Record<LoadTestFramework, string>>;
 
   /** One entry per region — the Map state fans out over this array. */
   readonly testTaskConfig: TestTaskRegionConfig[];

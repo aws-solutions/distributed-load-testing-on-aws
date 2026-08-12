@@ -223,9 +223,10 @@ export default function ScenarioDetailsPage() {
         await runScenario(scenario).unwrap();
       } catch (error: any) {
         if (scenario.testId && error?.status === 400 && error?.data?.message?.includes('INVALID_REQUEST_BODY: testName')) {
-          // Handle legacy test scenarios with invalid test names - prompt user to update the test name
-          const msg = 'Test Name contains invalid characters (only letters, numbers, spaces, hyphens, underscores, and parentheses are allowed). Please edit the scenario and change the name. This will not impact the test scenario or test history.'
-          setRunError(msg);
+          // Handle legacy test scenarios with invalid test names - surface the specific backend
+          // reason (which names the offending character) and prompt the user to update the name.
+          const reason = error.data.message.replace('INVALID_REQUEST_BODY:', '').trim();
+          setRunError(`${reason}. Please edit the scenario and change the name.`);
         } else {
           // Generic error handler
           setRunError(error?.data?.message || error?.message || 'Failed to run scenario');

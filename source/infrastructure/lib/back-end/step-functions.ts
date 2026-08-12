@@ -11,6 +11,7 @@ import {
   Choice,
   Condition,
   DefinitionBody,
+  DistributedMap,
   IChainable,
   INextable,
   JsonPath,
@@ -62,7 +63,8 @@ export interface TaskRunnerStepFunctionConstructProps {
  * Regional Sync: Validates all regions are READY. If any failed, cancels all.
  *
  * Phase 2 (Execution): Per-region fan-out to write S3 start markers and poll
- * S3 completion markers and DynamoDB test status.
+ * S3 completion markers and DynamoDB test status. Distributed map — each region
+ * polls inside its own child execution.
  *
  * Post-Execution: Parse Results → Phase 3 (Cleanup Map) → Done.
  *
@@ -311,7 +313,7 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
   private buildExecutionPhase(
     props: TaskRunnerStepFunctionConstructProps,
     nextState: IChainable & INextable
-  ): { executionMap: SFMap } {
+  ): { executionMap: DistributedMap } {
     const phase2MapEnd = new Pass(this, "Phase 2 Map End", {
       outputPath: "$.finalStatus",
     });
@@ -335,15 +337,17 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
     preparePhase2FailureCleanup.next(phase2ErrorCleanup);
     phase2ErrorCleanup.next(phase2MapEnd);
 
-    // Completion monitoring loop: Check → Choice → Wait 15s → Check ...
+    // Completion monitoring loop: Check → Choice → Wait → Check ...
     const checkCompletion = new LambdaInvoke(this, "Check Completion", {
       lambdaFunction: props.taskStatusChecker,
       inputPath: "$",
       outputPath: "$.Payload",
     });
 
-    const waitCompletionPoll = new Wait(this, "Wait 15s - completion", {
-      time: WaitTime.duration(Duration.seconds(15)),
+    // Interval comes from the Task Status Checker, which returns
+    // pollIntervalSeconds on every completion-path response.
+    const waitCompletionPoll = new Wait(this, "Wait - completion poll", {
+      time: WaitTime.secondsPath("$.pollIntervalSeconds"),
     });
     waitCompletionPoll.next(checkCompletion);
 
@@ -395,8 +399,17 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
     prepareStartCommandFailure.next(phase2ErrorCleanup);
     sendStartCommand.addCatch(prepareStartCommandFailure, { resultPath: "$.error" });
 
-    // Execution Map — fans out per region from stabilization results
-    const executionMap = new SFMap(this, "Execution Map", {
+    // Execution Map — fans out per region from stabilization results.
+    //
+    // Distributed rather than inline: each iteration runs as a child execution
+    // with its own history-event budget, so the completion polling loop inside
+    // does not charge the parent's 25,000-event limit once per region.
+    //
+    // With no ResultWriter the map returns iteration outputs inline, so
+    // $.executionMapResults stays an array of the "success"/"failed" strings
+    // Phase 2 Map End emits and the States.ArrayContains check below still
+    // applies.
+    const executionMap = new DistributedMap(this, "Execution Map", {
       inputPath: "$",
       resultPath: "$.executionMapResults",
       itemsPath: "$.stabilizationResults",

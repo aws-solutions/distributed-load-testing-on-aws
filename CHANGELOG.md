@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.2] - 2026-08-12
+
+### Fixed
+
+- **Step Functions history limit on long tests**: Replaced single-execution polling with distributed map to handle tests that exceed the Step Functions history event limit.
+- **CALCULATED_DURATION**: Fixed duration calculation that produced incorrect values in some instances.
+- **Relaxed test and scenario name validation**: Loosened character restrictions on test and scenario names to accept a broader set of valid inputs.
+
+### Security
+
+- Patched npm vulnerabilities in js-yaml, nanoid, and react-router.
+- Patched vulnerabilities in undici and fast-uri.
+- Updated load-tester base image to address vulnerabilities.
+
 ## [4.2.1] - 2026-07-31
 
 ### Fixed

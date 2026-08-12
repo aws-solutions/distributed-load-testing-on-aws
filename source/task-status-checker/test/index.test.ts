@@ -100,6 +100,7 @@ function makeCompletionEvent(overrides?: Partial<CompletionMonitoringEvent>): Co
     isComplete: false,
     timedOut: false,
     pollStartTime: Date.now(),
+    pollIntervalSeconds: 10,
     ...overrides,
   };
 }
@@ -186,6 +187,48 @@ describe("handler", () => {
       const result = await handler(event);
 
       expect((result as CompletionMonitoringEvent).pollStartTime).toBe(fixedStart);
+    });
+
+    it("should return pollIntervalSeconds on every completion path", async () => {
+      mockCheckRunning.mockResolvedValue({ isRunning: true });
+
+      // The Wait state reads this via SecondsPath, so a missing value is a
+      // runtime failure. Cover still-running, complete, and timed-out paths.
+      const cases = [
+        { completedTaskCount: 0, isComplete: false, event: makeCompletionEvent() },
+        { completedTaskCount: 5, isComplete: true, event: makeCompletionEvent() },
+        {
+          completedTaskCount: 3,
+          isComplete: false,
+          event: makeCompletionEvent({ pollStartTime: Date.now() - 601_000 }),
+        },
+      ];
+
+      for (const { completedTaskCount, isComplete, event } of cases) {
+        mockMonitorCompletion.mockResolvedValue({ completedTaskCount, isComplete });
+        const result = await handler(event);
+
+        // testDuration=300 → below the floor threshold, so the minimum applies.
+        expect((result as CompletionMonitoringEvent).pollIntervalSeconds).toBe(10);
+      }
+    });
+
+    it("should scale pollIntervalSeconds up for a long test", async () => {
+      mockCheckRunning.mockResolvedValue({ isRunning: true });
+      mockMonitorCompletion.mockResolvedValue({ completedTaskCount: 0, isComplete: false });
+
+      const event = makeCompletionEvent({ testDuration: 24 * 3600 });
+      const result = await handler(event);
+
+      expect((result as CompletionMonitoringEvent).pollIntervalSeconds).toBeGreaterThan(10);
+    });
+
+    it("should return pollIntervalSeconds when the test is no longer running", async () => {
+      mockCheckRunning.mockResolvedValue({ isRunning: false });
+
+      const result = await handler(makeCompletionEvent());
+
+      expect(result).toMatchObject({ timedOut: true, pollIntervalSeconds: 10 });
     });
 
     it("should set timedOut true when deadline exceeded", async () => {

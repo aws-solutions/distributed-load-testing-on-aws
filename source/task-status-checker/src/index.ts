@@ -16,6 +16,7 @@ import { S3Client } from "@aws-sdk/client-s3";
 import { DynamoDBDocumentClient, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 
 import { monitorCompletion } from "./completion.js";
+import { computePollIntervalSeconds, GRACE_PERIOD_SECONDS } from "./poll-interval.js";
 import { checkRunningStatus } from "./running-check.js";
 
 /**
@@ -44,13 +45,6 @@ export type TaskStatusCheckerEvent = RunningCheckEvent | CompletionMonitoringEve
 export interface RunningCheckResponse extends RunningCheckEvent {
   readonly isRunning: boolean;
 }
-
-/**
- * Grace period in seconds after testDuration before declaring timeout.
- * Allows time for tasks to upload results and write completion markers
- * after the test finishes.
- */
-const GRACE_PERIOD_SECONDS = 300;
 
 const SOLUTION_ID = getRequiredEnv("SOLUTION_ID");
 const VERSION = getRequiredEnv("VERSION");
@@ -117,11 +111,16 @@ export async function handler(
     // ── Completion Monitoring Path ──
     const pollStartTime = event.pollStartTime ?? Date.now();
 
+    // Recomputed rather than threaded through so it survives a redrive. Read by
+    // the Wait state via SecondsPath, so it must be present on every response.
+    const pollIntervalSeconds = computePollIntervalSeconds(event.testDuration);
+
     logger.info("Completion monitoring mode", {
       serviceName: event.serviceName,
       desiredCount: event.desiredCount,
       previousCompleted: event.completedTaskCount,
       pollStartTime,
+      pollIntervalSeconds,
     });
 
     // Build the pass-through result fields once
@@ -139,6 +138,7 @@ export async function handler(
       taskDefinitionArn: event.taskDefinitionArn,
       taskDefinitionFamily: event.taskDefinitionFamily,
       desiredCount: event.desiredCount,
+      pollIntervalSeconds,
     };
 
     // Check if the test has been marked as failed (e.g., task failure threshold breached)

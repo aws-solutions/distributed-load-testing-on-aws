@@ -23,14 +23,15 @@ export class DLTAlbEcsStack extends DLTBaseStack {
     const consoleDomainName = new CfnParameter(this, "ConsoleDomainName", {
       type: "String",
       description: "Custom domain name for the web console (e.g., dlt.example.com). Must match the ACM certificate.",
-      allowedPattern: "^[a-zA-Z0-9][a-zA-Z0-9\\-\\.]*[a-zA-Z0-9]$",
-      constraintDescription: "Must be a valid domain name",
+      minLength: 3,
+      allowedPattern: String.raw`^([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`,
+      constraintDescription: "Must be a valid fully qualified domain name (e.g., dlt.example.com)",
     });
 
     const acmCertificateArn = new CfnParameter(this, "ACMCertificateArn", {
       type: "String",
       description: "ARN of the ACM certificate for HTTPS. Must be in the same region as the stack.",
-      allowedPattern: "arn:aws[a-z-]*:acm:[a-z0-9-]+:[0-9]+:certificate/[a-f0-9-]+",
+      allowedPattern: String.raw`^arn:aws[a-z-]*:acm:[a-z0-9-]+:\d{12}:certificate/[a-f0-9-]+$`,
       constraintDescription: "Must be a valid ACM certificate ARN",
     });
 
