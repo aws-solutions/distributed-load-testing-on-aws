@@ -4,9 +4,12 @@
 FROM public.ecr.aws/nginx/nginx:alpine@sha256:238132c0a2231df8741a1dc77b362584b8a2169050686d85968aebc24fb9a71d
 
 # Upgrade libexpat to pick up CVE-2026-45186 and CVE-2026-41080 fixes (>= 2.8.1).
-# Install AWS CLI for S3 operations
+# Install AWS CLI for S3 operations (this pulls in python3).
+# Then ensure python3 is on the patched 3.14.7 build, which fixes CVE-2026-11972,
+# CVE-2026-9669, CVE-2026-11940, CVE-2026-7210, and CVE-2026-15308.
 RUN apk upgrade --no-cache libexpat && \
-    apk add --no-cache aws-cli
+    apk add --no-cache aws-cli && \
+    apk upgrade --no-cache python3
 
 # Copy nginx configuration and entrypoint script
 COPY nginx.conf /etc/nginx/nginx.conf
