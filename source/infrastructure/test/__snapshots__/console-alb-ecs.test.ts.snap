@@ -4559,7 +4559,7 @@ exports[`DLT Console ALB ECS Construct Test 1`] = `
             ],
             "Essential": true,
             "Image": {
-              "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:754803d1e51b3b4a311d6b66791f4e303f307654b6584cd30a29d4c6ca43f704",
+              "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:ff8e7e41e0ccf5ac908ef45561be062b352c225f44410b9e5bb4b29457572e73",
             },
             "LogConfiguration": {
               "LogDriver": "awslogs",

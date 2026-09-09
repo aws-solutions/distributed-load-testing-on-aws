@@ -1896,8 +1896,9 @@ set-cookie-parser under the MIT license
 @eslint/config-helpers under the MIT license
 @eslint/core under the MIT license
 @eslint/plugin-kit under the MIT license
-@humanfs/node under the MIT license
-@humanfs/core under the MIT license
+@humanfs/node under the Apache-2.0 license
+@humanfs/core under the Apache-2.0 license
+@humanfs/types under the Apache-2.0 license
 @humanwhocodes/retry under the MIT license
 @typescript-eslint/project-service under the MIT license
 @typescript-eslint/tsconfig-utils under the MIT license
