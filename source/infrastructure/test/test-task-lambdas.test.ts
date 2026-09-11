@@ -105,6 +105,8 @@ test("DLT Task Lambda Test", () => {
           Ref: "AWS::AccountId",
         },
         METRIC_URL: SOLUTIONS_METRICS_ENDPOINT,
+        RESULTS_MAX_DDB_BYTES: "307200",
+        RESULTS_MAX_LABELS_PER_SCOPE: "100",
         SCENARIOS_BUCKET: "testBucket",
         SCENARIOS_TABLE: {
           Ref: "TestTable5769773A",

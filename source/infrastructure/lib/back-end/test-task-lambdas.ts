@@ -164,6 +164,8 @@ export class TestRunnerLambdasConstruct extends Construct {
         AWS_ACCOUNT_ID: Aws.ACCOUNT_ID,
         HISTORY_TABLE: props.historyTable.tableName,
         METRIC_URL: SOLUTIONS_METRICS_ENDPOINT,
+        RESULTS_MAX_DDB_BYTES: String(300 * 1024),
+        RESULTS_MAX_LABELS_PER_SCOPE: "100",
         SCENARIOS_BUCKET: props.scenariosBucket,
         SCENARIOS_TABLE: props.scenariosTable.tableName,
         SOLUTION_ID: props.solution.id,

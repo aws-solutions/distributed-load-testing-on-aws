@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const parser = require("./lib/parser/");
+const { prepareResultsForPersistence } = require("./lib/result-persistence/");
 
 const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb");
 const { DynamoDB } = require("@aws-sdk/client-dynamodb");
@@ -70,7 +71,8 @@ const writeTestDataToHistoryTable = async (
   eventConfigs,
   resultList,
   totalDuration,
-  testRunId
+  testRunId,
+  rawResultsPrefix
 ) => {
   const { finalResults, completeTasks } = await parseResults(
     eventConfigs,
@@ -86,18 +88,33 @@ const writeTestDataToHistoryTable = async (
     succPercent = ((finalResults["total"].succ / finalResults["total"].throughput) * 100).toFixed(2);
   }
 
+  const persistedSummary = await prepareResultsForPersistence({
+    s3,
+    bucket: process.env.SCENARIOS_BUCKET,
+    testId,
+    testRunId,
+    rawResultsPrefix,
+    results: finalResults,
+  });
+
   // Write test run data to history table
   const historyParams = {
     testId,
     testRunId,
-    results: finalResults,
+    results: persistedSummary.results,
+    summaryState: persistedSummary.summaryState,
     completeTasks,
     succPercent,
   };
   await parser.updateTestHistoryResults(historyParams);
 
   //update scenario dynamoDB table
-  const updateTableParams = { testId, finalResults, completeTasks };
+  const updateTableParams = {
+    testId,
+    finalResults: persistedSummary.results,
+    completeTasks,
+    summaryState: persistedSummary.summaryState,
+  };
   await parser.updateTable(updateTableParams);
 };
 const getScenariosTableItems = async (testId) => {
@@ -202,7 +219,8 @@ exports.handler = async (event) => {
         eventConfigs,
         resultList,
         totalDuration,
-        testRunId
+        testRunId,
+        `results/${testId}/${prefix}`
       );
       testResult = "completed";
     } else {

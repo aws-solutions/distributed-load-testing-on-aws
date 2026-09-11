@@ -909,6 +909,8 @@ exports[`DLT Task Lambda Test 1`] = `
               "Ref": "TestTable5769773A",
             },
             "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
+            "RESULTS_MAX_DDB_BYTES": "307200",
+            "RESULTS_MAX_LABELS_PER_SCOPE": "100",
             "SCENARIOS_BUCKET": "testBucket",
             "SCENARIOS_TABLE": {
               "Ref": "TestTable5769773A",

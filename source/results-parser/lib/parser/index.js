@@ -315,7 +315,14 @@ async function finalResults(testId, data) {
  * @param {object} completeTasks The number of ECS tasks that completed successfully.
  * @param {string} succPercent The percentage of successful requests (undefined when throughput is zero).
  */
-async function updateTestHistoryResults({ testId, testRunId, results, completeTasks, succPercent }) {
+async function updateTestHistoryResults({
+  testId,
+  testRunId,
+  results,
+  completeTasks,
+  succPercent,
+  summaryState = { status: "complete" },
+}) {
   try {
     // Validate results data exists before updating table
     if (Object.keys(results).length === 0 || Object.keys(completeTasks).length === 0 || !succPercent) {
@@ -325,16 +332,18 @@ async function updateTestHistoryResults({ testId, testRunId, results, completeTa
     const ddbParams = {
       TableName: HISTORY_TABLE,
       Key: { testId, testRunId },
-      UpdateExpression: "set #r = :r, #ct = :ct, #sp = :sp",
+      UpdateExpression: "set #r = :r, #ct = :ct, #sp = :sp, #rss = :rss",
       ExpressionAttributeNames: {
         "#r": "results",
         "#ct": "completeTasks",
         "#sp": "succPercent",
+        "#rss": "resultsSummaryState",
       },
       ExpressionAttributeValues: {
         ":r": results,
         ":ct": completeTasks,
         ":sp": succPercent,
+        ":rss": summaryState,
       },
     };
     await dynamoDb.update(ddbParams);
@@ -347,21 +356,28 @@ async function updateTestHistoryResults({ testId, testRunId, results, completeTa
 
 // Updating scenarios table with test results
 async function updateTable(params) {
-  const { testId, finalResults: finalTestResults, completeTasks } = params;
+  const {
+    testId,
+    finalResults: finalTestResults,
+    completeTasks,
+    summaryState = { status: "complete" },
+  } = params;
 
   const ddbUpdateParams = {
     TableName: SCENARIOS_TABLE,
     Key: {
       testId: testId,
     },
-    UpdateExpression: "set #r = :r, #ct = :ct",
+    UpdateExpression: "set #r = :r, #ct = :ct, #rss = :rss",
     ExpressionAttributeNames: {
       "#r": "results",
       "#ct": "completeTasks",
+      "#rss": "resultsSummaryState",
     },
     ExpressionAttributeValues: {
       ":r": finalTestResults,
       ":ct": completeTasks,
+      ":rss": summaryState,
     },
     ReturnValues: "ALL_NEW",
   };
