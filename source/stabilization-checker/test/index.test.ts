@@ -47,6 +47,7 @@ function makeEvent(overrides: Record<string, unknown> = {}) {
     showLive: true,
     testDuration: 300,
     prefix: "2025-01-01T00-00-00_abc",
+    nativeRunMode: null,
     testTaskConfig: {
       region: "us-east-1",
       taskCluster: "dlt-cluster",
@@ -88,6 +89,7 @@ describe("handler", () => {
     const result = await handler(makeEvent());
 
     expect(result.status).toBe("READY");
+    expect(result.nativeRunMode).toBeNull();
     expect(result.runningCount).toBe(5);
     expect(result.readyTimestamp).toBeGreaterThan(0);
   });
@@ -102,6 +104,7 @@ describe("handler", () => {
     const result = await handler(makeEvent());
 
     expect(result.status).toBe("PENDING");
+    expect(result.nativeRunMode).toBeNull();
     expect(result.runningCount).toBe(3);
     expect(result.readyTimestamp).toBe(0);
   });
@@ -117,6 +120,7 @@ describe("handler", () => {
     const result = await handler(makeEvent());
 
     expect(result.status).toBe("FAILED");
+    expect(result.nativeRunMode).toBeNull();
     expect(result.errorMessage).toBe("Circuit breaker triggered");
   });
 
@@ -151,6 +155,7 @@ describe("handler", () => {
     const result = await handler(makeEvent({ stabilizationStartTime: thirtyOneMinutesAgo }));
 
     expect(result.status).toBe("FAILED");
+    expect(result.nativeRunMode).toBeNull();
     expect(result.errorMessage).toContain("30 minutes");
     // Should not even call checkStabilization
     expect(mockCheckStabilization).not.toHaveBeenCalled();
@@ -188,6 +193,43 @@ describe("handler", () => {
     expect(result.prefix).toBe("2025-01-01T00-00-00_abc");
     expect(result.serviceName).toBe("dlt-test-abc123-us-east-1");
     expect(result.desiredCount).toBe(5);
+  });
+
+  it.each([
+    {
+      name: "READY",
+      status: { isStable: true, isFailed: false, runningCount: 5 },
+    },
+    {
+      name: "PENDING",
+      status: { isStable: false, isFailed: false, runningCount: 3 },
+    },
+    {
+      name: "FAILED",
+      status: { isStable: false, isFailed: true, runningCount: 2, errorMessage: "failed" },
+    },
+  ])("should preserve nativeRunMode on the $name return path", async ({ status }) => {
+    const nativeRunMode = {
+      maxTestDurationSeconds: 3600,
+    };
+    mockCheckStabilization.mockResolvedValue(status);
+
+    const result = await handler(makeEvent({ nativeRunMode }));
+
+    expect(result.nativeRunMode).toEqual(nativeRunMode);
+  });
+
+  it("should preserve nativeRunMode on the timeout return path", async () => {
+    const nativeRunMode = { maxTestDurationSeconds: 3600 };
+
+    const result = await handler(
+      makeEvent({
+        nativeRunMode,
+        stabilizationStartTime: Date.now() - 31 * 60 * 1000,
+      })
+    );
+
+    expect(result.nativeRunMode).toEqual(nativeRunMode);
   });
 
   it("should not include errorMessage for FAILED status without error", async () => {

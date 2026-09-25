@@ -1,6 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { LoadTestFramework } from "@amzn/dlt-common/test-execution";
+import type { NativeRunMode } from "@amzn/dlt-common/validation";
 import { TestTaskConfig } from "../types";
 import { ViewMode } from "./viewMode";
 
@@ -64,6 +66,19 @@ export interface TestScenario {
   scenarios?: Record<string, unknown>;
 }
 
+export interface FrameworkExitSummaryEntry {
+  framework: LoadTestFramework;
+  exitCode: number;
+  message: string;
+  count: number;
+}
+
+export interface FrameworkExitSummary {
+  totalCount: number;
+  artifactKey: string;
+  top: FrameworkExitSummaryEntry[];
+}
+
 export interface TestRunDetails {
   startTime: string;
   testDescription: string;
@@ -84,6 +99,13 @@ export interface TestRunDetails {
   testScenario?: TestScenario;
   /** Present when status is "failed". Stored as a top-level attribute on the history table item. */
   errorReason?: string;
+  /**
+   * Present only for a native-mode run, where the script defines its own load
+   * shape. Its presence is what marks the run native — there is no boolean flag.
+   */
+  nativeRunMode?: NativeRunMode;
+  /** Present when one or more native framework processes exited non-zero. */
+  frameworkExitSummary?: FrameworkExitSummary;
 }
 
 export interface ResponseCode {

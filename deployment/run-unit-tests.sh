@@ -152,6 +152,20 @@ else
   exit 1
 fi
 
+# Run syncpack workspace dependency sync check
+echo "Running workspace dependency sync check"
+if (cd "$source_dir/.." && npm run sync:check); then
+  echo "Dependency sync check passed"
+else
+  echo "******************************************************************************"
+  echo "Test FAILED workspace dependency sync check."
+  echo "Dependency versions are out of sync across workspace packages."
+  echo "Run 'npm run sync' to fix auto-fixable mismatches, then commit the changes."
+  echo "For @aws-sdk/* range conflicts, manually align the ranges so they overlap."
+  echo "******************************************************************************"
+  exit 1
+fi
+
 check_version_consistency "$source_dir/.."
 
 # Regression test for command injection through .env values in the Makefile
@@ -209,8 +223,7 @@ fi
 
 # Build webui for infrastructure tests
 echo "Building webui for infrastructure tests"
-cd $source_dir/webui
-npm run build
+npm run build -w source/webui
 if [ $? -eq 0 ]
 then
   echo "WebUI build passed"

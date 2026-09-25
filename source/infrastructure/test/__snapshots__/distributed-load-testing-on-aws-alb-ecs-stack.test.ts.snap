@@ -64,6 +64,16 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
         "",
       ],
     },
+    "DeployMCPServerAndIsReadWriteCondition": {
+      "Fn::And": [
+        {
+          "Condition": "DeployMCPServerCondition",
+        },
+        {
+          "Condition": "MCPServerIsReadWriteCondition7036A529",
+        },
+      ],
+    },
     "DeployMCPServerCondition": {
       "Fn::Equals": [
         {
@@ -72,10 +82,42 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
         "Yes",
       ],
     },
+    "MCPServerIsReadWriteCondition7036A529": {
+      "Fn::Equals": [
+        {
+          "Ref": "MCPServerAccessMode",
+        },
+        "ReadWrite",
+      ],
+    },
+    "UsePublicJMeterLoadTestingImageCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "JMeterLoadTesterImageUri",
+        },
+        "",
+      ],
+    },
+    "UsePublicK6LoadTestingImageCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "K6LoadTesterImageUri",
+        },
+        "",
+      ],
+    },
     "UsePublicLoadTestingImageCondition": {
       "Fn::Equals": [
         {
           "Ref": "LoadTesterImageUri",
+        },
+        "",
+      ],
+    },
+    "UsePublicLocustLoadTestingImageCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "LocustLoadTesterImageUri",
         },
         "",
       ],
@@ -131,6 +173,9 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
           "Parameters": [
             "UseStableTagging",
             "LoadTesterImageUri",
+            "LocustLoadTesterImageUri",
+            "K6LoadTesterImageUri",
+            "JMeterLoadTesterImageUri",
           ],
         },
         {
@@ -176,8 +221,20 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
         "ExistingVPCId": {
           "default": "Select an existing VPC in the region",
         },
+        "JMeterLoadTesterImageUri": {
+          "default": "JMeter Load Tester Container Image",
+        },
+        "K6LoadTesterImageUri": {
+          "default": "k6 Load Tester Container Image",
+        },
         "LoadTesterImageUri": {
           "default": "Load Tester Container Image",
+        },
+        "LocustLoadTesterImageUri": {
+          "default": "Locust Load Tester Container Image",
+        },
+        "MCPServerAccessMode": {
+          "default": "MCP Server Access Mode",
         },
         "SubnetACidrBlock": {
           "default": "Provide valid CIDR block for subnet A for the solution to create VPC",
@@ -362,11 +419,10 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
     "AdminEmail": {
       "AllowedPattern": "^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$",
       "ConstraintDescription": "Admin email must be a valid email address",
-      "MinLength": 5,
       "Type": "String",
     },
     "AdminName": {
-      "AllowedPattern": "[a-zA-Z0-9-]+",
+      "AllowedPattern": "^[a-zA-Z0-9-]+$",
       "ConstraintDescription": "Admin username must be a minimum of 4 characters and cannot include spaces",
       "MaxLength": 20,
       "MinLength": 4,
@@ -376,7 +432,6 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
       "AllowedPattern": "^([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,}$",
       "ConstraintDescription": "Must be a valid fully qualified domain name (e.g., dlt.example.com)",
       "Description": "Custom domain name for the web console (e.g., dlt.example.com). Must match the ACM certificate.",
-      "MinLength": 3,
       "Type": "String",
     },
     "DeployMCPServer": {
@@ -398,30 +453,42 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
       "Type": "String",
     },
     "EgressCidr": {
-      "AllowedPattern": "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
+      "AllowedPattern": "^(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}/(3[0-2]|[12]?\\d)$",
       "ConstraintDescription": "The Egress CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
       "Default": "0.0.0.0/0",
       "Description": "CIDR Block to restrict the Amazon ECS container outbound access",
-      "MaxLength": 18,
-      "MinLength": 9,
       "Type": "String",
     },
     "ExistingSubnetA": {
-      "AllowedPattern": "(?:^$|^subnet-[a-zA-Z0-9-]+)",
+      "AllowedPattern": "^$|^subnet-[a-zA-Z0-9-]+$",
       "Default": "",
       "Description": "First existing subnet",
       "Type": "String",
     },
     "ExistingSubnetB": {
-      "AllowedPattern": "(?:^$|^subnet-[a-zA-Z0-9-]+)",
+      "AllowedPattern": "^$|^subnet-[a-zA-Z0-9-]+$",
       "Default": "",
       "Description": "Second existing subnet",
       "Type": "String",
     },
     "ExistingVPCId": {
-      "AllowedPattern": "(?:^$|^vpc-[a-zA-Z0-9-]+)",
+      "AllowedPattern": "^$|^vpc-[a-zA-Z0-9-]+$",
       "Default": "",
       "Description": "Existing VPC ID",
+      "Type": "String",
+    },
+    "JMeterLoadTesterImageUri": {
+      "AllowedPattern": "^$|^\\d{12}\\.dkr\\.ecr\\.[a-z]{2}(-gov)?-(central|north|south|east|west|northeast|southeast|northwest|southwest)-\\d\\.amazonaws\\.com\\/[a-z0-9._\\/-]+(:[a-zA-Z0-9._-]+|@sha256:[a-fA-F0-9]{64})?$",
+      "ConstraintDescription": "Must be empty or a valid ECR image URI (e.g., 123456789012.dkr.ecr.us-east-1.amazonaws.com/my-repo:tag or .../my-repo@sha256:<64-hex-chars>).",
+      "Default": "",
+      "Description": "URI of JMeter load tester container image. If empty, the default public image is used.",
+      "Type": "String",
+    },
+    "K6LoadTesterImageUri": {
+      "AllowedPattern": "^$|^\\d{12}\\.dkr\\.ecr\\.[a-z]{2}(-gov)?-(central|north|south|east|west|northeast|southeast|northwest|southwest)-\\d\\.amazonaws\\.com\\/[a-z0-9._\\/-]+(:[a-zA-Z0-9._-]+|@sha256:[a-fA-F0-9]{64})?$",
+      "ConstraintDescription": "Must be empty or a valid ECR image URI (e.g., 123456789012.dkr.ecr.us-east-1.amazonaws.com/my-repo:tag or .../my-repo@sha256:<64-hex-chars>).",
+      "Default": "",
+      "Description": "URI of k6 load tester container image. If empty, the default public image is used.",
       "Type": "String",
     },
     "LoadTesterImageUri": {
@@ -431,15 +498,31 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
       "Description": "URI of load tester container image. If empty, the default public image is used.",
       "Type": "String",
     },
+    "LocustLoadTesterImageUri": {
+      "AllowedPattern": "^$|^\\d{12}\\.dkr\\.ecr\\.[a-z]{2}(-gov)?-(central|north|south|east|west|northeast|southeast|northwest|southwest)-\\d\\.amazonaws\\.com\\/[a-z0-9._\\/-]+(:[a-zA-Z0-9._-]+|@sha256:[a-fA-F0-9]{64})?$",
+      "ConstraintDescription": "Must be empty or a valid ECR image URI (e.g., 123456789012.dkr.ecr.us-east-1.amazonaws.com/my-repo:tag or .../my-repo@sha256:<64-hex-chars>).",
+      "Default": "",
+      "Description": "URI of Locust load tester container image. If empty, the default public image is used.",
+      "Type": "String",
+    },
+    "MCPServerAccessMode": {
+      "AllowedValues": [
+        "ReadWrite",
+        "ReadOnly",
+      ],
+      "Default": "ReadOnly",
+      "Description": "Controls whether the MCP server can perform mutating operations (create, update, delete tests). Only applies when Deploy MCP Server is Yes.",
+      "Type": "String",
+    },
     "SubnetACidrBlock": {
-      "AllowedPattern": "(^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})$)",
+      "AllowedPattern": "^$|^(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}/(3[0-2]|[12]?\\d)$",
       "ConstraintDescription": "The subnet CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
       "Default": "192.168.0.0/20",
       "Description": "CIDR block for subnet A of the AWS Fargate VPC",
       "Type": "String",
     },
     "SubnetBCidrBlock": {
-      "AllowedPattern": "(^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})$)",
+      "AllowedPattern": "^$|^(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}/(3[0-2]|[12]?\\d)$",
       "ConstraintDescription": "The subnet CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
       "Default": "192.168.16.0/20",
       "Description": "CIDR block for subnet B of the AWS Fargate VPC",
@@ -455,7 +538,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
       "Type": "String",
     },
     "VpcCidrBlock": {
-      "AllowedPattern": "(^$|(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})$)",
+      "AllowedPattern": "^$|^(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}/(3[0-2]|[12]?\\d)$",
       "ConstraintDescription": "The VPC CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
       "Default": "192.168.0.0/16",
       "Description": "You may leave this parameter blank if you are using existing VPC",
@@ -734,7 +817,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
               "Ref": "DevOpsAgentDLTInvestigationsTable7A3724B1",
             },
             "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
-            "MIN_COMPATIBLE_VERSION": "4.1.0",
+            "MIN_COMPATIBLE_VERSION": "4.3.0",
             "SCENARIOS_BUCKET": {
               "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
             },
@@ -6021,7 +6104,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
             ],
           ],
         },
-        "RetentionInDays": 365,
+        "RetentionInDays": 3653,
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Delete",
@@ -6035,6 +6118,18 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
               "DLTConsoleResourcesWafLogGroup135B1530",
               "Arn",
             ],
+          },
+        ],
+        "RedactedFields": [
+          {
+            "SingleHeader": {
+              "Name": "authorization",
+            },
+          },
+          {
+            "SingleHeader": {
+              "Name": "cookie",
+            },
           },
         ],
         "ResourceArn": {
@@ -6226,7 +6321,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
         },
       },
       "Properties": {
-        "RetentionInDays": 365,
+        "RetentionInDays": 3653,
         "Tags": [
           {
             "Key": "SolutionId",
@@ -7273,6 +7368,17 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
               "Arn",
             ],
           },
+          "nativeTaskDefinitions": {
+            "jmeter": {
+              "Ref": "DLTEcsJMeterDLTTaskDefinition10282190",
+            },
+            "k6": {
+              "Ref": "DLTEcsK6DLTTaskDefinition77A77961",
+            },
+            "locust": {
+              "Ref": "DLTEcsLocustDLTTaskDefinitionB23B7E33",
+            },
+          },
           "region": {
             "Ref": "AWS::Region",
           },
@@ -7460,7 +7566,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
             "Environment": [
               {
                 "Name": "JVM_ARGS",
-                "Value": "-Xms1g -Xmx3g",
+                "Value": "-Xms1g -Xmx3g -XX:+ExitOnOutOfMemoryError -XX:-HeapDumpOnOutOfMemoryError",
               },
             ],
             "Essential": true,
@@ -7471,7 +7577,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
               ],
               "Interval": 5,
               "Retries": 10,
-              "StartPeriod": 10,
+              "StartPeriod": 120,
               "Timeout": 5,
             },
             "Image": {
@@ -7513,6 +7619,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
                 ],
               ],
             },
+            "StopTimeout": 120,
           },
         ],
         "Cpu": "2048",
@@ -7651,6 +7758,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
                     "s3:PutObject",
                     "s3:GetObject",
                     "s3:ListBucket",
+                    "s3:AbortMultipartUpload",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -7695,6 +7803,267 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
         ],
       },
       "Type": "AWS::IAM::Role",
+    },
+    "DLTEcsJMeterDLTTaskDefinition10282190": {
+      "Properties": {
+        "ContainerDefinitions": [
+          {
+            "Environment": [
+              {
+                "Name": "JVM_ARGS",
+                "Value": "-Xms1g -Xmx3g -XX:+ExitOnOutOfMemoryError -XX:-HeapDumpOnOutOfMemoryError",
+              },
+            ],
+            "Essential": true,
+            "HealthCheck": {
+              "Command": [
+                "CMD-SHELL",
+                "test -f /tmp/health_ready || exit 1",
+              ],
+              "Interval": 5,
+              "Retries": 10,
+              "StartPeriod": 120,
+              "Timeout": 5,
+            },
+            "Image": {
+              "Fn::If": [
+                "UsePublicJMeterLoadTestingImageCondition",
+                {
+                  "Fn::If": [
+                    "UseStableTagCondition",
+                    "registry/distributed-load-testing-on-aws-load-tester-jmeter:tag_stable",
+                    "registry/distributed-load-testing-on-aws-load-tester-jmeter:tag",
+                  ],
+                },
+                {
+                  "Ref": "JMeterLoadTesterImageUri",
+                },
+              ],
+            },
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": {
+                  "Ref": "DLTEcsDLTCloudWatchLogsGroupFE9EC144",
+                },
+                "awslogs-region": {
+                  "Ref": "AWS::Region",
+                },
+                "awslogs-stream-prefix": "load-testing",
+              },
+            },
+            "Memory": 4096,
+            "Name": {
+              "Fn::Join": [
+                "",
+                [
+                  {
+                    "Ref": "AWS::StackName",
+                  },
+                  "-load-tester-jmeter",
+                ],
+              ],
+            },
+            "StopTimeout": 120,
+          },
+        ],
+        "Cpu": "2048",
+        "ExecutionRoleArn": {
+          "Fn::GetAtt": [
+            "DLTEcsDLTTaskExecutionRoleDE668717",
+            "Arn",
+          ],
+        },
+        "Family": "TestDLTAlbEcsStackDLTEcsJMeterDLTTaskDefinitionAA696554",
+        "Memory": "4096",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": [
+          "FARGATE",
+        ],
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "testId",
+          },
+        ],
+        "TaskRoleArn": {
+          "Fn::GetAtt": [
+            "DLTEcsDLTTaskRoleD37E29C5",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::ECS::TaskDefinition",
+    },
+    "DLTEcsK6DLTTaskDefinition77A77961": {
+      "Properties": {
+        "ContainerDefinitions": [
+          {
+            "Essential": true,
+            "HealthCheck": {
+              "Command": [
+                "CMD-SHELL",
+                "test -f /tmp/health_ready || exit 1",
+              ],
+              "Interval": 5,
+              "Retries": 10,
+              "StartPeriod": 180,
+              "Timeout": 5,
+            },
+            "Image": {
+              "Fn::If": [
+                "UsePublicK6LoadTestingImageCondition",
+                {
+                  "Fn::If": [
+                    "UseStableTagCondition",
+                    "registry/distributed-load-testing-on-aws-load-tester-k6:tag_stable",
+                    "registry/distributed-load-testing-on-aws-load-tester-k6:tag",
+                  ],
+                },
+                {
+                  "Ref": "K6LoadTesterImageUri",
+                },
+              ],
+            },
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": {
+                  "Ref": "DLTEcsDLTCloudWatchLogsGroupFE9EC144",
+                },
+                "awslogs-region": {
+                  "Ref": "AWS::Region",
+                },
+                "awslogs-stream-prefix": "load-testing",
+              },
+            },
+            "Memory": 4096,
+            "Name": {
+              "Fn::Join": [
+                "",
+                [
+                  {
+                    "Ref": "AWS::StackName",
+                  },
+                  "-load-tester-k6",
+                ],
+              ],
+            },
+            "StopTimeout": 120,
+          },
+        ],
+        "Cpu": "2048",
+        "ExecutionRoleArn": {
+          "Fn::GetAtt": [
+            "DLTEcsDLTTaskExecutionRoleDE668717",
+            "Arn",
+          ],
+        },
+        "Family": "TestDLTAlbEcsStackDLTEcsK6DLTTaskDefinition65AD3D3F",
+        "Memory": "4096",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": [
+          "FARGATE",
+        ],
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "testId",
+          },
+        ],
+        "TaskRoleArn": {
+          "Fn::GetAtt": [
+            "DLTEcsDLTTaskRoleD37E29C5",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::ECS::TaskDefinition",
+    },
+    "DLTEcsLocustDLTTaskDefinitionB23B7E33": {
+      "Properties": {
+        "ContainerDefinitions": [
+          {
+            "Essential": true,
+            "HealthCheck": {
+              "Command": [
+                "CMD-SHELL",
+                "test -f /tmp/health_ready || exit 1",
+              ],
+              "Interval": 5,
+              "Retries": 10,
+              "StartPeriod": 180,
+              "Timeout": 5,
+            },
+            "Image": {
+              "Fn::If": [
+                "UsePublicLocustLoadTestingImageCondition",
+                {
+                  "Fn::If": [
+                    "UseStableTagCondition",
+                    "registry/distributed-load-testing-on-aws-load-tester-locust:tag_stable",
+                    "registry/distributed-load-testing-on-aws-load-tester-locust:tag",
+                  ],
+                },
+                {
+                  "Ref": "LocustLoadTesterImageUri",
+                },
+              ],
+            },
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": {
+                  "Ref": "DLTEcsDLTCloudWatchLogsGroupFE9EC144",
+                },
+                "awslogs-region": {
+                  "Ref": "AWS::Region",
+                },
+                "awslogs-stream-prefix": "load-testing",
+              },
+            },
+            "Memory": 4096,
+            "Name": {
+              "Fn::Join": [
+                "",
+                [
+                  {
+                    "Ref": "AWS::StackName",
+                  },
+                  "-load-tester-locust",
+                ],
+              ],
+            },
+            "StopTimeout": 120,
+          },
+        ],
+        "Cpu": "2048",
+        "ExecutionRoleArn": {
+          "Fn::GetAtt": [
+            "DLTEcsDLTTaskExecutionRoleDE668717",
+            "Arn",
+          ],
+        },
+        "Family": "TestDLTAlbEcsStackDLTEcsLocustDLTTaskDefinition93EC52DD",
+        "Memory": "4096",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": [
+          "FARGATE",
+        ],
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "testId",
+          },
+        ],
+        "TaskRoleArn": {
+          "Fn::GetAtt": [
+            "DLTEcsDLTTaskRoleD37E29C5",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::ECS::TaskDefinition",
     },
     "DLTEcsMetricFilterCountAlarm6B9438DB": {
       "Metadata": {
@@ -10310,7 +10679,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
               {
                 "Ref": "AWS::AccountId",
               },
-              "","metricSchemaVersion":1,"data":{"Type":"TestStart","TestId.$":"$.testId","TestType.$":"$.testType","FileType.$":"$.fileType","TestDuration.$":"$.testDuration","RegionCount.$":"States.ArrayLength($.testTaskConfig)"}}}},"Stabilization Map":{"Type":"Map","ResultPath":"$.stabilizationResults","Next":"Init Error Reason","InputPath":"$","ItemsPath":"$.testTaskConfig","ItemSelector":{"testTaskConfig.$":"$$.Map.Item.Value","testId.$":"$.testId","testType.$":"$.testType","fileType.$":"$.fileType","showLive.$":"$.showLive","testDuration.$":"$.testDuration","prefix.$":"$.prefix","testRunId.$":"$.testRunId","hubTaskDefinition.$":"$.hubTaskDefinition"},"ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"Check Running Tests","States":{"Check Running Tests":{"Next":"Test already running?","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Prepare Phase 1 Failure Cleanup"}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
+              "","metricSchemaVersion":1,"data":{"Type":"TestStart","TestId.$":"$.testId","RunMode.$":"$.runMode","TestType.$":"$.testType","FileType.$":"$.fileType","TestDuration.$":"$.testDuration","RegionCount.$":"States.ArrayLength($.testTaskConfig)"}}}},"Stabilization Map":{"Type":"Map","ResultPath":"$.stabilizationResults","Next":"Init Error Reason","InputPath":"$","ItemsPath":"$.testTaskConfig","ItemSelector":{"testTaskConfig.$":"$$.Map.Item.Value","testId.$":"$.testId","testType.$":"$.testType","fileType.$":"$.fileType","showLive.$":"$.showLive","testDuration.$":"$.testDuration","prefix.$":"$.prefix","testRunId.$":"$.testRunId","hubTaskDefinition.$":"$.hubTaskDefinition","nativeTaskDefinitions.$":"$.nativeTaskDefinitions","nativeRunMode.$":"$.nativeRunMode"},"ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"Check Running Tests","States":{"Check Running Tests":{"Next":"Test already running?","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Prepare Phase 1 Failure Cleanup"}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -10321,7 +10690,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"Test already running?":{"Type":"Choice","Choices":[{"Variable":"$.isRunning","BooleanEquals":true,"Next":"Test Already Running End"}],"Default":"Task Runner"},"Task Runner":{"Next":"Check Stabilization","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Prepare Phase 1 Failure Cleanup"}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
+              "","Payload.$":"$"}},"Test already running?":{"Type":"Choice","Choices":[{"Variable":"$.isRunning","BooleanEquals":true,"Next":"Test Already Running End"}],"Default":"Task Runner"},"Task Runner":{"Next":"Task Runner failed?","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Prepare Phase 1 Failure Cleanup"}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -10332,7 +10701,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"Check Stabilization":{"Next":"Service stable?","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Prepare Phase 1 Failure Cleanup"}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
+              "","Payload.$":"$"}},"Task Runner failed?":{"Type":"Choice","Choices":[{"And":[{"Variable":"$.status","IsPresent":true},{"Variable":"$.status","StringEquals":"FAILED"}],"Next":"Phase 1 Map End"}],"Default":"Check Stabilization"},"Check Stabilization":{"Next":"Service stable?","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Prepare Phase 1 Failure Cleanup"}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -10354,7 +10723,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"Prepare Phase 1 Failure Cleanup":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason":"ECS service creation or stabilization failed","skipStatusUpdate":true},"Next":"Phase 1 Error Cleanup"},"Test Already Running End":{"Type":"Pass","Next":"Phase 1 Map End"}}}},"Init Error Reason":{"Type":"Pass","Result":"","ResultPath":"$.errorReason","Next":"Regional Sync"},"Regional Sync":{"Next":"All regions ready?","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Set Error Reason: stabilization failed"}],"Type":"Task","ResultPath":"$.syncResult","Resource":"arn:",
+              "","Payload.$":"$"}},"Prepare Phase 1 Failure Cleanup":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason":"ECS service creation or stabilization failed","skipStatusUpdate":true},"Next":"Phase 1 Error Cleanup"},"Test Already Running End":{"Type":"Pass","Next":"Phase 1 Map End"}}}},"Init Error Reason":{"Type":"Pass","Result":"","ResultPath":"$.errorReason","Next":"Regional Sync"},"Regional Sync":{"Next":"All regions ready?","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Set Error Reason: regional sync error"}],"Type":"Task","ResultPath":"$.syncResult","Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -10365,7 +10734,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testType.$":"$.testType","regions.$":"$.stabilizationResults"}}},"All regions ready?":{"Type":"Choice","Choices":[{"Variable":"$.syncResult.Payload.allReady","BooleanEquals":true,"Next":"Set Status: running"}],"Default":"Set Error Reason: stabilization failed"},"Set Error Reason: stabilization failed":{"Type":"Pass","Result":"Regional sync failed — at least one region did not stabilize","ResultPath":"$.errorReason","Next":"Cancel All Regions"},"Cancel All Regions":{"Type":"Map","ResultPath":null,"Next":"Final Outcome: failed","InputPath":"$","ItemsPath":"$.stabilizationResults","ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"Prepare Cancel Cleanup","States":{"Prepare Cancel Cleanup":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason":"Regional sync failed — at least one region did not stabilize","skipStatusUpdate":true},"Next":"Cancel Region"},"Cancel Region":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:",
+              "","Payload":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testType.$":"$.testType","regions.$":"$.stabilizationResults"}}},"All regions ready?":{"Type":"Choice","Choices":[{"Variable":"$.syncResult.Payload.allReady","BooleanEquals":true,"Next":"Set Status: running"}],"Default":"Set Error Reason: stabilization failed"},"Set Error Reason: stabilization failed":{"Type":"Pass","ResultPath":"$.errorReason","InputPath":"$.syncResult.Payload.errorReason","Next":"Cancel All Regions"},"Cancel All Regions":{"Type":"Map","ResultPath":null,"Next":"Final Outcome: failed","InputPath":"$","ItemsPath":"$.stabilizationResults","ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"Prepare Cancel Cleanup","States":{"Prepare Cancel Cleanup":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason":"Regional sync failed — at least one region did not stabilize","skipStatusUpdate":true},"Next":"Cancel Region"},"Cancel Region":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -10376,7 +10745,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}}}}},"Final Outcome: failed":{"Type":"Pass","Result":"failed","ResultPath":"$.finalOutcome","Next":"TestEnd"},"Error Cleanup Map":{"Type":"Map","ResultPath":null,"Next":"Final Outcome: failed","InputPath":"$","ItemsPath":"$.stabilizationResults","ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"Prepare Error Cleanup","States":{"Prepare Error Cleanup":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason":"Results parsing failed","skipStatusUpdate":true},"Next":"Invoke Error Cleanup"},"Invoke Error Cleanup":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:",
+              "","Payload.$":"$"}}}}},"Set Error Reason: regional sync error":{"Type":"Pass","Result":"Regional sync failed — at least one region did not stabilize","ResultPath":"$.errorReason","Next":"Cancel All Regions"},"Final Outcome: failed":{"Type":"Pass","Result":"failed","ResultPath":"$.finalOutcome","Next":"TestEnd"},"Error Cleanup Map":{"Type":"Map","ResultPath":null,"Next":"Final Outcome: failed","InputPath":"$","ItemsPath":"$.stabilizationResults","ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"Prepare Error Cleanup","States":{"Prepare Error Cleanup":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason.$":"$.errorReason","skipStatusUpdate":true},"Next":"Invoke Error Cleanup"},"Invoke Error Cleanup":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -10398,7 +10767,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload":{"testId.$":"$.testId","testRunId.$":"$.testRunId","status":"cleaning up"}}},"Parse Results":{"Next":"Set Status: cleaning up","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Set Status: cleaning up"}],"Type":"Task","ResultPath":"$.parseResult","Resource":"arn:",
+              "","Payload":{"testId.$":"$.testId","testRunId.$":"$.testRunId","status":"cleaning up"}}},"Parse Results":{"Next":"Set Status: cleaning up","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Set Error Reason: results parsing failed"}],"Type":"Task","ResultPath":"$.parseResult","Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -10409,7 +10778,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload":{"testTaskConfig.$":"$.testTaskConfig","testId.$":"$.testId","testType.$":"$.testType","fileType.$":"$.fileType","showLive.$":"$.showLive","testDuration.$":"$.testDuration","prefix.$":"$.prefix","testRunId.$":"$.testRunId","executionStart.$":"$$.Execution.StartTime"}}},"Set Status: parsing results":{"Next":"Parse Results","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":null,"Resource":"arn:",
+              "","Payload":{"testTaskConfig.$":"$.testTaskConfig","testId.$":"$.testId","testType.$":"$.testType","fileType.$":"$.fileType","showLive.$":"$.showLive","testDuration.$":"$.testDuration","prefix.$":"$.prefix","testRunId.$":"$.testRunId","executionStart.$":"$$.Execution.StartTime","nativeRunMode.$":"$.nativeRunMode","executionFailed.$":"$.executionResult.hasFailures"}}},"Set Status: parsing results":{"Next":"Parse Results","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":null,"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -10420,7 +10789,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload":{"testId.$":"$.testId","testRunId.$":"$.testRunId","status":"parsing results"}}},"Check For Failures":{"Type":"Pass","ResultPath":"$.executionResult","Parameters":{"hasFailures.$":"States.ArrayContains($.executionMapResults, 'failed')"},"Next":"Set Status: parsing results"},"Execution Map":{"Type":"Map","ResultPath":"$.executionMapResults","Next":"Check For Failures","InputPath":"$","ItemsPath":"$.stabilizationResults","ItemProcessor":{"ProcessorConfig":{"Mode":"DISTRIBUTED","ExecutionType":"STANDARD"},"StartAt":"Send START Command","States":{"Send START Command":{"Next":"Check Completion","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Prepare Start Command Failure"}],"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:",
+              "","Payload":{"testId.$":"$.testId","testRunId.$":"$.testRunId","status":"parsing results"}}},"Set Error Reason: execution failed":{"Type":"Pass","Result":"Test execution failed","ResultPath":"$.errorReason","Next":"Set Status: parsing results"},"Execution failed?":{"Type":"Choice","Choices":[{"Variable":"$.executionResult.hasFailures","BooleanEquals":true,"Next":"Set Error Reason: execution failed"}],"Default":"Set Status: parsing results"},"Check For Failures":{"Type":"Pass","ResultPath":"$.executionResult","Parameters":{"hasFailures.$":"States.ArrayContains($.executionMapResults, 'failed')"},"Next":"Execution failed?"},"Execution Map":{"Type":"Map","ResultPath":"$.executionMapResults","Next":"Check For Failures","InputPath":"$","ItemsPath":"$.stabilizationResults","ItemProcessor":{"ProcessorConfig":{"Mode":"DISTRIBUTED","ExecutionType":"STANDARD"},"StartAt":"Send START Command","States":{"Send START Command":{"Next":"Check Completion","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Prepare Start Command Failure"}],"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -10442,7 +10811,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"Wait - completion poll":{"Type":"Wait","SecondsPath":"$.pollIntervalSeconds","Next":"Check Completion"},"Is test complete?":{"Type":"Choice","Choices":[{"Variable":"$.isComplete","BooleanEquals":true,"Next":"Set Final Status: success"},{"Variable":"$.timedOut","BooleanEquals":true,"Next":"Prepare Phase 2 Failure Cleanup"}],"Default":"Wait - completion poll"},"Set Final Status: success":{"Type":"Pass","Parameters":{"finalStatus":"success"},"Next":"Phase 2 Map End"},"Phase 2 Map End":{"Type":"Pass","OutputPath":"$.finalStatus","End":true},"Phase 2 Error Cleanup":{"Next":"Phase 2 Map End","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:",
+              "","Payload.$":"$"}},"Wait - completion poll":{"Type":"Wait","SecondsPath":"$.pollIntervalSeconds","Next":"Check Completion"},"Is test complete?":{"Type":"Choice","Choices":[{"And":[{"Variable":"$.isComplete","BooleanEquals":true},{"Variable":"$.maxDurationReached","BooleanEquals":true}],"Next":"Set Final Status: failed"},{"Variable":"$.isComplete","BooleanEquals":true,"Next":"Set Final Status: success"},{"Variable":"$.timedOut","BooleanEquals":true,"Next":"Prepare Phase 2 Failure Cleanup"}],"Default":"Wait - completion poll"},"Set Final Status: failed":{"Type":"Pass","Parameters":{"finalStatus":"failed"},"Next":"Phase 2 Map End"},"Phase 2 Map End":{"Type":"Pass","OutputPath":"$.finalStatus","End":true},"Phase 2 Error Cleanup":{"Next":"Phase 2 Map End","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -10453,7 +10822,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"Prepare Phase 2 Failure Cleanup":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason.$":"$.errorReason","skipStatusUpdate":true},"Next":"Phase 2 Error Cleanup"},"Prepare Completion Monitor Failure":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason":"Completion monitoring failed","skipStatusUpdate":true},"Next":"Phase 2 Error Cleanup"},"Prepare Start Command Failure":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason":"Failed to send start command","skipStatusUpdate":true},"Next":"Phase 2 Error Cleanup"}}}},"Set Status: running":{"Next":"Execution Map","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":null,"Resource":"arn:",
+              "","Payload.$":"$"}},"Prepare Phase 2 Failure Cleanup":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason.$":"$.errorReason","skipStatusUpdate":true},"Next":"Phase 2 Error Cleanup"},"Prepare Completion Monitor Failure":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason":"Completion monitoring failed","skipStatusUpdate":true},"Next":"Phase 2 Error Cleanup"},"Prepare Start Command Failure":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"failed","errorReason":"Failed to send start command","skipStatusUpdate":true},"Next":"Phase 2 Error Cleanup"},"Set Final Status: success":{"Type":"Pass","Parameters":{"finalStatus":"success"},"Next":"Phase 2 Map End"}}}},"Set Status: running":{"Next":"Execution Map","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":null,"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -10464,7 +10833,7 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
                   "Arn",
                 ],
               },
-              "","Payload":{"testId.$":"$.testId","testRunId.$":"$.testRunId","status":"running"}}},"Cleanup Map":{"Type":"Map","ResultPath":null,"Next":"Final Outcome: complete","InputPath":"$","ItemsPath":"$.stabilizationResults","ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"Prepare Complete Cleanup","States":{"Prepare Complete Cleanup":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"complete","skipStatusUpdate":true},"Next":"Invoke Test Cleanup"},"Invoke Test Cleanup":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:",
+              "","Payload":{"testId.$":"$.testId","testRunId.$":"$.testRunId","status":"running"}}},"Set Error Reason: results parsing failed":{"Type":"Pass","Result":"Results parsing failed","ResultPath":"$.errorReason","Next":"Set Status: cleaning up"},"Cleanup Map":{"Type":"Map","ResultPath":null,"Next":"Final Outcome: complete","InputPath":"$","ItemsPath":"$.stabilizationResults","ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"Prepare Complete Cleanup","States":{"Prepare Complete Cleanup":{"Type":"Pass","Parameters":{"testId.$":"$.testId","testRunId.$":"$.testRunId","testTaskConfig.$":"$.testTaskConfig","finalStatus":"complete","skipStatusUpdate":true},"Next":"Invoke Test Cleanup"},"Invoke Test Cleanup":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -11071,6 +11440,16 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
               "ExposedHeaders": [
                 "ETag",
               ],
+            },
+          ],
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 1,
+              },
+              "Status": "Enabled",
             },
           ],
         },
@@ -11818,130 +12197,1050 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
                 ],
               },
               "ToolSchema": {
-                "InlinePayload": [
-                  {
-                    "Description": "Retrieve a list of all available test scenarios",
-                    "InputSchema": {
-                      "Required": [],
-                      "Type": "object",
-                    },
-                    "Name": "list_scenarios",
-                  },
-                  {
-                    "Description": "Retrieve the test configuration and most recent test run for a single test scenario",
-                    "InputSchema": {
-                      "Properties": {
-                        "test_id": {
-                          "Description": "The test scenario's unique identifier",
-                          "Type": "string",
+                "InlinePayload": {
+                  "Fn::If": [
+                    "MCPServerIsReadWriteCondition7036A529",
+                    [
+                      {
+                        "Description": "Retrieve a list of all available test scenarios",
+                        "InputSchema": {
+                          "Required": [],
+                          "Type": "object",
                         },
+                        "Name": "list_scenarios",
                       },
-                      "Required": [
-                        "test_id",
-                      ],
-                      "Type": "object",
-                    },
-                    "Name": "get_scenario_details",
-                  },
-                  {
-                    "Description": "Retrieve a list of test runs for a specific test scenario, sorted newest to oldest. More detailed results for a test run can be retrieved with "get_test_run". Note: Only one of 'limit' or 'start_timestamp' may be provided, not both. There is a maximum limit of 30 test runs returned.",
-                    "InputSchema": {
-                      "Properties": {
-                        "limit": {
-                          "Description": "The maximum number of test runs to return (e.g. if I want the 10 most recent test runs, set the limit to 10). Cannot be used with start_timestamp parameter. Must be a positive integer. Default value is 20 and maximum limit is 30.",
-                          "Type": "integer",
+                      {
+                        "Description": "Retrieve the test configuration and most recent test run for a single test scenario. The response reports the scenario's traffic-shape mode: a nativeRunMode object means Native, where the uploaded script owns the load and each task runs a full copy of it, and its absence means Standard, where the stored concurrency, ramp-up, and hold-for values are the load. For a Native scenario the stored concurrency, ramp-up, and hold-for values were never applied, so do not report them as the load and do not reuse them when composing an update.",
+                        "InputSchema": {
+                          "Properties": {
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                          ],
+                          "Type": "object",
                         },
-                        "start_timestamp": {
-                          "Description": "Return all test runs going back to start_timestamp. The date must be in ISO 8601 timestamp format (e.g. '2024-01-15T14:30:00.000Z'). Cannot be used with limit parameter. Date format is strictly validated. There is a limit of 30 test runs that can be returned.",
-                          "Type": "string",
-                        },
-                        "test_id": {
-                          "Description": "The test scenario's unique identifier",
-                          "Type": "string",
-                        },
+                        "Name": "get_scenario_details",
                       },
-                      "Required": [
-                        "test_id",
-                      ],
-                      "Type": "object",
-                    },
-                    "Name": "list_test_runs",
-                  },
-                  {
-                    "Description": "Retrieve a single test run for a specific test scenario. Results will be provided with a breakdown 1/ for each region (e.g. "us-east-1", "us-west-2") that the test runs in as well as an aggregate "total" 2/ for each endpoint (referred to as "label").",
-                    "InputSchema": {
-                      "Properties": {
-                        "test_id": {
-                          "Description": "The test scenario's unique identifier",
-                          "Type": "string",
+                      {
+                        "Description": "Retrieve a list of test runs for a specific test scenario, sorted newest to oldest. More detailed results for a test run can be retrieved with "get_test_run". Note: Only one of 'limit' or 'start_timestamp' may be provided, not both. There is a maximum limit of 30 test runs returned.",
+                        "InputSchema": {
+                          "Properties": {
+                            "limit": {
+                              "Description": "The maximum number of test runs to return (e.g. if I want the 10 most recent test runs, set the limit to 10). Cannot be used with start_timestamp parameter. Must be a positive integer. Default value is 20 and maximum limit is 30.",
+                              "Type": "integer",
+                            },
+                            "start_timestamp": {
+                              "Description": "Return all test runs going back to start_timestamp. The date must be in ISO 8601 timestamp format (e.g. '2024-01-15T14:30:00.000Z'). Cannot be used with limit parameter. Date format is strictly validated. There is a limit of 30 test runs that can be returned.",
+                              "Type": "string",
+                            },
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                          ],
+                          "Type": "object",
                         },
-                        "test_run_id": {
-                          "Description": "The test run's unique identifier",
-                          "Type": "string",
-                        },
+                        "Name": "list_test_runs",
                       },
-                      "Required": [
-                        "test_id",
-                        "test_run_id",
-                      ],
-                      "Type": "object",
-                    },
-                    "Name": "get_test_run",
-                  },
-                  {
-                    "Description": "Retrieve the most recent test run for a specific test scenario",
-                    "InputSchema": {
-                      "Properties": {
-                        "test_id": {
-                          "Description": "The test scenario's unique identifier",
-                          "Type": "string",
+                      {
+                        "Description": "Retrieve a single test run for a specific test scenario. Results will be provided with a breakdown 1/ for each region (e.g. "us-east-1", "us-west-2") that the test runs in as well as an aggregate "total" 2/ for each endpoint (referred to as "label").",
+                        "InputSchema": {
+                          "Properties": {
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier",
+                              "Type": "string",
+                            },
+                            "test_run_id": {
+                              "Description": "The test run's unique identifier",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                            "test_run_id",
+                          ],
+                          "Type": "object",
                         },
+                        "Name": "get_test_run",
                       },
-                      "Required": [
-                        "test_id",
-                      ],
-                      "Type": "object",
-                    },
-                    "Name": "get_latest_test_run",
-                  },
-                  {
-                    "Description": "Retrieve the baseline test run for a specific test scenario. Users are able to set a baseline run for comparisons",
-                    "InputSchema": {
-                      "Properties": {
-                        "test_id": {
-                          "Description": "The test scenario's unique identifier",
-                          "Type": "string",
+                      {
+                        "Description": "Retrieve the most recent test run for a specific test scenario",
+                        "InputSchema": {
+                          "Properties": {
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                          ],
+                          "Type": "object",
                         },
+                        "Name": "get_latest_test_run",
                       },
-                      "Required": [
-                        "test_id",
-                      ],
-                      "Type": "object",
-                    },
-                    "Name": "get_baseline_test_run",
-                  },
-                  {
-                    "Description": "Retrieve the S3 bucket name and path prefix for test run output (logs, error files, results, etc). Starting in v4.0.0, each test run's artifacts will have a unique path that includes a concatenated prefix of timestamp + test run id ("testRunPath" in the response object). Test runs prior to v4.0.0 will live in a shared path without clear separation ("testScenarioPath" in the response object). If "testRunPath" has no objects, try falling back to "testScenarioPath" for the legacy artifact storage behavior.",
-                    "InputSchema": {
-                      "Properties": {
-                        "test_id": {
-                          "Description": "The test scenario's unique identifier",
-                          "Type": "string",
+                      {
+                        "Description": "Retrieve the baseline test run for a specific test scenario. Users are able to set a baseline run for comparisons",
+                        "InputSchema": {
+                          "Properties": {
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                          ],
+                          "Type": "object",
                         },
-                        "test_run_id": {
-                          "Description": "The test run's unique identifier",
-                          "Type": "string",
-                        },
+                        "Name": "get_baseline_test_run",
                       },
-                      "Required": [
-                        "test_id",
-                        "test_run_id",
-                      ],
-                      "Type": "object",
-                    },
-                    "Name": "get_test_run_artifacts",
-                  },
-                ],
+                      {
+                        "Description": "Retrieve the S3 bucket name and path prefix for test run output (logs, error files, results, etc). Starting in v4.0.0, each test run's artifacts will have a unique path that includes a concatenated prefix of timestamp + test run id ("testRunPath" in the response object). Test runs prior to v4.0.0 will live in a shared path without clear separation ("testScenarioPath" in the response object). If "testRunPath" has no objects, try falling back to "testScenarioPath" for the legacy artifact storage behavior.",
+                        "InputSchema": {
+                          "Properties": {
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier",
+                              "Type": "string",
+                            },
+                            "test_run_id": {
+                              "Description": "The test run's unique identifier",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                            "test_run_id",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "get_test_run_artifacts",
+                      },
+                      {
+                        "Description": "Create a new load test scenario without executing it. The test is saved and can be run later with start_run. Requires the full test configuration including test type, scenario definition, and regional task configuration. Returns the created test object including its test ID for use in subsequent operations. For simple HTTP tests, omit test_id and the system will generate one. For script-based tests (jmeter, k6, locust), you must call upload_test_script first, then pass the test_id returned by upload_test_script to link the scenario with the uploaded script. Use update_test to modify an existing test.",
+                        "InputSchema": {
+                          "Properties": {
+                            "healthy_threshold": {
+                              "Description": "Minimum percentage of Fargate tasks that must remain healthy (not crash) during test execution. If the healthy task percentage drops below this threshold, the test is marked as failed early. Default: 90.",
+                              "Type": "integer",
+                            },
+                            "native_run_mode": {
+                              "Description": "Traffic shape. Omit this object for Standard mode; include it to select Native mode. Only script-based tests (jmeter, k6, locust) support Native; Simple HTTP Endpoint tests always use Standard.
+
+Standard. Standard mode puts DLT in control of the load. You set the Fargate task count per Region, the concurrent virtual users per task, a ramp-up period, and a hold duration, and DLT runs the test through the Taurus automation framework, which applies those values over whatever load your script declares. A Region's virtual users are the task count multiplied by the per-task concurrency. Standard is the only mode that lets you set an exact virtual-user count and change the ramp-up and hold shape without editing the script, and the only one that supports the Simple HTTP Endpoint type. Its limit is expressiveness: anything Taurus cannot represent, such as weighted scenarios, per-stage thresholds, or arrival-rate executors, is unavailable. This is how every DLT test ran before v4.3.0, so existing scenarios keep behaving exactly as they did.
+
+Native. Native mode puts your script in control of the load. DLT runs the file you uploaded under the framework's own command line and passes no load flags, so your script is the sole authority on the traffic it generates. Two controls remain: how many Fargate tasks to launch per Region, and a required safety duration of up to 24 hours. The safety duration guards against a script that never exits rather than scheduling the run: if the test is still going when it elapses, DLT stops the framework, keeps the results for the portion that ran, and records the run as completed. Tasks are uncoordinated and each runs a full copy of the script, so a k6 script holding 200 virtual users on five tasks puts 1,000 virtual users on the target. Task count is therefore the only load dial; changing the ramp, the hold time, or the virtual-user count means editing the script. Native requires an uploaded script, so Simple HTTP Endpoint is unavailable, and Locust scripts must not set processes.",
+                              "Properties": {
+                                "maxTestDurationSeconds": {
+                                  "Description": "Native mode safety timeout in seconds, required whenever native_run_mode is present. It guards against a script that never exits rather than scheduling the run: if the test is still running when the timeout elapses, DLT stops the framework, collects the results for the portion that ran, and records the run as completed rather than failed. Must be between 1 and 86400 (24 hours).",
+                                  "Type": "integer",
+                                },
+                              },
+                              "Required": [
+                                "maxTestDurationSeconds",
+                              ],
+                              "Type": "object",
+                            },
+                            "show_live": {
+                              "Description": "Whether to enable live monitoring during test execution. Default: false.",
+                              "Type": "boolean",
+                            },
+                            "tags": {
+                              "Description": "Tags for organizing test scenarios. Maximum 5 tags. Each tag must be lowercase alphanumeric with hyphens only, max 50 characters.",
+                              "Items": {
+                                "Type": "string",
+                              },
+                              "Type": "array",
+                            },
+                            "test_description": {
+                              "Description": "Description of what this test validates",
+                              "Type": "string",
+                            },
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier. Omit for simple HTTP tests (system will generate one). Required for script-based tests — use the test_id returned by upload_test_script to associate the scenario with the uploaded script file.",
+                              "Type": "string",
+                            },
+                            "test_name": {
+                              "Description": "Human-readable name for the test scenario",
+                              "Type": "string",
+                            },
+                            "test_scenario": {
+                              "Description": "Test execution scenario defining the load profile and target endpoint(s).",
+                              "Properties": {
+                                "execution": {
+                                  "Description": "Standard mode execution configuration. Typically a single entry defining ramp-up, hold-for duration, and which scenario to use. Native mode ignores ramp-up and hold-for, because the uploaded script owns the load shape.",
+                                  "Items": {
+                                    "Properties": {
+                                      "hold-for": {
+                                        "Description": "Standard mode: duration to maintain full concurrency after ramp-up, ignored in Native mode. Format: number followed by unit ('s' for seconds, 'm' for minutes). Must be at least 1 second. Example: '5m', '300s'.",
+                                        "Type": "string",
+                                      },
+                                      "ramp-up": {
+                                        "Description": "Standard mode: time to ramp up to full concurrency, ignored in Native mode. Format: number followed by unit ('s' for seconds, 'm' for minutes). Example: '30s', '2m'.",
+                                        "Type": "string",
+                                      },
+                                      "scenario": {
+                                        "Description": "Name of the scenario definition in the 'scenarios' object to execute.",
+                                        "Type": "string",
+                                      },
+                                    },
+                                    "Required": [
+                                      "ramp-up",
+                                      "hold-for",
+                                      "scenario",
+                                    ],
+                                    "Type": "object",
+                                  },
+                                  "Type": "array",
+                                },
+                                "scenarios": {
+                                  "Description": "Named scenario definitions. For simple tests, each scenario has a 'requests' array of HTTP requests. For script tests, each scenario has a 'script' string referencing the uploaded file path.",
+                                  "Type": "object",
+                                },
+                              },
+                              "Required": [
+                                "execution",
+                                "scenarios",
+                              ],
+                              "Type": "object",
+                            },
+                            "test_task_configs": {
+                              "Description": "Regional task configuration. Each entry specifies a region and the number of Fargate tasks and concurrent virtual users to run there. Total concurrent users for a region = task_count × concurrency (e.g., task_count: 5, concurrency: 20 = 100 total concurrent users in that region).",
+                              "Items": {
+                                "Properties": {
+                                  "concurrency": {
+                                    "Description": "Standard mode: number of concurrent virtual users per task in this region. Ignored in Native mode, where the uploaded script sets the virtual users.",
+                                    "Type": "integer",
+                                  },
+                                  "region": {
+                                    "Description": "AWS region to run tasks in (e.g., 'us-east-1'). Must have a deployed DLT regional stack.",
+                                    "Type": "string",
+                                  },
+                                  "task_count": {
+                                    "Description": "Number of Fargate tasks to launch in this region. Must be between 1 and the region's available task limit.",
+                                    "Type": "integer",
+                                  },
+                                },
+                                "Required": [
+                                  "region",
+                                  "task_count",
+                                  "concurrency",
+                                ],
+                                "Type": "object",
+                              },
+                              "Type": "array",
+                            },
+                            "test_type": {
+                              "Description": "Test type. 'simple' for HTTP endpoint tests configured inline. 'jmeter', 'k6', or 'locust' for script-based tests that reference an uploaded script file.",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_name",
+                            "test_description",
+                            "test_type",
+                            "test_task_configs",
+                            "test_scenario",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "create_test",
+                      },
+                      {
+                        "Description": "Update an existing test scenario. This is a full replace — the entire test configuration must be provided, not just the changed fields. The test must be in a non-running state (complete, cancelled, failed, scheduled, or created). Use get_scenario_details to retrieve the current configuration before updating. Cannot be used while the test is running.",
+                        "InputSchema": {
+                          "Properties": {
+                            "healthy_threshold": {
+                              "Description": "Minimum percentage of Fargate tasks that must remain healthy during execution. Default: 90.",
+                              "Type": "integer",
+                            },
+                            "native_run_mode": {
+                              "Description": "Traffic shape. Omit this object for Standard mode; include it to select Native mode. Only script-based tests (jmeter, k6, locust) support Native; Simple HTTP Endpoint tests always use Standard.
+
+Standard. Standard mode puts DLT in control of the load. You set the Fargate task count per Region, the concurrent virtual users per task, a ramp-up period, and a hold duration, and DLT runs the test through the Taurus automation framework, which applies those values over whatever load your script declares. A Region's virtual users are the task count multiplied by the per-task concurrency. Standard is the only mode that lets you set an exact virtual-user count and change the ramp-up and hold shape without editing the script, and the only one that supports the Simple HTTP Endpoint type. Its limit is expressiveness: anything Taurus cannot represent, such as weighted scenarios, per-stage thresholds, or arrival-rate executors, is unavailable. This is how every DLT test ran before v4.3.0, so existing scenarios keep behaving exactly as they did.
+
+Native. Native mode puts your script in control of the load. DLT runs the file you uploaded under the framework's own command line and passes no load flags, so your script is the sole authority on the traffic it generates. Two controls remain: how many Fargate tasks to launch per Region, and a required safety duration of up to 24 hours. The safety duration guards against a script that never exits rather than scheduling the run: if the test is still going when it elapses, DLT stops the framework, keeps the results for the portion that ran, and records the run as completed. Tasks are uncoordinated and each runs a full copy of the script, so a k6 script holding 200 virtual users on five tasks puts 1,000 virtual users on the target. Task count is therefore the only load dial; changing the ramp, the hold time, or the virtual-user count means editing the script. Native requires an uploaded script, so Simple HTTP Endpoint is unavailable, and Locust scripts must not set processes.",
+                              "Properties": {
+                                "maxTestDurationSeconds": {
+                                  "Description": "Native mode safety timeout in seconds, required whenever native_run_mode is present. It guards against a script that never exits rather than scheduling the run: if the test is still running when the timeout elapses, DLT stops the framework, collects the results for the portion that ran, and records the run as completed rather than failed. Must be between 1 and 86400 (24 hours).",
+                                  "Type": "integer",
+                                },
+                              },
+                              "Required": [
+                                "maxTestDurationSeconds",
+                              ],
+                              "Type": "object",
+                            },
+                            "show_live": {
+                              "Description": "Whether to enable live monitoring. Default: false.",
+                              "Type": "boolean",
+                            },
+                            "tags": {
+                              "Description": "Tags. Maximum 5.",
+                              "Items": {
+                                "Type": "string",
+                              },
+                              "Type": "array",
+                            },
+                            "test_description": {
+                              "Description": "Description of what this test validates",
+                              "Type": "string",
+                            },
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier. Must reference an existing test.",
+                              "Type": "string",
+                            },
+                            "test_name": {
+                              "Description": "Human-readable name for the test scenario",
+                              "Type": "string",
+                            },
+                            "test_scenario": {
+                              "Description": "Test execution scenario. Same structure as create_test.",
+                              "Properties": {
+                                "execution": {
+                                  "Items": {
+                                    "Properties": {
+                                      "hold-for": {
+                                        "Description": "Standard mode: hold duration (e.g., '5m', '300s'). Ignored in Native mode",
+                                        "Type": "string",
+                                      },
+                                      "ramp-up": {
+                                        "Description": "Standard mode: ramp-up time (e.g., '30s', '2m'). Ignored in Native mode",
+                                        "Type": "string",
+                                      },
+                                      "scenario": {
+                                        "Description": "Scenario name to execute",
+                                        "Type": "string",
+                                      },
+                                    },
+                                    "Required": [
+                                      "ramp-up",
+                                      "hold-for",
+                                      "scenario",
+                                    ],
+                                    "Type": "object",
+                                  },
+                                  "Type": "array",
+                                },
+                                "scenarios": {
+                                  "Description": "Named scenario definitions.",
+                                  "Type": "object",
+                                },
+                              },
+                              "Required": [
+                                "execution",
+                                "scenarios",
+                              ],
+                              "Type": "object",
+                            },
+                            "test_task_configs": {
+                              "Description": "Regional task configuration.",
+                              "Items": {
+                                "Properties": {
+                                  "concurrency": {
+                                    "Description": "Standard mode: number of concurrent virtual users per task. Ignored in Native mode.",
+                                    "Type": "integer",
+                                  },
+                                  "region": {
+                                    "Description": "AWS region to run tasks in (e.g., 'us-east-1')",
+                                    "Type": "string",
+                                  },
+                                  "task_count": {
+                                    "Description": "Number of Fargate tasks to launch in this region.",
+                                    "Type": "integer",
+                                  },
+                                },
+                                "Required": [
+                                  "region",
+                                  "task_count",
+                                  "concurrency",
+                                ],
+                                "Type": "object",
+                              },
+                              "Type": "array",
+                            },
+                            "test_type": {
+                              "Description": "Test type. 'simple' for HTTP endpoint tests. 'jmeter', 'k6', or 'locust' for script-based tests.",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                            "test_name",
+                            "test_description",
+                            "test_type",
+                            "test_task_configs",
+                            "test_scenario",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "update_test",
+                      },
+                      {
+                        "Description": "Permanently delete a test scenario and all associated data including test run history, schedules, and CloudWatch dashboards. This action cannot be undone. The test must not be currently running.",
+                        "InputSchema": {
+                          "Properties": {
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "delete_test",
+                      },
+                      {
+                        "Description": "Start execution of an existing test scenario. Launches Fargate tasks in the configured regions and begins generating load against the target endpoint(s). The test's stored configuration is used — no need to provide the full config. Returns immediately with the test status set to 'queued'. Use get_latest_test_run to poll for completion — the run progresses through statuses: queued → running → complete (or failed/cancelled).",
+                        "InputSchema": {
+                          "Properties": {
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier. The test must already exist (created via create_test) and must not be currently running.",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "start_run",
+                      },
+                      {
+                        "Description": "Stop a currently running test. Sends a cancellation signal to all running Fargate tasks. The test status will transition to 'cancelled'. Partial results up to the point of cancellation will be available via get_latest_test_run.",
+                        "InputSchema": {
+                          "Properties": {
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "stop_run",
+                      },
+                      {
+                        "Description": "Create a one-time scheduled test that runs automatically at a specified date and time. Can create a new scheduled test from scratch (omit test_id) or add a schedule to an existing unscheduled test (pass the existing test_id). Requires all standard test configuration fields plus schedule_date and schedule_time. The schedule is managed via EventBridge Scheduler. For new simple HTTP tests, omit test_id and the system will generate one. For script-based tests, you must call upload_test_script first and pass the returned test_id. For existing tests, pass the test_id and the full test configuration (retrieve with get_scenario_details first).",
+                        "InputSchema": {
+                          "Properties": {
+                            "healthy_threshold": {
+                              "Type": "integer",
+                            },
+                            "native_run_mode": {
+                              "Description": "Traffic shape. Omit this object for Standard mode; include it to select Native mode. Only script-based tests (jmeter, k6, locust) support Native; Simple HTTP Endpoint tests always use Standard.
+
+Standard. Standard mode puts DLT in control of the load. You set the Fargate task count per Region, the concurrent virtual users per task, a ramp-up period, and a hold duration, and DLT runs the test through the Taurus automation framework, which applies those values over whatever load your script declares. A Region's virtual users are the task count multiplied by the per-task concurrency. Standard is the only mode that lets you set an exact virtual-user count and change the ramp-up and hold shape without editing the script, and the only one that supports the Simple HTTP Endpoint type. Its limit is expressiveness: anything Taurus cannot represent, such as weighted scenarios, per-stage thresholds, or arrival-rate executors, is unavailable. This is how every DLT test ran before v4.3.0, so existing scenarios keep behaving exactly as they did.
+
+Native. Native mode puts your script in control of the load. DLT runs the file you uploaded under the framework's own command line and passes no load flags, so your script is the sole authority on the traffic it generates. Two controls remain: how many Fargate tasks to launch per Region, and a required safety duration of up to 24 hours. The safety duration guards against a script that never exits rather than scheduling the run: if the test is still going when it elapses, DLT stops the framework, keeps the results for the portion that ran, and records the run as completed. Tasks are uncoordinated and each runs a full copy of the script, so a k6 script holding 200 virtual users on five tasks puts 1,000 virtual users on the target. Task count is therefore the only load dial; changing the ramp, the hold time, or the virtual-user count means editing the script. Native requires an uploaded script, so Simple HTTP Endpoint is unavailable, and Locust scripts must not set processes.",
+                              "Properties": {
+                                "maxTestDurationSeconds": {
+                                  "Description": "Native mode safety timeout in seconds, required whenever native_run_mode is present. It guards against a script that never exits rather than scheduling the run: if the test is still running when the timeout elapses, DLT stops the framework, collects the results for the portion that ran, and records the run as completed rather than failed. Must be between 1 and 86400 (24 hours).",
+                                  "Type": "integer",
+                                },
+                              },
+                              "Required": [
+                                "maxTestDurationSeconds",
+                              ],
+                              "Type": "object",
+                            },
+                            "schedule_date": {
+                              "Description": "Date for the scheduled run. Format: YYYY-MM-DD. Must be in the future.",
+                              "Type": "string",
+                            },
+                            "schedule_time": {
+                              "Description": "Time for the scheduled run. Format: HH:MM (24-hour). Must be in the future when combined with schedule_date.",
+                              "Type": "string",
+                            },
+                            "schedule_timezone": {
+                              "Description": "IANA timezone for schedule interpretation (e.g., 'America/New_York', 'UTC'). Default: 'UTC'.",
+                              "Type": "string",
+                            },
+                            "show_live": {
+                              "Description": "Enable live monitoring. Default: false.",
+                              "Type": "boolean",
+                            },
+                            "tags": {
+                              "Items": {
+                                "Type": "string",
+                              },
+                              "Type": "array",
+                            },
+                            "test_description": {
+                              "Description": "Description of what this test validates",
+                              "Type": "string",
+                            },
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier. Omit for new simple HTTP tests (system will generate one). Required for script-based tests (use the test_id returned by upload_test_script). Pass an existing test_id to add a schedule to an existing unscheduled test.",
+                              "Type": "string",
+                            },
+                            "test_name": {
+                              "Description": "Human-readable name for the test scenario",
+                              "Type": "string",
+                            },
+                            "test_scenario": {
+                              "Description": "Test execution scenario. Same structure as create_test.",
+                              "Required": [
+                                "execution",
+                                "scenarios",
+                              ],
+                              "Type": "object",
+                            },
+                            "test_task_configs": {
+                              "Description": "Regional task configuration",
+                              "Items": {
+                                "Properties": {
+                                  "concurrency": {
+                                    "Description": "Standard mode: number of concurrent virtual users per task. Ignored in Native mode.",
+                                    "Type": "integer",
+                                  },
+                                  "region": {
+                                    "Description": "AWS region (e.g., 'us-east-1')",
+                                    "Type": "string",
+                                  },
+                                  "task_count": {
+                                    "Description": "Number of Fargate tasks to launch in this region.",
+                                    "Type": "integer",
+                                  },
+                                },
+                                "Required": [
+                                  "region",
+                                  "task_count",
+                                  "concurrency",
+                                ],
+                                "Type": "object",
+                              },
+                              "Type": "array",
+                            },
+                            "test_type": {
+                              "Description": "Test type",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_name",
+                            "test_description",
+                            "test_type",
+                            "test_task_configs",
+                            "test_scenario",
+                            "schedule_date",
+                            "schedule_time",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "create_simple_schedule",
+                      },
+                      {
+                        "Description": "Create a recurring scheduled test that runs automatically on a cron schedule. Can create a new scheduled test from scratch (omit test_id) or add a schedule to an existing unscheduled test (pass the existing test_id). Requires all standard test configuration fields plus cron_value and recurrence. The schedule is managed via EventBridge Scheduler. For new simple HTTP tests, omit test_id and the system will generate one. For script-based tests, you must call upload_test_script first and pass the returned test_id. For existing tests, pass the test_id and the full test configuration (retrieve with get_scenario_details first).",
+                        "InputSchema": {
+                          "Properties": {
+                            "cron_expiry_date": {
+                              "Description": "Date when the recurring schedule expires and stops executing. Format: YYYY-MM-DD. Must be after the next scheduled run date. Optional — if omitted, the schedule runs indefinitely.",
+                              "Type": "string",
+                            },
+                            "cron_value": {
+                              "Description": "Cron expression for the recurring schedule. Standard 5-field cron format. Must specify exactly one minute value (e.g., '0 9 * * *' for daily at 9am — not '*/30 * * * *'). Minimum interval between executions is 1 hour, and must be long enough for the test to complete before the next run starts.",
+                              "Type": "string",
+                            },
+                            "healthy_threshold": {
+                              "Type": "integer",
+                            },
+                            "native_run_mode": {
+                              "Description": "Traffic shape. Omit this object for Standard mode; include it to select Native mode. Only script-based tests (jmeter, k6, locust) support Native; Simple HTTP Endpoint tests always use Standard.
+
+Standard. Standard mode puts DLT in control of the load. You set the Fargate task count per Region, the concurrent virtual users per task, a ramp-up period, and a hold duration, and DLT runs the test through the Taurus automation framework, which applies those values over whatever load your script declares. A Region's virtual users are the task count multiplied by the per-task concurrency. Standard is the only mode that lets you set an exact virtual-user count and change the ramp-up and hold shape without editing the script, and the only one that supports the Simple HTTP Endpoint type. Its limit is expressiveness: anything Taurus cannot represent, such as weighted scenarios, per-stage thresholds, or arrival-rate executors, is unavailable. This is how every DLT test ran before v4.3.0, so existing scenarios keep behaving exactly as they did.
+
+Native. Native mode puts your script in control of the load. DLT runs the file you uploaded under the framework's own command line and passes no load flags, so your script is the sole authority on the traffic it generates. Two controls remain: how many Fargate tasks to launch per Region, and a required safety duration of up to 24 hours. The safety duration guards against a script that never exits rather than scheduling the run: if the test is still going when it elapses, DLT stops the framework, keeps the results for the portion that ran, and records the run as completed. Tasks are uncoordinated and each runs a full copy of the script, so a k6 script holding 200 virtual users on five tasks puts 1,000 virtual users on the target. Task count is therefore the only load dial; changing the ramp, the hold time, or the virtual-user count means editing the script. Native requires an uploaded script, so Simple HTTP Endpoint is unavailable, and Locust scripts must not set processes.",
+                              "Properties": {
+                                "maxTestDurationSeconds": {
+                                  "Description": "Native mode safety timeout in seconds, required whenever native_run_mode is present. It guards against a script that never exits rather than scheduling the run: if the test is still running when the timeout elapses, DLT stops the framework, collects the results for the portion that ran, and records the run as completed rather than failed. Must be between 1 and 86400 (24 hours).",
+                                  "Type": "integer",
+                                },
+                              },
+                              "Required": [
+                                "maxTestDurationSeconds",
+                              ],
+                              "Type": "object",
+                            },
+                            "recurrence": {
+                              "Description": "Human-readable recurrence label (e.g., 'daily', 'weekly'). Used for display purposes.",
+                              "Type": "string",
+                            },
+                            "schedule_timezone": {
+                              "Description": "IANA timezone for schedule interpretation (e.g., 'America/New_York', 'UTC'). Default: 'UTC'.",
+                              "Type": "string",
+                            },
+                            "show_live": {
+                              "Description": "Enable live monitoring. Default: false.",
+                              "Type": "boolean",
+                            },
+                            "tags": {
+                              "Items": {
+                                "Type": "string",
+                              },
+                              "Type": "array",
+                            },
+                            "test_description": {
+                              "Description": "Description of what this test validates",
+                              "Type": "string",
+                            },
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier. Omit for new simple HTTP tests (system will generate one). Required for script-based tests (use the test_id returned by upload_test_script). Pass an existing test_id to add a schedule to an existing unscheduled test.",
+                              "Type": "string",
+                            },
+                            "test_name": {
+                              "Description": "Human-readable name for the test scenario",
+                              "Type": "string",
+                            },
+                            "test_scenario": {
+                              "Description": "Test execution scenario. Same structure as create_test.",
+                              "Required": [
+                                "execution",
+                                "scenarios",
+                              ],
+                              "Type": "object",
+                            },
+                            "test_task_configs": {
+                              "Description": "Regional task configuration",
+                              "Items": {
+                                "Properties": {
+                                  "concurrency": {
+                                    "Description": "Standard mode: number of concurrent virtual users per task. Ignored in Native mode.",
+                                    "Type": "integer",
+                                  },
+                                  "region": {
+                                    "Description": "AWS region (e.g., 'us-east-1')",
+                                    "Type": "string",
+                                  },
+                                  "task_count": {
+                                    "Description": "Number of Fargate tasks to launch in this region.",
+                                    "Type": "integer",
+                                  },
+                                },
+                                "Required": [
+                                  "region",
+                                  "task_count",
+                                  "concurrency",
+                                ],
+                                "Type": "object",
+                              },
+                              "Type": "array",
+                            },
+                            "test_type": {
+                              "Description": "Test type",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_name",
+                            "test_description",
+                            "test_type",
+                            "test_task_configs",
+                            "test_scenario",
+                            "cron_value",
+                            "recurrence",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "create_cron_schedule",
+                      },
+                      {
+                        "Description": "Update the configuration for an existing one-time scheduled test. This is a full replace of the test configuration including schedule fields — retrieve the current configuration with get_scenario_details first, modify the fields, and submit the complete configuration. The test must already be in 'scheduled' status.",
+                        "InputSchema": {
+                          "Properties": {
+                            "healthy_threshold": {
+                              "Type": "integer",
+                            },
+                            "native_run_mode": {
+                              "Description": "Traffic shape. Omit this object for Standard mode; include it to select Native mode. Only script-based tests (jmeter, k6, locust) support Native; Simple HTTP Endpoint tests always use Standard.
+
+Standard. Standard mode puts DLT in control of the load. You set the Fargate task count per Region, the concurrent virtual users per task, a ramp-up period, and a hold duration, and DLT runs the test through the Taurus automation framework, which applies those values over whatever load your script declares. A Region's virtual users are the task count multiplied by the per-task concurrency. Standard is the only mode that lets you set an exact virtual-user count and change the ramp-up and hold shape without editing the script, and the only one that supports the Simple HTTP Endpoint type. Its limit is expressiveness: anything Taurus cannot represent, such as weighted scenarios, per-stage thresholds, or arrival-rate executors, is unavailable. This is how every DLT test ran before v4.3.0, so existing scenarios keep behaving exactly as they did.
+
+Native. Native mode puts your script in control of the load. DLT runs the file you uploaded under the framework's own command line and passes no load flags, so your script is the sole authority on the traffic it generates. Two controls remain: how many Fargate tasks to launch per Region, and a required safety duration of up to 24 hours. The safety duration guards against a script that never exits rather than scheduling the run: if the test is still going when it elapses, DLT stops the framework, keeps the results for the portion that ran, and records the run as completed. Tasks are uncoordinated and each runs a full copy of the script, so a k6 script holding 200 virtual users on five tasks puts 1,000 virtual users on the target. Task count is therefore the only load dial; changing the ramp, the hold time, or the virtual-user count means editing the script. Native requires an uploaded script, so Simple HTTP Endpoint is unavailable, and Locust scripts must not set processes.",
+                              "Properties": {
+                                "maxTestDurationSeconds": {
+                                  "Description": "Native mode safety timeout in seconds, required whenever native_run_mode is present. It guards against a script that never exits rather than scheduling the run: if the test is still running when the timeout elapses, DLT stops the framework, collects the results for the portion that ran, and records the run as completed rather than failed. Must be between 1 and 86400 (24 hours).",
+                                  "Type": "integer",
+                                },
+                              },
+                              "Required": [
+                                "maxTestDurationSeconds",
+                              ],
+                              "Type": "object",
+                            },
+                            "schedule_date": {
+                              "Description": "Date for the scheduled run. Format: YYYY-MM-DD. Must be in the future.",
+                              "Type": "string",
+                            },
+                            "schedule_time": {
+                              "Description": "Time for the scheduled run. Format: HH:MM (24-hour). Must be in the future when combined with schedule_date.",
+                              "Type": "string",
+                            },
+                            "schedule_timezone": {
+                              "Description": "IANA timezone for schedule interpretation (e.g., 'America/New_York', 'UTC'). Default: 'UTC'.",
+                              "Type": "string",
+                            },
+                            "show_live": {
+                              "Type": "boolean",
+                            },
+                            "tags": {
+                              "Items": {
+                                "Type": "string",
+                              },
+                              "Type": "array",
+                            },
+                            "test_description": {
+                              "Description": "Description of what this test validates",
+                              "Type": "string",
+                            },
+                            "test_id": {
+                              "Description": "The existing test scenario's unique identifier",
+                              "Type": "string",
+                            },
+                            "test_name": {
+                              "Description": "Human-readable name for the test scenario",
+                              "Type": "string",
+                            },
+                            "test_scenario": {
+                              "Required": [
+                                "execution",
+                                "scenarios",
+                              ],
+                              "Type": "object",
+                            },
+                            "test_task_configs": {
+                              "Items": {
+                                "Properties": {
+                                  "concurrency": {
+                                    "Type": "integer",
+                                  },
+                                  "region": {
+                                    "Type": "string",
+                                  },
+                                  "task_count": {
+                                    "Type": "integer",
+                                  },
+                                },
+                                "Required": [
+                                  "region",
+                                  "task_count",
+                                  "concurrency",
+                                ],
+                                "Type": "object",
+                              },
+                              "Type": "array",
+                            },
+                            "test_type": {
+                              "Description": "Test type",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                            "test_name",
+                            "test_description",
+                            "test_type",
+                            "test_task_configs",
+                            "test_scenario",
+                            "schedule_date",
+                            "schedule_time",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "update_simple_schedule",
+                      },
+                      {
+                        "Description": "Update the configuration for an existing recurring scheduled test. This is a full replace of the test configuration including schedule fields — retrieve the current configuration with get_scenario_details first, modify the fields, and submit the complete configuration. The test must already be in 'scheduled' status.",
+                        "InputSchema": {
+                          "Properties": {
+                            "cron_expiry_date": {
+                              "Description": "Date when the recurring schedule expires. Format: YYYY-MM-DD. Optional — if omitted, the schedule runs indefinitely.",
+                              "Type": "string",
+                            },
+                            "cron_value": {
+                              "Description": "Cron expression for the recurring schedule. Standard 5-field cron format.",
+                              "Type": "string",
+                            },
+                            "healthy_threshold": {
+                              "Type": "integer",
+                            },
+                            "native_run_mode": {
+                              "Description": "Traffic shape. Omit this object for Standard mode; include it to select Native mode. Only script-based tests (jmeter, k6, locust) support Native; Simple HTTP Endpoint tests always use Standard.
+
+Standard. Standard mode puts DLT in control of the load. You set the Fargate task count per Region, the concurrent virtual users per task, a ramp-up period, and a hold duration, and DLT runs the test through the Taurus automation framework, which applies those values over whatever load your script declares. A Region's virtual users are the task count multiplied by the per-task concurrency. Standard is the only mode that lets you set an exact virtual-user count and change the ramp-up and hold shape without editing the script, and the only one that supports the Simple HTTP Endpoint type. Its limit is expressiveness: anything Taurus cannot represent, such as weighted scenarios, per-stage thresholds, or arrival-rate executors, is unavailable. This is how every DLT test ran before v4.3.0, so existing scenarios keep behaving exactly as they did.
+
+Native. Native mode puts your script in control of the load. DLT runs the file you uploaded under the framework's own command line and passes no load flags, so your script is the sole authority on the traffic it generates. Two controls remain: how many Fargate tasks to launch per Region, and a required safety duration of up to 24 hours. The safety duration guards against a script that never exits rather than scheduling the run: if the test is still going when it elapses, DLT stops the framework, keeps the results for the portion that ran, and records the run as completed. Tasks are uncoordinated and each runs a full copy of the script, so a k6 script holding 200 virtual users on five tasks puts 1,000 virtual users on the target. Task count is therefore the only load dial; changing the ramp, the hold time, or the virtual-user count means editing the script. Native requires an uploaded script, so Simple HTTP Endpoint is unavailable, and Locust scripts must not set processes.",
+                              "Properties": {
+                                "maxTestDurationSeconds": {
+                                  "Description": "Native mode safety timeout in seconds, required whenever native_run_mode is present. It guards against a script that never exits rather than scheduling the run: if the test is still running when the timeout elapses, DLT stops the framework, collects the results for the portion that ran, and records the run as completed rather than failed. Must be between 1 and 86400 (24 hours).",
+                                  "Type": "integer",
+                                },
+                              },
+                              "Required": [
+                                "maxTestDurationSeconds",
+                              ],
+                              "Type": "object",
+                            },
+                            "recurrence": {
+                              "Description": "Human-readable recurrence label (e.g., 'daily', 'weekly').",
+                              "Type": "string",
+                            },
+                            "schedule_timezone": {
+                              "Description": "IANA timezone. Default: 'UTC'.",
+                              "Type": "string",
+                            },
+                            "show_live": {
+                              "Type": "boolean",
+                            },
+                            "tags": {
+                              "Items": {
+                                "Type": "string",
+                              },
+                              "Type": "array",
+                            },
+                            "test_description": {
+                              "Description": "Description of what this test validates",
+                              "Type": "string",
+                            },
+                            "test_id": {
+                              "Description": "The existing test scenario's unique identifier",
+                              "Type": "string",
+                            },
+                            "test_name": {
+                              "Description": "Human-readable name for the test scenario",
+                              "Type": "string",
+                            },
+                            "test_scenario": {
+                              "Required": [
+                                "execution",
+                                "scenarios",
+                              ],
+                              "Type": "object",
+                            },
+                            "test_task_configs": {
+                              "Items": {
+                                "Properties": {
+                                  "concurrency": {
+                                    "Type": "integer",
+                                  },
+                                  "region": {
+                                    "Type": "string",
+                                  },
+                                  "task_count": {
+                                    "Type": "integer",
+                                  },
+                                },
+                                "Required": [
+                                  "region",
+                                  "task_count",
+                                  "concurrency",
+                                ],
+                                "Type": "object",
+                              },
+                              "Type": "array",
+                            },
+                            "test_type": {
+                              "Description": "Test type",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                            "test_name",
+                            "test_description",
+                            "test_type",
+                            "test_task_configs",
+                            "test_scenario",
+                            "cron_value",
+                            "recurrence",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "update_cron_schedule",
+                      },
+                      {
+                        "Description": "Upload a test script file required for script-based tests (JMeter, k6, or Locust). Must be called BEFORE create_test, create_simple_schedule, or create_cron_schedule when creating a new script-based test — this tool generates the test_id that you then pass to the subsequent tool. For updating an existing test's script, pass the existing test_id. Returns a test_id and script_filename. The script_filename must be referenced in the test_scenario.scenarios object when calling create_test, update_test, or any schedule tool. For files under 25KB, include base64-encoded content directly in file_content. For larger files (or if you're unsure of size), omit file_content to receive a presigned upload URL instead. When a presigned URL is returned, upload the file yourself if you have shell access (e.g. via the returned curl command), otherwise surface the upload_command to the user so they can run it manually.",
+                        "InputSchema": {
+                          "Properties": {
+                            "file_content": {
+                              "Description": "Base64 encoded content of the script file. Include for small files (under 25KB). Omit for larger files to receive a presigned upload URL instead.",
+                              "Type": "string",
+                            },
+                            "file_extension": {
+                              "Description": "File extension of the script. Use 'jmx' for JMeter, 'js' or 'ts' for k6, 'py' for Locust, or 'zip' for any type packaged as a zip archive.",
+                              "Type": "string",
+                            },
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier. Omit for new tests (system will generate one and return it). Provide for existing tests to upload a new script to the correct location.",
+                              "Type": "string",
+                            },
+                            "test_type": {
+                              "Description": "The test type this script is for. Determines the S3 storage path.",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_type",
+                            "file_extension",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "upload_test_script",
+                      },
+                      {
+                        "Description": "Get step-by-step workflow recipes for common multi-tool DLT operations. Call this before performing multi-step tasks. For complex requests that span multiple operations, consult multiple workflows and chain them — the test_id returned from one operation can be used in subsequent operations. Note: script-based tests (jmeter, k6, locust) require calling upload_test_script before creating the test — the workflows below include this step. Available workflows: 'run_and_monitor' (start an existing test and poll until complete), 'baseline_comparison' (run a test and compare results against baseline), 'schedule_test' (create a test with a one-time or recurring schedule), 'create_and_run' (create a new test and immediately execute it), 'create_native_and_run' (create a Native traffic-shape test that runs an uploaded script exactly as authored, then execute it), 'update_and_run' (modify an existing test and execute it).",
+                        "InputSchema": {
+                          "Properties": {
+                            "workflow": {
+                              "Description": "The workflow to retrieve guidance for",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "workflow",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "get_workflow_guides",
+                      },
+                    ],
+                    [
+                      {
+                        "Description": "Retrieve a list of all available test scenarios",
+                        "InputSchema": {
+                          "Required": [],
+                          "Type": "object",
+                        },
+                        "Name": "list_scenarios",
+                      },
+                      {
+                        "Description": "Retrieve the test configuration and most recent test run for a single test scenario. The response reports the scenario's traffic-shape mode: a nativeRunMode object means Native, where the uploaded script owns the load and each task runs a full copy of it, and its absence means Standard, where the stored concurrency, ramp-up, and hold-for values are the load. For a Native scenario the stored concurrency, ramp-up, and hold-for values were never applied, so do not report them as the load and do not reuse them when composing an update.",
+                        "InputSchema": {
+                          "Properties": {
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "get_scenario_details",
+                      },
+                      {
+                        "Description": "Retrieve a list of test runs for a specific test scenario, sorted newest to oldest. More detailed results for a test run can be retrieved with "get_test_run". Note: Only one of 'limit' or 'start_timestamp' may be provided, not both. There is a maximum limit of 30 test runs returned.",
+                        "InputSchema": {
+                          "Properties": {
+                            "limit": {
+                              "Description": "The maximum number of test runs to return (e.g. if I want the 10 most recent test runs, set the limit to 10). Cannot be used with start_timestamp parameter. Must be a positive integer. Default value is 20 and maximum limit is 30.",
+                              "Type": "integer",
+                            },
+                            "start_timestamp": {
+                              "Description": "Return all test runs going back to start_timestamp. The date must be in ISO 8601 timestamp format (e.g. '2024-01-15T14:30:00.000Z'). Cannot be used with limit parameter. Date format is strictly validated. There is a limit of 30 test runs that can be returned.",
+                              "Type": "string",
+                            },
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "list_test_runs",
+                      },
+                      {
+                        "Description": "Retrieve a single test run for a specific test scenario. Results will be provided with a breakdown 1/ for each region (e.g. "us-east-1", "us-west-2") that the test runs in as well as an aggregate "total" 2/ for each endpoint (referred to as "label").",
+                        "InputSchema": {
+                          "Properties": {
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier",
+                              "Type": "string",
+                            },
+                            "test_run_id": {
+                              "Description": "The test run's unique identifier",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                            "test_run_id",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "get_test_run",
+                      },
+                      {
+                        "Description": "Retrieve the most recent test run for a specific test scenario",
+                        "InputSchema": {
+                          "Properties": {
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "get_latest_test_run",
+                      },
+                      {
+                        "Description": "Retrieve the baseline test run for a specific test scenario. Users are able to set a baseline run for comparisons",
+                        "InputSchema": {
+                          "Properties": {
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "get_baseline_test_run",
+                      },
+                      {
+                        "Description": "Retrieve the S3 bucket name and path prefix for test run output (logs, error files, results, etc). Starting in v4.0.0, each test run's artifacts will have a unique path that includes a concatenated prefix of timestamp + test run id ("testRunPath" in the response object). Test runs prior to v4.0.0 will live in a shared path without clear separation ("testScenarioPath" in the response object). If "testRunPath" has no objects, try falling back to "testScenarioPath" for the legacy artifact storage behavior.",
+                        "InputSchema": {
+                          "Properties": {
+                            "test_id": {
+                              "Description": "The test scenario's unique identifier",
+                              "Type": "string",
+                            },
+                            "test_run_id": {
+                              "Description": "The test run's unique identifier",
+                              "Type": "string",
+                            },
+                          },
+                          "Required": [
+                            "test_id",
+                            "test_run_id",
+                          ],
+                          "Type": "object",
+                        },
+                        "Name": "get_test_run_artifacts",
+                      },
+                    ],
+                  ],
+                },
               },
             },
           },
@@ -12218,6 +13517,121 @@ exports[`Distributed Load Testing ALB ECS stack test 1`] = `
         ],
       },
       "Type": "AWS::IAM::Role",
+    },
+    "MCPServerMCPWritePolicyEE2F4EFA": {
+      "Condition": "DeployMCPServerAndIsReadWriteCondition",
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "execute-api:Invoke",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":execute-api:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":",
+                      {
+                        "Ref": "DLTApi0C903EB5",
+                      },
+                      "/*/POST/*",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":execute-api:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":",
+                      {
+                        "Ref": "DLTApi0C903EB5",
+                      },
+                      "/*/PUT/*",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":execute-api:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":",
+                      {
+                        "Ref": "DLTApi0C903EB5",
+                      },
+                      "/*/DELETE/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "s3:PutObject",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":s3:::",
+                    {
+                      "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
+                    },
+                    "/public/test-scenarios/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "MCPServerMCPWritePolicyEE2F4EFA",
+        "Roles": [
+          {
+            "Ref": "MCPServerMCPToolLambdaRole83B130EC",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
     "OrphanCleanupSfnPolicy9066FEBC": {
       "Properties": {

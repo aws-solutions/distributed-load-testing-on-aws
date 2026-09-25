@@ -48,12 +48,12 @@ export function TestResultsBaseline({ testId, displayMode, onDisplayModeChange }
     if (!results?.total) return null;
 
     const total = results.total;
-    const requests = parseInt(total.throughput) || 0;
-    const success = parseInt(total.succ) || 0;
-    const errors = parseInt(total.fail) || 0;
+    const requests = Number.parseInt(total.throughput) || 0;
+    const success = Number.parseInt(total.succ) || 0;
+    const errors = Number.parseInt(total.fail) || 0;
     const successRate = requests > 0 ? ((success / requests) * 100).toFixed(1) : '0.0';
-    const avgResponseTime = parseFloat(total.avg_rt) ? (parseFloat(total.avg_rt) * 1000).toFixed(0) : '0';
-    const p95ResponseTime = parseFloat(total.p95_0) ? (parseFloat(total.p95_0) * 1000).toFixed(0) : '0';
+    const avgResponseTime = Number.parseFloat(total.avg_rt) ? (Number.parseFloat(total.avg_rt) * 1000).toFixed(0) : '0';
+    const p95ResponseTime = Number.parseFloat(total.p95_0) ? (Number.parseFloat(total.p95_0) * 1000).toFixed(0) : '0';
 
     return {
       requests,

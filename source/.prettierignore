@@ -1,10 +1,28 @@
-webui/public/mockServiceWorker.js
+# Build artifacts
+**/node_modules
+**/dist
+**/build
+**/coverage
+**/cdk.out
+**/*.tsbuildinfo
 
-# Workspace packages (formatted by root prettier)
+# solution metrics utils.
+metrics-utils/index.js
+metrics-utils/*.d.ts
+metrics-utils/**/*.d.ts
+metrics-utils/*/**/*.js
+metrics-utils/dist/
+
+# Packages formatted by the root prettier (3.x) — keep in sync with root .prettierignore.
+# Everything NOT listed here (custom-resource, infrastructure, metrics-utils,
+# results-parser, solution-utils) is still formatted by this package's prettier.
+api-services
 cli
 common
+load-tester
 mcp-server
 orphan-cleanup
+real-time-data-publisher
 regional-sync
 sfn-failure-handler
 stabilization-checker
@@ -14,3 +32,5 @@ task-failure-handler
 task-runner
 task-status-checker
 test-cleanup
+test-metadata-updater
+webui

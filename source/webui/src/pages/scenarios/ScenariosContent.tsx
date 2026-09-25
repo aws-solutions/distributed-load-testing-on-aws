@@ -16,11 +16,12 @@ import {
 import { useState } from "react";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { TablePreferences } from "../../components/common/TablePreferences";
+import { TablePreferences, EmptyState } from "../../components/common";
 import { addNotification } from "../../store/notificationsSlice";
 import { sendConsoleMetric } from "../../utils/consoleMetrics";
 import { formatToLocalTime } from "../../utils/dateUtils";
-import { getStatusConfig, isTerminalState } from "./constants";
+import { getStatusConfig } from "./constants";
+import { isCancelableRunStatus, isTerminalRunStatus, TestStatus } from "@amzn/dlt-common/validation";
 import { useScenarioActions } from "./hooks/useScenarioActions";
 import { ScenarioDefinition } from "./types";
 import { DeleteScenarioModal } from "./components/DeleteScenarioModal";
@@ -33,7 +34,7 @@ const DEFAULT_PREFERENCES = {
   contentDisplay: [
     { id: "testName", visible: true },
     { id: "testId", visible: true },
-    { id: "tags", visible: true },
+    { id: "keywords", visible: true },
     { id: "testDescription", visible: true },
     { id: "totalTestRuns", visible: true },
     { id: "lastRun", visible: true },
@@ -52,7 +53,7 @@ const PAGE_SIZE_OPTIONS = [
 const COLUMN_OPTIONS = [
   { id: "testName", label: "Scenario Name", alwaysVisible: true },
   { id: "testId", label: "Scenario ID" },
-  { id: "tags", label: "Tags" },
+  { id: "keywords", label: "Keywords" },
   { id: "testDescription", label: "Scenario Description" },
   { id: "totalTestRuns", label: "Total Test Runs" },
   { id: "lastRun", label: "Last Run" },
@@ -60,7 +61,15 @@ const COLUMN_OPTIONS = [
   { id: "nextRun", label: "Next Run" },
 ];
 
-export default function ScenariosContent({ scenarios, refetch, isFetching }: { scenarios: ScenarioDefinition[]; refetch: () => void; isFetching: boolean }) {
+export default function ScenariosContent({
+  scenarios,
+  refetch,
+  isFetching,
+}: {
+  scenarios: ScenarioDefinition[];
+  refetch: () => void;
+  isFetching: boolean;
+}) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES);
@@ -68,6 +77,13 @@ export default function ScenariosContent({ scenarios, refetch, isFetching }: { s
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const { editScenario, copyScenario, cancelTestRun, deleteScenario } = useScenarioActions();
   const [isActionLoading, setIsActionLoading] = useState(false);
+
+  // Resolve the selected row against the freshest scenarios list by id. `selectedItems`
+  // captures the object at selection time; after a refetch/poll returns new objects it
+  // would be stale (old status), which would gate Edit/Cancel on the previous state and
+  // could let a duplicate action through. Deriving by id here (with trackBy on the table
+  // keeping the row visually selected) makes actions and gating read the current status.
+  const selectedScenario = scenarios.find((scenario) => scenario.testId === selectedItems[0]?.testId);
 
   const handleAction = async (action: () => Promise<any>, onSuccess?: () => void) => {
     setIsActionLoading(true);
@@ -81,8 +97,14 @@ export default function ScenariosContent({ scenarios, refetch, isFetching }: { s
 
   const { items, filteredItemsCount, collectionProps, filterProps, paginationProps } = useCollection(scenarios, {
     filtering: {
-      empty: "No scenarios found",
-      noMatch: "No scenarios match the filter",
+      empty: (
+        <EmptyState
+          title="No test scenarios"
+          message="Create your first test scenario to get started."
+          primaryAction={{ label: "Create scenario", onClick: () => navigate("/scenarios/create") }}
+        />
+      ),
+      noMatch: <EmptyState title="No matches" message="No scenarios match the filter." />,
       filteringFunction: (item, filteringText) =>
         !filteringText ||
         !!item.testName?.toLowerCase().includes(filteringText.toLowerCase()) ||
@@ -125,8 +147,8 @@ export default function ScenariosContent({ scenarios, refetch, isFetching }: { s
       sortingField: "testId",
     },
     {
-      id: "tags",
-      header: "Tags",
+      id: "keywords",
+      header: "Keywords",
       cell: (item: ScenarioDefinition) => item.tags?.filter(Boolean).join(", ") || "-",
       sortingField: "tags",
     },
@@ -159,7 +181,8 @@ export default function ScenariosContent({ scenarios, refetch, isFetching }: { s
     {
       id: "nextRun",
       header: "Next Run",
-      cell: (item: ScenarioDefinition) => formatToLocalTime(item.nextRun, { timeZoneName: "short" }, item.scheduleTimezone),
+      cell: (item: ScenarioDefinition) =>
+        formatToLocalTime(item.nextRun, { timeZoneName: "short" }, item.scheduleTimezone),
       sortingField: "nextRun",
     },
   ];
@@ -172,28 +195,30 @@ export default function ScenariosContent({ scenarios, refetch, isFetching }: { s
     <>
       <Table
         {...collectionProps}
+        variant="full-page"
         columnDefinitions={columnDefinitions}
         visibleColumns={preferences.contentDisplay.filter((col) => col.visible).map((col) => col.id)}
         items={items}
         loadingText="Loading scenarios"
-        empty="No scenarios found"
         wrapLines={preferences.wrapLines}
         stripedRows={preferences.stripedRows}
         contentDensity={preferences.contentDensity}
         stickyColumns={preferences.stickyColumns}
         selectionType="single"
-        selectedItems={selectedItems}
+        trackBy="testId"
+        selectedItems={selectedScenario ? [selectedScenario] : []}
         onSelectionChange={({ detail }) => setSelectedItems(detail.selectedItems)}
         filter={
           <TextFilter
             {...filterProps}
             data-cy="scenarios-search"
-            filteringPlaceholder="Search by name, ID, or tags"
+            filteringPlaceholder="Search by name, ID, or keyword"
             countText={`${filteredItemsCount} ${filteredItemsCount === 1 ? "match" : "matches"}`}
           />
         }
         header={
           <Header
+            variant="h1"
             counter={`(${filteredItemsCount})`}
             actions={
               <SpaceBetween direction="horizontal" size="xs">
@@ -202,39 +227,61 @@ export default function ScenariosContent({ scenarios, refetch, isFetching }: { s
                   loading={isActionLoading}
                   items={[
                     {
+                      // Editing writes saveOnly, which the API rejects for any active run
+                      // (409 TEST_RUNNING). Allow Edit only in terminal states, matching the
+                      // details page and the API's safeToEdit set.
                       text: "Edit Scenario",
                       id: "edit",
-                      disabled: !selectedItems.length || selectedItems[0]?.status === "running",
+                      disabled: !selectedScenario || !isTerminalRunStatus(selectedScenario.status),
                     },
-                    { text: "Copy Scenario", id: "copy", disabled: !selectedItems.length },
+                    { text: "Copy Scenario", id: "copy", disabled: !selectedScenario },
                     {
+                      // Cancel is enabled only where the API accepts a cancel
+                      // (isCancelableRunStatus: queued/provisioning/running) and hidden once the
+                      // run is already stopping ("cancelling"). The finishing states (cleaning up /
+                      // parsing results) are intentionally excluded — the API rejects a cancel
+                      // there. Matches the details page and the API's cancel guard.
                       text: "Cancel Test Run",
                       id: "cancel",
-                      disabled: !selectedItems.length || selectedItems[0]?.status !== "running",
+                      disabled:
+                        !selectedScenario ||
+                        !isCancelableRunStatus(selectedScenario.status) ||
+                        selectedScenario.status === TestStatus.CANCELLING,
                     },
                     {
                       text: "Delete Scenario",
                       id: "delete",
-                      disabled: !selectedItems.length || !isTerminalState(selectedItems[0]?.status),
+                      disabled: !selectedScenario || !isTerminalRunStatus(selectedScenario.status),
                     },
                   ]}
                   onItemClick={(event) => {
-                    const selectedScenario = selectedItems[0];
                     const { id } = event.detail;
 
                     if (!selectedScenario) return;
 
                     switch (id) {
                       case "edit":
-                        sendConsoleMetric("ButtonClick", { Page: "Scenarios", Action: "EditScenario", TestId: selectedScenario.testId });
+                        sendConsoleMetric("ButtonClick", {
+                          Page: "Scenarios",
+                          Action: "EditScenario",
+                          TestId: selectedScenario.testId,
+                        });
                         editScenario(selectedScenario.testId);
                         break;
                       case "copy":
-                        sendConsoleMetric("ButtonClick", { Page: "Scenarios", Action: "CopyScenario", TestId: selectedScenario.testId });
+                        sendConsoleMetric("ButtonClick", {
+                          Page: "Scenarios",
+                          Action: "CopyScenario",
+                          TestId: selectedScenario.testId,
+                        });
                         copyScenario(selectedScenario.testId);
                         break;
                       case "cancel":
-                        sendConsoleMetric("ButtonClick", { Page: "Scenarios", Action: "CancelTestRun", TestId: selectedScenario.testId });
+                        sendConsoleMetric("ButtonClick", {
+                          Page: "Scenarios",
+                          Action: "CancelTestRun",
+                          TestId: selectedScenario.testId,
+                        });
                         handleAction(
                           () => cancelTestRun(selectedScenario.testId),
                           () => refetch()
@@ -248,10 +295,13 @@ export default function ScenariosContent({ scenarios, refetch, isFetching }: { s
                 >
                   Actions
                 </ButtonDropdown>
-                <Button variant="primary" onClick={() => {
-                  sendConsoleMetric("ButtonClick", { Page: "Scenarios", Action: "NewScenario" });
-                  navigate("/scenarios/create");
-                }}>
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    sendConsoleMetric("ButtonClick", { Page: "Scenarios", Action: "NewScenario" });
+                    navigate("/scenarios/create");
+                  }}
+                >
                   New Scenario
                 </Button>
               </SpaceBetween>
@@ -278,19 +328,19 @@ export default function ScenariosContent({ scenarios, refetch, isFetching }: { s
 
       <DeleteScenarioModal
         visible={showDeleteModal}
-        scenarioName={selectedItems[0]?.testName ?? ""}
+        scenarioName={selectedScenario?.testName ?? ""}
         loading={isActionLoading}
         onDismiss={() => setShowDeleteModal(false)}
         onConfirm={async () => {
-          if (selectedItems[0]) {
+          if (selectedScenario) {
             setIsActionLoading(true);
             try {
-              await deleteScenario(selectedItems[0].testId).unwrap();
+              await deleteScenario(selectedScenario.testId).unwrap();
               setShowDeleteModal(false);
               sendConsoleMetric("ButtonClick", {
                 Page: "Scenarios",
                 Action: "DeleteScenario",
-                TestId: selectedItems[0].testId,
+                TestId: selectedScenario.testId,
               });
             } catch (error: any) {
               dispatch(
@@ -298,7 +348,7 @@ export default function ScenariosContent({ scenarios, refetch, isFetching }: { s
                   id: `delete-error-${Date.now()}`,
                   type: "error",
                   content: `Failed to delete scenario: ${error?.data?.message || error?.message || "Unknown error"}`,
-                }),
+                })
               );
             } finally {
               setIsActionLoading(false);

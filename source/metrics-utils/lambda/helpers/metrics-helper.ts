@@ -80,7 +80,7 @@ export class MetricsHelper {
         return;
       }
       if (data.field && data.value) {
-        metricsData[data.field] = parseInt(data.value, 10);
+        metricsData[data.field] = Number.parseInt(data.value, 10);
       }
     });
     console.debug("Query data: ", JSON.stringify(metricsData, null, 2));

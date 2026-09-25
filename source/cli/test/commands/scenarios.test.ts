@@ -34,7 +34,11 @@ vi.mock("../../src/lib/scenario-launcher.js", () => ({
 }));
 
 vi.mock("../../src/lib/run-formatters.js", () => ({
-  ACTIVE_STATUSES: new Set(["running", "pending", "provisioning"]),
+  isActive: vi.fn((s?: string) =>
+    ["queued", "provisioning", "running", "cancelling", "cleaning up", "parsing results"].includes(
+      (s ?? "").toLowerCase()
+    )
+  ),
   formatTimestamp: vi.fn((ts: string) => ts),
   curateRunRow: vi.fn((r: Record<string, unknown>) => r),
   colorRunRow: vi.fn((r: Record<string, unknown>) => r),
@@ -87,12 +91,26 @@ describe("scenarios command", () => {
     });
 
     it("lists scenarios in JSON format", async () => {
-      mockApiGet.mockResolvedValue({ Items: [] });
+      mockApiGet.mockResolvedValue({ Items: [{ testId: "j1", testName: "JSON Test", status: "complete" }] });
 
       const program = createProgram();
       await program.parseAsync(["node", "dlt", "scenarios", "list", "--format", "json"]);
 
-      expect(printResult).toHaveBeenCalled();
+      expect(printResult).toHaveBeenCalledWith(expect.anything(), { format: "json" });
+    });
+
+    it("lists scenarios in CSV format", async () => {
+      mockApiGet.mockResolvedValue({
+        Items: [{ testId: "c1", testName: "CSV Test", status: "complete", startTime: "2024-01-01", nextRun: "" }],
+      });
+
+      const program = createProgram();
+      await program.parseAsync(["node", "dlt", "scenarios", "list", "--format", "csv"]);
+
+      expect(printResult).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ testId: "c1", testName: "CSV Test" })]),
+        { format: "csv" }
+      );
     });
   });
 

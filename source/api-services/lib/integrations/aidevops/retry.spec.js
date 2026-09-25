@@ -7,6 +7,7 @@ describe("retry helper", () => {
   beforeEach(() => {
     // Replace sleep with a no-op so tests don't actually wait
     internals.sleep = jest.fn().mockResolvedValue(undefined);
+    internals.randomInt = jest.fn((upperBound) => Math.min(123, upperBound - 1));
   });
 
   describe("isRetryable", () => {
@@ -133,6 +134,32 @@ describe("retry helper", () => {
         expect(call[0]).toBeGreaterThanOrEqual(0);
         expect(typeof call[0]).toBe("number");
       }
+    });
+
+    it("should use secure random integers with exponential delay caps", async () => {
+      const throttleErr = new Error("throttled");
+      throttleErr.name = "ThrottlingException";
+      const fn = jest
+        .fn()
+        .mockRejectedValueOnce(throttleErr)
+        .mockRejectedValueOnce(throttleErr)
+        .mockResolvedValueOnce("done");
+
+      await withRetry(fn);
+
+      expect(internals.randomInt.mock.calls).toEqual([[1000], [2000]]);
+      expect(internals.sleep.mock.calls).toEqual([[123], [123]]);
+    });
+
+    it("should retry immediately when the delay cap is zero", async () => {
+      const throttleErr = new Error("throttled");
+      throttleErr.name = "ThrottlingException";
+      const fn = jest.fn().mockRejectedValueOnce(throttleErr).mockResolvedValueOnce("done");
+
+      await withRetry(fn, { capMs: 0 });
+
+      expect(internals.randomInt).toHaveBeenCalledWith(1);
+      expect(internals.sleep).toHaveBeenCalledWith(0);
     });
 
     it("should cap delay at capMs regardless of attempt count", async () => {

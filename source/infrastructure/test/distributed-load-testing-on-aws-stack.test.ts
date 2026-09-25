@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { App, DefaultStackSynthesizer } from "aws-cdk-lib";
+import { Match, Template } from "aws-cdk-lib/assertions";
 import { DLTStack } from "../lib/distributed-load-testing-on-aws-stack";
 import { Solution } from "../bin/solution";
 import { createTemplateWithoutS3Key } from "./snapshot_helpers";
@@ -25,4 +26,22 @@ test("Distributed Load Testing stack test", () => {
     solutionTemplate: "cloudfront",
   });
   expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();
+
+  const template = Template.fromStack(stack);
+  template.hasParameter("K6LoadTesterImageUri", {
+    Default: "",
+    Type: "String",
+  });
+  template.hasCondition("UsePublicK6LoadTestingImageCondition", {
+    "Fn::Equals": [{ Ref: "K6LoadTesterImageUri" }, ""],
+  });
+  template.hasResourceProperties("AWS::CloudFormation::CustomResource", {
+    Resource: "TestingResourcesConfigFile",
+    TestingResourcesConfig: Match.objectLike({
+      nativeTaskDefinitions: Match.objectLike({
+        k6: Match.anyValue(),
+        locust: Match.anyValue(),
+      }),
+    }),
+  });
 });

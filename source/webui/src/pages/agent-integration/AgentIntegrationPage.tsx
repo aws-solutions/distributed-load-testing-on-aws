@@ -19,6 +19,7 @@ import { UserContext } from "../../contexts/UserContext";
 import { STACK_INFO_CACHE_SECONDS, useGetStackInfoQuery } from "../../store/stackInfoApiSlice";
 import { usePageLoadMetric } from "../../hooks/usePageLoadMetric";
 import DevOpsAgentConnectionsSection from "./components/DevOpsAgentConnectionsSection";
+import { InfoLink } from "../../help";
 
 export default function AgentIntegrationPage() {
   const { user } = useContext(UserContext);
@@ -108,7 +109,7 @@ export default function AgentIntegrationPage() {
   }, [user, authChecked]);
 
   return (
-    <ContentLayout header={<Header variant="h1">Agent Integration</Header>}>
+    <ContentLayout header={<Header variant="h1" info={<InfoLink topicId="agent-integration" />}>Agent Integration</Header>}>
       <SpaceBetween size="l">
         {/* Section 1: MCP Endpoint */}
         <Container header={<Header variant="h2">MCP Endpoint</Header>}>

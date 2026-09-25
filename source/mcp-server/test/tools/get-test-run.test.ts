@@ -99,38 +99,6 @@ describe("handleGetTestRun", () => {
       }
     });
 
-    it("should throw AppError for invalid test_id length", async () => {
-      const event: AgentCoreEvent = {
-        test_id: "short",
-        test_run_id: "run-123456",
-      };
-
-      await expect(handleGetTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
-
-      try {
-        await handleGetTestRun(mockHttpClient, apiEndpoint, event);
-      } catch (error) {
-        expect((error as AppError).code).toBe(400);
-        expect((error as AppError).message).toContain("10 character");
-      }
-    });
-
-    it("should throw AppError for invalid test_run_id length", async () => {
-      const event: AgentCoreEvent = {
-        test_id: "test-12345",
-        test_run_id: "short",
-      };
-
-      await expect(handleGetTestRun(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
-
-      try {
-        await handleGetTestRun(mockHttpClient, apiEndpoint, event);
-      } catch (error) {
-        expect((error as AppError).code).toBe(400);
-        expect((error as AppError).message).toContain("10 character");
-      }
-    });
-
     it("should throw AppError for test_id with invalid characters", async () => {
       const event: AgentCoreEvent = {
         test_id: "test_12345",
@@ -143,7 +111,7 @@ describe("handleGetTestRun", () => {
         await handleGetTestRun(mockHttpClient, apiEndpoint, event);
       } catch (error) {
         expect((error as AppError).code).toBe(400);
-        expect((error as AppError).message).toContain("Invalid test_id");
+        expect((error as AppError).message).toContain("testId must contain only alphanumeric characters and hyphens");
       }
     });
 
@@ -159,7 +127,7 @@ describe("handleGetTestRun", () => {
         await handleGetTestRun(mockHttpClient, apiEndpoint, event);
       } catch (error) {
         expect((error as AppError).code).toBe(400);
-        expect((error as AppError).message).toContain("Invalid test_run_id");
+        expect((error as AppError).message).toContain("testRunId must contain only alphanumeric characters and hyphens");
       }
     });
   });

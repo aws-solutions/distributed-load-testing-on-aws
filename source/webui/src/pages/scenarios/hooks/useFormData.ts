@@ -4,10 +4,15 @@
 // Custom hook for managing test scenario form state
 
 import { useCallback, useState } from "react";
-import { TestTypes } from "../constants";
-import { FormData } from "../types";
+import { TestMode, TestTypes } from "../constants";
+import { FormData, NativeModeInput } from "../types";
 
-const INITIAL_FORM_DATA: FormData = {
+// New Native mode scenarios default the safety duration to 4 hours.
+export const createEmptyNativeModeInput = (): NativeModeInput => ({
+  maxDuration: { value: "4", unit: "hours" },
+});
+
+const createInitialFormData = (): FormData => ({
   testName: "",
   testDescription: "",
   testId: "",
@@ -31,24 +36,42 @@ const INITIAL_FORM_DATA: FormData = {
   cronExpiryDate: "",
   scheduleTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   regions: [],
+  testMode: TestMode.STANDARD,
   rampUpValue: "",
   rampUpUnit: "minutes",
   holdForValue: "",
   holdForUnit: "minutes",
+  nativeMode: createEmptyNativeModeInput(),
   healthyThreshold: "90",
   k6LicenseAcknowledged: false,
-};
+});
 
 export const useFormData = () => {
-  const [formData, setFormData] = useState<FormData>(() => ({ ...INITIAL_FORM_DATA }));
+  const [formData, setFormData] = useState<FormData>(createInitialFormData);
 
   const updateFormData = useCallback((updates: Partial<FormData>) => {
-    setFormData(prev => ({ ...prev, ...updates }));
+    setFormData((prev) => ({ ...prev, ...updates }));
+  }, []);
+
+  const updateNativeMode = useCallback((updates: Partial<NativeModeInput>) => {
+    setFormData((prev) => ({
+      ...prev,
+      nativeMode: {
+        ...prev.nativeMode,
+        ...updates,
+      },
+    }));
   }, []);
 
   const resetFormData = useCallback(() => {
-    setFormData({ ...INITIAL_FORM_DATA });
+    setFormData(createInitialFormData());
   }, []);
 
-  return { formData, setFormData, updateFormData, resetFormData };
+  return {
+    formData,
+    setFormData,
+    updateFormData,
+    updateNativeMode,
+    resetFormData,
+  };
 };

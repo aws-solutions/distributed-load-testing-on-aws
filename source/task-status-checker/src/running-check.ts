@@ -22,6 +22,7 @@ export interface RunningCheckInput {
 
 export interface RunningCheckResult {
   readonly isRunning: boolean;
+  readonly healthyThreshold?: number;
 }
 
 /**
@@ -40,15 +41,22 @@ export async function checkRunningStatus(input: RunningCheckInput): Promise<Runn
     new GetCommand({
       TableName: scenariosTable,
       Key: { testId },
-      ProjectionExpression: "#s",
+      ProjectionExpression: "#s, healthyThreshold",
       ExpressionAttributeNames: { "#s": "status" },
     })
   );
 
   const status: unknown = response.Item?.["status"];
+  const storedThreshold: unknown = response.Item?.["healthyThreshold"];
+  const healthyThreshold = typeof storedThreshold === "number" ? storedThreshold : 90;
   const isRunning = status === "running";
 
-  logger.info("Running check result", { testId, status: typeof status === "string" ? status : "undefined", isRunning });
+  logger.info("Running check result", {
+    testId,
+    status: typeof status === "string" ? status : "undefined",
+    isRunning,
+    healthyThreshold,
+  });
 
-  return { isRunning };
+  return { isRunning, healthyThreshold };
 }

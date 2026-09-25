@@ -10,7 +10,7 @@
  * 3. Computes whether the healthy task percentage has breached the threshold
  */
 
-import type { Logger } from "@amzn/dlt-common";
+import type { Logger, TestStatus } from "@amzn/dlt-common";
 import type { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
 
@@ -25,7 +25,7 @@ interface ScenarioRecord {
   readonly taskFailureCount: number;
   readonly desiredTaskCount: number;
   readonly healthyThreshold: number;
-  readonly status: string;
+  readonly status: TestStatus;
   readonly testRunId: string;
 }
 
@@ -34,7 +34,7 @@ export interface FailureIncrementResult {
   readonly taskFailureCount: number;
   readonly desiredCount: number;
   readonly healthyThreshold: number;
-  readonly status: string;
+  readonly status: TestStatus;
   readonly testRunId: string;
 }
 

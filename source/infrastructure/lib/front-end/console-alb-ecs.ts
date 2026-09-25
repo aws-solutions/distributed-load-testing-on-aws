@@ -283,7 +283,7 @@ export class DLTConsoleAlbEcsConstruct extends Construct {
     Tags.of(cluster).add("SolutionId", props.solutionId);
 
     const logGroup = new LogGroup(this, "WebConsoleLogGroup", {
-      retention: RetentionDays.ONE_YEAR,
+      retention: RetentionDays.TEN_YEARS,
       removalPolicy: RemovalPolicy.DESTROY,
     });
     Tags.of(logGroup).add("SolutionId", props.solutionId);
@@ -567,7 +567,7 @@ export class DLTConsoleAlbEcsConstruct extends Construct {
     // Log group name must start with "aws-waf-logs-" per WAF requirements.
     const wafLogGroup = new LogGroup(this, "WafLogGroup", {
       logGroupName: Fn.join("", ["aws-waf-logs-", Aws.STACK_NAME]),
-      retention: RetentionDays.ONE_YEAR,
+      retention: RetentionDays.TEN_YEARS,
       removalPolicy: RemovalPolicy.DESTROY,
     });
     const wafLogGroupResource = wafLogGroup.node.defaultChild as CfnResource;
@@ -582,6 +582,12 @@ export class DLTConsoleAlbEcsConstruct extends Construct {
     const wafLoggingConfig = new CfnLoggingConfiguration(this, "WafLoggingConfig", {
       resourceArn: webAcl.attrArn,
       logDestinationConfigs: [wafLogGroup.logGroupArn],
+      // Redact sensitive fields so credentials/session tokens are never written to the
+      // security logs. WAF does not log the request body, and these redactions strip the
+      // Authorization header (bearer/basic credentials) and the Cookie header (session
+      // tokens). The retained logs still capture caller IP, timestamp, matched rule, and
+      // ALLOW/BLOCK outcome needed for investigation.
+      redactedFields: [{ singleHeader: { Name: "authorization" } }, { singleHeader: { Name: "cookie" } }],
     });
     wafLoggingConfig.cfnOptions.condition = deployWafCondition;
 

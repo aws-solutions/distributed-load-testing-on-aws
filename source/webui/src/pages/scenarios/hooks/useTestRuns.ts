@@ -15,7 +15,6 @@ import {
 import { TestRun, TestRunsResponse } from "../types";
 
 const PAGE_LIMIT = 20;
-const DEBOUNCE_DELAY = 300;
 const API_NAME = "solution-api";
 
 interface DateRange {
@@ -73,13 +72,10 @@ const getDateRange = (dateRange: DateRange | null): DateRangeResult => {
 
   (operations[unit] || operations.day)();
 
-  return {
-    startTimestamp: startDate.toISOString(),
-    endTimestamp: now.toISOString(),
-  };
+  return { startTimestamp: startDate.toISOString() };
 };
 
-export const useTestRuns = (testId: string) => {
+export const useTestRuns = (testId: string, latestTestRun?: TestRun) => {
   const dispatch = useDispatch();
   const [dateFilter, setDateFilter] = useState<DateRange | null>(() =>
     getLocalStorageItem<DateRange>(`dateFilter-${testId}`)
@@ -94,9 +90,20 @@ export const useTestRuns = (testId: string) => {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const dateRange = useMemo(() => getDateRange(dateFilter), [dateFilter]);
+  const latestTestRunInRange = useMemo(() => {
+    if (!latestTestRun) return undefined;
+    const latestTimestamp = Date.parse(`${latestTestRun.startTime.replace(" ", "T")}Z`);
+    if (
+      (dateRange.startTimestamp && latestTimestamp < Date.parse(dateRange.startTimestamp)) ||
+      (dateRange.endTimestamp && latestTimestamp > Date.parse(dateRange.endTimestamp))
+    ) return undefined;
+    return latestTestRun;
+  }, [dateRange, latestTestRun]);
+  const latestTestRunRef = useRef(latestTestRunInRange);
+  latestTestRunRef.current = latestTestRunInRange;
 
   const {
-    data: firstPageData,
+    currentData: firstPageData,
     isLoading,
     error,
     refetch,
@@ -121,11 +128,9 @@ export const useTestRuns = (testId: string) => {
   const loadRemainingPages = useCallback(
     async (startToken: string, firstPageData: TestRun[]) => {
       // Cancel any ongoing progressive loading request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
-      abortControllerRef.current = new AbortController();
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
       let nextToken: string | null = startToken;
       // Add first page of test runs from initial page load
@@ -133,7 +138,7 @@ export const useTestRuns = (testId: string) => {
 
       try {
         // Continue fetching pages until no more tokens or request is aborted
-        while (nextToken && !abortControllerRef.current.signal.aborted) {
+        while (nextToken && !controller.signal.aborted) {
           const params = createQueryParams(nextToken, dateRange);
 
           const response = await get({
@@ -151,16 +156,26 @@ export const useTestRuns = (testId: string) => {
         }
 
         // Only update state if request wasn't cancelled
-        if (!abortControllerRef.current.signal.aborted) {
-          setAllTestRuns(testRuns);
+        if (!controller.signal.aborted) {
+          setAllTestRuns(current => {
+            const latest = latestTestRunRef.current ?? current[0];
+            if (!latest) return testRuns;
+
+            return [
+              latest,
+              ...testRuns.filter(testRun => testRun.testRunId !== latest.testRunId),
+            ];
+          });
         }
       } catch (err) {
-        if (!abortControllerRef.current.signal.aborted) {
+        if (!controller.signal.aborted) {
           console.warn("Progressive loading failed:", err);
         }
       } finally {
-        setIsLoadingMore(false);
-        abortControllerRef.current = null;
+        if (abortControllerRef.current === controller) {
+          setIsLoadingMore(false);
+          abortControllerRef.current = null;
+        }
       }
     },
     [dateRange, testId]
@@ -171,7 +186,13 @@ export const useTestRuns = (testId: string) => {
     if (!firstPageData || isLoading || error) return;
 
     // Set initial test runs from first page
-    setAllTestRuns(firstPageData.testRuns);
+    const latest = latestTestRunRef.current;
+    setAllTestRuns(latest
+      ? [
+          latest,
+          ...firstPageData.testRuns.filter(testRun => testRun.testRunId !== latest.testRunId),
+        ]
+      : firstPageData.testRuns);
 
     // Start progressive loading if more pages exist
     if (firstPageData.pagination?.next_token) {
@@ -179,6 +200,14 @@ export const useTestRuns = (testId: string) => {
       loadRemainingPages(firstPageData.pagination.next_token, firstPageData.testRuns);
     }
   }, [firstPageData, isLoading, error, loadRemainingPages]);
+
+  useEffect(() => {
+    if (!latestTestRunInRange) return;
+    setAllTestRuns(current => [
+      latestTestRunInRange,
+      ...current.filter(testRun => testRun.testRunId !== latestTestRunInRange.testRunId),
+    ]);
+  }, [latestTestRunInRange]);
 
   // Update baseline from dedicated baseline API endpoint, since we are not guaranteed to receive baseline in the first page of test runs
   useEffect(() => {
@@ -199,26 +228,26 @@ export const useTestRuns = (testId: string) => {
         success: totalResults ? totalResults.succ : undefined,
         errors: totalResults ? totalResults.fail : undefined,
         // Calculate RPS: total throughput / test duration
-        requestsPerSecond: totalResults && parseFloat(totalResults.testDuration) > 0
-          ? totalResults.throughput / parseFloat(totalResults.testDuration)
+        requestsPerSecond: totalResults && Number.parseFloat(totalResults.testDuration) > 0
+          ? totalResults.throughput / Number.parseFloat(totalResults.testDuration)
           : undefined,
         // Convert seconds to milliseconds (× 1000)
-        avgResponseTime: totalResults ? parseFloat(totalResults.avg_rt) * 1000 : undefined,
-        avgLatency: totalResults ? parseFloat(totalResults.avg_lt) * 1000 : undefined,
-        avgConnectionTime: totalResults ? parseFloat(totalResults.avg_ct) * 1000 : undefined,
+        avgResponseTime: totalResults ? Number.parseFloat(totalResults.avg_rt) * 1000 : undefined,
+        avgLatency: totalResults ? Number.parseFloat(totalResults.avg_lt) * 1000 : undefined,
+        avgConnectionTime: totalResults ? Number.parseFloat(totalResults.avg_ct) * 1000 : undefined,
         // Calculate average bandwidth per request
         avgBandwidth: totalResults && (totalResults.succ + totalResults.fail) > 0
-          ? parseFloat(totalResults.bytes) / (totalResults.succ + totalResults.fail)
+          ? Number.parseFloat(totalResults.bytes) / (totalResults.succ + totalResults.fail)
           : undefined,
         // Convert all percentiles from seconds to milliseconds
         percentiles: totalResults ? {
-          p0: parseFloat(totalResults.p0_0) * 1000,
-          p50: parseFloat(totalResults.p50_0) * 1000,
-          p90: parseFloat(totalResults.p90_0) * 1000,
-          p95: parseFloat(totalResults.p95_0) * 1000,
-          p99: parseFloat(totalResults.p99_0) * 1000,
-          p99_9: parseFloat(totalResults.p99_9) * 1000,
-          p100: parseFloat(totalResults.p100_0) * 1000,
+          p0: Number.parseFloat(totalResults.p0_0) * 1000,
+          p50: Number.parseFloat(totalResults.p50_0) * 1000,
+          p90: Number.parseFloat(totalResults.p90_0) * 1000,
+          p95: Number.parseFloat(totalResults.p95_0) * 1000,
+          p99: Number.parseFloat(totalResults.p99_0) * 1000,
+          p99_9: Number.parseFloat(totalResults.p99_9) * 1000,
+          p100: Number.parseFloat(totalResults.p100_0) * 1000,
         } : undefined,
       };
 
@@ -232,12 +261,8 @@ export const useTestRuns = (testId: string) => {
   }, [baselineData, testId, baselineTestRun?.testRunId]);
 
   // Cleanup: Cancel progressive loading on component unmount
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
+  useEffect(() => () => {
+    abortControllerRef.current?.abort();
   }, []);
 
   const handleSetBaseline = useCallback(
@@ -275,30 +300,14 @@ export const useTestRuns = (testId: string) => {
     }
   }, [removeBaseline, testId, baselineTestRun]);
 
-  const debouncedDateFilterChange = useCallback(
-    (dateRange: DateRange | null) => {
-      // Cancel ongoing progressive loading when filter changes
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
-      setDateFilter(dateRange);
-      dateRange
-        ? localStorage.setItem(`dateFilter-${testId}`, JSON.stringify(dateRange))
-        : localStorage.removeItem(`dateFilter-${testId}`);
-      // Clear existing data to trigger fresh load with new filter
-      setAllTestRuns([]);
-    },
-    [testId]
-  );
-
-  const handleDateFilterChange = useMemo(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
-    return (dateRange: DateRange | null) => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => debouncedDateFilterChange(dateRange), DEBOUNCE_DELAY);
-    };
-  }, [debouncedDateFilterChange]);
+  const handleDateFilterChange = useCallback((dateRange: DateRange | null) => {
+    abortControllerRef.current?.abort();
+    setDateFilter(dateRange);
+    dateRange
+      ? localStorage.setItem(`dateFilter-${testId}`, JSON.stringify(dateRange))
+      : localStorage.removeItem(`dateFilter-${testId}`);
+    setAllTestRuns([]);
+  }, [testId]);
 
   return {
     dateFilter,

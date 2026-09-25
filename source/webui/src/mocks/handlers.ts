@@ -132,7 +132,7 @@ export const handlers = (apiUrl: string) => [
 
 export const mockScenarios: ScenarioItem[] = generateTestScenarios(5); // Generate 5 mock scenarios
 
-import { TestStatus } from "../pages/scenarios/constants";
+import { TestStatus } from "@amzn/dlt-common/validation";
 
 export const mockScenarioDetails = {
   showLive: false,

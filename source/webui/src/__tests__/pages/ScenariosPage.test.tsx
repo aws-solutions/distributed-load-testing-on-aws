@@ -57,7 +57,7 @@ it("renders scenarios page with loading state spinner", async () => {
 
   // THEN expect to see loading indicator (no heading during loading)
   const withinMain = within(screen.getByTestId("main-content"));
-  expect(await withinMain.findByText("Loading")).toBeInTheDocument();
+  expect(await withinMain.findByText("Loading...")).toBeInTheDocument();
 });
 
 it("renders scenarios page with scenarios data", async () => {
@@ -121,7 +121,7 @@ it("emits DeleteScenario metric on confirmation", async () => {
   renderAppContent({ initialRoute: "/scenarios" });
 
   const withinMain = within(screen.getByTestId("main-content"));
-  await waitForElementToBeRemoved(await withinMain.findByText("Loading"));
+  await waitForElementToBeRemoved(await withinMain.findByText("Loading..."));
 
   // Select the scenario row
   const user = userEvent.setup();
@@ -159,7 +159,7 @@ it("validates data exists in the table", async () => {
 
   // THEN expect table to contain scenario data
   const withinMain = within(screen.getByTestId("main-content"));
-  await waitForElementToBeRemoved(await withinMain.findByText("Loading"));
+  await waitForElementToBeRemoved(await withinMain.findByText("Loading..."));
 
   const table = withinMain.getByRole("table");
   expect(within(table).getByText(scenarios[0].testName)).toBeInTheDocument();
@@ -175,7 +175,7 @@ it.each(["queued", "provisioning", "running", "cancelling", "cleaning up", "pars
     renderAppContent({ initialRoute: "/scenarios" });
 
     const withinMain = within(screen.getByTestId("main-content"));
-    await waitForElementToBeRemoved(await withinMain.findByText("Loading"));
+    await waitForElementToBeRemoved(await withinMain.findByText("Loading..."));
 
     // Select the scenario row
     const user = userEvent.setup();
@@ -201,7 +201,7 @@ it.each(["complete", "cancelled", "failed", "scheduled"])(
     renderAppContent({ initialRoute: "/scenarios" });
 
     const withinMain = within(screen.getByTestId("main-content"));
-    await waitForElementToBeRemoved(await withinMain.findByText("Loading"));
+    await waitForElementToBeRemoved(await withinMain.findByText("Loading..."));
 
     const user = userEvent.setup();
     const radio = withinMain.getByRole("radio");

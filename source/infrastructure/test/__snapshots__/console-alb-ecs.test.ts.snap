@@ -813,7 +813,7 @@ exports[`DLT Console ALB ECS Construct - buildFromSource false with custom image
             ],
           ],
         },
-        "RetentionInDays": 365,
+        "RetentionInDays": 3653,
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Delete",
@@ -827,6 +827,18 @@ exports[`DLT Console ALB ECS Construct - buildFromSource false with custom image
               "TestConsoleResourcesWafLogGroupBF46A8D2",
               "Arn",
             ],
+          },
+        ],
+        "RedactedFields": [
+          {
+            "SingleHeader": {
+              "Name": "authorization",
+            },
+          },
+          {
+            "SingleHeader": {
+              "Name": "cookie",
+            },
           },
         ],
         "ResourceArn": {
@@ -1010,7 +1022,7 @@ exports[`DLT Console ALB ECS Construct - buildFromSource false with custom image
         },
       },
       "Properties": {
-        "RetentionInDays": 365,
+        "RetentionInDays": 3653,
         "Tags": [
           {
             "Key": "SolutionId",
@@ -2608,7 +2620,7 @@ exports[`DLT Console ALB ECS Construct - buildFromSource false with empty image 
             ],
           ],
         },
-        "RetentionInDays": 365,
+        "RetentionInDays": 3653,
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Delete",
@@ -2622,6 +2634,18 @@ exports[`DLT Console ALB ECS Construct - buildFromSource false with empty image 
               "TestConsoleResourcesWafLogGroupBF46A8D2",
               "Arn",
             ],
+          },
+        ],
+        "RedactedFields": [
+          {
+            "SingleHeader": {
+              "Name": "authorization",
+            },
+          },
+          {
+            "SingleHeader": {
+              "Name": "cookie",
+            },
           },
         ],
         "ResourceArn": {
@@ -2805,7 +2829,7 @@ exports[`DLT Console ALB ECS Construct - buildFromSource false with empty image 
         },
       },
       "Properties": {
-        "RetentionInDays": 365,
+        "RetentionInDays": 3653,
         "Tags": [
           {
             "Key": "SolutionId",
@@ -4268,7 +4292,7 @@ exports[`DLT Console ALB ECS Construct Test 1`] = `
             ],
           ],
         },
-        "RetentionInDays": 365,
+        "RetentionInDays": 3653,
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Delete",
@@ -4282,6 +4306,18 @@ exports[`DLT Console ALB ECS Construct Test 1`] = `
               "TestConsoleResourcesWafLogGroupBF46A8D2",
               "Arn",
             ],
+          },
+        ],
+        "RedactedFields": [
+          {
+            "SingleHeader": {
+              "Name": "authorization",
+            },
+          },
+          {
+            "SingleHeader": {
+              "Name": "cookie",
+            },
           },
         ],
         "ResourceArn": {
@@ -4465,7 +4501,7 @@ exports[`DLT Console ALB ECS Construct Test 1`] = `
         },
       },
       "Properties": {
-        "RetentionInDays": 365,
+        "RetentionInDays": 3653,
         "Tags": [
           {
             "Key": "SolutionId",

@@ -4,23 +4,14 @@
 import { z } from "zod";
 import {
   parseEventWithSchema,
-  TEST_SCENARIO_ID_LENGTH,
-  TEST_SCENARIO_ID_REGEX,
+  BaseTestIdSchema,
   type AgentCoreEvent,
 } from "../lib/common";
-import { AppError } from "../lib/errors";
-import type { HttpResponse, IHttpClient } from "../lib/http-client";
+import type { IHttpClient } from "../lib/http-client";
+import { fetchScenario } from "../lib/scenario-helpers";
 
 // Zod schema for get_scenario_details parameters
-export const GetScenarioDetailsSchema = z.object({
-  test_id: z
-    .string()
-    .length(
-      TEST_SCENARIO_ID_LENGTH,
-      `test_id should be the ${TEST_SCENARIO_ID_LENGTH} character unique id for a test scenario`
-    )
-    .regex(TEST_SCENARIO_ID_REGEX, "Invalid test_id"),
-});
+export const GetScenarioDetailsSchema = BaseTestIdSchema;
 
 // TypeScript type derived from Zod schema
 export type GetScenarioDetailsParameters = z.infer<typeof GetScenarioDetailsSchema>;
@@ -35,21 +26,5 @@ export async function handleGetScenarioDetails(
 ): Promise<unknown> {
   const { test_id } = parseEventWithSchema(GetScenarioDetailsSchema, event);
 
-  let response: HttpResponse;
-  try {
-    response = await httpClient.get(`${apiEndpoint}/scenarios/${test_id}?history=false&latest=false`);
-  } catch {
-    throw new AppError("Internal request failed", 500);
-  }
-
-  if (response.statusCode !== 200) {
-    throw new AppError(response.body, response.statusCode);
-  }
-
-  const data: unknown = JSON.parse(response.body);
-  if (!data) {
-    throw new AppError(`Scenario not found: ${test_id}`, 404);
-  }
-
-  return data;
+  return fetchScenario(httpClient, apiEndpoint, test_id, `Scenario not found: ${test_id}`);
 }

@@ -6,7 +6,9 @@
 import { Box, FormField, Input, SpaceBetween, Textarea, TokenGroup, Button } from "@cloudscape-design/components";
 import { FormData } from "../types";
 import { FormSection } from "./FormSection";
-import { SECTION_IDS } from "../utils/scenarioValidation";
+import { useFieldReveal } from "../hooks/useFieldReveal";
+import { SECTION_IDS, testDescriptionError, testNameError } from "../utils/scenarioValidation";
+import { InfoLink } from "../../../help";
 
 interface Props {
   formData: FormData;
@@ -22,6 +24,15 @@ interface Props {
 
 export const TestConfigurationSection = ({ formData, updateFormData, showValidationErrors = false, newTag, setNewTag, tagError, setTagError, addTag, removeTag }: Props) => {
   const canAddTag = newTag.trim() && formData.tags.length < 5;
+  const { markTouched, isRevealed } = useFieldReveal(showValidationErrors);
+  // Rules + messages come from the shared field validators; errors reveal once
+  // the field is touched or the form was submitted.
+  // Validate the displayed name error against the trimmed value: we auto-trim on
+  // blur, so the schema's "no leading/trailing whitespace" rule should never
+  // surface as an error the user must fix. Length/content errors still reflect
+  // the post-trim value (e.g. "  hi  " → "hi" is still too short).
+  const nameError = testNameError(formData.testName.trim(), isRevealed("testName"));
+  const descriptionError = testDescriptionError(formData.testDescription, isRevealed("testDescription"));
   return (
     <FormSection sectionId={SECTION_IDS.TEST_CONFIG} headerText="Test Configuration">
       <SpaceBetween direction="vertical" size="m">
@@ -29,7 +40,7 @@ export const TestConfigurationSection = ({ formData, updateFormData, showValidat
           label="Name"
           description="The name of your load test which makes it easy to identify"
           constraintText={`${(formData.testName || "").length}/255 characters`}
-          errorText={showValidationErrors && !formData.testName?.trim() ? "Name is required" : ""}
+          errorText={nameError}
         >
           <Input
             data-cy="test-name-input"
@@ -39,68 +50,45 @@ export const TestConfigurationSection = ({ formData, updateFormData, showValidat
                 updateFormData({ testName: detail.value });
               }
             }}
-            invalid={showValidationErrors && !formData.testName?.trim()}
+            // Auto-trim surrounding whitespace on blur (not while typing, which would
+            // block spaces between words). The schema rejects leading/trailing
+            // whitespace, so trimming fixes it for the user instead of erroring.
+            onBlur={() => {
+              const trimmed = formData.testName.trim();
+              if (trimmed !== formData.testName) {
+                updateFormData({ testName: trimmed });
+              }
+              markTouched("testName");
+            }}
+            invalid={!!nameError}
           />
         </FormField>
 
         <FormField
           label="Description"
           description="Short description of the load test"
-          constraintText={`${(formData.testDescription || "").length}/1000 characters`}
-          errorText={showValidationErrors && !formData.testDescription?.trim() ? "Description is required" : ""}
+          constraintText={`${(formData.testDescription || "").length}/60000 characters`}
+          errorText={descriptionError}
         >
           <Textarea
             data-cy="test-description-input"
             value={formData.testDescription}
             onChange={({ detail }) => {
-              if (detail.value.length <= 1000) {
+              if (detail.value.length <= 60000) {
                 updateFormData({ testDescription: detail.value });
               }
             }}
+            onBlur={() => markTouched("testDescription")}
             rows={4}
-            invalid={showValidationErrors && !formData.testDescription?.trim()}
+            invalid={!!descriptionError}
           />
         </FormField>
 
+        {/* Search keywords — stored as the `tags` field on the scenario */}
         <FormField
-          label="Healthy threshold (%)"
-          description="Minimum percentage of ECS tasks that must remain healthy across all regions. If failures cause the healthy percentage to drop below this value, the test is automatically marked as failed."
-          constraintText="Integer between 0 and 100. Default: 90"
-          errorText={
-            showValidationErrors &&
-            (isNaN(Number(formData.healthyThreshold)) ||
-              Number(formData.healthyThreshold) < 0 ||
-              Number(formData.healthyThreshold) > 100 ||
-              !Number.isInteger(Number(formData.healthyThreshold)))
-              ? "Must be an integer between 0 and 100"
-              : ""
-          }
-        >
-          <Box margin={{ top: "xxs" }}>
-            <Input
-              data-cy="healthy-threshold-input"
-              type="number"
-              value={formData.healthyThreshold}
-              onChange={({ detail }) => {
-                updateFormData({ healthyThreshold: detail.value });
-              }}
-              inputMode="numeric"
-              invalid={
-                showValidationErrors &&
-                (isNaN(Number(formData.healthyThreshold)) ||
-                  Number(formData.healthyThreshold) < 0 ||
-                  Number(formData.healthyThreshold) > 100 ||
-                  !Number.isInteger(Number(formData.healthyThreshold)))
-              }
-            />
-          </Box>
-        </FormField>
-
-        {/* Tags */}
-        <FormField
-          label="Tags"
-          description="Tags are labels you assign to test scenarios that allow you to manage, identify, organize, search for, and
-          filter Distributed Load Testing scenarios."
+          label="Search keywords"
+          info={<InfoLink topicId="tags" />}
+          description="Keywords you assign to test scenarios that help you quickly filter and find scenarios."
           errorText={tagError} constraintText={`${newTag.length}/50 characters`}
         >
           <SpaceBetween direction="vertical" size="s">
@@ -120,7 +108,7 @@ export const TestConfigurationSection = ({ formData, updateFormData, showValidat
                       addTag();
                     }
                   }}
-                  placeholder="Enter tag name"
+                  placeholder="Enter keyword"
                   invalid={!!tagError}
                 />
                 <Button data-cy="add-tag-btn" onClick={addTag} disabled={!canAddTag}>
@@ -131,7 +119,7 @@ export const TestConfigurationSection = ({ formData, updateFormData, showValidat
         </FormField>
 
         <Box variant="small">
-          You can add {5 - formData.tags.length} more {5 - formData.tags.length === 1 ? "tag" : "tags"}.
+          You can add {5 - formData.tags.length} more {5 - formData.tags.length === 1 ? "keyword" : "keywords"}.
         </Box>
       </SpaceBetween>
     </FormSection>

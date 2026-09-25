@@ -20,8 +20,8 @@ jest.mock("@aws-sdk/lib-dynamodb", () => ({
 
 jest.mock("@aws-sdk/client-scheduler", () => ({
   Scheduler: jest.fn().mockImplementation(() => {
-    return {deleteSchedule: mockSchedulerImpl.deleteSchedule};
-  })
+    return { deleteSchedule: mockSchedulerImpl.deleteSchedule };
+  }),
 }));
 
 process.env = {
@@ -58,9 +58,7 @@ describe("EventBridge schedules get deleted", () => {
     mockSchedulerImpl.deleteSchedule.mockRejectedValueOnce(notFound);
     mockSchedulerImpl.deleteSchedule.mockResolvedValueOnce({});
     mockSchedulerImpl.deleteSchedule.mockRejectedValueOnce(notFound);
-    mockSchedulerImpl.deleteSchedule.mockRejectedValueOnce(
-      new Error("Simulate unexpected error")
-    );
+    mockSchedulerImpl.deleteSchedule.mockRejectedValueOnce(new Error("Simulate unexpected error"));
   });
 
   afterEach(() => {
@@ -73,15 +71,13 @@ describe("EventBridge schedules get deleted", () => {
     expect(mockDynamoDb.scan).toHaveBeenCalledTimes(1);
     expect(mockSchedulerImpl.deleteSchedule).toHaveBeenCalledTimes(6);
 
-    expect(mockSchedulerImpl.deleteSchedule.mock.calls).toEqual(
-      [
-        [{Name: "norunyetCreate"}],
-        [{Name: "norunyetScheduled"}],
-        [{Name: "ranonceCreate"}],
-        [{Name: "ranonceScheduled"}],
-        [{Name: "runnowCreate"}],
-        [{Name: "runnowScheduled"}],
-      ]
-    );
+    expect(mockSchedulerImpl.deleteSchedule.mock.calls).toEqual([
+      [{ Name: "norunyetCreate" }],
+      [{ Name: "norunyetScheduled" }],
+      [{ Name: "ranonceCreate" }],
+      [{ Name: "ranonceScheduled" }],
+      [{ Name: "runnowCreate" }],
+      [{ Name: "runnowScheduled" }],
+    ]);
   });
 });

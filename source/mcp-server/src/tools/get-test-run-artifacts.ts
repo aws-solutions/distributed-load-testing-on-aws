@@ -4,10 +4,7 @@
 import { z } from "zod";
 import {
   parseEventWithSchema,
-  TEST_RUN_ID_LENGTH,
-  TEST_RUN_ID_REGEX,
-  TEST_SCENARIO_ID_LENGTH,
-  TEST_SCENARIO_ID_REGEX,
+  BaseTestRunSchema,
   type AgentCoreEvent,
 } from "../lib/common";
 import { getScenariosBucket } from "../lib/config";
@@ -15,19 +12,7 @@ import { AppError } from "../lib/errors";
 import type { HttpResponse, IHttpClient } from "../lib/http-client";
 
 // Zod schema for get_test_run_artifacts parameters
-export const GetTestRunArtifactsSchema = z.object({
-  test_id: z
-    .string()
-    .length(
-      TEST_SCENARIO_ID_LENGTH,
-      `test_id should be the ${TEST_SCENARIO_ID_LENGTH} character unique id for a test scenario`
-    )
-    .regex(TEST_SCENARIO_ID_REGEX, "Invalid test_id"),
-  test_run_id: z
-    .string()
-    .length(TEST_RUN_ID_LENGTH, `test_run_id should be the ${TEST_RUN_ID_LENGTH} character unique id for a test run`)
-    .regex(TEST_RUN_ID_REGEX, "Invalid test_run_id"),
-});
+export const GetTestRunArtifactsSchema = BaseTestRunSchema;
 
 // TypeScript type derived from Zod schema
 export type GetTestRunArtifactsParameters = z.infer<typeof GetTestRunArtifactsSchema>;
@@ -74,7 +59,7 @@ export async function handleGetTestRunArtifacts(
   const { startTime } = parseResult.data;
 
   // Extract S3 bucket and path information
-  const formattedStartTime = startTime.replace(" ", "T").replace(/:/g, "-");
+  const formattedStartTime = startTime.replace(" ", "T").replaceAll(":", "-");
   const bucketName = getScenariosBucket();
   const testScenarioPath = `results/${test_id}`;
   const testRunPath = testScenarioPath + `/${formattedStartTime}_${test_run_id}`;

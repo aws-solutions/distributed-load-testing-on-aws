@@ -3,7 +3,7 @@
 
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
-import { DLT_DIR, ensureDltDir } from "./paths.js";
+import { DLT_DIR, ensureDltDir, ensureMode } from "./paths.js";
 import type { AwsCredentialIdentity } from "./http-client.js";
 
 const CREDENTIALS_FILE = join(DLT_DIR, "credentials.json");
@@ -35,6 +35,12 @@ export function loadCredentials(): DltCredentials {
   if (!existsSync(CREDENTIALS_FILE)) {
     throw new Error(`Credentials not found. Run "dlt login" first.\nExpected: ${CREDENTIALS_FILE}`);
   }
+  // Repair permissions on use: a file restored from backup or created by an
+  // older build may have looser modes than the 0600 we set at write time.
+  // ensureMode skips the chmod when the file is already 0600 (the common case),
+  // so a normal load does not incur a redundant filesystem write.
+  ensureDltDir();
+  ensureMode(CREDENTIALS_FILE, 0o600);
   const raw = readFileSync(CREDENTIALS_FILE, "utf-8");
   const parsed = JSON.parse(raw) as DltCredentials;
   // Default authMode for credentials saved before this field existed
@@ -47,6 +53,10 @@ export function loadCredentials(): DltCredentials {
 export function saveCredentials(creds: DltCredentials): void {
   ensureDltDir();
   writeFileSync(CREDENTIALS_FILE, JSON.stringify(creds, null, 2) + "\n", { encoding: "utf-8", mode: 0o600 });
+  // writeFileSync's `mode` is only applied when the file is created; an existing
+  // file keeps its permissions. Enforce 0600 to repair a pre-existing file that
+  // was loosened, skipping the chmod when it already matches.
+  ensureMode(CREDENTIALS_FILE, 0o600);
 }
 
 export function isTokenExpired(creds: DltCredentials): boolean {

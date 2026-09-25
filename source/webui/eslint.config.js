@@ -1,17 +1,18 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+// Imported via the unified "typescript-eslint" package, which resolves from the
+// workspace root.
 import js from "@eslint/js";
-import tseslint from "@typescript-eslint/eslint-plugin";
-import tsparser from "@typescript-eslint/parser";
 import globals from "globals";
+import tseslint from "typescript-eslint";
 
 export default [
   js.configs.recommended,
   {
     files: ["**/*.ts", "**/*.tsx"],
     languageOptions: {
-      parser: tsparser,
+      parser: tseslint.parser,
       parserOptions: {
         ecmaVersion: "latest",
         sourceType: "module",
@@ -24,7 +25,7 @@ export default [
       },
     },
     plugins: {
-      "@typescript-eslint": tseslint,
+      "@typescript-eslint": tseslint.plugin,
     },
     rules: {
       "@typescript-eslint/no-inferrable-types": "off",

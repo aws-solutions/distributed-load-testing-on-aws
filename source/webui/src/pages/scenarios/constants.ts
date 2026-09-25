@@ -3,25 +3,15 @@
 
 // Static configuration data for test scenario form options
 
-// Replace this local TestStatus enum with the import from @amzn/dlt-common
-// once the webui package is fully migrated to the npm workspace.
-// Canonical source: source/common/src/test-execution.ts
+// Scenario status vocabulary and guards (TestStatus, ACTIVE_RUN_STATUSES,
+// isTerminalRunStatus, ...) are owned by @amzn/dlt-common
+// (source/common/src/test-execution.ts) — import them from there directly. This
+// file keeps only webui-specific presentation config and imports TestStatus for
+// the status-indicator map below.
 
+import { MAX_TEST_DURATION_SECONDS, TestStatus } from "@amzn/dlt-common/validation";
+import { TRAFFIC_SHAPE_LABELS, TRAFFIC_SHAPE_SHORT_DEFINITIONS } from "@amzn/dlt-common/traffic-shape";
 import type { Option } from "./types";
-
-export enum TestStatus {
-  QUEUED = "queued",
-  PROVISIONING = "provisioning",
-  RUNNING = "running",
-  PARSING_RESULTS = "parsing results",
-  CLEANING_UP = "cleaning up",
-  COMPLETE = "complete",
-  CANCELLING = "cancelling",
-  CANCELLED = "cancelled",
-  FAILED = "failed",
-  SCHEDULED = "scheduled",
-  CREATED = "created",
-}
 
 export enum TestTypes {
   SIMPLE = "simple",
@@ -30,12 +20,40 @@ export enum TestTypes {
   LOCUST = "locust",
 }
 
+export enum TestMode {
+  STANDARD = "standard",
+  NATIVE = "native",
+}
+
 export const TestTypeLabels: Option[] = [
-  { label: "Single HTTP Endpoint", value: TestTypes.SIMPLE },
+  { label: "Simple HTTP Endpoint", value: TestTypes.SIMPLE },
   { label: "JMeter", value: TestTypes.JMETER },
   { label: "K6", value: TestTypes.K6 },
   { label: "Locust", value: TestTypes.LOCUST },
 ];
+
+// Map a stored test-type value to the same human-readable label the create/edit
+// form shows, so summary/detail screens stay consistent with it. Falls back to
+// the raw value for unknown/legacy types.
+export const getTestTypeLabel = (value: string): string =>
+  TestTypeLabels.find((option) => option.value === value)?.label ?? value;
+
+// Traffic-shape mode labels and copy, sourced from @amzn/dlt-common/traffic-shape
+// so the console cannot drift from the CLI, the MCP server, and the docs. Every
+// render site pulls from here rather than hardcoding its own wording.
+export const TestModeLabels: Option[] = [
+  { label: TRAFFIC_SHAPE_LABELS.standard, value: TestMode.STANDARD },
+  { label: TRAFFIC_SHAPE_LABELS.native, value: TestMode.NATIVE },
+];
+
+// Short definitions for the traffic-shape segmented control helper text. The info
+// panel needs the medium tier instead, and imports it straight from
+// @amzn/dlt-common/traffic-shape in src/help/content.ts rather than through here,
+// so that src/help does not depend on a page's constants.
+export const TestModeShortDescriptions: Record<TestMode, string> = {
+  [TestMode.STANDARD]: TRAFFIC_SHAPE_SHORT_DEFINITIONS.standard,
+  [TestMode.NATIVE]: TRAFFIC_SHAPE_SHORT_DEFINITIONS.native,
+};
 
 export const HttpMethodOptions: Option[] = [
   { label: "GET", value: "GET" },
@@ -51,6 +69,7 @@ export const VALIDATION_LIMITS = {
   RAMP_UP: { MIN: 0 },
   HOLD_FOR: { MIN: 1 },
   TEST_ID_LENGTH: 10,
+  DURATION: { MIN: 1, MAX_SECONDS: MAX_TEST_DURATION_SECONDS },
 } as const;
 
 // Warning thresholds for user guidance
@@ -93,16 +112,6 @@ export const STATUS_INDICATOR_MAP: Record<TestStatus, StatusConfig> = {
   [TestStatus.CREATED]: { type: StatusIndicatorType.PENDING, label: "Created" },
 };
 
-/** All non-terminal states — used to gate auto-refresh and API task data inclusion. */
-export const ACTIVE_TEST_STATES: ReadonlySet<TestStatus> = new Set([
-  TestStatus.QUEUED,
-  TestStatus.PROVISIONING,
-  TestStatus.RUNNING,
-  TestStatus.CANCELLING,
-  TestStatus.CLEANING_UP,
-  TestStatus.PARSING_RESULTS,
-]);
-
 /**
  * Returns the StatusConfig for a given status string.
  * Falls back to an info-type indicator with the raw status as label for unknown values.
@@ -115,22 +124,5 @@ export const getStatusConfig = (status: string): StatusConfig => {
   return { type: StatusIndicatorType.INFO, label: status };
 };
 
-/** Terminal states — auto-refresh is disabled when the test reaches one of these. */
-const TERMINAL_TEST_STATES: ReadonlySet<string> = new Set<string>([
-  TestStatus.COMPLETE,
-  TestStatus.CANCELLED,
-  TestStatus.FAILED,
-  TestStatus.SCHEDULED,
-  TestStatus.CREATED,
-]);
-
 export const getPollingInterval = (status: string, userSelectedInterval: number): number =>
   userSelectedInterval;
-
-/**
- * Returns true when the given status is a terminal state
- * (complete, cancelled, or failed).
- */
-export const isTerminalState = (status: string): boolean =>
-  TERMINAL_TEST_STATES.has(status);
-

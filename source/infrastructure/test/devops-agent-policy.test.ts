@@ -39,13 +39,7 @@ test("DevOpsAgentConstruct grants GetAgentSpace with tag condition and task acti
           Resource: {
             "Fn::Join": [
               "",
-              [
-                "arn:",
-                { Ref: "AWS::Partition" },
-                ":aidevops:*:",
-                { Ref: "AWS::AccountId" },
-                ":agentspace/*",
-              ],
+              ["arn:", { Ref: "AWS::Partition" }, ":aidevops:*:", { Ref: "AWS::AccountId" }, ":agentspace/*"],
             ],
           },
         },
@@ -63,13 +57,7 @@ test("DevOpsAgentConstruct grants GetAgentSpace with tag condition and task acti
           Resource: {
             "Fn::Join": [
               "",
-              [
-                "arn:",
-                { Ref: "AWS::Partition" },
-                ":aidevops:*:",
-                { Ref: "AWS::AccountId" },
-                ":agentspace/*",
-              ],
+              ["arn:", { Ref: "AWS::Partition" }, ":aidevops:*:", { Ref: "AWS::AccountId" }, ":agentspace/*"],
             ],
           },
         },
@@ -98,9 +86,7 @@ test("DevOpsAgentConstruct has cfn_nag and cfn_guard suppressions for wildcard r
   template.hasResource("AWS::IAM::Policy", {
     Metadata: Match.objectLike({
       cfn_nag: {
-        rules_to_suppress: Match.arrayWith([
-          Match.objectLike({ id: "W12" }),
-        ]),
+        rules_to_suppress: Match.arrayWith([Match.objectLike({ id: "W12" })]),
       },
       guard: {
         SuppressedRules: Match.arrayWith(["IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE"]),

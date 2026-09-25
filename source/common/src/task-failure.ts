@@ -15,6 +15,8 @@
  * no authoritative npm type package for ECS-specific EventBridge detail payloads.
  */
 
+import { stripVTControlCharacters } from "node:util";
+
 /**
  * Fields added to the DynamoDB scenario record for failure tracking.
  *
@@ -102,4 +104,86 @@ export function classifyStopCode(stopCode: string, exitCode: number | undefined)
   }
 
   return StopCategory.Unknown;
+}
+
+/**
+ * Sensitive token patterns redacted from the free-text ECS stop reason before it
+ * is emitted as an operational metric attribute, applied in priority order:
+ *
+ *  1. PII — data that identifies a person. Per the AWS-wide PII definition,
+ *     email and IP addresses are PII, so they are stripped first.
+ *  2. Credentials / secrets. These five patterns intentionally mirror the
+ *     DevOps-agent denylist in
+ *     `source/api-services/lib/investigations/artifacts.js`; the two lists are
+ *     kept in sync by hand rather than shared, to avoid coupling this metric
+ *     path to that agent feature.
+ *  3. Customer / account-identifying data (Personal Data, not strictly PII):
+ *     ECR image URIs, ARNs, S3 URIs, and bare AWS account IDs.
+ *
+ * Ordering matters: composite tokens (ECR URIs, ARNs, S3 URIs) are redacted
+ * before the bare 12-digit account-id catch-all so the account id embedded in
+ * them isn't replaced piecemeal first.
+ */
+const SENSITIVE_STOP_REASON_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
+  // ── PII (stripped first) ─────────────────────────────────────────────────
+  // Email addresses. Quantifiers are explicitly bounded (local part, domain,
+  // and TLD lengths) so the pattern runs in linear time and cannot be driven
+  // into super-linear backtracking (ReDoS) by a crafted stop reason.
+  [/[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,255}\.[A-Za-z]{2,24}/g, "<email>"],
+  // IPv4 addresses
+  [/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, "<ip>"],
+  // IPv6 addresses (including compressed "::" forms)
+  [/\b(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{0,4}\b/g, "<ip>"],
+  // ── Credentials / secrets (mirror of the DevOps-agent artifact denylist) ──
+  // The denylist detects and rejects whole artifacts, so it matches the
+  // aws_secret_access_key label alone; here we redact and emit the surrounding
+  // text, so we must match the value too. The delimiter is a single run of
+  // whitespace/=/: ([\s=:]+, not \s*[=:\s]\s*) so a space- or tab-separated
+  // secret is redacted without introducing overlapping quantifiers that could
+  // backtrack super-linearly (ReDoS) on a long whitespace run.
+  [/AKIA[0-9A-Z]{16}/gi, "<redacted>"],
+  [/ASIA[0-9A-Z]{16}/gi, "<redacted>"],
+  [/aws_(?:secret_access_key|session_token)[\s=:]+\S+/gi, "<redacted>"],
+  [/eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g, "<redacted>"],
+  [/\bauthorization[ \t]*[=:][ \t]*(?:\S+[ \t]+)?\S+/gi, "<redacted>"],
+  [/\b(?:x-api-key|api[_-]?key|access[_-]?token|client[_-]?secret)\s*[=:]\s*\S+/gi, "<redacted>"],
+  [/password\s*[=:]\s*\S+/gi, "<redacted>"],
+  // ── Customer / account-identifying data (Personal Data, not strict PII) ───
+  // ECR image URIs — contain account id + customer-named repo/image
+  [/\b\d{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com\/\S+/gi, "<image>"],
+  // ARNs — contain account id + customer resource names
+  [/arn:aws[a-z-]*:[^\s"']+/gi, "<arn>"],
+  // S3 URIs
+  [/s3:\/\/\S+/gi, "<s3-uri>"],
+  // Bare AWS account IDs (12 digits) — catch-all, runs last
+  [/\b\d{12}\b/g, "<account-id>"],
+];
+
+/** Maximum length of the sanitized stop reason emitted as a metric attribute. */
+const MAX_STOP_REASON_LENGTH = 1024;
+
+/**
+ * Sanitizes and shapes an ECS `stoppedReason` free-text string so it is safe to
+ * emit as an operational metric attribute.
+ *
+ * Redacts PII (email and IP addresses), credentials/secrets, and customer /
+ * account-identifying data (ECR image URIs, ARNs, S3 URIs, AWS account IDs),
+ * then collapses all whitespace runs to single spaces, trims, and caps the
+ * length. This keeps the diagnostic value of the reason while preventing PII and
+ * customer data from leaving the customer account.
+ *
+ * @param stoppedReason - The raw ECS stop reason (free text); defaults to an empty string
+ * @returns A sanitized, single-line, length-bounded string
+ */
+export function sanitizeStopReason(stoppedReason: string = ""): string {
+  let sanitized = stripVTControlCharacters(stoppedReason);
+  for (const [pattern, replacement] of SENSITIVE_STOP_REASON_PATTERNS) {
+    sanitized = sanitized.replace(pattern, replacement);
+  }
+  // Shape into a single clean line and bound the length.
+  sanitized = sanitized.replace(/\s+/g, " ").trim();
+  if (sanitized.length > MAX_STOP_REASON_LENGTH) {
+    sanitized = sanitized.slice(0, MAX_STOP_REASON_LENGTH);
+  }
+  return sanitized;
 }

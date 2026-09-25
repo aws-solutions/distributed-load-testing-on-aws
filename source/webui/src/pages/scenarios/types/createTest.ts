@@ -1,6 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { NativeRunMode } from "@amzn/dlt-common/validation";
+
 export type CreateScenarioRequest = {
   testId: string | undefined;
   testName: string;
@@ -22,6 +24,10 @@ export type CreateScenarioRequest = {
   recurrence?: string;
   healthyThreshold?: number;
   saveOnly?: boolean;
+  // Presence of nativeRunMode selects Native as the traffic-shape mode. Traffic
+  // shape and test type are separate axes: a Native run still has a test type of
+  // jmeter, k6, or locust. Absence of this field means Standard.
+  nativeRunMode?: NativeRunMode;
 };
 
 export type TestTaskConfig = {
@@ -44,9 +50,9 @@ export type RegionalTaskDetail = {
 };
 
 export type TestScenarioExecution = {
-  // number value appended with time unit (e.g. 30s or 2m)
+  // Number value appended with time unit (e.g. 30s or 2m). Native mode sends an unused placeholder.
   "ramp-up": string;
-  // number value appended with time unit (e.g. 30s or 2m)
+  // Number value appended with time unit (e.g. 30s or 2m). Native mode sends an unused placeholder.
   "hold-for": string;
   scenario: string;
   executor: "jmeter" | "k6" | "locust" | undefined;

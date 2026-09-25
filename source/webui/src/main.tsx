@@ -3,7 +3,11 @@
 
 import ReactDOM from "react-dom/client";
 import { Amplify, ResourcesConfig } from "aws-amplify";
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/500.css";
+import "@fontsource/inter/700.css";
 import "./styles.css";
+import { applyConsoleTheme } from "./theme.ts";
 import { Provider } from "react-redux";
 import { setupStore } from "./store/store.ts";
 import { App } from "./App.tsx";
@@ -77,6 +81,9 @@ const clearLegacyAuthDataIfNeeded = () => {
   // Mark migration as complete so this never runs again.
   localStorage.setItem(MIGRATION_FLAG, "true");
 };
+
+// Apply the console theme (rounded corners + font) once, before the first render.
+applyConsoleTheme();
 
 getRuntimeConfig().then((json) => {
   // One-time: remove auth state left over from the previous (non-OAuth) sign-in

@@ -148,7 +148,7 @@ export const generateCSV = <T>(columns: TableColumn<T>[], data: T[], hasBaseline
   
   const headers = expandedColumns.map(col => `"${col.header}"`).join(',');
   const rows = data.map(item => 
-    expandedColumns.map(col => `"${col.getValue(item).replace(/"/g, '""')}"`).join(',')
+    expandedColumns.map(col => `"${col.getValue(item).replaceAll('"', '""')}"`).join(',')
   );
   return [headers, ...rows].join('\n');
 };

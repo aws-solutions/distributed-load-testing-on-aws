@@ -96,6 +96,28 @@ describe("#Write Configs::", () => {
       })
     );
   });
+
+  it("should write nativeTaskDefinitions when the hub provides them", async () => {
+    mockDynamoDb.put.mockResolvedValue({});
+    const nativeTaskDefinitions = {
+      jmeter: "arn:aws:ecs:us-west-2:123456789012:task-definition/dlt-jmeter:1",
+      k6: "arn:aws:ecs:us-west-2:123456789012:task-definition/dlt-k6:1",
+      locust: "arn:aws:ecs:us-west-2:123456789012:task-definition/dlt-locust:1",
+    };
+
+    await lambda.testingResourcesConfigFile({ ...testingResourcesConfig, nativeTaskDefinitions });
+    expect(mockDynamoDb.put).toHaveBeenCalledWith(
+      expect.objectContaining({ Item: expect.objectContaining({ nativeTaskDefinitions }) })
+    );
+  });
+
+  it("should omit nativeTaskDefinitions for a regional stack that has none", async () => {
+    mockDynamoDb.put.mockResolvedValue({});
+
+    await lambda.testingResourcesConfigFile(testingResourcesConfig);
+    const item = mockDynamoDb.put.mock.calls[0][0].Item;
+    expect(item).not.toHaveProperty("nativeTaskDefinitions");
+  });
 });
 
 describe("#Delete Configs::", () => {

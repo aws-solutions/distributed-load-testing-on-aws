@@ -47,6 +47,8 @@ interface TestingResourcesConfigCRBaseProps {
 
 export interface HubTestingResourcesConfigCRProps extends TestingResourcesConfigCRBaseProps {
   readonly taskDefinition: string;
+  // Partial until all framework task definitions are available.
+  readonly nativeTaskDefinitions: Readonly<Partial<Record<"jmeter" | "k6" | "locust", string>>>;
 }
 
 export interface RegionalTestingResourcesConfigCRProps extends TestingResourcesConfigCRBaseProps {}
@@ -229,6 +231,7 @@ export class CustomResourcesConstruct extends Construct {
         ecsCloudWatchLogGroup: props.ecsCloudWatchLogGroup,
         taskSecurityGroup: props.taskSecurityGroup,
         taskDefinition: props.taskDefinition,
+        nativeTaskDefinitions: props.nativeTaskDefinitions,
         taskCluster: props.taskCluster,
         version: props.version,
         stackId: Aws.STACK_ID,
@@ -307,6 +310,7 @@ export class CustomResourcesConstruct extends Construct {
   /**
    * Creates a custom resource that updates the CloudFront ResponseHeadersPolicy CSP
    * to add the exact Cognito domain at deploy time.
+   * @param props
    */
   public updateCloudFrontCsp(props: UpdateCspProps) {
     // Grant CloudFront permissions scoped to the specific ResponseHeadersPolicy

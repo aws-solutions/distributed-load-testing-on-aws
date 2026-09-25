@@ -4,11 +4,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import React from "react";
-import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
-import { rootReducer } from "../../store/store";
-import { solutionApi } from "../../store/solutionApi";
+import { setupStore } from "../../store/store";
 import { useTestRuns } from "../../pages/scenarios/hooks/useTestRuns";
+import type { TestRun } from "../../pages/scenarios/types";
+import { TestStatus } from "@amzn/dlt-common/validation";
 import { http, HttpResponse } from "msw";
 import { server, MOCK_SERVER_URL } from "../server";
 
@@ -19,10 +19,7 @@ vi.mock("../../utils/consoleMetrics", () => ({
 const API = MOCK_SERVER_URL;
 
 function createWrapper() {
-  const store = configureStore({
-    reducer: rootReducer,
-    middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(solutionApi.middleware),
-  });
+  const store = setupStore();
 
   return ({ children }: { children: React.ReactNode }) =>
     React.createElement(Provider, { store, children });
@@ -95,6 +92,28 @@ describe("useTestRuns", () => {
     expect(result.current.dateFilter).toEqual(filter);
   });
 
+  it("leaves relative filters open-ended for new runs", async () => {
+    let requestUrl: URL | undefined;
+    localStorage.setItem(`dateFilter-${testId}`, JSON.stringify({ type: "relative", amount: 7, unit: "day" }));
+    server.use(
+      http.get(`${API}/scenarios/${testId}/testruns`, ({ request }) => {
+        requestUrl = new URL(request.url);
+        return HttpResponse.json({ testRuns: [], pagination: {} });
+      }),
+    );
+
+    const wrapper = createWrapper();
+    const { result } = renderHook(() => useTestRuns(testId), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(requestUrl).toBeDefined();
+    expect(requestUrl!.searchParams.get("start_timestamp")).not.toBeNull();
+    expect(requestUrl!.searchParams.get("end_timestamp")).toBeNull();
+  });
+
   it("initializes baseline from localStorage", () => {
     const baseline = { testRunId: "run-saved", startTime: "2025-01-01 00:00:00", isBaseline: true };
     localStorage.setItem(`baseline-${testId}`, JSON.stringify(baseline));
@@ -155,7 +174,7 @@ describe("useTestRuns", () => {
     expect(localStorage.getItem(`baseline-${testId}`)).toBeNull();
   });
 
-  it("handleDateFilterChange updates localStorage after debounce", async () => {
+  it("handleDateFilterChange updates localStorage", async () => {
     const wrapper = createWrapper();
     const { result } = renderHook(() => useTestRuns(testId), { wrapper });
 
@@ -167,10 +186,7 @@ describe("useTestRuns", () => {
       result.current.handleDateFilterChange({ type: "relative", amount: 3, unit: "day" });
     });
 
-    // Wait for debounce (300ms)
-    await waitFor(() => {
-      expect(localStorage.getItem(`dateFilter-${testId}`)).not.toBeNull();
-    }, { timeout: 1000 });
+    expect(localStorage.getItem(`dateFilter-${testId}`)).not.toBeNull();
   });
 
   it("handleDateFilterChange with null clears localStorage", async () => {
@@ -201,6 +217,133 @@ describe("useTestRuns", () => {
     });
 
     expect(typeof result.current.refetch).toBe("function");
+  });
+
+  it("refreshes only the latest run and preserves loaded history", async () => {
+    let pageTwoRequests = 0;
+    server.use(
+      http.get(`${API}/scenarios/${testId}/testruns`, ({ request }) => {
+        const url = new URL(request.url);
+        if (url.searchParams.get("next_token")) {
+          pageTwoRequests++;
+          return HttpResponse.json({
+            testRuns: [{ testRunId: "run-001", startTime: "2025-01-14 10:00:00", status: "complete" }],
+            pagination: {},
+          });
+        }
+        return HttpResponse.json({
+          testRuns: [{ testRunId: "run-002", startTime: "2025-01-15 10:00:00", status: "complete" }],
+          pagination: { next_token: "page-2" },
+        });
+      })
+    );
+
+    const wrapper = createWrapper();
+    const { result, rerender } = renderHook(
+      ({ latestTestRun }) => useTestRuns(testId, latestTestRun),
+      { wrapper, initialProps: { latestTestRun: undefined as TestRun | undefined } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.allTestRuns).toHaveLength(2);
+    });
+
+    rerender({
+      latestTestRun: { testRunId: "run-002", startTime: "2025-01-15 10:00:00", status: TestStatus.RUNNING },
+    });
+
+    expect(pageTwoRequests).toBe(1);
+    expect(result.current.allTestRuns.map(({ testRunId }) => testRunId)).toEqual(["run-002", "run-001"]);
+    expect(result.current.allTestRuns[0].status).toBe(TestStatus.RUNNING);
+
+    rerender({
+      latestTestRun: { testRunId: "run-003", startTime: "2025-01-16 10:00:00", status: TestStatus.RUNNING },
+    });
+
+    expect(pageTwoRequests).toBe(1);
+    expect(result.current.allTestRuns.map(({ testRunId }) => testRunId)).toEqual([
+      "run-003",
+      "run-002",
+      "run-001",
+    ]);
+  });
+
+  it("preserves a newer polled run when progressive loading finishes", async () => {
+    let releasePageTwo!: () => void;
+    const pageTwoBlocked = new Promise<void>(resolve => {
+      releasePageTwo = resolve;
+    });
+
+    server.use(
+      http.get(`${API}/scenarios/${testId}/testruns`, async ({ request }) => {
+        const url = new URL(request.url);
+        if (url.searchParams.get("next_token")) {
+          await pageTwoBlocked;
+          return HttpResponse.json({
+            testRuns: [{ testRunId: "run-001", startTime: "2025-01-14 10:00:00", status: "complete" }],
+            pagination: {},
+          });
+        }
+        return HttpResponse.json({
+          testRuns: [{ testRunId: "run-002", startTime: "2025-01-15 10:00:00", status: "complete" }],
+          pagination: { next_token: "page-2" },
+        });
+      })
+    );
+
+    const wrapper = createWrapper();
+    const { result, rerender } = renderHook(
+      ({ latestTestRun }) => useTestRuns(testId, latestTestRun),
+      { wrapper, initialProps: { latestTestRun: undefined as TestRun | undefined } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoadingMore).toBe(true);
+    });
+
+    rerender({
+      latestTestRun: { testRunId: "run-003", startTime: "2025-01-16 10:00:00", status: TestStatus.RUNNING },
+    });
+    expect(result.current.allTestRuns[0].testRunId).toBe("run-003");
+
+    releasePageTwo();
+    await waitFor(() => {
+      expect(result.current.isLoadingMore).toBe(false);
+    });
+
+    expect(result.current.allTestRuns.map(({ testRunId }) => testRunId)).toEqual([
+      "run-003",
+      "run-002",
+      "run-001",
+    ]);
+  });
+
+  it("does not merge a latest run outside the active date filter", async () => {
+    localStorage.setItem(`dateFilter-${testId}`, JSON.stringify({ type: "relative", amount: 1, unit: "day" }));
+    server.use(
+      http.get(`${API}/scenarios/${testId}/testruns`, ({ request }) => {
+        return HttpResponse.json({
+          testRuns: [{ testRunId: "run-current", startTime: "2026-09-08 00:00:00", status: "complete" }],
+          pagination: {},
+        });
+      })
+    );
+
+    const wrapper = createWrapper();
+    const { result, rerender } = renderHook(
+      ({ latestTestRun }) => useTestRuns(testId, latestTestRun),
+      { wrapper, initialProps: { latestTestRun: undefined as TestRun | undefined } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.allTestRuns).toHaveLength(1);
+    });
+
+    rerender({
+      latestTestRun: { testRunId: "run-old", startTime: "2000-01-01 00:00:00", status: TestStatus.COMPLETE },
+    });
+
+    expect(result.current.allTestRuns[0].testRunId).toBe("run-current");
   });
 
   it("progressive loading fetches additional pages", async () => {

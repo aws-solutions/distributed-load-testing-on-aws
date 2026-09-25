@@ -38,7 +38,20 @@ describe("checkRunningStatus", () => {
       logger: mockLogger as never,
     });
 
-    expect(result).toEqual({ isRunning: true });
+    expect(result).toEqual({ isRunning: true, healthyThreshold: 90 });
+  });
+
+  it("returns the scenario healthy threshold", async () => {
+    ddbMock.on(GetCommand).resolves({ Item: { status: "running", healthyThreshold: 75 } });
+
+    const result = await checkRunningStatus({
+      ddb: makeDdb(),
+      scenariosTable: "TestScenarios",
+      testId: "test-abc123",
+      logger: mockLogger as never,
+    });
+
+    expect(result).toEqual({ isRunning: true, healthyThreshold: 75 });
   });
 
   it.each(["complete", "cancelled", "failed"])("should return isRunning false when status is %s", async (status) => {
@@ -51,7 +64,7 @@ describe("checkRunningStatus", () => {
       logger: mockLogger as never,
     });
 
-    expect(result).toEqual({ isRunning: false });
+    expect(result).toEqual({ isRunning: false, healthyThreshold: 90 });
   });
 
   it("should return isRunning false when item does not exist", async () => {
@@ -64,7 +77,7 @@ describe("checkRunningStatus", () => {
       logger: mockLogger as never,
     });
 
-    expect(result).toEqual({ isRunning: false });
+    expect(result).toEqual({ isRunning: false, healthyThreshold: 90 });
   });
 
   it("should propagate DynamoDB errors", async () => {

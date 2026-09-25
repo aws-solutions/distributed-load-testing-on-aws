@@ -65,15 +65,15 @@ describe("#MAIN-INDEX HANDLER::", () => {
 
       expect(mockCfn.send).toHaveBeenCalledTimes(1);
       const [, , status, responseData, resource] = mockCfn.send.mock.calls[0];
-      
+
       expect(status).toBe("SUCCESS");
       expect(resource).toBe("UUID");
       expect(responseData).toHaveProperty("UUID");
       expect(responseData).toHaveProperty("SUFFIX");
-      
+
       // Verify UUID format (8-4-4-4-12 pattern)
       expect(responseData.UUID).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
-      
+
       // Verify SUFFIX is last 10 characters of a UUID
       expect(responseData.SUFFIX).toHaveLength(10);
     });
@@ -90,7 +90,7 @@ describe("#MAIN-INDEX HANDLER::", () => {
 
       expect(mockCfn.send).toHaveBeenCalledTimes(1);
       const [, , status, responseData] = mockCfn.send.mock.calls[0];
-      
+
       expect(status).toBe("SUCCESS");
       expect(responseData).toEqual({});
     });
@@ -107,7 +107,7 @@ describe("#MAIN-INDEX HANDLER::", () => {
 
       expect(mockCfn.send).toHaveBeenCalledTimes(1);
       const [, , status, responseData] = mockCfn.send.mock.calls[0];
-      
+
       expect(status).toBe("SUCCESS");
       expect(responseData).toEqual({});
     });
@@ -180,7 +180,7 @@ describe("#MAIN-INDEX HANDLER::", () => {
   describe("GetIotEndpoint Resource", () => {
     it("should return IoT endpoint on Create request", async () => {
       mockIot.getIotEndpoint.mockResolvedValue("test-iot-endpoint.amazonaws.com");
-      
+
       const event = {
         RequestType: "Create",
         ResourceProperties: {
@@ -262,7 +262,7 @@ describe("#MAIN-INDEX HANDLER::", () => {
   });
 
   describe("V3toV4BackCompat Resource", () => {
-    ["Create", "Update", "Delete"].forEach(requesType => {
+    ["Create", "Update", "Delete"].forEach((requesType) => {
       it("should call backCompat.updateScheduledTests() on Create request", async () => {
         const event = {
           RequestType: requesType,
@@ -273,14 +273,14 @@ describe("#MAIN-INDEX HANDLER::", () => {
 
         await lambda.handler(event, context);
 
-        if (requesType == "Create") expect(mockBackCompat.updateScheduledTests).toHaveBeenCalledTimes(1)
-        else expect(mockBackCompat.updateScheduledTests).not.toHaveBeenCalled()
+        if (requesType == "Create") expect(mockBackCompat.updateScheduledTests).toHaveBeenCalledTimes(1);
+        else expect(mockBackCompat.updateScheduledTests).not.toHaveBeenCalled();
       });
-    })
+    });
   });
 
   describe("CleanUpTestScenarios Resource", () => {
-    ["Create", "Update", "Delete"].forEach(requesType => {
+    ["Create", "Update", "Delete"].forEach((requesType) => {
       it("should call scenarios.cleanUpTestScenarioResources() on Delete request", async () => {
         const event = {
           RequestType: requesType,
@@ -291,10 +291,10 @@ describe("#MAIN-INDEX HANDLER::", () => {
 
         await lambda.handler(event, context);
 
-        if (requesType == "Delete") expect(mockScenarioClean.cleanUpTestScenarioResources).toHaveBeenCalledTimes(1)
-        else expect(mockScenarioClean.cleanUpTestScenarioResources).not.toHaveBeenCalled()
+        if (requesType == "Delete") expect(mockScenarioClean.cleanUpTestScenarioResources).toHaveBeenCalledTimes(1);
+        else expect(mockScenarioClean.cleanUpTestScenarioResources).not.toHaveBeenCalled();
       });
-    })
+    });
   });
 
   describe("Error Handling", () => {
@@ -312,7 +312,7 @@ describe("#MAIN-INDEX HANDLER::", () => {
 
     it("should handle errors from dependencies and send FAILED response", async () => {
       mockIot.getIotEndpoint.mockRejectedValue(new Error("IoT Error"));
-      
+
       const event = {
         RequestType: "Create",
         ResourceProperties: {

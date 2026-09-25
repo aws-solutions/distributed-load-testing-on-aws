@@ -38,6 +38,7 @@ jest.mock("xml-js", () => ({
 
 process.env.SOLUTION_ID = "SO0062";
 process.env.VERSION = "3.0.0";
+process.env.HISTORY_TABLE = "history_table";
 const { DynamoDBDocumentClient } = require("@aws-sdk/lib-dynamodb");
 const lambda = require("./index.js");
 
@@ -1305,5 +1306,37 @@ describe("#RESULTS PARSER::", () => {
     }
   });
 
+  it("updates only the existing run-history row with the bounded framework-exit summary", async () => {
+    const summary = {
+      totalCount: 2,
+      artifactKey: "results/test/run/framework-exits/framework-exits.jsonl",
+      top: [{ framework: "k6", exitCode: 99, message: "threshold crossed", count: 2 }],
+    };
+    mockDynamoDB.update.mockResolvedValue({});
 
+    await lambda.updateFrameworkExitSummary({ testId: "test", testRunId: "run", summary });
+
+    expect(mockDynamoDB.update).toHaveBeenCalledWith({
+      TableName: "history_table",
+      Key: { testId: "test", testRunId: "run" },
+      UpdateExpression: "set #frameworkExitSummary = :frameworkExitSummary",
+      ConditionExpression: "attribute_exists(#testId) AND attribute_exists(#testRunId)",
+      ExpressionAttributeNames: {
+        "#frameworkExitSummary": "frameworkExitSummary",
+        "#testId": "testId",
+        "#testRunId": "testRunId",
+      },
+      ExpressionAttributeValues: {
+        ":frameworkExitSummary": summary,
+      },
+    });
+  });
+
+  it("surfaces framework-exit summary update failures for the handler to isolate", async () => {
+    mockDynamoDB.update.mockRejectedValue(new Error("ConditionalCheckFailedException"));
+
+    await expect(lambda.updateFrameworkExitSummary({ testId: "test", testRunId: "run", summary: {} })).rejects.toThrow(
+      "ConditionalCheckFailedException"
+    );
+  });
 });

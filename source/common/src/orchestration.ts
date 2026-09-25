@@ -19,6 +19,7 @@
  * needing to query DynamoDB.
  */
 
+import type { NativeRunMode } from "./api/create-test.ts";
 import type { TestTaskRegionConfig, TestType } from "./test-execution.ts";
 import { TestStatus } from "./test-execution.ts";
 
@@ -63,6 +64,7 @@ export interface TaskRunnerResult {
   readonly showLive: boolean;
   readonly testDuration: number;
   readonly prefix: string;
+  readonly nativeRunMode: NativeRunMode | null;
   readonly testTaskConfig: TestTaskRegionConfig;
 
   /** ECS service name (format: `dlt-{testId}-{region}`) */
@@ -96,6 +98,7 @@ export interface ServiceStabilizationResult {
   readonly showLive: boolean;
   readonly testDuration: number;
   readonly prefix: string;
+  readonly nativeRunMode: NativeRunMode | null;
   readonly testTaskConfig: TestTaskRegionConfig;
 
   /** Whether the ECS service reached its desired task count */
@@ -137,6 +140,13 @@ export interface RegionalSyncResult {
   readonly regions: ServiceStabilizationResult[];
   /** Region names that failed to stabilize (present only when allReady is false) */
   readonly failedRegions?: string[];
+  /**
+   * Human-readable summary of why setup failed, naming the affected region(s)
+   * and each region's cause. Present only when allReady is false. Propagated by
+   * the step function into the scenario's terminal errorReason so the UI shows a
+   * specific message instead of a generic constant.
+   */
+  readonly errorReason?: string;
 }
 
 /**
@@ -200,6 +210,8 @@ export interface CompletionMonitoringEvent {
   readonly testDuration: number;
   readonly prefix: string;
   readonly testTaskConfig: TestTaskRegionConfig;
+  /** Native runner configuration, or null when using Taurus. */
+  readonly nativeRunMode: NativeRunMode | null;
 
   // Service context (from Phase 1)
   readonly serviceName: string;
@@ -213,12 +225,16 @@ export interface CompletionMonitoringEvent {
   readonly completedTaskCount: number;
   /** True when completedTaskCount >= desiredCount */
   readonly isComplete: boolean;
+  /** True once a native test reaches maxTestDurationSeconds; always false for legacy tests. */
+  readonly maxDurationReached: boolean;
   /** True when the deadline has been exceeded or the test is no longer running */
   readonly timedOut: boolean;
   /** Epoch millis when completion polling started — set on first invocation */
   readonly pollStartTime: number;
   /** Seconds to wait before the next completion poll — read by the Wait state via `SecondsPath` */
   readonly pollIntervalSeconds: number;
+  /** Epoch millis for this region's non-extendable framework-warning grace period. */
+  readonly warningDeadline?: number;
   /** Reason for failure — forwarded to test-cleanup when timedOut is true */
   readonly errorReason?: string;
 }

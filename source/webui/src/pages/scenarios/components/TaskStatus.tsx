@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Subscription } from "rxjs";
 import { ChartMetric, createRegionalTimeSeriesChart, RegionalDatasets } from "../../../utils/chartHelpers";
 import { createRegionColorMap } from "../../../utils/colorUtils";
-import { isTerminalState, TestStatus } from "../constants";
+import { isTerminalRunStatus, TestStatus } from "@amzn/dlt-common/validation";
 import type { ScenarioDefinition, TasksPerRegion, TestTaskConfig, TaskStatusItem } from "../types";
 import { RegionProgressIndicator } from "./RegionProgressIndicator";
 
@@ -27,7 +27,6 @@ const TASK_PROGRESS_STATES: ReadonlySet<string> = new Set([
 
 interface TaskStatusProps {
   readonly scenario_definition: ScenarioDefinition;
-  readonly isRefreshing?: boolean;
 }
 
 /**
@@ -92,7 +91,7 @@ export function computeTaskStatusItem(
   };
 }
 
-export function TaskStatus({ scenario_definition, isRefreshing }: TaskStatusProps) {
+export function TaskStatus({ scenario_definition }: TaskStatusProps) {
   const [chartData, setChartData] = useState<RegionalDatasets>(new Map());
   const avgRtChartRef = useRef<HTMLCanvasElement>(null);
   const avgRtChartInstance = useRef<Chart | null>(null);
@@ -328,7 +327,7 @@ export function TaskStatus({ scenario_definition, isRefreshing }: TaskStatusProp
 
   // For terminal states, hide the panel entirely when there's no data to show.
   // During active states the panel is always visible for live monitoring.
-  if (isTerminalState(scenario_definition.status) && !hasChartData() && taskStatusData.length === 0) {
+  if (isTerminalRunStatus(scenario_definition.status) && !hasChartData() && taskStatusData.length === 0) {
     return null;
   }
 

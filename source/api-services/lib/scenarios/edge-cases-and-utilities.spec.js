@@ -243,13 +243,19 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
       const completedTest = {
         Item: {
           testId: "1234",
+          testName: "test",
+          testType: "simple",
           status: "complete",
           testScenario: '{"name":"test"}',
+          testTaskConfigs: [{ region: "us-east-1", taskCount: "1", concurrency: "1" }],
           tags: ["tag1"]
         }
       };
 
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve(completedTest));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({
+        Item: { testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster" }
+      }));
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 5 })); // getTotalCount
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Items: [] })); // getTestHistoryEntries
 
@@ -262,13 +268,19 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
       const testData = {
         Item: {
           testId: "1234",
+          testName: "test",
+          testType: "simple",
           status: "complete",
           testScenario: '{"name":"test"}',
+          testTaskConfigs: [{ region: "us-east-1", taskCount: "1", concurrency: "1" }],
           tags: ["tag1"]
         }
       };
 
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testData));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({
+        Item: { testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster" }
+      }));
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 2 }));
 
       const result = await lambda.getTest("1234", { history: "false" });
@@ -279,13 +291,19 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
       const testData = {
         Item: {
           testId: "1234",
+          testName: "test",
+          testType: "simple",
           status: "complete",
           testScenario: '{"name":"test"}',
+          testTaskConfigs: [{ region: "us-east-1", taskCount: "1", concurrency: "1" }],
           results: { some: "data" }
         }
       };
 
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testData));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({
+        Item: { testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster" }
+      }));
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 2 }));
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Items: [] }));
 
@@ -308,25 +326,22 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
       }
     });
 
-    it("should handle case when testTaskConfigs is missing", async () => {
+    it("should return TEST_NOT_FOUND when testTaskConfigs is missing (schema validation failure)", async () => {
       const testData = {
         Item: {
           testId: "1234",
+          testName: "test",
+          testType: "simple",
           status: "running",
-          testScenario: '{"name":"test"}'
+          testScenario: '{"name":"test"}',
         }
       };
 
-      // getTestEntry
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testData));
-      // dynamoDB.update (set status to cancelling)
-      mockDynamoDB.mockImplementationOnce(() => Promise.resolve());
-      // lambda.invoke (task canceler)
-      mockLambda.mockImplementationOnce(() => Promise.resolve());
-      mockS3.mockImplementationOnce(() => Promise.resolve({ Contents: [] }));
 
-      const result = await lambda.cancelTest("1234");
-      expect(result).toEqual(expect.objectContaining({ status: "test cancelling" }));
+      await expect(lambda.cancelTest("1234")).rejects.toMatchObject({
+        code: "TEST_NOT_FOUND",
+      });
     });
   });
 
@@ -645,8 +660,10 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
       const testData = {
         Item: {
           testId: "test-del-sched",
+          testName: "test",
+          testType: "simple",
           testTaskConfigs: [
-            { region: "us-east-1", taskCluster: "cluster", ecsCloudWatchLogGroup: "logGroup" },
+            { region: "us-east-1", taskCount: "1", concurrency: "1", taskCluster: "cluster", ecsCloudWatchLogGroup: "logGroup" },
           ],
           testScenario: '{"execution":[{"ramp-up":"1m","hold-for":"1m"}]}',
           status: "scheduled",
@@ -814,7 +831,7 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
   describe("getTestRuns with timestamp filtering", () => {
     it("should handle start_timestamp only", async () => {
       mockDynamoDB.mockImplementationOnce(() =>
-        Promise.resolve({ Item: { testId: "test-ts", status: "complete" } })
+        Promise.resolve({ Item: { testId: "test-ts", testName: "test", testType: "simple", status: "complete", testScenario: "{}", testTaskConfigs: [{ region: "us-east-1", taskCount: "1", concurrency: "1" }] } })
       );
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 5 }));
       mockDynamoDB.mockImplementationOnce(() =>
@@ -831,7 +848,7 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
 
     it("should handle end_timestamp only", async () => {
       mockDynamoDB.mockImplementationOnce(() =>
-        Promise.resolve({ Item: { testId: "test-ts2", status: "complete" } })
+        Promise.resolve({ Item: { testId: "test-ts2", testName: "test", testType: "simple", status: "complete", testScenario: "{}", testTaskConfigs: [{ region: "us-east-1", taskCount: "1", concurrency: "1" }] } })
       );
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Count: 3 }));
       mockDynamoDB.mockImplementationOnce(() =>
@@ -848,7 +865,7 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
 
     it("should throw on invalid limit parameter", async () => {
       mockDynamoDB.mockImplementationOnce(() =>
-        Promise.resolve({ Item: { testId: "test-lim", status: "complete" } })
+        Promise.resolve({ Item: { testId: "test-lim", testName: "test", testType: "simple", status: "complete", testScenario: "{}", testTaskConfigs: [{ region: "us-east-1", taskCount: "1", concurrency: "1" }] } })
       );
 
       try {
@@ -862,7 +879,7 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
 
     it("should throw on invalid start_timestamp format", async () => {
       mockDynamoDB.mockImplementationOnce(() =>
-        Promise.resolve({ Item: { testId: "test-inv", status: "complete" } })
+        Promise.resolve({ Item: { testId: "test-inv", testName: "test", testType: "simple", status: "complete", testScenario: "{}", testTaskConfigs: [{ region: "us-east-1", taskCount: "1", concurrency: "1" }] } })
       );
 
       try {
@@ -875,7 +892,7 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
 
     it("should throw on invalid end_timestamp format", async () => {
       mockDynamoDB.mockImplementationOnce(() =>
-        Promise.resolve({ Item: { testId: "test-inv2", status: "complete" } })
+        Promise.resolve({ Item: { testId: "test-inv2", testName: "test", testType: "simple", status: "complete", testScenario: "{}", testTaskConfigs: [{ region: "us-east-1", taskCount: "1", concurrency: "1" }] } })
       );
 
       try {

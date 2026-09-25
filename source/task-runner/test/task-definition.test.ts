@@ -44,6 +44,7 @@ const HUB_CONTAINER = {
   cpu: 0,
   memory: 512,
   essential: true,
+  stopTimeout: 120,
   portMappings: [{ containerPort: 50000 }],
   logConfiguration: { logDriver: "awslogs", options: {} },
   healthCheck: { command: ["CMD-SHELL", "test -f /tmp/health_ready || exit 1"] },
@@ -111,7 +112,9 @@ describe("createTestTaskDefinition", () => {
       options: {
         "awslogs-group": "/ecs/spoke-log-group",
         "awslogs-region": "us-west-2",
-        "awslogs-stream-prefix": "load-testing",
+        // testId is embedded so the real-time-data-publisher can derive the
+        // authoritative testId from the log stream name.
+        "awslogs-stream-prefix": "load-testing/test-abc123",
       },
     });
     // Container shape from hub
@@ -222,8 +225,8 @@ describe("createTestTaskDefinition", () => {
     const env = registerInput.containerDefinitions?.[0]?.environment;
 
     expect(env).toContainEqual({ name: "VALID", value: "keep" });
-    expect(env?.find(e => e.name === "NULL_VALUE")).toBeUndefined();
-    expect(env?.find(e => e.value === "no-name")).toBeUndefined();
+    expect(env?.find((e) => e.name === "NULL_VALUE")).toBeUndefined();
+    expect(env?.find((e) => e.value === "no-name")).toBeUndefined();
   });
 
   it("should use hub container shape but NOT hub roles", async () => {
@@ -243,6 +246,7 @@ describe("createTestTaskDefinition", () => {
     expect(registerInput.executionRoleArn).not.toBe(HUB_TASK_DEF.executionRoleArn);
     // But container shape comes from hub
     expect(registerInput.containerDefinitions?.[0]?.healthCheck).toEqual(HUB_CONTAINER.healthCheck);
+    expect(registerInput.containerDefinitions?.[0]?.stopTimeout).toBe(HUB_CONTAINER.stopTimeout);
     expect(registerInput.networkMode).toBe(HUB_TASK_DEF.networkMode);
   });
 });

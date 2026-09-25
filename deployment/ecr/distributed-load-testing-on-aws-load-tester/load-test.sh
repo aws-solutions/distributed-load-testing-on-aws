@@ -367,7 +367,7 @@ if [ "$TEST_TYPE" != "simple" ]; then
       fatal_exit "Failed to download zip file $TEST_ID.zip"
     }
     
-    # When unzipping, we want to make ensure unzipped content is in the current working directory instead of an unzipped subdirectory.
+    # When unzipping, we want to ensure unzipped content is in the current working directory instead of an unzipped subdirectory.
     # This is necessary for certain files, such as a "locust.conf" file that is assumed to be in the current working directory.
     TEMP_DIR=$(mktemp -d)
     unzip $TEST_ID.zip -d $TEMP_DIR
@@ -487,6 +487,23 @@ if [ "$TEST_TYPE" != "simple" ]; then
       fi
     fi
   fi
+fi
+
+# Install custom Python dependencies for Locust tests.
+# - With packages/ dir: fully offline install (--no-index), no network needed.
+# - Without packages/ dir: installs from PyPI (requires internet).
+if [ "$TEST_TYPE" == "locust" ] && [ -f requirements.txt ]; then
+  echo "Found requirements.txt — installing custom dependencies..."
+  if [ -d packages ]; then
+    echo "Found packages/ directory — installing offline from bundled wheels."
+    pip install --no-index --find-links=packages/ -r requirements.txt --target="$PWD/site-deps" ||
+      fatal_exit "Failed to install custom dependencies from bundled wheels in packages/"
+    export PYTHONPATH="$PWD/site-deps:$PYTHONPATH"
+  else
+    pip install --user -r requirements.txt ||
+      fatal_exit "Failed to install custom dependencies from requirements.txt"
+  fi
+  echo "Custom dependencies installed."
 fi
 
 # Create health marker — tells ECS health check this task is ready to

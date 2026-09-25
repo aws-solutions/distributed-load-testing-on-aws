@@ -1,6 +1,6 @@
 {
   "name": "source",
-  "version": "4.2.6",
+  "version": "4.3.0",
   "private": true,
   "description": "ESLint and prettier dependencies to be used within the solution",
   "license": "Apache-2.0",
@@ -10,11 +10,9 @@
   },
   "scripts": {
     "lint": "NODE_OPTIONS='--max-old-space-size=8192' npx eslint . --ext .ts --ignore-pattern 'webui/*' && cd webui && npx eslint .",
-    "prettier-format": "npx prettier --config .prettierrc.yml '**/*.{js,ts}' --ignore-path '../.gitignore' --ignore-path 'webui/public/mockServiceWorker.js' --write",
-    "prettier-check": "npx prettier --config .prettierrc.yml '**/*.{js,ts}' --check --ignore-path '../.gitignore' --ignore-path 'webui/public/mockServiceWorker.js'",
+    "prettier-format": "npx prettier --config .prettierrc.yml '**/*.{js,ts}' --write --ignore-path .prettierignore",
+    "prettier-check": "npx prettier --config .prettierrc.yml '**/*.{js,ts}' --check --ignore-path .prettierignore",
     "install:api-services": "cd ./api-services && npm ci",
-    "install:webui": "cd ./webui && npm ci",
-    "build:webui": "npm run install:webui && cd ./webui && npm run build",
     "build:metrics-utils": "npm run install:metrics-utils && cd ./metrics-utils && npm run build",
     "install:custom-resource": "cd ./custom-resource && npm ci",
     "install:infrastructure": "cd ./infrastructure && npm ci",

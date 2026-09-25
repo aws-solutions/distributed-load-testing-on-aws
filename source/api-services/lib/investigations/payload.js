@@ -6,6 +6,8 @@
  * No side effects, no I/O — easy to test and reason about.
  */
 
+const { TestStatus } = require("@amzn/dlt-common");
+
 const MAX_DESCRIPTION_LENGTH = 10000;
 const TRUNCATION_NOTICE = "\n\n(truncated — full breakdown in DLT console)";
 const TRUNCATION_RESERVE = TRUNCATION_NOTICE.length;
@@ -42,7 +44,7 @@ const INFRA_FAILURE_GUIDANCE = [
  * @param {string|number|null|undefined} val
  * @returns {number|null}
  */
-const toMs = (val) => (val != null ? Math.round(parseFloat(val) * 1000) : null);
+const toMs = (val) => (val != null ? Math.round(Number.parseFloat(val) * 1000) : null);
 
 /**
  * Formats a duration in seconds into a human-readable string.
@@ -67,7 +69,7 @@ const computeDurationFromTimes = (startTime, endTime) => {
   if (!startTime || !endTime) return null;
   const start = new Date(startTime);
   const end = new Date(endTime);
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
   return Math.round((end - start) / 1000);
 };
 
@@ -100,7 +102,7 @@ const buildEndpointSection = (endpoints, budget) => {
   const sorted = [...endpoints].sort((a, b) => {
     const errDiff = (b.fail || 0) - (a.fail || 0);
     if (errDiff !== 0) return errDiff;
-    return (parseFloat(b.avg_rt) || 0) - (parseFloat(a.avg_rt) || 0);
+    return (Number.parseFloat(b.avg_rt) || 0) - (Number.parseFloat(a.avg_rt) || 0);
   });
 
   let section = "\n\n## Per-Endpoint Breakdown\n";
@@ -395,7 +397,7 @@ const buildDescription = (testRun, userContext, consoleUrl, baselineRun, artifac
   const results = safeParse(testRun.results);
   const total = results?.total || results;
   const scenario = safeParse(testRun.testScenario);
-  const isInfraFailure = testRun.status === "failed";
+  const isInfraFailure = testRun.status === TestStatus.FAILED;
 
   const sections = [
     `# DLT Performance Investigation\n`,

@@ -19,7 +19,8 @@
     "@aws-lambda-powertools/logger": "^2.27.0",
     "cron-parser": "^5.5.0",
     "luxon": "^3.7.2",
-    "nanoid": "^3.3.11"
+    "nanoid": "^3.3.11",
+    "zod": "^4.1.12"
   },
   "peerDependencies": {
     "@aws-sdk/lib-dynamodb": "^3.1030.0"
@@ -28,5 +29,14 @@
     "@aws-sdk/lib-dynamodb": "^3.1030.0",
     "@aws-sdk/client-dynamodb": "^3.1030.0",
     "@types/luxon": "^3.7.1"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./framework-exit": "./src/schemas/framework-exit.ts",
+    "./s3-keys": "./src/s3-keys.ts",
+    "./streaming-statistics": "./src/streaming-statistics/index.ts",
+    "./test-execution": "./src/test-execution.ts",
+    "./traffic-shape": "./src/traffic-shape.ts",
+    "./validation": "./src/validation.ts"
   }
 }

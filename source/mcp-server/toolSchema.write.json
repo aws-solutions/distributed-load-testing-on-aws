@@ -1,0 +1,769 @@
+[
+  {
+    "name": "create_test",
+    "description": "Create a new load test scenario without executing it. The test is saved and can be run later with start_run. Requires the full test configuration including test type, scenario definition, and regional task configuration. Returns the created test object including its test ID for use in subsequent operations. For simple HTTP tests, omit test_id and the system will generate one. For script-based tests (jmeter, k6, locust), you must call upload_test_script first, then pass the test_id returned by upload_test_script to link the scenario with the uploaded script. Use update_test to modify an existing test.",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "test_name",
+        "test_description",
+        "test_type",
+        "test_task_configs",
+        "test_scenario"
+      ],
+      "properties": {
+        "test_id": {
+          "type": "string",
+          "description": "The test scenario's unique identifier. Omit for simple HTTP tests (system will generate one). Required for script-based tests — use the test_id returned by upload_test_script to associate the scenario with the uploaded script file."
+        },
+        "test_name": {
+          "type": "string",
+          "description": "Human-readable name for the test scenario"
+        },
+        "test_description": {
+          "type": "string",
+          "description": "Description of what this test validates"
+        },
+        "test_type": {
+          "type": "string",
+          "description": "Test type. 'simple' for HTTP endpoint tests configured inline. 'jmeter', 'k6', or 'locust' for script-based tests that reference an uploaded script file."
+        },
+        "test_task_configs": {
+          "type": "array",
+          "description": "Regional task configuration. Each entry specifies a region and the number of Fargate tasks and concurrent virtual users to run there. Total concurrent users for a region = task_count × concurrency (e.g., task_count: 5, concurrency: 20 = 100 total concurrent users in that region).",
+          "items": {
+            "type": "object",
+            "required": [
+              "region",
+              "task_count",
+              "concurrency"
+            ],
+            "properties": {
+              "region": {
+                "type": "string",
+                "description": "AWS region to run tasks in (e.g., 'us-east-1'). Must have a deployed DLT regional stack."
+              },
+              "task_count": {
+                "type": "integer",
+                "description": "Number of Fargate tasks to launch in this region. Must be between 1 and the region's available task limit."
+              },
+              "concurrency": {
+                "type": "integer",
+                "description": "Standard mode: number of concurrent virtual users per task in this region. Ignored in Native mode, where the uploaded script sets the virtual users."
+              }
+            }
+          }
+        },
+        "test_scenario": {
+          "type": "object",
+          "description": "Test execution scenario defining the load profile and target endpoint(s).",
+          "required": [
+            "execution",
+            "scenarios"
+          ],
+          "properties": {
+            "execution": {
+              "type": "array",
+              "description": "Standard mode execution configuration. Typically a single entry defining ramp-up, hold-for duration, and which scenario to use. Native mode ignores ramp-up and hold-for, because the uploaded script owns the load shape.",
+              "items": {
+                "type": "object",
+                "required": [
+                  "ramp-up",
+                  "hold-for",
+                  "scenario"
+                ],
+                "properties": {
+                  "ramp-up": {
+                    "type": "string",
+                    "description": "Standard mode: time to ramp up to full concurrency, ignored in Native mode. Format: number followed by unit ('s' for seconds, 'm' for minutes). Example: '30s', '2m'."
+                  },
+                  "hold-for": {
+                    "type": "string",
+                    "description": "Standard mode: duration to maintain full concurrency after ramp-up, ignored in Native mode. Format: number followed by unit ('s' for seconds, 'm' for minutes). Must be at least 1 second. Example: '5m', '300s'."
+                  },
+                  "scenario": {
+                    "type": "string",
+                    "description": "Name of the scenario definition in the 'scenarios' object to execute."
+                  }
+                }
+              }
+            },
+            "scenarios": {
+              "type": "object",
+              "description": "Named scenario definitions. For simple tests, each scenario has a 'requests' array of HTTP requests. For script tests, each scenario has a 'script' string referencing the uploaded file path."
+            }
+          }
+        },
+        "show_live": {
+          "type": "boolean",
+          "description": "Whether to enable live monitoring during test execution. Default: false."
+        },
+        "tags": {
+          "type": "array",
+          "description": "Tags for organizing test scenarios. Maximum 5 tags. Each tag must be lowercase alphanumeric with hyphens only, max 50 characters.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "healthy_threshold": {
+          "type": "integer",
+          "description": "Minimum percentage of Fargate tasks that must remain healthy (not crash) during test execution. If the healthy task percentage drops below this threshold, the test is marked as failed early. Default: 90."
+        },
+        "native_run_mode": {
+          "type": "object",
+          "description": "Traffic shape. Omit this object for Standard mode; include it to select Native mode. Only script-based tests (jmeter, k6, locust) support Native; Simple HTTP Endpoint tests always use Standard.\n\nStandard. Standard mode puts DLT in control of the load. You set the Fargate task count per Region, the concurrent virtual users per task, a ramp-up period, and a hold duration, and DLT runs the test through the Taurus automation framework, which applies those values over whatever load your script declares. A Region's virtual users are the task count multiplied by the per-task concurrency. Standard is the only mode that lets you set an exact virtual-user count and change the ramp-up and hold shape without editing the script, and the only one that supports the Simple HTTP Endpoint type. Its limit is expressiveness: anything Taurus cannot represent, such as weighted scenarios, per-stage thresholds, or arrival-rate executors, is unavailable. This is how every DLT test ran before v4.3.0, so existing scenarios keep behaving exactly as they did.\n\nNative. Native mode puts your script in control of the load. DLT runs the file you uploaded under the framework's own command line and passes no load flags, so your script is the sole authority on the traffic it generates. Two controls remain: how many Fargate tasks to launch per Region, and a required safety duration of up to 24 hours. The safety duration guards against a script that never exits rather than scheduling the run: if the test is still going when it elapses, DLT stops the framework, keeps the results for the portion that ran, and records the run as completed. Tasks are uncoordinated and each runs a full copy of the script, so a k6 script holding 200 virtual users on five tasks puts 1,000 virtual users on the target. Task count is therefore the only load dial; changing the ramp, the hold time, or the virtual-user count means editing the script. Native requires an uploaded script, so Simple HTTP Endpoint is unavailable, and Locust scripts must not set processes.",
+          "required": [
+            "maxTestDurationSeconds"
+          ],
+          "properties": {
+            "maxTestDurationSeconds": {
+              "type": "integer",
+              "description": "Native mode safety timeout in seconds, required whenever native_run_mode is present. It guards against a script that never exits rather than scheduling the run: if the test is still running when the timeout elapses, DLT stops the framework, collects the results for the portion that ran, and records the run as completed rather than failed. Must be between 1 and 86400 (24 hours)."
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "update_test",
+    "description": "Update an existing test scenario. This is a full replace — the entire test configuration must be provided, not just the changed fields. The test must be in a non-running state (complete, cancelled, failed, scheduled, or created). Use get_scenario_details to retrieve the current configuration before updating. Cannot be used while the test is running.",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "test_id",
+        "test_name",
+        "test_description",
+        "test_type",
+        "test_task_configs",
+        "test_scenario"
+      ],
+      "properties": {
+        "test_id": {
+          "type": "string",
+          "description": "The test scenario's unique identifier. Must reference an existing test."
+        },
+        "test_name": {
+          "type": "string",
+          "description": "Human-readable name for the test scenario"
+        },
+        "test_description": {
+          "type": "string",
+          "description": "Description of what this test validates"
+        },
+        "test_type": {
+          "type": "string",
+          "description": "Test type. 'simple' for HTTP endpoint tests. 'jmeter', 'k6', or 'locust' for script-based tests."
+        },
+        "test_task_configs": {
+          "type": "array",
+          "description": "Regional task configuration.",
+          "items": {
+            "type": "object",
+            "required": [
+              "region",
+              "task_count",
+              "concurrency"
+            ],
+            "properties": {
+              "region": {
+                "type": "string",
+                "description": "AWS region to run tasks in (e.g., 'us-east-1')"
+              },
+              "task_count": {
+                "type": "integer",
+                "description": "Number of Fargate tasks to launch in this region."
+              },
+              "concurrency": {
+                "type": "integer",
+                "description": "Standard mode: number of concurrent virtual users per task. Ignored in Native mode."
+              }
+            }
+          }
+        },
+        "test_scenario": {
+          "type": "object",
+          "description": "Test execution scenario. Same structure as create_test.",
+          "required": [
+            "execution",
+            "scenarios"
+          ],
+          "properties": {
+            "execution": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "ramp-up",
+                  "hold-for",
+                  "scenario"
+                ],
+                "properties": {
+                  "ramp-up": {
+                    "type": "string",
+                    "description": "Standard mode: ramp-up time (e.g., '30s', '2m'). Ignored in Native mode"
+                  },
+                  "hold-for": {
+                    "type": "string",
+                    "description": "Standard mode: hold duration (e.g., '5m', '300s'). Ignored in Native mode"
+                  },
+                  "scenario": {
+                    "type": "string",
+                    "description": "Scenario name to execute"
+                  }
+                }
+              }
+            },
+            "scenarios": {
+              "type": "object",
+              "description": "Named scenario definitions."
+            }
+          }
+        },
+        "show_live": {
+          "type": "boolean",
+          "description": "Whether to enable live monitoring. Default: false."
+        },
+        "tags": {
+          "type": "array",
+          "description": "Tags. Maximum 5.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "healthy_threshold": {
+          "type": "integer",
+          "description": "Minimum percentage of Fargate tasks that must remain healthy during execution. Default: 90."
+        },
+        "native_run_mode": {
+          "type": "object",
+          "description": "Traffic shape. Omit this object for Standard mode; include it to select Native mode. Only script-based tests (jmeter, k6, locust) support Native; Simple HTTP Endpoint tests always use Standard.\n\nStandard. Standard mode puts DLT in control of the load. You set the Fargate task count per Region, the concurrent virtual users per task, a ramp-up period, and a hold duration, and DLT runs the test through the Taurus automation framework, which applies those values over whatever load your script declares. A Region's virtual users are the task count multiplied by the per-task concurrency. Standard is the only mode that lets you set an exact virtual-user count and change the ramp-up and hold shape without editing the script, and the only one that supports the Simple HTTP Endpoint type. Its limit is expressiveness: anything Taurus cannot represent, such as weighted scenarios, per-stage thresholds, or arrival-rate executors, is unavailable. This is how every DLT test ran before v4.3.0, so existing scenarios keep behaving exactly as they did.\n\nNative. Native mode puts your script in control of the load. DLT runs the file you uploaded under the framework's own command line and passes no load flags, so your script is the sole authority on the traffic it generates. Two controls remain: how many Fargate tasks to launch per Region, and a required safety duration of up to 24 hours. The safety duration guards against a script that never exits rather than scheduling the run: if the test is still going when it elapses, DLT stops the framework, keeps the results for the portion that ran, and records the run as completed. Tasks are uncoordinated and each runs a full copy of the script, so a k6 script holding 200 virtual users on five tasks puts 1,000 virtual users on the target. Task count is therefore the only load dial; changing the ramp, the hold time, or the virtual-user count means editing the script. Native requires an uploaded script, so Simple HTTP Endpoint is unavailable, and Locust scripts must not set processes.",
+          "required": [
+            "maxTestDurationSeconds"
+          ],
+          "properties": {
+            "maxTestDurationSeconds": {
+              "type": "integer",
+              "description": "Native mode safety timeout in seconds, required whenever native_run_mode is present. It guards against a script that never exits rather than scheduling the run: if the test is still running when the timeout elapses, DLT stops the framework, collects the results for the portion that ran, and records the run as completed rather than failed. Must be between 1 and 86400 (24 hours)."
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "delete_test",
+    "description": "Permanently delete a test scenario and all associated data including test run history, schedules, and CloudWatch dashboards. This action cannot be undone. The test must not be currently running.",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "test_id"
+      ],
+      "properties": {
+        "test_id": {
+          "type": "string",
+          "description": "The test scenario's unique identifier"
+        }
+      }
+    }
+  },
+  {
+    "name": "start_run",
+    "description": "Start execution of an existing test scenario. Launches Fargate tasks in the configured regions and begins generating load against the target endpoint(s). The test's stored configuration is used — no need to provide the full config. Returns immediately with the test status set to 'queued'. Use get_latest_test_run to poll for completion — the run progresses through statuses: queued → running → complete (or failed/cancelled).",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "test_id"
+      ],
+      "properties": {
+        "test_id": {
+          "type": "string",
+          "description": "The test scenario's unique identifier. The test must already exist (created via create_test) and must not be currently running."
+        }
+      }
+    }
+  },
+  {
+    "name": "stop_run",
+    "description": "Stop a currently running test. Sends a cancellation signal to all running Fargate tasks. The test status will transition to 'cancelled'. Partial results up to the point of cancellation will be available via get_latest_test_run.",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "test_id"
+      ],
+      "properties": {
+        "test_id": {
+          "type": "string",
+          "description": "The test scenario's unique identifier"
+        }
+      }
+    }
+  },
+  {
+    "name": "create_simple_schedule",
+    "description": "Create a one-time scheduled test that runs automatically at a specified date and time. Can create a new scheduled test from scratch (omit test_id) or add a schedule to an existing unscheduled test (pass the existing test_id). Requires all standard test configuration fields plus schedule_date and schedule_time. The schedule is managed via EventBridge Scheduler. For new simple HTTP tests, omit test_id and the system will generate one. For script-based tests, you must call upload_test_script first and pass the returned test_id. For existing tests, pass the test_id and the full test configuration (retrieve with get_scenario_details first).",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "test_name",
+        "test_description",
+        "test_type",
+        "test_task_configs",
+        "test_scenario",
+        "schedule_date",
+        "schedule_time"
+      ],
+      "properties": {
+        "test_id": {
+          "type": "string",
+          "description": "The test scenario's unique identifier. Omit for new simple HTTP tests (system will generate one). Required for script-based tests (use the test_id returned by upload_test_script). Pass an existing test_id to add a schedule to an existing unscheduled test."
+        },
+        "test_name": {
+          "type": "string",
+          "description": "Human-readable name for the test scenario"
+        },
+        "test_description": {
+          "type": "string",
+          "description": "Description of what this test validates"
+        },
+        "test_type": {
+          "type": "string",
+          "description": "Test type"
+        },
+        "test_task_configs": {
+          "type": "array",
+          "description": "Regional task configuration",
+          "items": {
+            "type": "object",
+            "required": [
+              "region",
+              "task_count",
+              "concurrency"
+            ],
+            "properties": {
+              "region": {
+                "type": "string",
+                "description": "AWS region (e.g., 'us-east-1')"
+              },
+              "task_count": {
+                "type": "integer",
+                "description": "Number of Fargate tasks to launch in this region."
+              },
+              "concurrency": {
+                "type": "integer",
+                "description": "Standard mode: number of concurrent virtual users per task. Ignored in Native mode."
+              }
+            }
+          }
+        },
+        "test_scenario": {
+          "type": "object",
+          "description": "Test execution scenario. Same structure as create_test.",
+          "required": [
+            "execution",
+            "scenarios"
+          ]
+        },
+        "schedule_date": {
+          "type": "string",
+          "description": "Date for the scheduled run. Format: YYYY-MM-DD. Must be in the future."
+        },
+        "schedule_time": {
+          "type": "string",
+          "description": "Time for the scheduled run. Format: HH:MM (24-hour). Must be in the future when combined with schedule_date."
+        },
+        "schedule_timezone": {
+          "type": "string",
+          "description": "IANA timezone for schedule interpretation (e.g., 'America/New_York', 'UTC'). Default: 'UTC'."
+        },
+        "show_live": {
+          "type": "boolean",
+          "description": "Enable live monitoring. Default: false."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "healthy_threshold": {
+          "type": "integer"
+        },
+        "native_run_mode": {
+          "type": "object",
+          "description": "Traffic shape. Omit this object for Standard mode; include it to select Native mode. Only script-based tests (jmeter, k6, locust) support Native; Simple HTTP Endpoint tests always use Standard.\n\nStandard. Standard mode puts DLT in control of the load. You set the Fargate task count per Region, the concurrent virtual users per task, a ramp-up period, and a hold duration, and DLT runs the test through the Taurus automation framework, which applies those values over whatever load your script declares. A Region's virtual users are the task count multiplied by the per-task concurrency. Standard is the only mode that lets you set an exact virtual-user count and change the ramp-up and hold shape without editing the script, and the only one that supports the Simple HTTP Endpoint type. Its limit is expressiveness: anything Taurus cannot represent, such as weighted scenarios, per-stage thresholds, or arrival-rate executors, is unavailable. This is how every DLT test ran before v4.3.0, so existing scenarios keep behaving exactly as they did.\n\nNative. Native mode puts your script in control of the load. DLT runs the file you uploaded under the framework's own command line and passes no load flags, so your script is the sole authority on the traffic it generates. Two controls remain: how many Fargate tasks to launch per Region, and a required safety duration of up to 24 hours. The safety duration guards against a script that never exits rather than scheduling the run: if the test is still going when it elapses, DLT stops the framework, keeps the results for the portion that ran, and records the run as completed. Tasks are uncoordinated and each runs a full copy of the script, so a k6 script holding 200 virtual users on five tasks puts 1,000 virtual users on the target. Task count is therefore the only load dial; changing the ramp, the hold time, or the virtual-user count means editing the script. Native requires an uploaded script, so Simple HTTP Endpoint is unavailable, and Locust scripts must not set processes.",
+          "required": [
+            "maxTestDurationSeconds"
+          ],
+          "properties": {
+            "maxTestDurationSeconds": {
+              "type": "integer",
+              "description": "Native mode safety timeout in seconds, required whenever native_run_mode is present. It guards against a script that never exits rather than scheduling the run: if the test is still running when the timeout elapses, DLT stops the framework, collects the results for the portion that ran, and records the run as completed rather than failed. Must be between 1 and 86400 (24 hours)."
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "create_cron_schedule",
+    "description": "Create a recurring scheduled test that runs automatically on a cron schedule. Can create a new scheduled test from scratch (omit test_id) or add a schedule to an existing unscheduled test (pass the existing test_id). Requires all standard test configuration fields plus cron_value and recurrence. The schedule is managed via EventBridge Scheduler. For new simple HTTP tests, omit test_id and the system will generate one. For script-based tests, you must call upload_test_script first and pass the returned test_id. For existing tests, pass the test_id and the full test configuration (retrieve with get_scenario_details first).",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "test_name",
+        "test_description",
+        "test_type",
+        "test_task_configs",
+        "test_scenario",
+        "cron_value",
+        "recurrence"
+      ],
+      "properties": {
+        "test_id": {
+          "type": "string",
+          "description": "The test scenario's unique identifier. Omit for new simple HTTP tests (system will generate one). Required for script-based tests (use the test_id returned by upload_test_script). Pass an existing test_id to add a schedule to an existing unscheduled test."
+        },
+        "test_name": {
+          "type": "string",
+          "description": "Human-readable name for the test scenario"
+        },
+        "test_description": {
+          "type": "string",
+          "description": "Description of what this test validates"
+        },
+        "test_type": {
+          "type": "string",
+          "description": "Test type"
+        },
+        "test_task_configs": {
+          "type": "array",
+          "description": "Regional task configuration",
+          "items": {
+            "type": "object",
+            "required": [
+              "region",
+              "task_count",
+              "concurrency"
+            ],
+            "properties": {
+              "region": {
+                "type": "string",
+                "description": "AWS region (e.g., 'us-east-1')"
+              },
+              "task_count": {
+                "type": "integer",
+                "description": "Number of Fargate tasks to launch in this region."
+              },
+              "concurrency": {
+                "type": "integer",
+                "description": "Standard mode: number of concurrent virtual users per task. Ignored in Native mode."
+              }
+            }
+          }
+        },
+        "test_scenario": {
+          "type": "object",
+          "description": "Test execution scenario. Same structure as create_test.",
+          "required": [
+            "execution",
+            "scenarios"
+          ]
+        },
+        "cron_value": {
+          "type": "string",
+          "description": "Cron expression for the recurring schedule. Standard 5-field cron format. Must specify exactly one minute value (e.g., '0 9 * * *' for daily at 9am — not '*/30 * * * *'). Minimum interval between executions is 1 hour, and must be long enough for the test to complete before the next run starts."
+        },
+        "recurrence": {
+          "type": "string",
+          "description": "Human-readable recurrence label (e.g., 'daily', 'weekly'). Used for display purposes."
+        },
+        "cron_expiry_date": {
+          "type": "string",
+          "description": "Date when the recurring schedule expires and stops executing. Format: YYYY-MM-DD. Must be after the next scheduled run date. Optional — if omitted, the schedule runs indefinitely."
+        },
+        "schedule_timezone": {
+          "type": "string",
+          "description": "IANA timezone for schedule interpretation (e.g., 'America/New_York', 'UTC'). Default: 'UTC'."
+        },
+        "show_live": {
+          "type": "boolean",
+          "description": "Enable live monitoring. Default: false."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "healthy_threshold": {
+          "type": "integer"
+        },
+        "native_run_mode": {
+          "type": "object",
+          "description": "Traffic shape. Omit this object for Standard mode; include it to select Native mode. Only script-based tests (jmeter, k6, locust) support Native; Simple HTTP Endpoint tests always use Standard.\n\nStandard. Standard mode puts DLT in control of the load. You set the Fargate task count per Region, the concurrent virtual users per task, a ramp-up period, and a hold duration, and DLT runs the test through the Taurus automation framework, which applies those values over whatever load your script declares. A Region's virtual users are the task count multiplied by the per-task concurrency. Standard is the only mode that lets you set an exact virtual-user count and change the ramp-up and hold shape without editing the script, and the only one that supports the Simple HTTP Endpoint type. Its limit is expressiveness: anything Taurus cannot represent, such as weighted scenarios, per-stage thresholds, or arrival-rate executors, is unavailable. This is how every DLT test ran before v4.3.0, so existing scenarios keep behaving exactly as they did.\n\nNative. Native mode puts your script in control of the load. DLT runs the file you uploaded under the framework's own command line and passes no load flags, so your script is the sole authority on the traffic it generates. Two controls remain: how many Fargate tasks to launch per Region, and a required safety duration of up to 24 hours. The safety duration guards against a script that never exits rather than scheduling the run: if the test is still going when it elapses, DLT stops the framework, keeps the results for the portion that ran, and records the run as completed. Tasks are uncoordinated and each runs a full copy of the script, so a k6 script holding 200 virtual users on five tasks puts 1,000 virtual users on the target. Task count is therefore the only load dial; changing the ramp, the hold time, or the virtual-user count means editing the script. Native requires an uploaded script, so Simple HTTP Endpoint is unavailable, and Locust scripts must not set processes.",
+          "required": [
+            "maxTestDurationSeconds"
+          ],
+          "properties": {
+            "maxTestDurationSeconds": {
+              "type": "integer",
+              "description": "Native mode safety timeout in seconds, required whenever native_run_mode is present. It guards against a script that never exits rather than scheduling the run: if the test is still running when the timeout elapses, DLT stops the framework, collects the results for the portion that ran, and records the run as completed rather than failed. Must be between 1 and 86400 (24 hours)."
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "update_simple_schedule",
+    "description": "Update the configuration for an existing one-time scheduled test. This is a full replace of the test configuration including schedule fields — retrieve the current configuration with get_scenario_details first, modify the fields, and submit the complete configuration. The test must already be in 'scheduled' status.",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "test_id",
+        "test_name",
+        "test_description",
+        "test_type",
+        "test_task_configs",
+        "test_scenario",
+        "schedule_date",
+        "schedule_time"
+      ],
+      "properties": {
+        "test_id": {
+          "type": "string",
+          "description": "The existing test scenario's unique identifier"
+        },
+        "test_name": {
+          "type": "string",
+          "description": "Human-readable name for the test scenario"
+        },
+        "test_description": {
+          "type": "string",
+          "description": "Description of what this test validates"
+        },
+        "test_type": {
+          "type": "string",
+          "description": "Test type"
+        },
+        "test_task_configs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "region",
+              "task_count",
+              "concurrency"
+            ],
+            "properties": {
+              "region": {
+                "type": "string"
+              },
+              "task_count": {
+                "type": "integer"
+              },
+              "concurrency": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "test_scenario": {
+          "type": "object",
+          "required": [
+            "execution",
+            "scenarios"
+          ]
+        },
+        "schedule_date": {
+          "type": "string",
+          "description": "Date for the scheduled run. Format: YYYY-MM-DD. Must be in the future."
+        },
+        "schedule_time": {
+          "type": "string",
+          "description": "Time for the scheduled run. Format: HH:MM (24-hour). Must be in the future when combined with schedule_date."
+        },
+        "schedule_timezone": {
+          "type": "string",
+          "description": "IANA timezone for schedule interpretation (e.g., 'America/New_York', 'UTC'). Default: 'UTC'."
+        },
+        "show_live": {
+          "type": "boolean"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "healthy_threshold": {
+          "type": "integer"
+        },
+        "native_run_mode": {
+          "type": "object",
+          "description": "Traffic shape. Omit this object for Standard mode; include it to select Native mode. Only script-based tests (jmeter, k6, locust) support Native; Simple HTTP Endpoint tests always use Standard.\n\nStandard. Standard mode puts DLT in control of the load. You set the Fargate task count per Region, the concurrent virtual users per task, a ramp-up period, and a hold duration, and DLT runs the test through the Taurus automation framework, which applies those values over whatever load your script declares. A Region's virtual users are the task count multiplied by the per-task concurrency. Standard is the only mode that lets you set an exact virtual-user count and change the ramp-up and hold shape without editing the script, and the only one that supports the Simple HTTP Endpoint type. Its limit is expressiveness: anything Taurus cannot represent, such as weighted scenarios, per-stage thresholds, or arrival-rate executors, is unavailable. This is how every DLT test ran before v4.3.0, so existing scenarios keep behaving exactly as they did.\n\nNative. Native mode puts your script in control of the load. DLT runs the file you uploaded under the framework's own command line and passes no load flags, so your script is the sole authority on the traffic it generates. Two controls remain: how many Fargate tasks to launch per Region, and a required safety duration of up to 24 hours. The safety duration guards against a script that never exits rather than scheduling the run: if the test is still going when it elapses, DLT stops the framework, keeps the results for the portion that ran, and records the run as completed. Tasks are uncoordinated and each runs a full copy of the script, so a k6 script holding 200 virtual users on five tasks puts 1,000 virtual users on the target. Task count is therefore the only load dial; changing the ramp, the hold time, or the virtual-user count means editing the script. Native requires an uploaded script, so Simple HTTP Endpoint is unavailable, and Locust scripts must not set processes.",
+          "required": [
+            "maxTestDurationSeconds"
+          ],
+          "properties": {
+            "maxTestDurationSeconds": {
+              "type": "integer",
+              "description": "Native mode safety timeout in seconds, required whenever native_run_mode is present. It guards against a script that never exits rather than scheduling the run: if the test is still running when the timeout elapses, DLT stops the framework, collects the results for the portion that ran, and records the run as completed rather than failed. Must be between 1 and 86400 (24 hours)."
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "update_cron_schedule",
+    "description": "Update the configuration for an existing recurring scheduled test. This is a full replace of the test configuration including schedule fields — retrieve the current configuration with get_scenario_details first, modify the fields, and submit the complete configuration. The test must already be in 'scheduled' status.",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "test_id",
+        "test_name",
+        "test_description",
+        "test_type",
+        "test_task_configs",
+        "test_scenario",
+        "cron_value",
+        "recurrence"
+      ],
+      "properties": {
+        "test_id": {
+          "type": "string",
+          "description": "The existing test scenario's unique identifier"
+        },
+        "test_name": {
+          "type": "string",
+          "description": "Human-readable name for the test scenario"
+        },
+        "test_description": {
+          "type": "string",
+          "description": "Description of what this test validates"
+        },
+        "test_type": {
+          "type": "string",
+          "description": "Test type"
+        },
+        "test_task_configs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "region",
+              "task_count",
+              "concurrency"
+            ],
+            "properties": {
+              "region": {
+                "type": "string"
+              },
+              "task_count": {
+                "type": "integer"
+              },
+              "concurrency": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "test_scenario": {
+          "type": "object",
+          "required": [
+            "execution",
+            "scenarios"
+          ]
+        },
+        "cron_value": {
+          "type": "string",
+          "description": "Cron expression for the recurring schedule. Standard 5-field cron format."
+        },
+        "recurrence": {
+          "type": "string",
+          "description": "Human-readable recurrence label (e.g., 'daily', 'weekly')."
+        },
+        "cron_expiry_date": {
+          "type": "string",
+          "description": "Date when the recurring schedule expires. Format: YYYY-MM-DD. Optional — if omitted, the schedule runs indefinitely."
+        },
+        "schedule_timezone": {
+          "type": "string",
+          "description": "IANA timezone. Default: 'UTC'."
+        },
+        "show_live": {
+          "type": "boolean"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "healthy_threshold": {
+          "type": "integer"
+        },
+        "native_run_mode": {
+          "type": "object",
+          "description": "Traffic shape. Omit this object for Standard mode; include it to select Native mode. Only script-based tests (jmeter, k6, locust) support Native; Simple HTTP Endpoint tests always use Standard.\n\nStandard. Standard mode puts DLT in control of the load. You set the Fargate task count per Region, the concurrent virtual users per task, a ramp-up period, and a hold duration, and DLT runs the test through the Taurus automation framework, which applies those values over whatever load your script declares. A Region's virtual users are the task count multiplied by the per-task concurrency. Standard is the only mode that lets you set an exact virtual-user count and change the ramp-up and hold shape without editing the script, and the only one that supports the Simple HTTP Endpoint type. Its limit is expressiveness: anything Taurus cannot represent, such as weighted scenarios, per-stage thresholds, or arrival-rate executors, is unavailable. This is how every DLT test ran before v4.3.0, so existing scenarios keep behaving exactly as they did.\n\nNative. Native mode puts your script in control of the load. DLT runs the file you uploaded under the framework's own command line and passes no load flags, so your script is the sole authority on the traffic it generates. Two controls remain: how many Fargate tasks to launch per Region, and a required safety duration of up to 24 hours. The safety duration guards against a script that never exits rather than scheduling the run: if the test is still going when it elapses, DLT stops the framework, keeps the results for the portion that ran, and records the run as completed. Tasks are uncoordinated and each runs a full copy of the script, so a k6 script holding 200 virtual users on five tasks puts 1,000 virtual users on the target. Task count is therefore the only load dial; changing the ramp, the hold time, or the virtual-user count means editing the script. Native requires an uploaded script, so Simple HTTP Endpoint is unavailable, and Locust scripts must not set processes.",
+          "required": [
+            "maxTestDurationSeconds"
+          ],
+          "properties": {
+            "maxTestDurationSeconds": {
+              "type": "integer",
+              "description": "Native mode safety timeout in seconds, required whenever native_run_mode is present. It guards against a script that never exits rather than scheduling the run: if the test is still running when the timeout elapses, DLT stops the framework, collects the results for the portion that ran, and records the run as completed rather than failed. Must be between 1 and 86400 (24 hours)."
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "upload_test_script",
+    "description": "Upload a test script file required for script-based tests (JMeter, k6, or Locust). Must be called BEFORE create_test, create_simple_schedule, or create_cron_schedule when creating a new script-based test — this tool generates the test_id that you then pass to the subsequent tool. For updating an existing test's script, pass the existing test_id. Returns a test_id and script_filename. The script_filename must be referenced in the test_scenario.scenarios object when calling create_test, update_test, or any schedule tool. For files under 25KB, include base64-encoded content directly in file_content. For larger files (or if you're unsure of size), omit file_content to receive a presigned upload URL instead. When a presigned URL is returned, upload the file yourself if you have shell access (e.g. via the returned curl command), otherwise surface the upload_command to the user so they can run it manually.",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "test_type",
+        "file_extension"
+      ],
+      "properties": {
+        "test_id": {
+          "type": "string",
+          "description": "The test scenario's unique identifier. Omit for new tests (system will generate one and return it). Provide for existing tests to upload a new script to the correct location."
+        },
+        "test_type": {
+          "type": "string",
+          "description": "The test type this script is for. Determines the S3 storage path."
+        },
+        "file_extension": {
+          "type": "string",
+          "description": "File extension of the script. Use 'jmx' for JMeter, 'js' or 'ts' for k6, 'py' for Locust, or 'zip' for any type packaged as a zip archive."
+        },
+        "file_content": {
+          "type": "string",
+          "description": "Base64 encoded content of the script file. Include for small files (under 25KB). Omit for larger files to receive a presigned upload URL instead."
+        }
+      }
+    }
+  },
+  {
+    "name": "get_workflow_guides",
+    "description": "Get step-by-step workflow recipes for common multi-tool DLT operations. Call this before performing multi-step tasks. For complex requests that span multiple operations, consult multiple workflows and chain them — the test_id returned from one operation can be used in subsequent operations. Note: script-based tests (jmeter, k6, locust) require calling upload_test_script before creating the test — the workflows below include this step. Available workflows: 'run_and_monitor' (start an existing test and poll until complete), 'baseline_comparison' (run a test and compare results against baseline), 'schedule_test' (create a test with a one-time or recurring schedule), 'create_and_run' (create a new test and immediately execute it), 'create_native_and_run' (create a Native traffic-shape test that runs an uploaded script exactly as authored, then execute it), 'update_and_run' (modify an existing test and execute it).",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "workflow"
+      ],
+      "properties": {
+        "workflow": {
+          "type": "string",
+          "description": "The workflow to retrieve guidance for"
+        }
+      }
+    }
+  }
+]

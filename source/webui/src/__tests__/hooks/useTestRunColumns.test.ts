@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, it, expect, vi } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { useTestRunColumns } from "../../pages/scenarios/hooks/useTestRunColumns";
 import type { TestRun } from "../../pages/scenarios/types";
+import { TestStatus } from "@amzn/dlt-common/validation";
 
 const mockTestRun: TestRun = {
   testRunId: "run-001",
   startTime: "2025-01-15 10:30:00",
   endTime: "2025-01-15 11:00:00",
-  status: "complete",
+  status: TestStatus.COMPLETE,
   requests: 5000,
   success: 4900,
   errors: 100,
@@ -33,7 +34,7 @@ const mockTestRun: TestRun = {
 const mockBaselineRun: TestRun = {
   testRunId: "run-baseline",
   startTime: "2025-01-10 10:00:00",
-  status: "complete",
+  status: TestStatus.COMPLETE,
   requests: 4800,
   success: 4700,
   errors: 100,
@@ -129,6 +130,71 @@ describe("useTestRunColumns", () => {
       const statusCol = result.current.allColumns.find((c) => c.id === "status")!;
       const noStatusRun = { ...mockTestRun, status: undefined };
       expect(statusCol.cell(noStatusRun)).toBe("-");
+    });
+
+    it.each([
+      TestStatus.COMPLETE,
+      TestStatus.FAILED,
+      TestStatus.CANCELLED,
+    ])("links test run IDs for terminal status %s", (status) => {
+      const { result } = renderHook(() => useTestRunColumns(testId, null, onTestRunClick));
+      const idColumn = result.current.allColumns.find((column) => column.id === "testRunId")!;
+      const run = { ...mockTestRun, status };
+
+      render(idColumn.cell(run));
+      fireEvent.click(screen.getByRole("link", { name: run.testRunId }));
+
+      expect(onTestRunClick).toHaveBeenCalledWith(run.testRunId);
+    });
+
+    it("updates links and click handlers when the scenario changes", () => {
+      const firstClick = vi.fn();
+      const secondClick = vi.fn();
+      const { result, rerender } = renderHook(
+        ({ currentTestId, onClick }) => useTestRunColumns(currentTestId, null, onClick),
+        {
+          initialProps: { currentTestId: "first-test", onClick: firstClick },
+        }
+      );
+      const getIdCell = () =>
+        result.current.allColumns.find((column) => column.id === "testRunId")!.cell(mockTestRun);
+      const view = render(getIdCell());
+
+      expect(screen.getByRole("link", { name: mockTestRun.testRunId })).toHaveAttribute(
+        "href",
+        `/scenarios/first-test/testruns/${mockTestRun.testRunId}`
+      );
+
+      rerender({ currentTestId: "second-test", onClick: secondClick });
+      view.rerender(getIdCell());
+      fireEvent.click(screen.getByRole("link", { name: mockTestRun.testRunId }));
+
+      expect(secondClick).toHaveBeenCalledWith(mockTestRun.testRunId);
+      expect(firstClick).not.toHaveBeenCalled();
+      expect(screen.getByRole("link", { name: mockTestRun.testRunId })).toHaveAttribute(
+        "href",
+        `/scenarios/second-test/testruns/${mockTestRun.testRunId}`
+      );
+    });
+
+    it.each([
+      TestStatus.QUEUED,
+      TestStatus.PROVISIONING,
+      TestStatus.RUNNING,
+      TestStatus.CANCELLING,
+      TestStatus.CLEANING_UP,
+      TestStatus.PARSING_RESULTS,
+      "future status" as TestStatus,
+      undefined,
+    ])("renders test run IDs as text for non-terminal status %s", (status) => {
+      const { result } = renderHook(() => useTestRunColumns(testId, null, onTestRunClick));
+      const idColumn = result.current.allColumns.find((column) => column.id === "testRunId")!;
+      const run = { ...mockTestRun, status };
+
+      render(idColumn.cell(run));
+
+      expect(screen.getByText(run.testRunId)).toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: run.testRunId })).not.toBeInTheDocument();
     });
 
     it("formats metric values correctly via csvValue", () => {

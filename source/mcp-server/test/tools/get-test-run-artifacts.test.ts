@@ -182,38 +182,6 @@ describe("handleGetTestRunArtifacts", () => {
       }
     });
 
-    it("should throw AppError for invalid test_id length", async () => {
-      const event: AgentCoreEvent = {
-        test_id: "short",
-        test_run_id: "run-123456",
-      };
-
-      await expect(handleGetTestRunArtifacts(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
-
-      try {
-        await handleGetTestRunArtifacts(mockHttpClient, apiEndpoint, event);
-      } catch (error) {
-        expect((error as AppError).code).toBe(400);
-        expect((error as AppError).message).toContain("10 character");
-      }
-    });
-
-    it("should throw AppError for invalid test_run_id length", async () => {
-      const event: AgentCoreEvent = {
-        test_id: "test-12345",
-        test_run_id: "short",
-      };
-
-      await expect(handleGetTestRunArtifacts(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
-
-      try {
-        await handleGetTestRunArtifacts(mockHttpClient, apiEndpoint, event);
-      } catch (error) {
-        expect((error as AppError).code).toBe(400);
-        expect((error as AppError).message).toContain("10 character");
-      }
-    });
-
     it("should throw AppError for test_id with invalid characters", async () => {
       const event: AgentCoreEvent = {
         test_id: "test_12345",
@@ -226,7 +194,7 @@ describe("handleGetTestRunArtifacts", () => {
         await handleGetTestRunArtifacts(mockHttpClient, apiEndpoint, event);
       } catch (error) {
         expect((error as AppError).code).toBe(400);
-        expect((error as AppError).message).toContain("Invalid test_id");
+        expect((error as AppError).message).toContain("testId must contain only alphanumeric characters and hyphens");
       }
     });
 
@@ -242,7 +210,7 @@ describe("handleGetTestRunArtifacts", () => {
         await handleGetTestRunArtifacts(mockHttpClient, apiEndpoint, event);
       } catch (error) {
         expect((error as AppError).code).toBe(400);
-        expect((error as AppError).message).toContain("Invalid test_run_id");
+        expect((error as AppError).message).toContain("testRunId must contain only alphanumeric characters and hyphens");
       }
     });
   });

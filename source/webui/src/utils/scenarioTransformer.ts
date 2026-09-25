@@ -1,9 +1,21 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { VALIDATION_LIMITS } from "../pages/scenarios/constants";
+import type { TestScenarioValidation } from "@amzn/dlt-common/validation";
+import { TestMode, VALIDATION_LIMITS } from "../pages/scenarios/constants";
+import { createEmptyNativeModeInput } from "../pages/scenarios/hooks/useFormData";
+import type { DurationUnit } from "../pages/scenarios/types";
+import { fromSeconds, parseStoredDuration } from "../pages/scenarios/utils/duration";
 import { generateUniqueId } from "./generateUniqueId";
-import { parseTimeUnit } from "./scenarioUtils";
+
+type StoredExecution = TestScenarioValidation["execution"][number];
+
+type StandardModeFields = {
+  rampUpValue: string;
+  rampUpUnit: DurationUnit;
+  holdForValue: string;
+  holdForUnit: DurationUnit;
+};
 
 const getBodyPayload = (body: any): string => {
   if (!body) return "";
@@ -16,14 +28,7 @@ const getBodyPayload = (body: any): string => {
   return JSON.stringify(body, null, 2);
 };
 
-export const transformScenarioToFormData = (scenario: any, preserveId = false) => {
-  const testScenario = scenario.testScenario || {};
-  const execution = testScenario.execution?.[0] || {};
-  const scenarios = testScenario.scenarios || {};
-  const scenarioKey = Object.keys(scenarios)[0];
-  const scenarioConfig = scenarios[scenarioKey] || {};
-  const request = scenarioConfig.requests?.[0] || {};
-  
+const getScheduleFields = (scenario: any) => {
   let executionTiming = "run-now";
   let scheduleTime = "";
   let scheduleDate = "";
@@ -34,16 +39,12 @@ export const transformScenarioToFormData = (scenario: any, preserveId = false) =
   let cronDayOfWeek = "";
   let cronExpiryDate = "";
   let scheduleTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  
-  if (scenario.cronValue && typeof scenario.cronValue === 'string') {
+
+  if (scenario.cronValue && typeof scenario.cronValue === "string") {
     executionTiming = "run-schedule";
     const cronParts = scenario.cronValue.split(" ");
     if (cronParts.length >= 5) {
-      cronMinutes = cronParts[0];
-      cronHours = cronParts[1];
-      cronDayOfMonth = cronParts[2];
-      cronMonth = cronParts[3];
-      cronDayOfWeek = cronParts[4];
+      [cronMinutes, cronHours, cronDayOfMonth, cronMonth, cronDayOfWeek] = cronParts;
     }
     cronExpiryDate = scenario.cronExpiryDate || "";
     scheduleTimezone = scenario.scheduleTimezone || "UTC";
@@ -53,21 +54,9 @@ export const transformScenarioToFormData = (scenario: any, preserveId = false) =
     scheduleTime = scenario.scheduleTime;
     scheduleTimezone = scenario.scheduleTimezone || "UTC";
   }
-  
+
   return {
-    testName: preserveId ? scenario.testName || "" : `${scenario.testName || ""} (Copy)`,
-    testDescription: scenario.testDescription || "",
-    testId: preserveId ? scenario.testId : generateUniqueId(VALIDATION_LIMITS.TEST_ID_LENGTH),
-    testType: scenario.testType,
     executionTiming,
-    showLive: scenario.showLive,
-    scriptFile: preserveId && scenarioConfig.script ? [new File([], scenarioConfig.script)] : [],
-    fileError: "",
-    tags: scenario.tags ? scenario.tags.map((tag: string) => ({ label: tag, dismissLabel: `Remove ${tag} tag` })) : [],
-    httpEndpoint: request.url || "",
-    httpMethod: { label: request.method || "GET", value: request.method || "GET" },
-    requestHeaders: request.headers && typeof request.headers === "object" && Object.keys(request.headers).length > 0 ? JSON.stringify(request.headers, null, 2) : "",
-    bodyPayload: getBodyPayload(request.body),
     scheduleTime,
     scheduleDate,
     cronMinutes,
@@ -77,19 +66,101 @@ export const transformScenarioToFormData = (scenario: any, preserveId = false) =
     cronDayOfWeek,
     cronExpiryDate,
     scheduleTimezone,
-    regions:
-      scenario.testTaskConfigs?.map((config: any) => ({
-        region: config.region,
-        taskCount: config.taskCount?.toString() || "1",
-        concurrency: config.concurrency?.toString() || "1",
-      })) || [],
-    rampUpValue: parseTimeUnit(execution["ramp-up"] || "1m").value,
-    rampUpUnit: parseTimeUnit(execution["ramp-up"] || "1m").unit,
-    holdForValue: parseTimeUnit(execution["hold-for"] || "5m").value,
-    holdForUnit: parseTimeUnit(execution["hold-for"] || "5m").unit,
-    healthyThreshold:
-      scenario.healthyThreshold !== undefined && scenario.healthyThreshold !== null
-        ? String(scenario.healthyThreshold)
-        : "90",
+  };
+};
+
+const getNativeModeFields = (nativeRunMode: any) => {
+  const nativeMode = createEmptyNativeModeInput();
+  // Hydrate the saved safety duration; a native scenario missing it falls back to
+  // the default (4 hours). fromSeconds preserves whole hours (7200s → 2h).
+  const maxDuration =
+    Number(nativeRunMode?.maxTestDurationSeconds) > 0
+      ? fromSeconds(Number(nativeRunMode.maxTestDurationSeconds))
+      : nativeMode.maxDuration;
+
+  return { nativeMode: { maxDuration } };
+};
+
+const getStandardModeFields = (execution: StoredExecution | undefined, isNativeMode: boolean): StandardModeFields => {
+  if (isNativeMode) {
+    return {
+      rampUpValue: "",
+      rampUpUnit: "minutes",
+      holdForValue: "",
+      holdForUnit: "minutes",
+    };
+  }
+
+  const rampUp = parseStoredDuration(execution?.["ramp-up"]);
+  const holdFor = parseStoredDuration(execution?.["hold-for"]);
+
+  return {
+    rampUpValue: rampUp?.value ?? "",
+    rampUpUnit: rampUp?.unit ?? "minutes",
+    holdForValue: holdFor?.value ?? "",
+    holdForUnit: holdFor?.unit ?? "minutes",
+  };
+};
+
+const getRequestHeaders = (headers: any): string =>
+  headers && typeof headers === "object" && Object.keys(headers).length > 0 ? JSON.stringify(headers, null, 2) : "";
+
+const getRegions = (testTaskConfigs: any[] | undefined, isNativeMode: boolean) =>
+  testTaskConfigs?.map((config: any) => ({
+    region: config.region,
+    taskCount: config.taskCount?.toString() || "1",
+    concurrency: isNativeMode ? "" : config.concurrency?.toString() || "1",
+  })) || [];
+
+const getScenarioContents = (scenario: any) => {
+  const testScenario = scenario.testScenario || {};
+  const execution = testScenario.execution?.[0];
+  const scenarios = testScenario.scenarios || {};
+  const scenarioKey = Object.keys(scenarios)[0];
+  const scenarioConfig = scenarios[scenarioKey] || {};
+  const request = scenarioConfig.requests?.[0] || {};
+  return { execution, scenarioConfig, request };
+};
+
+const getScenarioMetadata = (scenario: any, scenarioConfig: any, preserveId: boolean) => ({
+  testName: preserveId ? scenario.testName || "" : `${scenario.testName || ""} (Copy)`,
+  testDescription: scenario.testDescription || "",
+  testId: preserveId ? scenario.testId : generateUniqueId(VALIDATION_LIMITS.TEST_ID_LENGTH),
+  testType: scenario.testType,
+  showLive: scenario.showLive,
+  scriptFile: preserveId && scenarioConfig.script ? [new File([], scenarioConfig.script)] : [],
+  fileError: "",
+  tags: scenario.tags
+    ? scenario.tags.map((tag: string) => ({ label: tag, dismissLabel: `Remove ${tag} keyword` }))
+    : [],
+  healthyThreshold:
+    scenario.healthyThreshold !== undefined && scenario.healthyThreshold !== null
+      ? String(scenario.healthyThreshold)
+      : "90",
+});
+
+const getRequestFields = (request: any) => {
+  const method = request.method || "GET";
+  return {
+    httpEndpoint: request.url || "",
+    httpMethod: { label: method, value: method },
+    requestHeaders: getRequestHeaders(request.headers),
+    bodyPayload: getBodyPayload(request.body),
+  };
+};
+
+export const transformScenarioToFormData = (scenario: any, preserveId = false) => {
+  const { execution, scenarioConfig, request } = getScenarioContents(scenario);
+  const nativeRunMode = scenario.nativeRunMode;
+  const isNativeMode = !!nativeRunMode;
+
+  return {
+    ...getScenarioMetadata(scenario, scenarioConfig, preserveId),
+    ...getRequestFields(request),
+    ...getScheduleFields(scenario),
+    regions: getRegions(scenario.testTaskConfigs, isNativeMode),
+    testMode: isNativeMode ? TestMode.NATIVE : TestMode.STANDARD,
+    ...getStandardModeFields(execution, isNativeMode),
+    ...getNativeModeFields(nativeRunMode),
   };
 };

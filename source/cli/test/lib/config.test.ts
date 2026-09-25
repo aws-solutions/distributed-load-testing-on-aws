@@ -109,5 +109,36 @@ describe("config", () => {
     it("throws when config does not exist", () => {
       expect(() => loadConfig()).toThrow("Configuration not found");
     });
+
+    it("creates the config file as 0600 and the directory as 0700", () => {
+      saveConfig({
+        apiEndpoint: "https://api.example.com",
+        userPoolId: "us-east-1_Abc",
+        userPoolClientId: "client",
+        identityPoolId: "us-east-1:pool",
+        userPoolDomain: "domain.auth.us-east-1.amazoncognito.com",
+        region: "us-east-1",
+      });
+      expect(vol.statSync("/home/testuser/.dlt/config.json").mode & 0o777).toBe(0o600);
+      expect(vol.statSync("/home/testuser/.dlt").mode & 0o777).toBe(0o700);
+    });
+
+    it("tightens a pre-existing 0644 config file to 0600 on save", () => {
+      vol.mkdirSync("/home/testuser/.dlt", { recursive: true, mode: 0o755 });
+      vol.writeFileSync("/home/testuser/.dlt/config.json", "{}", { mode: 0o644 });
+      expect(vol.statSync("/home/testuser/.dlt/config.json").mode & 0o777).toBe(0o644);
+
+      saveConfig({
+        apiEndpoint: "https://api.example.com",
+        userPoolId: "us-east-1_Abc",
+        userPoolClientId: "client",
+        identityPoolId: "us-east-1:pool",
+        userPoolDomain: "domain.auth.us-east-1.amazoncognito.com",
+        region: "us-east-1",
+      });
+
+      expect(vol.statSync("/home/testuser/.dlt/config.json").mode & 0o777).toBe(0o600);
+      expect(vol.statSync("/home/testuser/.dlt").mode & 0o777).toBe(0o700);
+    });
   });
 });

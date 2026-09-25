@@ -14,13 +14,24 @@ import {
   toolUsageUserAgent,
 } from "./lib/metrics";
 import {
+  handleCreateCronSchedule,
+  handleCreateSimpleSchedule,
+  handleCreateTest,
+  handleDeleteTest,
   handleGetBaselineTestRun,
   handleGetLatestTestRun,
   handleGetScenarioDetails,
   handleGetTestRun,
   handleGetTestRunArtifacts,
+  handleGetWorkflowGuides,
   handleListScenarios,
   handleListTestRuns,
+  handleStartRun,
+  handleStopRun,
+  handleUpdateCronSchedule,
+  handleUpdateSimpleSchedule,
+  handleUpdateTest,
+  handleUploadTestScript,
 } from "./tools";
 
 /**
@@ -72,6 +83,50 @@ export const handler = async (event: AgentCoreEvent, context: AgentCoreContext):
 
       case "get_test_run_artifacts":
         result = await handleGetTestRunArtifacts(httpClient, apiEndpoint, event);
+        break;
+
+      case "create_test":
+        result = await handleCreateTest(httpClient, apiEndpoint, event);
+        break;
+
+      case "update_test":
+        result = await handleUpdateTest(httpClient, apiEndpoint, event);
+        break;
+
+      case "delete_test":
+        result = await handleDeleteTest(httpClient, apiEndpoint, event);
+        break;
+
+      case "start_run":
+        result = await handleStartRun(httpClient, apiEndpoint, event);
+        break;
+
+      case "stop_run":
+        result = await handleStopRun(httpClient, apiEndpoint, event);
+        break;
+
+      case "create_simple_schedule":
+        result = await handleCreateSimpleSchedule(httpClient, apiEndpoint, event);
+        break;
+
+      case "create_cron_schedule":
+        result = await handleCreateCronSchedule(httpClient, apiEndpoint, event);
+        break;
+
+      case "update_simple_schedule":
+        result = await handleUpdateSimpleSchedule(httpClient, apiEndpoint, event);
+        break;
+
+      case "update_cron_schedule":
+        result = await handleUpdateCronSchedule(httpClient, apiEndpoint, event);
+        break;
+
+      case "upload_test_script":
+        result = await handleUploadTestScript(httpClient, apiEndpoint, event);
+        break;
+
+      case "get_workflow_guides":
+        result = await handleGetWorkflowGuides(httpClient, apiEndpoint, event);
         break;
 
       default:

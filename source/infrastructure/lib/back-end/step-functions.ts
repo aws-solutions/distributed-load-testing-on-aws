@@ -172,7 +172,24 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
       inputPath: "$",
       outputPath: "$.Payload",
     });
-    runTaskRunner.next(checkStabilization);
+
+    // The Task Runner returns a FAILED region result (rather than throwing) for
+    // expected setup failures, carrying a classified errorMessage. Route that
+    // straight to the map end so the failed region flows into Regional Sync's
+    // aggregation with its cause; a successful result continues to the
+    // stabilization loop. addCatch still handles genuine Lambda-level crashes.
+    // A successful Task Runner result (TaskRunnerResult) carries no `status`
+    // field; only the FAILED region result does. Guard the comparison with
+    // isPresent so an absent status (the success path) falls through to
+    // stabilization instead of raising a States.Runtime missing-path error.
+    const taskRunnerFailedChoice = new Choice(this, "Task Runner failed?");
+    taskRunnerFailedChoice.when(
+      Condition.and(Condition.isPresent("$.status"), Condition.stringEquals("$.status", "FAILED")),
+      phase1MapEnd
+    );
+    taskRunnerFailedChoice.otherwise(checkStabilization);
+
+    runTaskRunner.next(taskRunnerFailedChoice);
     runTaskRunner.addCatch(preparePhase1FailureCleanup, { resultPath: "$.error" });
 
     // Pre-test validation: is the test already running?
@@ -207,6 +224,8 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
         "prefix.$": "$.prefix",
         "testRunId.$": "$.testRunId",
         "hubTaskDefinition.$": "$.hubTaskDefinition",
+        "nativeTaskDefinitions.$": "$.nativeTaskDefinitions",
+        "nativeRunMode.$": "$.nativeRunMode",
       },
       maxConcurrency: 0,
     });
@@ -252,18 +271,33 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
 
     // Set errorReason on the top-level state before entering the cancel map.
     // The cancel map uses resultPath: DISCARD, so top-level state survives.
-    const setErrorReasonCancelled = new Pass(this, "Set Error Reason: stabilization failed", {
+    //
+    // Two failure paths, two reasons:
+    //  - Choice "otherwise" (the Lambda returned allReady=false): propagate the
+    //    specific, per-region reason the Regional Sync Lambda composed. InputPath
+    //    selects the string and ResultPath merges it into the raw input as
+    //    $.errorReason (so $.stabilizationResults survives for the cancel map).
+    //  - addCatch (the Lambda threw): no syncResult payload exists, so fall back
+    //    to a generic constant. The Lambda's own catch already wrote a specific
+    //    reason to DDB, which the terminal write's guard preserves.
+    const setErrorReasonSyncFailed = new Pass(this, "Set Error Reason: stabilization failed", {
+      inputPath: "$.syncResult.Payload.errorReason",
+      resultPath: "$.errorReason",
+    });
+    setErrorReasonSyncFailed.next(cancelAllMap);
+
+    const setErrorReasonSyncError = new Pass(this, "Set Error Reason: regional sync error", {
       result: { value: "Regional sync failed — at least one region did not stabilize" },
       resultPath: "$.errorReason",
     });
-    setErrorReasonCancelled.next(cancelAllMap);
+    setErrorReasonSyncError.next(cancelAllMap);
 
     const syncChoice = new Choice(this, "All regions ready?");
     syncChoice.when(Condition.booleanEquals("$.syncResult.Payload.allReady", true), setStatusRunning);
-    syncChoice.otherwise(setErrorReasonCancelled);
+    syncChoice.otherwise(setErrorReasonSyncFailed);
 
     regionalSync.next(syncChoice);
-    regionalSync.addCatch(setErrorReasonCancelled, { resultPath: "$.error" });
+    regionalSync.addCatch(setErrorReasonSyncError, { resultPath: "$.error" });
 
     return { regionalSync };
   }
@@ -358,7 +392,23 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
     });
     setFinalSuccessStatus.next(phase2MapEnd);
 
+    const setFinalFailureStatus = new Pass(this, "Set Final Status: failed", {
+      parameters: {
+        finalStatus: "failed",
+      },
+    });
+    setFinalFailureStatus.next(phase2MapEnd);
+
     const completionChoice = new Choice(this, "Is test complete?");
+    completionChoice.when(
+      // When test completes after max duration, we had to manually kill the test to produce results.
+      // Something went wrong, but we will still parse and present results.
+      Condition.and(
+        Condition.booleanEquals("$.isComplete", true),
+        Condition.booleanEquals("$.maxDurationReached", true)
+      ),
+      setFinalFailureStatus
+    );
     completionChoice.when(Condition.booleanEquals("$.isComplete", true), setFinalSuccessStatus);
     completionChoice.when(Condition.booleanEquals("$.timedOut", true), preparePhase2FailureCleanup);
     completionChoice.otherwise(waitCompletionPoll);
@@ -423,8 +473,21 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
       },
       resultPath: "$.executionResult",
     });
+
+    // Preserve a reason for final failed cleanup while still parsing any available results.
+    const setExecutionErrorReason = new Pass(this, "Set Error Reason: execution failed", {
+      result: { value: "Test execution failed" },
+      resultPath: "$.errorReason",
+    });
+    setExecutionErrorReason.next(nextState);
+
+    // Only failed executions need an error reason; success and fail both continue to result parsing.
+    const executionResultChoice = new Choice(this, "Execution failed?");
+    executionResultChoice.when(Condition.booleanEquals("$.executionResult.hasFailures", true), setExecutionErrorReason);
+    executionResultChoice.otherwise(nextState);
+
     executionMap.next(checkForFailures);
-    checkForFailures.next(nextState);
+    checkForFailures.next(executionResultChoice);
 
     return { executionMap };
   }
@@ -470,11 +533,19 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
         "prefix.$": "$.prefix",
         "testRunId.$": "$.testRunId",
         "executionStart.$": "$$.Execution.StartTime",
+        "nativeRunMode.$": "$.nativeRunMode",
+        "executionFailed.$": "$.executionResult.hasFailures",
       }),
       resultPath: "$.parseResult",
     });
     parseResult.next(setScenarioStatusCleaningUp);
-    parseResult.addCatch(setScenarioStatusCleaningUp, { resultPath: "$.error" });
+
+    const setResultsParsingErrorReason = new Pass(this, "Set Error Reason: results parsing failed", {
+      result: { value: "Results parsing failed" },
+      resultPath: "$.errorReason",
+    });
+    setResultsParsingErrorReason.next(setScenarioStatusCleaningUp);
+    parseResult.addCatch(setResultsParsingErrorReason, { resultPath: "$.error" });
 
     // Set Status: parsing results
     const setScenarioStatusParsingResults = new LambdaInvoke(this, "Set Status: parsing results", {
@@ -495,7 +566,7 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
   // ─── Phase 3: Cleanup Maps ───────────────────────────────
   // Per-region test-cleanup invocations. Two variants:
   //   - cleanupMap: finalStatus "complete" (happy path)
-  //   - errorCleanupMap: finalStatus "failed" (Parse Results error)
+  //   - errorCleanupMap: finalStatus "failed" (execution or parser error)
 
   private buildCleanupPhase(
     props: TaskRunnerStepFunctionConstructProps,
@@ -528,14 +599,14 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
     cleanupMap.itemProcessor(prepareCompleteCleanup);
     cleanupMap.next(finalOutcomeComplete);
 
-    // Error cleanup (when Parse Results fails)
+    // Error cleanup (when execution or result parsing fails)
     const prepareErrorCleanup = new Pass(this, "Prepare Error Cleanup", {
       parameters: {
         "testId.$": "$.testId",
         "testRunId.$": "$.testRunId",
         "testTaskConfig.$": "$.testTaskConfig",
         finalStatus: "failed",
-        errorReason: "Results parsing failed",
+        "errorReason.$": "$.errorReason",
         skipStatusUpdate: true,
       },
     });
@@ -647,6 +718,7 @@ export class TaskRunnerStepFunctionConstruct extends Construct {
         data: {
           Type: "TestStart",
           "TestId.$": "$.testId",
+          "RunMode.$": "$.runMode",
           "TestType.$": "$.testType",
           "FileType.$": "$.fileType",
           "TestDuration.$": "$.testDuration",

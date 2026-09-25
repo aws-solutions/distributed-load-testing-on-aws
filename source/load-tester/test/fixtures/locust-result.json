@@ -1,0 +1,212 @@
+{
+  "schema": "dlt.result.v1",
+  "testId": "test-123",
+  "taskId": "abc123",
+  "region": "us-east-1",
+  "startTime": "2026-05-14T10:01:00.000Z",
+  "endTime": "2026-05-14T10:02:00.000Z",
+  "testDurationSeconds": 60,
+  "task": {
+    "vcpus": 2,
+    "memoryMiB": 4096,
+    "ecsDurationSeconds": 120
+  },
+  "summary": {
+    "label": "",
+    "successCount": 2,
+    "failureCount": 1,
+    "totalRequestCount": 3,
+    "concurrency": 10,
+    "totalBytesReceived": 2560,
+    "averageResponseTimeMilliseconds": 116.66666666666666,
+    "averageLatencyMilliseconds": 0,
+    "averageConnectTimeMilliseconds": 0,
+    "responseTimeStdDevMilliseconds": 62.360956446232365,
+    "minResponseTimeMilliseconds": 50,
+    "p50": 100.003,
+    "p90": 199.38,
+    "p95": 199.38,
+    "p99": 199.38,
+    "p99_9": 199.38,
+    "maxResponseTimeMilliseconds": 200,
+    "responseCodes": [
+      {
+        "code": "200",
+        "count": 2
+      },
+      {
+        "code": "500",
+        "count": 1
+      }
+    ]
+  },
+  "labels": [
+    {
+      "label": "/api",
+      "successCount": 2,
+      "failureCount": 0,
+      "totalRequestCount": 2,
+      "concurrency": 10,
+      "totalBytesReceived": 2048,
+      "averageResponseTimeMilliseconds": 150,
+      "averageLatencyMilliseconds": 0,
+      "averageConnectTimeMilliseconds": 0,
+      "responseTimeStdDevMilliseconds": 50,
+      "minResponseTimeMilliseconds": 100,
+      "p50": 100.003,
+      "p90": 199.38,
+      "p95": 199.38,
+      "p99": 199.38,
+      "p99_9": 199.38,
+      "maxResponseTimeMilliseconds": 200,
+      "responseCodes": [
+        {
+          "code": "200",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "label": "/other",
+      "successCount": 0,
+      "failureCount": 1,
+      "totalRequestCount": 1,
+      "concurrency": 10,
+      "totalBytesReceived": 512,
+      "averageResponseTimeMilliseconds": 50,
+      "averageLatencyMilliseconds": 0,
+      "averageConnectTimeMilliseconds": 0,
+      "responseTimeStdDevMilliseconds": 0,
+      "minResponseTimeMilliseconds": 50,
+      "p50": 50,
+      "p90": 50,
+      "p95": 50,
+      "p99": 50,
+      "p99_9": 50,
+      "maxResponseTimeMilliseconds": 50,
+      "responseCodes": [
+        {
+          "code": "500",
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "statistics": {
+    "histogramLayout": "dlt.latency-us.rel-0p5pct.0-24h.v1",
+    "summary": {
+      "requests": {
+        "total": 3,
+        "success": 2,
+        "failure": 1
+      },
+      "bytesReceived": 2560,
+      "latency": {
+        "count": 3,
+        "meanUs": 116666.66666666666,
+        "m2UsSquared": 11666666666.666668,
+        "minUs": 50000,
+        "maxUs": 200000,
+        "histogram": {
+          "zeroCount": 0,
+          "bins": [
+            [747, 1],
+            [816, 1],
+            [885, 1]
+          ]
+        }
+      },
+      "waitingTime": {
+        "count": 3,
+        "meanUs": 0
+      },
+      "connectTime": {
+        "count": 3,
+        "meanUs": 0
+      },
+      "responseCodes": [
+        {
+          "code": "200",
+          "count": 2
+        },
+        {
+          "code": "500",
+          "count": 1
+        }
+      ]
+    },
+    "labels": [
+      {
+        "label": "/api",
+        "requests": {
+          "total": 2,
+          "success": 2,
+          "failure": 0
+        },
+        "bytesReceived": 2048,
+        "latency": {
+          "count": 2,
+          "meanUs": 150000,
+          "m2UsSquared": 5000000000,
+          "minUs": 100000,
+          "maxUs": 200000,
+          "histogram": {
+            "zeroCount": 0,
+            "bins": [
+              [816, 1],
+              [885, 1]
+            ]
+          }
+        },
+        "waitingTime": {
+          "count": 2,
+          "meanUs": 0
+        },
+        "connectTime": {
+          "count": 2,
+          "meanUs": 0
+        },
+        "responseCodes": [
+          {
+            "code": "200",
+            "count": 2
+          }
+        ]
+      },
+      {
+        "label": "/other",
+        "requests": {
+          "total": 1,
+          "success": 0,
+          "failure": 1
+        },
+        "bytesReceived": 512,
+        "latency": {
+          "count": 1,
+          "meanUs": 50000,
+          "m2UsSquared": 0,
+          "minUs": 50000,
+          "maxUs": 50000,
+          "histogram": {
+            "zeroCount": 0,
+            "bins": [[747, 1]]
+          }
+        },
+        "waitingTime": {
+          "count": 1,
+          "meanUs": 0
+        },
+        "connectTime": {
+          "count": 1,
+          "meanUs": 0
+        },
+        "responseCodes": [
+          {
+            "code": "500",
+            "count": 1
+          }
+        ]
+      }
+    ]
+  }
+}

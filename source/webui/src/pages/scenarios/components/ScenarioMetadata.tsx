@@ -1,16 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import {
-  Button,
-  ColumnLayout,
-  Container,
-  KeyValuePairs,
-  SpaceBetween,
-  Table
-} from "@cloudscape-design/components";
+import { Box, ColumnLayout, Container, CopyToClipboard, Header, SpaceBetween } from "@cloudscape-design/components";
 import { formatToLocalTime } from "../../../utils/dateUtils";
 import { TestRunDetails } from "../types/testResults";
+import { LoadConfigurationTable } from "./LoadConfigurationTable";
 
 interface ScenarioMetadataProps {
   testRun: TestRunDetails;
@@ -19,182 +13,72 @@ interface ScenarioMetadataProps {
 }
 
 export function ScenarioMetadata({ testRun, testId, testRunId }: ScenarioMetadataProps) {
-  // Helper function to format timestamps to local time
-  const formatTimestamp = (timestamp: string) => {
-    return formatToLocalTime(timestamp, {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
+  const formatTimestamp = (timestamp: string) =>
+    formatToLocalTime(timestamp, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
       hour12: true,
-      timeZoneName: 'short'
+      timeZoneName: "short",
     });
-  };
 
-  // Helper function to get execution details
-  const getExecutionDetails = () => {
-    if (!testRun?.testScenario?.execution?.[0]) return { rampUp: '', holdFor: '' };
-    
-    const execution = testRun.testScenario.execution[0];
-    return {
-      rampUp: execution['ramp-up'] || '',
-      holdFor: execution['hold-for'] || ''
-    };
-  };
-
-  const executionDetails = getExecutionDetails();
-
-  // Prepare regional configuration table data
-  const regionalConfigItems = testRun.testTaskConfigs?.map(config => ({
-    region: config.region,
-    taskCount: config.taskCount,
-    concurrency: config.concurrency
-  })) || [];
+  const execution = testRun?.testScenario?.execution?.[0];
+  const rampUp = execution?.["ramp-up"] || "-";
+  const holdFor = execution?.["hold-for"] || "-";
+  const configs = testRun.testTaskConfigs ?? [];
 
   return (
-    <Container>
-      <SpaceBetween size="l">
-        {/* Group 1: Scenario ID + Test Run ID */}
-        <ColumnLayout columns={2} variant="text-grid">
-          <KeyValuePairs
-            columns={1}
-            items={[
-              {
-                label: "Test Scenario ID",
-                value: (
-                  <SpaceBetween size="xxs" direction="horizontal">
-                    <span>{testId}</span>
-                    <Button
-                      variant="inline-icon"
-                      iconName="copy"
-                      ariaLabel="Copy test scenario ID"
-                      onClick={() => navigator.clipboard.writeText(testId || '')}
-                    />
-                  </SpaceBetween>
-                )
-              }
-            ]}
-          />
-          <KeyValuePairs
-            columns={1}
-            items={[
-              {
-                label: "Test Run ID",
-                value: (
-                  <SpaceBetween size="xxs" direction="horizontal">
-                    <span>{testRunId}</span>
-                    <Button
-                      variant="inline-icon"
-                      iconName="copy"
-                      ariaLabel="Copy test run ID"
-                      onClick={() => navigator.clipboard.writeText(testRunId || '')}
-                    />
-                  </SpaceBetween>
-                )
-              }
-            ]}
-          />
+    <SpaceBetween size="l">
+      {/* Run Overview */}
+      <Container header={<Header variant="h2" description={testRun.testDescription || undefined}>Run Overview</Header>}>
+        <ColumnLayout columns={4}>
+          <div>
+            <Box variant="awsui-key-label">Scenario ID</Box>
+            <SpaceBetween direction="horizontal" size="xxs">
+              <Box>{testId}</Box>
+              <CopyToClipboard
+                copyButtonAriaLabel="Copy Scenario ID"
+                copyErrorText="Scenario ID failed to copy"
+                copySuccessText="Scenario ID copied"
+                textToCopy={testId}
+                variant="icon"
+              />
+            </SpaceBetween>
+          </div>
+          <div>
+            <Box variant="awsui-key-label">Test Run ID</Box>
+            <SpaceBetween direction="horizontal" size="xxs">
+              <Box>{testRunId}</Box>
+              <CopyToClipboard
+                copyButtonAriaLabel="Copy Test Run ID"
+                copyErrorText="Test Run ID failed to copy"
+                copySuccessText="Test Run ID copied"
+                textToCopy={testRunId}
+                variant="icon"
+              />
+            </SpaceBetween>
+          </div>
+          <div>
+            <Box variant="awsui-key-label">Started</Box>
+            <Box>{testRun.startTime ? formatTimestamp(testRun.startTime) : "-"}</Box>
+          </div>
+          <div>
+            <Box variant="awsui-key-label">Ended</Box>
+            <Box>{testRun.endTime ? formatTimestamp(testRun.endTime) : "-"}</Box>
+          </div>
         </ColumnLayout>
+      </Container>
 
-        {/* Group 2: Name + Description */}
-        <ColumnLayout columns={2} variant="text-grid">
-          <KeyValuePairs
-            columns={1}
-            items={[
-              {
-                label: "Name",
-                value: testRun.testScenario?.execution?.[0]?.scenario || '-'
-              }
-            ]}
-          />
-          <KeyValuePairs
-            columns={1}
-            items={[
-              {
-                label: "Description",
-                value: testRun.testDescription || '-'
-              }
-            ]}
-          />
-        </ColumnLayout>
-
-        {/* Group 3: Start Time + End Time */}
-        <ColumnLayout columns={2} variant="text-grid">
-          <KeyValuePairs
-            columns={1}
-            items={[
-              {
-                label: "Started At",
-                value: formatTimestamp(testRun.startTime)
-              }
-            ]}
-          />
-          <KeyValuePairs
-            columns={1}
-            items={[
-              {
-                label: "Ended At",
-                value: formatTimestamp(testRun.endTime)
-              }
-            ]}
-          />
-        </ColumnLayout>
-
-        {/* Group 4: Ramp Up + Hold For */}
-        <ColumnLayout columns={2} variant="text-grid">
-          <KeyValuePairs
-            columns={1}
-            items={[
-              {
-                label: "Ramp Up",
-                value: executionDetails.rampUp || '-'
-              }
-            ]}
-          />
-          <KeyValuePairs
-            columns={1}
-            items={[
-              {
-                label: "Hold For",
-                value: executionDetails.holdFor || '-'
-              }
-            ]}
-          />
-        </ColumnLayout>
-
-        {/* Group 5: Table with Task Count + Concurrency (per region) */}
-        <div>
-          <Table
-            columnDefinitions={[
-              {
-                id: "region",
-                header: "Region",
-                cell: item => item.region
-              },
-              {
-                id: "taskCount",
-                header: "Task Count",
-                cell: item => item.taskCount
-              },
-              {
-                id: "concurrency",
-                header: "Concurrency",
-                cell: item => item.concurrency
-              }
-            ]}
-            items={regionalConfigItems}
-            variant="embedded"
-            empty={
-              <div style={{ textAlign: 'center', padding: '20px' }}>
-                No regional configuration available
-              </div>
-            }
-          />
-        </div>
-      </SpaceBetween>
-    </Container>
+      {/* Load Configuration */}
+      <LoadConfigurationTable
+        configs={configs}
+        nativeRunMode={testRun.nativeRunMode}
+        rampUp={rampUp}
+        holdFor={holdFor}
+        emptyText="No regional configuration available"
+      />
+    </SpaceBetween>
   );
 }

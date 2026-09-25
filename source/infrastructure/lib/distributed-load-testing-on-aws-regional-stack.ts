@@ -8,48 +8,26 @@ import {
   CfnCondition,
   CfnMapping,
   CfnOutput,
-  CfnParameter,
   CfnResource,
   CfnRule,
   Fn,
-  IAspect,
   Stack,
   StackProps,
 } from "aws-cdk-lib";
 import { Table } from "aws-cdk-lib/aws-dynamodb";
 import { Effect, Policy, PolicyStatement, Role } from "aws-cdk-lib/aws-iam";
 import { Bucket } from "aws-cdk-lib/aws-s3";
-import { Construct, IConstruct } from "constructs";
+import { Construct } from "constructs";
 import { SolutionsMetrics } from "../../metrics-utils";
 import { Solution } from "../bin/solution";
 import { CidrBlockCfnParameters } from "./common-resources/common-cfn-parameters";
+import { defineParam, PARAMETERS } from "./common-resources/cfn-parameter-factory";
+import { ConditionAspect } from "./common-resources/condition-aspect";
 import { CommonResources } from "./common-resources/common-resources";
 import { CustomResourcesConstruct } from "./common-resources/custom-resources";
 import { ECSResourcesConstruct } from "./testing-resources/ecs";
 import { RealTimeDataConstruct } from "./testing-resources/real-time-data";
 import { FargateVpcConstruct } from "./testing-resources/vpc";
-
-/**
- * CDK Aspect implementation to set up conditions to the entire Construct resources
- */
-class ConditionAspect implements IAspect {
-  private readonly condition: CfnCondition;
-
-  constructor(condition: CfnCondition) {
-    this.condition = condition;
-  }
-
-  /**
-   * Implement IAspect.visit to set the condition to whole resources in Construct.
-   * @param {IConstruct} node Construct node to visit
-   */
-  visit(node: IConstruct): void {
-    const resource = node as CfnResource;
-    if (resource.cfnOptions) {
-      resource.cfnOptions.condition = this.condition;
-    }
-  }
-}
 
 /**
  * RegionalInfrastructureDLTStack props
@@ -72,40 +50,16 @@ export class RegionalInfrastructureDLTStack extends Stack {
 
     this.templateOptions.description = props.solution.description;
 
-    // Existing VPC ID
-    const existingVpcId = new CfnParameter(this, "ExistingVPCId", {
-      type: "String",
-      allowedPattern: "(^$|^vpc-[a-zA-Z0-9-]+)",
-      default: "",
-    });
-
-    const existingSubnetA = new CfnParameter(this, "ExistingSubnetA", {
-      type: "String",
-      allowedPattern: "(^$|^subnet-[a-zA-Z0-9-]+)",
-      default: "",
-    });
-
-    const existingSubnetB = new CfnParameter(this, "ExistingSubnetB", {
-      type: "String",
-      allowedPattern: "(^$|^subnet-[a-zA-Z0-9-]+)",
-      default: "",
-    });
+    // Network parameters, derived from the shared parameter spec so the regional
+    // stack cannot diverge from the main stack. The VPC/subnet CIDR block logical
+    // IDs are overridden inside CidrBlockCfnParameters.
+    const existingVpcId = defineParam(this, PARAMETERS.ExistingVPCId);
+    const existingSubnetA = defineParam(this, PARAMETERS.ExistingSubnetA);
+    const existingSubnetB = defineParam(this, PARAMETERS.ExistingSubnetB);
 
     const vpcCidrBlockCfnParameters = new CidrBlockCfnParameters(this, "DLTRegional");
 
-    vpcCidrBlockCfnParameters.vpcCidrBlock.overrideLogicalId("VpcCidrBlock");
-    vpcCidrBlockCfnParameters.subnetACidrBlock.overrideLogicalId("SubnetACidrBlock");
-    vpcCidrBlockCfnParameters.subnetBCidrBlock.overrideLogicalId("SubnetBCidrBlock");
-
-    // Egress CIDR Block
-    const egressCidrBlock = new CfnParameter(this, "EgressCidr", {
-      type: "String",
-      default: "0.0.0.0/0",
-      minLength: 9,
-      maxLength: 18,
-      allowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
-      constraintDescription: "The Egress CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
-    });
+    const egressCidrBlock = defineParam(this, PARAMETERS.EgressCidr);
 
     // CFN Mappings
     const solutionMapping = new CfnMapping(this, "Solution", {

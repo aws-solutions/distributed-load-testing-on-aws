@@ -1,6 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Template } from "aws-cdk-lib/assertions";
 import { App, DefaultStackSynthesizer, Stack } from "aws-cdk-lib";
 import { Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
@@ -82,4 +84,18 @@ test("DLT real time data resources Test", () => {
       },
     ],
   });
+});
+
+test("subscription filter terms all appear in the native-mode live-data marker", () => {
+  // Native-mode containers emit JSON lines carrying LIVE_DATA_FILTER_MARKER
+  // as a field value so they match this plain-text filter without a filter
+  // change. infrastructure does not depend on @amzn/dlt-common, so read the
+  // constant as text.
+  const schemaSource = readFileSync(join(__dirname, "../../common/src/schemas/live-data.ts"), "utf8");
+  const sentinel = /LIVE_DATA_FILTER_MARKER = "([^"]+)"/.exec(schemaSource)?.[1];
+
+  expect(sentinel).toBeDefined();
+  for (const term of ["INFO: Current:", "live=true"]) {
+    expect(sentinel).toContain(term);
+  }
 });

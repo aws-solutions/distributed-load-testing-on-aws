@@ -1,0 +1,6 @@
+# Staged here by pre-build.sh, rebuilt on every build. Anchored with a leading
+# slash so each pattern matches only this directory — unanchored, "sidecar.py"
+# would also hide a real source file of that name in any subdirectory.
+/locust.js
+/locust.json
+/sidecar.py

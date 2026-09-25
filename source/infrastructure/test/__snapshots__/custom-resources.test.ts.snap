@@ -229,6 +229,9 @@ exports[`DLT API Test 1`] = `
         "TestingResourcesConfig": {
           "ecsCloudWatchLogGroup": "testCloudWatchLogGroup",
           "executionRoleArn": "arn:aws:iam::123456789:role/exec-role",
+          "nativeTaskDefinitions": {
+            "locust": "task:def:locust:arn:123",
+          },
           "region": {
             "Ref": "AWS::Region",
           },

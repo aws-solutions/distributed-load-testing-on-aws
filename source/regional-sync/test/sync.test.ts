@@ -21,6 +21,7 @@ function makeRegion(
     showLive: true,
     testDuration: 300,
     prefix: "2025-01-01T00-00-00_abc",
+    nativeRunMode: null,
     testTaskConfig: {
       region,
       taskCluster: `dlt-cluster-${region}`,
@@ -146,5 +147,85 @@ describe("validateRegions", () => {
     expect(result.regions).toHaveLength(2);
     expect(result.regions[0]?.testTaskConfig.region).toBe("us-east-1");
     expect(result.regions[1]?.testTaskConfig.region).toBe("eu-west-1");
+  });
+
+  it("should preserve nativeRunMode in each region", () => {
+    const nativeRunMode = {
+      maxTestDurationSeconds: 3600,
+    };
+    const regions = [
+      makeRegion("us-east-1", StabilizationStatus.READY, 1000, { nativeRunMode }),
+      makeRegion("eu-west-1", StabilizationStatus.READY, 2000, { nativeRunMode }),
+    ];
+
+    const result = validateRegions(regions);
+
+    expect(result.regions.map((region) => region.nativeRunMode)).toEqual([nativeRunMode, nativeRunMode]);
+  });
+
+  describe("errorReason", () => {
+    it("should be undefined when all regions are READY", () => {
+      const regions = [
+        makeRegion("us-east-1", StabilizationStatus.READY, 1000),
+        makeRegion("eu-west-1", StabilizationStatus.READY, 2000),
+      ];
+
+      const result = validateRegions(regions);
+
+      expect(result.errorReason).toBeUndefined();
+    });
+
+    it("should name the failed region and its errorMessage cause", () => {
+      const regions = [
+        makeRegion("us-east-1", StabilizationStatus.READY, 1000),
+        makeRegion("eu-west-1", StabilizationStatus.FAILED, 0, {
+          errorMessage: "Circuit breaker triggered",
+        }),
+      ];
+
+      const result = validateRegions(regions);
+
+      expect(result.errorReason).toBe("Load test setup failed in 1 region: eu-west-1 (Circuit breaker triggered).");
+    });
+
+    it("should fall back to a generic cause when a failed region has no errorMessage", () => {
+      const regions = [
+        makeRegion("us-east-1", StabilizationStatus.READY, 1000),
+        makeRegion("eu-west-1", StabilizationStatus.PENDING),
+      ];
+
+      const result = validateRegions(regions);
+
+      expect(result.errorReason).toBe("Load test setup failed in 1 region: eu-west-1 (did not stabilize in time).");
+    });
+
+    it("should list every failed region with a plural noun and per-region causes", () => {
+      const regions = [
+        makeRegion("us-east-1", StabilizationStatus.FAILED, 0, {
+          errorMessage: "Service is INACTIVE (deleted externally)",
+        }),
+        makeRegion("eu-west-1", StabilizationStatus.READY, 2000),
+        makeRegion("ap-southeast-2", StabilizationStatus.FAILED),
+      ];
+
+      const result = validateRegions(regions);
+
+      expect(result.errorReason).toBe(
+        "Load test setup failed in 2 regions: us-east-1 (Service is INACTIVE (deleted externally)); " +
+          "ap-southeast-2 (did not stabilize in time)."
+      );
+    });
+
+    it("should fall back to the generic cause when a failed region's errorMessage is blank", () => {
+      const regions = [
+        makeRegion("us-east-1", StabilizationStatus.READY, 1000),
+        makeRegion("eu-west-1", StabilizationStatus.FAILED, 0, { errorMessage: "   " }),
+      ];
+
+      const result = validateRegions(regions);
+
+      // A whitespace-only errorMessage must not produce "eu-west-1 ()".
+      expect(result.errorReason).toBe("Load test setup failed in 1 region: eu-west-1 (did not stabilize in time).");
+    });
   });
 });

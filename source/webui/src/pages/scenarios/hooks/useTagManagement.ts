@@ -1,7 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-// Custom hook for managing tag addition and removal logic
+// Custom hook for managing search keyword addition and removal logic.
+// The underlying scenario field is `tags`, which is what the API and CLI use;
+// the UI labels these as "keywords".
 
 import { useState } from "react";
 import { FormData } from "../types";
@@ -20,17 +22,17 @@ export const useTagManagement = (formData: FormData, updateFormData: (updates: P
     }
 
     if (tagExists) {
-      setTagError("This tag already exists.");
+      setTagError("This keyword already exists.");
       return;
     }
 
     if (formData.tags.length >= 5) {
-      setTagError("Maximum 5 tags allowed.");
+      setTagError("Maximum 5 keywords allowed.");
       return;
     }
 
     updateFormData({
-      tags: [...formData.tags, { label: trimmedTag, dismissLabel: `Remove ${trimmedTag} tag` }],
+      tags: [...formData.tags, { label: trimmedTag, dismissLabel: `Remove ${trimmedTag} keyword` }],
     });
     setNewTag("");
     setTagError("");

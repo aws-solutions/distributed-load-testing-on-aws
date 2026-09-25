@@ -4,7 +4,6 @@
 import { describe, it, expect, vi } from "vitest";
 import chalk from "chalk";
 import {
-  ACTIVE_STATUSES,
   isActive,
   curateRunRow,
   colorRunRow,
@@ -43,31 +42,24 @@ describe("run-formatters", () => {
     });
   });
 
-  describe("ACTIVE_STATUSES", () => {
-    it("contains running, pending, provisioning", () => {
-      expect(ACTIVE_STATUSES.has("running")).toBe(true);
-      expect(ACTIVE_STATUSES.has("pending")).toBe(true);
-      expect(ACTIVE_STATUSES.has("provisioning")).toBe(true);
-    });
-
-    it("does not contain completed or failed", () => {
-      expect(ACTIVE_STATUSES.has("completed")).toBe(false);
-      expect(ACTIVE_STATUSES.has("failed")).toBe(false);
-    });
-  });
-
   describe("isActive", () => {
-    it("returns true for active statuses (case-insensitive)", () => {
+    it("returns true for every in-flight status, case-insensitively", () => {
+      // Mirrors the shared ACTIVE_RUN_STATUSES set.
+      expect(isActive("queued")).toBe(true);
       expect(isActive("running")).toBe(true);
       expect(isActive("Running")).toBe(true);
-      expect(isActive("PENDING")).toBe(true);
       expect(isActive("Provisioning")).toBe(true);
+      expect(isActive("cancelling")).toBe(true);
+      expect(isActive("cleaning up")).toBe(true);
+      expect(isActive("PARSING RESULTS")).toBe(true);
     });
 
-    it("returns false for inactive statuses", () => {
-      expect(isActive("completed")).toBe(false);
+    it("returns false for terminal statuses", () => {
+      expect(isActive("complete")).toBe(false);
       expect(isActive("failed")).toBe(false);
       expect(isActive("cancelled")).toBe(false);
+      expect(isActive("scheduled")).toBe(false);
+      expect(isActive("created")).toBe(false);
     });
 
     it("returns false for undefined or empty string", () => {

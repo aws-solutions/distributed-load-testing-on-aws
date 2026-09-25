@@ -46,6 +46,7 @@ test("DLT API Test", () => {
     ecsCloudWatchLogGroup: "testCloudWatchLogGroup",
     taskSecurityGroup: "sg-test123",
     taskDefinition: "task:def:arn:123",
+    nativeTaskDefinitions: { locust: "task:def:locust:arn:123" },
     subnetA: "subnet-123",
     subnetB: "subnet-abc",
     version: "testVersion",
@@ -74,6 +75,11 @@ test("DLT API Test", () => {
   });
   Template.fromStack(stack).hasResourceProperties("AWS::CloudFormation::CustomResource", {
     Resource: "TestingResourcesConfigFile",
+    TestingResourcesConfig: {
+      nativeTaskDefinitions: {
+        locust: "task:def:locust:arn:123",
+      },
+    },
   });
   Template.fromStack(stack).hasResourceProperties("AWS::CloudFormation::CustomResource", {
     Resource: "Metric",

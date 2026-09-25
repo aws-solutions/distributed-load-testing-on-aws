@@ -3,9 +3,12 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Command } from "commander";
+import { MAX_TEST_RUNS_PER_DELETE_REQUEST } from "@amzn/dlt-common";
 
 const mockApiGet = vi.fn();
 const mockApiPost = vi.fn();
+const mockApiPut = vi.fn();
+const mockApiDelete = vi.fn();
 const mockApiConfig = {
   apiEndpoint: "https://api.example.com",
   userPoolId: "us-east-1_abc",
@@ -26,6 +29,8 @@ vi.mock("../../src/lib/api-client.js", () => ({
     create: vi.fn(async () => ({
       get: mockApiGet,
       post: mockApiPost,
+      put: mockApiPut,
+      delete: mockApiDelete,
       config: mockApiConfig,
       region: mockApiConfig.region,
       awsCredentialIdentity: mockApiAwsCredentialIdentity,
@@ -69,8 +74,13 @@ vi.mock("../../src/lib/run-formatters.js", () => ({
   })),
 }));
 
+// results-formatter is used real here: runs get/latest route through its
+// fetchLatestRun + renderRun, and renderRun calls the mocked printResult, so
+// the printResult assertions and the CSV rendering still work end to end.
+
 vi.mock("../../src/lib/color.js", () => ({
   colorStatus: vi.fn((s: string) => s),
+  colorErrors: vi.fn((v: unknown) => v),
 }));
 
 const mockGetArtifactInfo = vi.fn();
@@ -87,7 +97,25 @@ vi.mock("../../src/lib/prompt.js", () => ({
 
 import { registerRunsCommand } from "../../src/commands/runs.js";
 import { printResult } from "../../src/lib/output.js";
-import { extractBaselineMetrics, curateRunRowWithBaseline, enrichRunWithBaseline } from "../../src/lib/run-formatters.js";
+import {
+  extractBaselineMetrics,
+  curateRunRowWithBaseline,
+  enrichRunWithBaseline,
+} from "../../src/lib/run-formatters.js";
+
+/**
+ * Render the data from the most recent printResult(...) call using the REAL
+ * formatCsv implementation. printResult is mocked in this suite, so this lets
+ * the CSV tests assert on actual RFC-4180 output (header row + data) rather
+ * than just the format argument.
+ */
+async function renderLastCsv(): Promise<string> {
+  const actual = await vi.importActual<typeof import("../../src/lib/output.js")>("../../src/lib/output.js");
+  const lastCall = vi.mocked(printResult).mock.calls.at(-1);
+  const data = lastCall?.[0];
+  const rows = Array.isArray(data) ? data : [data];
+  return actual.formatCsv(rows as Record<string, unknown>[]);
+}
 
 describe("runs command", () => {
   beforeEach(() => {
@@ -172,6 +200,56 @@ describe("runs command", () => {
 
       expect(printResult).toHaveBeenCalled();
     });
+
+    it("rejects a non-numeric --limit before making any request", async () => {
+      const program = createProgram();
+      await expect(program.parseAsync(["node", "dlt", "runs", "list", "t1", "--limit", "abc"])).rejects.toThrow(
+        "--limit must be a positive integer"
+      );
+      expect(mockApiGet).not.toHaveBeenCalled();
+    });
+
+    it("rejects a zero --limit", async () => {
+      const program = createProgram();
+      await expect(program.parseAsync(["node", "dlt", "runs", "list", "t1", "--limit", "0"])).rejects.toThrow(
+        "--limit must be a positive integer"
+      );
+      expect(mockApiGet).not.toHaveBeenCalled();
+    });
+
+    it("lists test runs in CSV format with a header row", async () => {
+      mockApiGet.mockResolvedValue({
+        testRuns: [{ testRunId: "r1", status: "completed", startTime: "2024-01-01" }],
+        pagination: {},
+      });
+
+      const program = createProgram();
+      await program.parseAsync(["node", "dlt", "runs", "list", "t1", "--format", "csv"]);
+
+      // Routes to the csv branch (previously fell through to json)
+      expect(printResult).toHaveBeenCalledWith(expect.any(Array), { format: "csv" });
+
+      // The curated rows render as RFC-4180 CSV with a header row + data
+      const csv = await renderLastCsv();
+      const lines = csv.split("\n");
+      expect(lines[0]).toContain("testRunId");
+      expect(lines[0]).toContain("status");
+      expect(lines).toHaveLength(2);
+      expect(lines[1]).toContain("r1");
+    });
+
+    it("honors start timestamp filter", async () => {
+      mockApiGet.mockResolvedValue({
+        testRuns: [{ testRunId: "r1", status: "completed", startTime: "2024-01-01" }],
+        pagination: {},
+      });
+
+      const program = createProgram();
+      await program.parseAsync(["node", "dlt", "runs", "list", "t1", "--start-timestamp", "2024-01-01T00:00:00Z"]);
+
+      expect(mockApiGet).toHaveBeenCalledWith("/scenarios/t1/testruns?start_timestamp=2024-01-01T00%3A00%3A00Z&limit=100");
+      expect(printResult).toHaveBeenCalled();
+    });
   });
 
   describe("runs get", () => {
@@ -200,6 +278,26 @@ describe("runs command", () => {
 
       expect(printResult).toHaveBeenCalled();
     });
+
+    it("gets a specific test run in CSV format with a header row", async () => {
+      mockApiGet.mockResolvedValue({
+        testRunId: "r1",
+        status: "completed",
+        startTime: "2024-01-01",
+      });
+
+      const program = createProgram();
+      await program.parseAsync(["node", "dlt", "runs", "get", "t1", "r1", "--format", "csv"]);
+
+      expect(printResult).toHaveBeenCalledWith(expect.any(Object), { format: "csv" });
+
+      const csv = await renderLastCsv();
+      const lines = csv.split("\n");
+      expect(lines[0]).toContain("testRunId");
+      expect(lines[0]).toContain("status");
+      expect(lines).toHaveLength(2);
+      expect(lines[1]).toContain("r1");
+    });
   });
 
   describe("runs latest", () => {
@@ -214,18 +312,70 @@ describe("runs command", () => {
       expect(printResult).toHaveBeenCalled();
     });
 
-    it("exits when no test runs found", async () => {
+    it("throws a descriptive error (handled by withErrorHandler) when no test runs found", async () => {
       mockApiGet.mockResolvedValue({ testRuns: [] });
 
       const program = createProgram();
-      // The command calls process.exit(1) when no runs found
-      const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
+      // The handler now throws an Error (surfaced by withErrorHandler as
+      // "Error: ..." with a non-zero exit) instead of calling process.exit(1)
+      // directly, matching how every other handler reports failures.
+      const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
         throw new Error("exit");
-      });
+      }) as never);
 
-      await expect(program.parseAsync(["node", "dlt", "runs", "latest", "t1"])).rejects.toThrow("exit");
+      await expect(program.parseAsync(["node", "dlt", "runs", "latest", "t1"])).rejects.toThrow(
+        "No test runs found for this scenario."
+      );
+
+      // The handler must not exit the process directly; withErrorHandler owns
+      // formatting and setting the exit code.
+      expect(exitSpy).not.toHaveBeenCalled();
 
       exitSpy.mockRestore();
+    });
+
+    it("surfaces an 'Error: ...' message and exits non-zero via the real withErrorHandler", async () => {
+      // Verify the end-to-end behavior other commands rely on: the thrown
+      // Error is formatted with the "Error: " prefix and produces a non-zero
+      // exit code. Uses the REAL withErrorHandler (the suite mocks it to a
+      // pass-through for command registration tests above).
+      const { withErrorHandler } = await vi.importActual<typeof import("../../src/lib/error-handler.js")>(
+        "../../src/lib/error-handler.js"
+      );
+
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
+        throw new Error("exit");
+      }) as never);
+
+      const wrapped = withErrorHandler(async () => {
+        throw new Error("No test runs found for this scenario.");
+      });
+
+      await expect(wrapped()).rejects.toThrow("exit");
+      expect(errorSpy).toHaveBeenCalledWith("Error: No test runs found for this scenario.");
+      expect(exitSpy).toHaveBeenCalledWith(1);
+
+      exitSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+
+    it("gets the latest run in CSV format with a header row", async () => {
+      mockApiGet.mockResolvedValue({
+        testRuns: [{ testRunId: "r1", status: "completed", startTime: "2024-01-01" }],
+      });
+
+      const program = createProgram();
+      await program.parseAsync(["node", "dlt", "runs", "latest", "t1", "--format", "csv"]);
+
+      expect(printResult).toHaveBeenCalledWith(expect.any(Object), { format: "csv" });
+
+      const csv = await renderLastCsv();
+      const lines = csv.split("\n");
+      expect(lines[0]).toContain("testRunId");
+      expect(lines[0]).toContain("status");
+      expect(lines).toHaveLength(2);
+      expect(lines[1]).toContain("r1");
     });
   });
 
@@ -308,6 +458,41 @@ describe("runs command", () => {
       expect(printResult).toHaveBeenCalled();
     });
 
+    it("fetches baseline and uses curateRunRowWithBaseline for CSV format", async () => {
+      mockApiGet
+        .mockResolvedValueOnce({
+          testRuns: [{ testRunId: "r1", status: "completed", requests: 4792 }],
+          pagination: {},
+        })
+        .mockResolvedValueOnce({
+          testId: "t1",
+          baselineId: "base-1",
+          message: "ok",
+          testRunDetails: {
+            testRunId: "base-1",
+            results: { total: { throughput: 3811, succ: 3811, fail: 0, avg_rt: "0.250", testDuration: "90" } },
+          },
+        });
+
+      vi.mocked(extractBaselineMetrics).mockReturnValueOnce({
+        baselineRunId: "base-1",
+        requests: 3811,
+        success: 3811,
+        errors: 0,
+        avgResponseTime: 250,
+        requestsPerSecond: 42.34,
+        p50: 200,
+        p90: 400,
+        p99: 800,
+      });
+
+      const program = createProgram();
+      await program.parseAsync(["node", "dlt", "runs", "list", "t1", "--baseline", "--format", "csv"]);
+
+      expect(curateRunRowWithBaseline).toHaveBeenCalled();
+      expect(printResult).toHaveBeenCalledWith(expect.anything(), { format: "csv" });
+    });
+
     it("falls back gracefully when no baseline is set", async () => {
       mockApiGet
         .mockResolvedValueOnce({
@@ -362,12 +547,12 @@ describe("runs command", () => {
     });
   });
 
-  describe("runs baseline", () => {
+  describe("runs baseline get", () => {
     it("gets the baseline run", async () => {
       mockApiGet.mockResolvedValue({ testRunId: "r1", status: "completed" });
 
       const program = createProgram();
-      await program.parseAsync(["node", "dlt", "runs", "baseline", "t1"]);
+      await program.parseAsync(["node", "dlt", "runs", "baseline", "get", "t1"]);
 
       expect(mockApiGet).toHaveBeenCalledWith("/scenarios/t1/baseline");
       expect(printResult).toHaveBeenCalled();
@@ -511,9 +696,69 @@ describe("runs command", () => {
       mockDownloadRunArtifacts.mockRejectedValue(new Error("Scenarios bucket not configured"));
 
       const program = createProgram();
+      await expect(program.parseAsync(["node", "dlt", "runs", "download", "t1", "r1"])).rejects.toThrow(
+        "Scenarios bucket not configured"
+      );
+    });
+  });
+
+  describe("outbound request validation", () => {
+    it("baseline set: valid run id passes through to the API client", async () => {
+      mockApiPut.mockResolvedValue({});
+
+      const program = createProgram();
+      await program.parseAsync(["node", "dlt", "runs", "baseline", "set", "t1", "--run-id", "run-456"]);
+
+      expect(mockApiPut).toHaveBeenCalledWith("/scenarios/t1/baseline", { testRunId: "run-456" });
+    });
+
+    it("baseline set: invalid run id fails locally with a field-level error", async () => {
+      // A space is not allowed by the shared setBaselineSchema (testRunId regex),
+      // so validation must reject it before any request is sent.
+      const program = createProgram();
       await expect(
-        program.parseAsync(["node", "dlt", "runs", "download", "t1", "r1"])
-      ).rejects.toThrow("Scenarios bucket not configured");
+        program.parseAsync(["node", "dlt", "runs", "baseline", "set", "t1", "--run-id", "bad id"])
+      ).rejects.toThrow(/testRunId/);
+      expect(mockApiPut).not.toHaveBeenCalled();
+    });
+
+    it("delete: valid run ids pass through to the API client", async () => {
+      mockApiDelete.mockResolvedValue({});
+
+      const program = createProgram();
+      await program.parseAsync(["node", "dlt", "runs", "delete", "t1", "--run-id", "run-1", "--run-id", "run-2"]);
+
+      expect(mockApiDelete).toHaveBeenCalledWith("/scenarios/t1/testruns", ["run-1", "run-2"]);
+    });
+
+    it("delete: the maximum number of run ids pass through in one request", async () => {
+      mockApiDelete.mockResolvedValue({});
+      const runIds = Array.from({ length: MAX_TEST_RUNS_PER_DELETE_REQUEST }, (_, index) => `run-${index}`);
+      const args = runIds.flatMap((runId) => ["--run-id", runId]);
+
+      const program = createProgram();
+      await program.parseAsync(["node", "dlt", "runs", "delete", "t1", ...args]);
+
+      expect(mockApiDelete).toHaveBeenCalledWith("/scenarios/t1/testruns", runIds);
+    });
+
+    it("delete: more than the maximum number of run ids fails locally", async () => {
+      const runIds = Array.from({ length: MAX_TEST_RUNS_PER_DELETE_REQUEST + 1 }, (_, index) => `run-${index}`);
+      const args = runIds.flatMap((runId) => ["--run-id", runId]);
+
+      const program = createProgram();
+      await expect(program.parseAsync(["node", "dlt", "runs", "delete", "t1", ...args])).rejects.toThrow(
+        `A maximum of ${MAX_TEST_RUNS_PER_DELETE_REQUEST} testRunIds is allowed per request`
+      );
+      expect(mockApiDelete).not.toHaveBeenCalled();
+    });
+
+    it("delete: an invalid run id fails locally with a field-level error", async () => {
+      const program = createProgram();
+      await expect(program.parseAsync(["node", "dlt", "runs", "delete", "t1", "--run-id", "bad id"])).rejects.toThrow(
+        /alphanumeric|testRunId/
+      );
+      expect(mockApiDelete).not.toHaveBeenCalled();
     });
   });
 });

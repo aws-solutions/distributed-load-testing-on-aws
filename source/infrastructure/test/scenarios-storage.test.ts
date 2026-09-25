@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { App, DefaultStackSynthesizer, Stack } from "aws-cdk-lib";
+import { Match, Template } from "aws-cdk-lib/assertions";
 import { ScenarioTestRunnerStorageConstruct } from "../lib/back-end/scenarios-storage";
 import { Bucket } from "aws-cdk-lib/aws-s3";
 import { createTemplateWithoutS3Key } from "./snapshot_helpers";
@@ -28,4 +29,14 @@ test("DLT API Test", () => {
   expect(storage.historyTable).toBeDefined();
   expect(storage.scenarioDynamoDbPolicy).toBeDefined();
   expect(storage.historyDynamoDbPolicy).toBeDefined();
+  Template.fromStack(stack).hasResourceProperties("AWS::S3::Bucket", {
+    LifecycleConfiguration: {
+      Rules: Match.arrayWith([
+        Match.objectLike({
+          AbortIncompleteMultipartUpload: { DaysAfterInitiation: 1 },
+          Status: "Enabled",
+        }),
+      ]),
+    },
+  });
 });

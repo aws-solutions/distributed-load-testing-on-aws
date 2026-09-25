@@ -1,7 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { TestMode } from "../../pages/scenarios/constants";
 import { transformScenarioToFormData } from "../../utils/scenarioTransformer";
 
 vi.mock("../../utils/generateUniqueId", () => ({
@@ -56,8 +57,8 @@ describe("transformScenarioToFormData", () => {
   it("maps tags to label/dismissLabel format", () => {
     const result = transformScenarioToFormData(baseScenario);
     expect(result.tags).toEqual([
-      { label: "tag1", dismissLabel: "Remove tag1 tag" },
-      { label: "tag2", dismissLabel: "Remove tag2 tag" },
+      { label: "tag1", dismissLabel: "Remove tag1 keyword" },
+      { label: "tag2", dismissLabel: "Remove tag2 keyword" },
     ]);
   });
 
@@ -91,6 +92,68 @@ describe("transformScenarioToFormData", () => {
     expect(result.rampUpUnit).toBe("minutes");
     expect(result.holdForValue).toBe("10");
     expect(result.holdForUnit).toBe("minutes");
+  });
+
+  it("preserves hours when editing a scenario", () => {
+    const hourlyScenario = {
+      ...baseScenario,
+      testScenario: {
+        ...baseScenario.testScenario,
+        execution: [{ "ramp-up": "1h", "hold-for": "2h" }],
+      },
+    };
+    const result = transformScenarioToFormData(hourlyScenario, true);
+    expect(result.rampUpValue).toBe("1");
+    expect(result.rampUpUnit).toBe("hours");
+    expect(result.holdForValue).toBe("2");
+    expect(result.holdForUnit).toBe("hours");
+  });
+
+  it("treats legacy numeric durations as seconds", () => {
+    const result = transformScenarioToFormData({
+      ...baseScenario,
+      testScenario: {
+        ...baseScenario.testScenario,
+        execution: [{ "ramp-up": 0, "hold-for": 7200 }],
+      },
+    });
+    expect(result.rampUpValue).toBe("0");
+    expect(result.rampUpUnit).toBe("seconds");
+    expect(result.holdForValue).toBe("2");
+    expect(result.holdForUnit).toBe("hours");
+  });
+
+  it("leaves missing durations blank instead of inventing defaults", () => {
+    const result = transformScenarioToFormData({
+      ...baseScenario,
+      testScenario: { ...baseScenario.testScenario, execution: [{}] },
+    });
+    expect(result.rampUpValue).toBe("");
+    expect(result.holdForValue).toBe("");
+  });
+
+  it("leaves malformed durations blank", () => {
+    const result = transformScenarioToFormData({
+      ...baseScenario,
+      testScenario: {
+        ...baseScenario.testScenario,
+        execution: [{ "ramp-up": "1h 30m", "hold-for": "wat" }],
+      },
+    });
+    expect(result.rampUpValue).toBe("");
+    expect(result.holdForValue).toBe("");
+  });
+
+  it("leaves unsupported day durations blank", () => {
+    const result = transformScenarioToFormData({
+      ...baseScenario,
+      testScenario: {
+        ...baseScenario.testScenario,
+        execution: [{ "ramp-up": "1d", "hold-for": "2d" }],
+      },
+    });
+    expect(result.rampUpValue).toBe("");
+    expect(result.holdForValue).toBe("");
   });
 
   it("converts healthyThreshold to string", () => {
@@ -213,5 +276,79 @@ describe("transformScenarioToFormData", () => {
     };
     const result = transformScenarioToFormData(scenario);
     expect(result.httpMethod).toEqual({ label: "GET", value: "GET" });
+  });
+
+  it("reports Standard mode for a scenario without nativeRunMode", () => {
+    const result = transformScenarioToFormData(baseScenario);
+    expect(result.testMode).toBe(TestMode.STANDARD);
+    // Native safety duration is unused in Standard mode; it carries the default.
+    expect(result.nativeMode.maxDuration).toEqual({ value: "4", unit: "hours" });
+  });
+
+  describe("native scenarios", () => {
+    // Mirrors what the API persists: nativeRunMode object, placeholder concurrency.
+    const nativeScenario = {
+      ...baseScenario,
+      testType: "locust",
+      nativeRunMode: { maxTestDurationSeconds: 1800 },
+      testTaskConfigs: [{ region: "us-east-1", taskCount: 5, concurrency: 1 }],
+      testScenario: {
+        execution: [{ "ramp-up": "0s", "hold-for": "1s" }],
+        scenarios: { test: { script: "locustfile.py" } },
+      },
+    };
+
+    it("hydrates native mode from the presence of nativeRunMode", () => {
+      expect(transformScenarioToFormData(nativeScenario).testMode).toBe(TestMode.NATIVE);
+    });
+
+    it("converts maxTestDurationSeconds back to a value and unit", () => {
+      const result = transformScenarioToFormData(nativeScenario);
+      expect(result.nativeMode.maxDuration.value).toBe("30");
+      expect(result.nativeMode.maxDuration.unit).toBe("minutes");
+    });
+
+    it("uses hours for a duration that divides exactly", () => {
+      const result = transformScenarioToFormData({
+        ...nativeScenario,
+        nativeRunMode: { maxTestDurationSeconds: 7200 },
+      });
+      expect(result.nativeMode.maxDuration.value).toBe("2");
+      expect(result.nativeMode.maxDuration.unit).toBe("hours");
+    });
+
+    it("does not rehydrate the placeholder concurrency", () => {
+      expect(transformScenarioToFormData(nativeScenario).regions).toEqual([
+        { region: "us-east-1", taskCount: "5", concurrency: "" },
+      ]);
+    });
+
+    it("does not rehydrate legacy ramp-up / hold-for defaults", () => {
+      const result = transformScenarioToFormData(nativeScenario);
+      expect(result.rampUpValue).toBe("");
+      expect(result.holdForValue).toBe("");
+    });
+
+    // maxTestDurationSeconds is structurally required by nativeRunModeSchema, so
+    // this only happens for a malformed record. A native scenario missing it
+    // falls back to the default safety duration (4 hours).
+    it("falls back to the default safety duration when nativeRunMode carries none", () => {
+      const result = transformScenarioToFormData({ ...nativeScenario, nativeRunMode: {} });
+      expect(result.testMode).toBe(TestMode.NATIVE);
+      expect(result.nativeMode.maxDuration).toEqual({ value: "4", unit: "hours" });
+    });
+
+    it("hydrates the saved safety duration, preserving whole hours", () => {
+      const result = transformScenarioToFormData({ ...nativeScenario, nativeRunMode: { maxTestDurationSeconds: 7200 } });
+      expect(result.nativeMode.maxDuration).toEqual({ value: "2", unit: "hours" });
+    });
+
+    it("ignores stale flat native fields on a Standard scenario", () => {
+      const result = transformScenarioToFormData({
+        ...baseScenario,
+        maxTestDurationSeconds: 1800,
+      });
+      expect(result.testMode).toBe(TestMode.STANDARD);
+    });
   });
 });

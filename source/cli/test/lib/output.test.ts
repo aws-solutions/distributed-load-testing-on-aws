@@ -191,6 +191,7 @@ describe("formatOption", () => {
     const opt = formatOption();
     expect(opt.argChoices).toContain("json");
     expect(opt.argChoices).toContain("table");
+    expect(opt.argChoices).toContain("csv");
   });
 
   it("defaults to table", () => {

@@ -1,0 +1,29 @@
+{
+  "name": "@amzn/dlt-load-tester",
+  "version": "0.0.0",
+  "private": true,
+  "description": "DLT load test runner",
+  "type": "module",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@amzn/dlt-common": "*",
+    "@aws-sdk/client-s3": "^3.1002.0",
+    "@aws-sdk/lib-storage": "^3.1002.0",
+    "csv-parse": "^7.0.1",
+    "pino": "^10.3.1",
+    "yauzl": "^2.10.0"
+  },
+  "devDependencies": {
+    "@types/archiver": "^8.0.0",
+    "@types/yauzl": "^2.10.3",
+    "archiver": "^8.0.0"
+  }
+}

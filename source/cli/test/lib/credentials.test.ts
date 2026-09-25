@@ -109,6 +109,41 @@ describe("credentials", () => {
     expect(loaded.idToken).toBe("id-tok");
   });
 
+  describe("permission enforcement", () => {
+    const DLT_DIR = "/home/testuser/.dlt";
+    const CRED_FILE = "/home/testuser/.dlt/credentials.json";
+
+    it("creates the credentials file as 0600 and the directory as 0700", () => {
+      saveCredentials(makeCreds());
+      expect(vol.statSync(CRED_FILE).mode & 0o777).toBe(0o600);
+      expect(vol.statSync(DLT_DIR).mode & 0o777).toBe(0o700);
+    });
+
+    it("tightens a pre-existing 0644 credentials file to 0600 on save", () => {
+      // Simulate a restored/loosened file and directory
+      vol.mkdirSync(DLT_DIR, { recursive: true, mode: 0o755 });
+      vol.writeFileSync(CRED_FILE, JSON.stringify(makeCreds()), { mode: 0o644 });
+      expect(vol.statSync(CRED_FILE).mode & 0o777).toBe(0o644);
+      expect(vol.statSync(DLT_DIR).mode & 0o777).toBe(0o755);
+
+      saveCredentials(makeCreds({ authMode: "srp" }));
+
+      expect(vol.statSync(CRED_FILE).mode & 0o777).toBe(0o600);
+      expect(vol.statSync(DLT_DIR).mode & 0o777).toBe(0o700);
+    });
+
+    it("repairs a pre-existing 0644 credentials file to 0600 on load", () => {
+      vol.mkdirSync(DLT_DIR, { recursive: true, mode: 0o755 });
+      vol.writeFileSync(CRED_FILE, JSON.stringify(makeCreds()), { mode: 0o644 });
+
+      const loaded = loadCredentials();
+
+      expect(loaded.accessToken).toBe("access-tok");
+      expect(vol.statSync(CRED_FILE).mode & 0o777).toBe(0o600);
+      expect(vol.statSync(DLT_DIR).mode & 0o777).toBe(0o700);
+    });
+  });
+
   describe("isTokenExpired", () => {
     it("returns false for future expiry", () => {
       const creds = makeCreds({

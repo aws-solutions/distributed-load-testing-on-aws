@@ -61,9 +61,12 @@ import { extractTaskFailure } from "../src/event-parser.js";
 import { incrementFailureCount, isThresholdBreached } from "../src/failure-tracking.js";
 import { handler } from "../src/index.js";
 
+import { OperationalMetricEvent, sendOperationalMetric } from "@amzn/dlt-common";
+
 const mockExtract = vi.mocked(extractTaskFailure);
 const mockIncrement = vi.mocked(incrementFailureCount);
 const mockThreshold = vi.mocked(isThresholdBreached);
+const mockSendMetric = vi.mocked(sendOperationalMetric);
 
 function makeEvent(groupOverride?: string): ECSTaskStateChangeEvent {
   return {
@@ -121,6 +124,56 @@ describe("handler", () => {
     expect(mockIncrement).toHaveBeenCalledOnce();
     expect(mockThreshold).toHaveBeenCalledWith(3, 10, 90);
     expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it("emits TaskFailure metric with a sanitized StopReason and numeric ExitCode", async () => {
+    mockExtract.mockReturnValue({
+      testId: "abc123",
+      region: "us-east-1",
+      taskArn: "arn:task-1",
+      clusterArn: "arn:cluster-1",
+      stoppedReason: "CannotPullContainerError: 123456789012.dkr.ecr.us-east-1.amazonaws.com/my-repo:latest not found",
+      stopCode: "TaskFailedToStart",
+      exitCode: 1,
+    });
+    mockIncrement.mockResolvedValue(defaultIncrementResult);
+    mockThreshold.mockReturnValue(false);
+
+    await handler(makeEvent());
+
+    expect(mockSendMetric).toHaveBeenCalledOnce();
+    const payload = mockSendMetric.mock.calls[0]?.[1];
+    expect(payload).toMatchObject({
+      Type: OperationalMetricEvent.TaskFailure,
+      TestId: "abc123",
+      Region: "us-east-1",
+      StopCode: "TaskFailedToStart",
+      ExitCode: 1,
+    });
+    // StopReason keeps the diagnostic prefix but redacts the ECR URI / account id.
+    const stopReason = (payload as { StopReason: string }).StopReason;
+    expect(stopReason).toContain("CannotPullContainerError:");
+    expect(stopReason).toContain("<image>");
+    expect(stopReason).not.toContain("123456789012");
+    expect(stopReason).not.toContain("my-repo");
+  });
+
+  it("emits ExitCode null when no container ran", async () => {
+    mockExtract.mockReturnValue({
+      testId: "abc123",
+      region: "us-east-1",
+      taskArn: "arn:task-1",
+      clusterArn: "arn:cluster-1",
+      stoppedReason: "Task failed to start",
+      stopCode: "TaskFailedToStart",
+      exitCode: undefined,
+    });
+    mockIncrement.mockResolvedValue(defaultIncrementResult);
+    mockThreshold.mockReturnValue(false);
+
+    await handler(makeEvent());
+
+    expect(mockSendMetric.mock.calls[0]?.[1]).toMatchObject({ ExitCode: null });
   });
 
   it("updates DDB status to failed when threshold is breached", async () => {

@@ -39,7 +39,7 @@ export enum OperationalMetricEvent {
   StartCommandSent = "StartCommandSent",
   /** Task Status Checker: all tasks wrote S3 completion markers */
   RegionComplete = "RegionComplete",
-  /** Task Status Checker: test exceeded testDuration + grace period */
+  /** Task Status Checker: execution or framework-warning deadline expired */
   CompletionTimeout = "CompletionTimeout",
   /** Task Status Checker: test no longer running (threshold breached) */
   CompletionThresholdBreached = "CompletionThresholdBreached",
@@ -72,6 +72,7 @@ interface RegionalMetricData extends BaseMetricData {
 /** Step Function: before provisioning begins. */
 export interface TestStartMetric extends BaseMetricData {
   readonly Type: OperationalMetricEvent.TestStart;
+  readonly RunMode: "native" | "standard";
   readonly TestType: string;
   readonly FileType: string;
   readonly TestDuration: number;
@@ -133,13 +134,17 @@ export interface RegionCompleteMetric extends RegionalMetricData {
   readonly DesiredCount: number;
 }
 
-/** Task Status Checker: test exceeded testDuration + grace period. */
+/** Task Status Checker: execution or framework-warning deadline expired. */
 export interface CompletionTimeoutMetric extends RegionalMetricData {
   readonly Type: OperationalMetricEvent.CompletionTimeout;
   readonly ElapsedSeconds: number;
   readonly Deadline: number;
   readonly CompletedTaskCount: number;
   readonly DesiredCount: number;
+  readonly TimeoutCause: "execution_deadline" | "framework_warning_grace";
+  readonly WarningTaskCount: number;
+  readonly HealthyThreshold: number;
+  readonly WarningGraceStarted: boolean;
 }
 
 /** Task Status Checker: test no longer running (threshold breached). */
@@ -154,6 +159,10 @@ export interface TaskFailureMetric extends RegionalMetricData {
   readonly Type: OperationalMetricEvent.TaskFailure;
   readonly StopCode: string;
   readonly StopCategory: string;
+  /** ECS stop reason (free text), sanitized and shaped by `sanitizeStopReason`. */
+  readonly StopReason: string;
+  /** Primary container exit code; `null` when no container ran. */
+  readonly ExitCode: number | null;
   readonly FailureCount: number;
   readonly DesiredCount: number;
 }

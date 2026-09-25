@@ -30,6 +30,39 @@ export interface CronFields {
   cronDayOfWeek: string;
 }
 
+/** Cron fields in display order; used for the "which field is missing" checks. */
+export const CRON_FIELD_ORDER = [
+  "cronMinutes",
+  "cronHours",
+  "cronDayOfMonth",
+  "cronMonth",
+  "cronDayOfWeek",
+] as const satisfies readonly (keyof CronFields)[];
+
+/** Message shown when a required cron field is left empty. */
+export const CRON_REQUIRED_MESSAGE: Record<keyof CronFields, string> = {
+  cronMinutes: "Minutes is required",
+  cronHours: "Hours is required",
+  cronDayOfMonth: "Day of month is required",
+  cronMonth: "Month is required",
+  cronDayOfWeek: "Day of week is required",
+};
+
+/**
+ * Returns the required-message for the first empty cron field, or undefined when
+ * all five fields are filled. Distinct from format validation — this only
+ * reports missing fields (the user enters "*" for a wildcard).
+ */
+export function missingCronFieldError(fields: CronFields): string | undefined {
+  const missing = CRON_FIELD_ORDER.find((key) => !fields[key]?.trim());
+  return missing ? CRON_REQUIRED_MESSAGE[missing] : undefined;
+}
+
+/** True once every cron field holds a non-blank value. */
+export function allCronFieldsFilled(fields: CronFields): boolean {
+  return CRON_FIELD_ORDER.every((key) => !!fields[key]?.trim());
+}
+
 /**
  * Formats a cron expression suitable for CronExpressionParser to parse in strict mode.
  * The expression includes six elements: seconds minutes hour day-of-month month day-of-week.

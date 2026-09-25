@@ -3,7 +3,12 @@
 
 import { http, HttpResponse, delay } from "msw";
 import type { AgentSpace } from "../models/agentSpace";
-import type { CreateInvestigationResponse, InvestigationStatusResponse, InvestigationFindingsResponse } from "../models/investigation";
+import type {
+  CreateInvestigationResponse,
+  InvestigationStatusResponse,
+  InvestigationFindingsResponse,
+} from "../models/investigation";
+import { InvestigationStatus } from "../models/investigation";
 
 const ok = async (payload: object, status = 200) => {
   await delay(200);
@@ -28,13 +33,13 @@ const mockCreateResponse: CreateInvestigationResponse = {
   agentSpaceId: "as-001",
   agentSpaceApiId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
   agentSpaceName: "Production Agent Space",
-  status: "PENDING_START",
+  status: InvestigationStatus.PENDING_START,
   createdAt: "2026-06-01T12:00:00.000Z",
 };
 
 const mockStatusResponse: InvestigationStatusResponse = {
   investigationId: "task-mock-001",
-  status: "IN_PROGRESS",
+  status: InvestigationStatus.IN_PROGRESS,
   statusReason: null,
   createdAt: "2026-06-01T12:00:00.000Z",
   agentSpaceName: "Production Agent Space",
@@ -46,7 +51,8 @@ const mockFindingsResponse: InvestigationFindingsResponse = {
     symptoms: [
       {
         title: "DLT test 1xenrQiO2W - 100% request failure rate against DevopsPiggy API",
-        description: "DLT load test 1xenrQiO2W (run Y0ApU0nXUK) targeting https://2rkmkzvz20.execute-api.us-west-2.amazonaws.com/prod/items completed with 86,914 failed requests and 0 successful requests (100% failure rate).",
+        description:
+          "DLT load test 1xenrQiO2W (run Y0ApU0nXUK) targeting https://2rkmkzvz20.execute-api.us-west-2.amazonaws.com/prod/items completed with 86,914 failed requests and 0 successful requests (100% failure rate).",
         start_time: "2026-06-12T22:19:07Z",
         end_time: "2026-06-12T22:23:56Z",
         related_resources: ["DevopsPiggy REST API", "Items Handler Lambda"],
@@ -56,7 +62,8 @@ const mockFindingsResponse: InvestigationFindingsResponse = {
       {
         id: "cause-missing-auth",
         title: "DLT test client sent unauthenticated requests to auth-protected DevopsPiggy API",
-        description: "The DLT test sent 86,914 requests without the required IAM SigV4 signing and x-api-key header. API Gateway rejected 100% of requests at the authorization layer with 4XX responses before they reached the Lambda backend.",
+        description:
+          "The DLT test sent 86,914 requests without the required IAM SigV4 signing and x-api-key header. API Gateway rejected 100% of requests at the authorization layer with 4XX responses before they reached the Lambda backend.",
         type: "root_cause",
         cascades_to: ["symptom-100pct-request-failures"],
         related_resources: ["DevopsPiggy REST API", "Distributed Load Testing"],
@@ -64,7 +71,8 @@ const mockFindingsResponse: InvestigationFindingsResponse = {
       {
         id: "cause-concurrency-set-to-1",
         title: "CDK deployment set Lambda ReservedConcurrentExecutions to 1 (latent issue)",
-        description: "A CDK deployment set the Lambda function ReservedConcurrentExecutions to 1. While this did not cause the current failure, it represents a latent issue that would produce throttling if authentication were fixed.",
+        description:
+          "A CDK deployment set the Lambda function ReservedConcurrentExecutions to 1. While this did not cause the current failure, it represents a latent issue that would produce throttling if authentication were fixed.",
         type: "cause",
         cascades_to: ["symptom-100pct-request-failures"],
         related_resources: ["Items Handler Lambda"],
@@ -73,7 +81,8 @@ const mockFindingsResponse: InvestigationFindingsResponse = {
     investigation_gaps: [
       {
         title: "DLT test configuration details unavailable",
-        description: "Could not inspect the actual DLT test configuration to confirm whether IAM SigV4 signing and API key headers were configured.",
+        description:
+          "Could not inspect the actual DLT test configuration to confirm whether IAM SigV4 signing and API key headers were configured.",
       },
     ],
   }),
@@ -131,22 +140,22 @@ export const investigationHandlers = (apiUrl: string) => [
   http.post(`${apiUrl}/scenarios/:testId/testruns/:testRunId/investigations`, () => ok(mockCreateResponse, 201)),
 
   http.get(`${apiUrl}/scenarios/:testId/testruns/:testRunId/investigations`, () =>
-    ok([{ ...mockCreateResponse, archived: false }]),
+    ok([{ ...mockCreateResponse, archived: false }])
   ),
 
   http.get(`${apiUrl}/scenarios/:testId/testruns/:testRunId/investigations/:investigationId/status`, () =>
-    ok(mockStatusResponse),
+    ok(mockStatusResponse)
   ),
 
   http.get(`${apiUrl}/scenarios/:testId/testruns/:testRunId/investigations/:investigationId/findings`, () =>
-    ok(mockFindingsResponse),
+    ok(mockFindingsResponse)
   ),
 
   http.put(`${apiUrl}/scenarios/:testId/testruns/:testRunId/investigations/:investigationId`, () =>
-    ok({ investigationId: "task-mock-001", status: "CANCELED", archived: true }),
+    ok({ investigationId: "task-mock-001", status: InvestigationStatus.CANCELED, archived: true })
   ),
 
   http.delete(`${apiUrl}/scenarios/:testId/testruns/:testRunId/investigations/:investigationId`, () =>
-    ok({ investigationId: "task-mock-001", archived: true }),
+    ok({ investigationId: "task-mock-001", archived: true })
   ),
 ];
