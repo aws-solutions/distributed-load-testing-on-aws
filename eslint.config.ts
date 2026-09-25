@@ -27,6 +27,7 @@ export default defineConfig([
     files: [
       "*.ts",
       "source/common/**/*.ts",
+      "source/load-tester/**/*.ts",
       "source/mcp-server/**/*.ts",
       "source/api-services/**/*.ts",
       "source/stabilization-checker/**/*.ts",

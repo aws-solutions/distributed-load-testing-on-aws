@@ -21,179 +21,99 @@ const mockLogger = {
   appendKeys: vi.fn(),
 };
 
+const baseInput = {
+  bucket: "dlt-bucket",
+  testId: "test-abc123",
+  prefix: "prefix-1",
+  region: "us-east-1",
+  desiredCount: 3,
+  logger: mockLogger as never,
+};
+
 describe("monitorCompletion", () => {
   beforeEach(() => {
     s3Mock.reset();
     vi.clearAllMocks();
   });
 
-  it("should return isComplete true when all tasks have markers", async () => {
-    s3Mock.on(ListObjectsV2Command).resolves({
-      KeyCount: 5,
-      IsTruncated: false,
-    });
-
-    const result = await monitorCompletion({
-      s3: makeS3(),
-      bucket: "dlt-bucket",
-      testId: "test-abc123",
-      prefix: "prefix-1",
-      region: "us-east-1",
-      desiredCount: 5,
-      logger: mockLogger as never,
-    });
-
-    expect(result).toEqual({ completedTaskCount: 5, isComplete: true });
-  });
-
-  it("should return isComplete false when some tasks are still pending", async () => {
+  it("derives completion and warning counts for the current region", async () => {
     s3Mock.on(ListObjectsV2Command).resolves({
       KeyCount: 3,
-      IsTruncated: false,
+      Contents: [
+        { Key: "results/test-abc123/prefix-1/completion/us-east-1/task-1" },
+        { Key: "results/test-abc123/prefix-1/completion/us-east-1/task-2.warning" },
+        { Key: "results/test-abc123/prefix-1/completion/us-east-1/task-3" },
+      ],
     });
 
-    const result = await monitorCompletion({
-      s3: makeS3(),
-      bucket: "dlt-bucket",
-      testId: "test-abc123",
-      prefix: "prefix-1",
-      region: "us-east-1",
-      desiredCount: 5,
-      logger: mockLogger as never,
+    await expect(monitorCompletion({ s3: makeS3(), ...baseInput })).resolves.toEqual({
+      completedTaskCount: 3,
+      isComplete: true,
+      warningTaskCount: 1,
     });
 
-    expect(result).toEqual({ completedTaskCount: 3, isComplete: false });
-  });
-
-  it("should return isComplete true when no tasks are expected and none found", async () => {
-    s3Mock.on(ListObjectsV2Command).resolves({
-      KeyCount: 0,
-      IsTruncated: false,
-    });
-
-    const result = await monitorCompletion({
-      s3: makeS3(),
-      bucket: "dlt-bucket",
-      testId: "test-abc123",
-      prefix: "prefix-1",
-      region: "us-east-1",
-      desiredCount: 0,
-      logger: mockLogger as never,
-    });
-
-    expect(result).toEqual({ completedTaskCount: 0, isComplete: true });
-  });
-
-  it("should handle pagination across multiple pages", async () => {
-    s3Mock
-      .on(ListObjectsV2Command)
-      .resolvesOnce({
-        KeyCount: 1000,
-        IsTruncated: true,
-        NextContinuationToken: "token-page-2",
-      })
-      .resolvesOnce({
-        KeyCount: 500,
-        IsTruncated: false,
-      });
-
-    const result = await monitorCompletion({
-      s3: makeS3(),
-      bucket: "dlt-bucket",
-      testId: "test-abc123",
-      prefix: "prefix-1",
-      region: "us-east-1",
-      desiredCount: 1500,
-      logger: mockLogger as never,
-    });
-
-    expect(result).toEqual({ completedTaskCount: 1500, isComplete: true });
-
-    const calls = s3Mock.commandCalls(ListObjectsV2Command);
-    expect(calls).toHaveLength(2);
-
-    // Second call should include continuation token
-    const secondInput = calls[1]?.args[0].input;
-    expect(secondInput?.ContinuationToken).toBe("token-page-2");
-  });
-
-  it("should use correct S3 prefix with region", async () => {
-    s3Mock.on(ListObjectsV2Command).resolves({
-      KeyCount: 0,
-      IsTruncated: false,
-    });
-
-    await monitorCompletion({
-      s3: makeS3(),
-      bucket: "my-bucket",
-      testId: "test-xyz",
-      prefix: "run-42",
-      region: "eu-west-1",
-      desiredCount: 10,
-      logger: mockLogger as never,
-    });
-
-    const calls = s3Mock.commandCalls(ListObjectsV2Command);
-    expect(calls).toHaveLength(1);
-
-    const input = calls[0]?.args[0].input;
-    expect(input).toEqual({
-      Bucket: "my-bucket",
-      Prefix: "results/test-xyz/run-42/completion/eu-west-1/",
+    expect(s3Mock.commandCalls(ListObjectsV2Command)[0]?.args[0].input).toEqual({
+      Bucket: "dlt-bucket",
+      Prefix: "results/test-abc123/prefix-1/completion/us-east-1/",
       ContinuationToken: undefined,
     });
   });
 
-  it("should return isComplete true when count exceeds desired (extra markers)", async () => {
-    s3Mock.on(ListObjectsV2Command).resolves({
-      KeyCount: 12,
-      IsTruncated: false,
+  it("counts completion and warning markers across pages", async () => {
+    s3Mock
+      .on(ListObjectsV2Command)
+      .resolvesOnce({
+        KeyCount: 2,
+        Contents: [
+          { Key: "results/test-abc123/prefix-1/completion/us-east-1/task-1" },
+          { Key: "results/test-abc123/prefix-1/completion/us-east-1/task-2.warning" },
+        ],
+        IsTruncated: true,
+        NextContinuationToken: "page-2",
+      })
+      .resolvesOnce({
+        KeyCount: 1,
+        Contents: [{ Key: "results/test-abc123/prefix-1/completion/us-east-1/task-3" }],
+      });
+
+    await expect(monitorCompletion({ s3: makeS3(), ...baseInput })).resolves.toEqual({
+      completedTaskCount: 3,
+      isComplete: true,
+      warningTaskCount: 1,
     });
 
-    const result = await monitorCompletion({
-      s3: makeS3(),
-      bucket: "dlt-bucket",
-      testId: "test-abc123",
-      prefix: "prefix-1",
-      region: "us-east-1",
-      desiredCount: 10,
-      logger: mockLogger as never,
-    });
-
-    expect(result).toEqual({ completedTaskCount: 12, isComplete: true });
+    expect(s3Mock.commandCalls(ListObjectsV2Command)[1]?.args[0].input.ContinuationToken).toBe("page-2");
   });
 
-  it("should treat missing KeyCount as zero", async () => {
+  it("supports old workers that write only normal markers", async () => {
     s3Mock.on(ListObjectsV2Command).resolves({
-      IsTruncated: false,
+      KeyCount: 2,
+      Contents: [
+        { Key: "results/test-abc123/prefix-1/completion/us-east-1/task-1" },
+        { Key: "results/test-abc123/prefix-1/completion/us-east-1/task-2" },
+      ],
     });
 
-    const result = await monitorCompletion({
-      s3: makeS3(),
-      bucket: "dlt-bucket",
-      testId: "test-abc123",
-      prefix: "prefix-1",
-      region: "us-east-1",
-      desiredCount: 5,
-      logger: mockLogger as never,
+    await expect(monitorCompletion({ s3: makeS3(), ...baseInput })).resolves.toEqual({
+      completedTaskCount: 2,
+      isComplete: false,
+      warningTaskCount: 0,
     });
-
-    expect(result).toEqual({ completedTaskCount: 0, isComplete: false });
   });
 
-  it("should propagate S3 errors", async () => {
+  it("returns complete when no tasks are expected", async () => {
+    s3Mock.on(ListObjectsV2Command).resolves({});
+
+    await expect(monitorCompletion({ s3: makeS3(), ...baseInput, desiredCount: 0 })).resolves.toEqual({
+      completedTaskCount: 0,
+      isComplete: true,
+      warningTaskCount: 0,
+    });
+  });
+
+  it("propagates S3 errors", async () => {
     s3Mock.on(ListObjectsV2Command).rejects(new Error("Access Denied"));
 
-    await expect(
-      monitorCompletion({
-        s3: makeS3(),
-        bucket: "dlt-bucket",
-        testId: "test-abc123",
-        prefix: "prefix-1",
-        region: "us-east-1",
-        desiredCount: 5,
-        logger: mockLogger as never,
-      })
-    ).rejects.toThrow("Access Denied");
+    await expect(monitorCompletion({ s3: makeS3(), ...baseInput })).rejects.toThrow("Access Denied");
   });
 });

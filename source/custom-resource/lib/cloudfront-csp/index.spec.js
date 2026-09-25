@@ -60,9 +60,7 @@ describe("#CloudFrontCsp", () => {
   });
 
   it("should add Cognito domain to target directives only", async () => {
-    mockSend
-      .mockResolvedValueOnce(buildGetResponse(BASE_CSP))
-      .mockResolvedValueOnce({});
+    mockSend.mockResolvedValueOnce(buildGetResponse(BASE_CSP)).mockResolvedValueOnce({});
 
     await updateCsp(config);
 
@@ -71,13 +69,15 @@ describe("#CloudFrontCsp", () => {
     expect(updateCall.IfMatch).toEqual("test-etag");
     expect(updateCall.Id).toEqual(POLICY_ID);
 
-    const updatedCsp = updateCall.ResponseHeadersPolicyConfig.SecurityHeadersConfig
-      .ContentSecurityPolicy.ContentSecurityPolicy;
+    const updatedCsp =
+      updateCall.ResponseHeadersPolicyConfig.SecurityHeadersConfig.ContentSecurityPolicy.ContentSecurityPolicy;
 
     // Target directives should have the Cognito origin
     expect(updatedCsp).toContain(`default-src 'self' https://*.amazonaws.com ${COGNITO_ORIGIN}`);
     expect(updatedCsp).toContain(`script-src 'self' https://*.amazonaws.com ${COGNITO_ORIGIN}`);
-    expect(updatedCsp).toContain(`connect-src 'self' https://*.amazonaws.com wss://*.amazonaws.com https://metrics.awssolutionsbuilder.com ${COGNITO_ORIGIN}`);
+    expect(updatedCsp).toContain(
+      `connect-src 'self' https://*.amazonaws.com wss://*.amazonaws.com https://metrics.awssolutionsbuilder.com ${COGNITO_ORIGIN}`
+    );
     expect(updatedCsp).toContain(`form-action 'self' https://*.amazonaws.com ${COGNITO_ORIGIN}`);
 
     // Non-target directives should be unchanged
@@ -93,23 +93,21 @@ describe("#CloudFrontCsp", () => {
 
   it("should be idempotent — not duplicate Cognito domain on second run", async () => {
     // First call adds the domain
-    mockSend
-      .mockResolvedValueOnce(buildGetResponse(BASE_CSP))
-      .mockResolvedValueOnce({});
+    mockSend.mockResolvedValueOnce(buildGetResponse(BASE_CSP)).mockResolvedValueOnce({});
     await updateCsp(config);
 
-    const firstCsp = mockSend.mock.calls[1][0].ResponseHeadersPolicyConfig
-      .SecurityHeadersConfig.ContentSecurityPolicy.ContentSecurityPolicy;
+    const firstCsp =
+      mockSend.mock.calls[1][0].ResponseHeadersPolicyConfig.SecurityHeadersConfig.ContentSecurityPolicy
+        .ContentSecurityPolicy;
 
     // Second call with CSP that already has the domain
     mockSend.mockReset();
-    mockSend
-      .mockResolvedValueOnce(buildGetResponse(firstCsp))
-      .mockResolvedValueOnce({});
+    mockSend.mockResolvedValueOnce(buildGetResponse(firstCsp)).mockResolvedValueOnce({});
     await updateCsp(config);
 
-    const secondCsp = mockSend.mock.calls[1][0].ResponseHeadersPolicyConfig
-      .SecurityHeadersConfig.ContentSecurityPolicy.ContentSecurityPolicy;
+    const secondCsp =
+      mockSend.mock.calls[1][0].ResponseHeadersPolicyConfig.SecurityHeadersConfig.ContentSecurityPolicy
+        .ContentSecurityPolicy;
 
     expect(secondCsp).toEqual(firstCsp);
   });
@@ -134,9 +132,7 @@ describe("#CloudFrontCsp", () => {
     const notFoundError = new Error("NoSuchResponseHeadersPolicy");
     notFoundError.name = "NoSuchResponseHeadersPolicy";
 
-    mockSend
-      .mockResolvedValueOnce(buildGetResponse(BASE_CSP))
-      .mockRejectedValueOnce(notFoundError);
+    mockSend.mockResolvedValueOnce(buildGetResponse(BASE_CSP)).mockRejectedValueOnce(notFoundError);
 
     await expect(updateCsp(config)).rejects.toThrow("NoSuchResponseHeadersPolicy");
   });
@@ -151,9 +147,7 @@ describe("#CloudFrontCsp", () => {
     const response = buildGetResponse(BASE_CSP, {
       XSSProtection: { Protection: null, Override: null },
     });
-    mockSend
-      .mockResolvedValueOnce(response)
-      .mockResolvedValueOnce({});
+    mockSend.mockResolvedValueOnce(response).mockResolvedValueOnce({});
 
     await updateCsp(config);
 
@@ -166,9 +160,7 @@ describe("#CloudFrontCsp", () => {
     const response = buildGetResponse(BASE_CSP, {
       XSSProtection: { Protection: true, Override: true },
     });
-    mockSend
-      .mockResolvedValueOnce(response)
-      .mockResolvedValueOnce({});
+    mockSend.mockResolvedValueOnce(response).mockResolvedValueOnce({});
 
     await updateCsp(config);
 

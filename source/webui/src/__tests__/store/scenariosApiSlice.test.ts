@@ -106,9 +106,7 @@ describe("scenariosApiSlice", () => {
       );
 
       const store = createTestStore();
-      const result = await store.dispatch(
-        scenariosApiSlice.endpoints.getTestRuns.initiate({ testId: "test-123" })
-      );
+      const result = await store.dispatch(scenariosApiSlice.endpoints.getTestRuns.initiate({ testId: "test-123" }));
 
       expect(result.data).toBeDefined();
       expect(result.data!.testRuns).toHaveLength(1);
@@ -134,6 +132,31 @@ describe("scenariosApiSlice", () => {
           endTimestamp: "2025-01-31T23:59:59Z",
         })
       );
+    });
+
+    it("requests only the latest test run", async () => {
+      server.use(
+        http.get(`${API}/scenarios/test-123/testruns`, ({ request }) => {
+          const url = new URL(request.url);
+          expect(url.searchParams.get("limit")).toBe("1");
+          expect(url.searchParams.get("latest")).toBe("true");
+          return HttpResponse.json({
+            testRuns: [{ testRunId: "run-latest", startTime: "2025-01-15 10:00:00", status: "running" }],
+            pagination: { limit: 1, next_token: null, total_count: 1 },
+          });
+        })
+      );
+
+      const store = createTestStore();
+      const result = await store.dispatch(
+        scenariosApiSlice.endpoints.getTestRuns.initiate({
+          testId: "test-123",
+          limit: 1,
+          latest: true,
+        })
+      );
+
+      expect(result.data?.testRuns[0].testRunId).toBe("run-latest");
     });
   });
 
@@ -177,9 +200,7 @@ describe("scenariosApiSlice", () => {
       );
 
       const store = createTestStore();
-      const result = await store.dispatch(
-        scenariosApiSlice.endpoints.getBaseline.initiate({ testId: "test-123" })
-      );
+      const result = await store.dispatch(scenariosApiSlice.endpoints.getBaseline.initiate({ testId: "test-123" }));
 
       expect(result.data).toBeDefined();
       expect(result.data!.baselineId).toBe("run-baseline");
@@ -193,9 +214,7 @@ describe("scenariosApiSlice", () => {
       );
 
       const store = createTestStore();
-      const result = await store.dispatch(
-        scenariosApiSlice.endpoints.getBaseline.initiate({ testId: "test-123" })
-      );
+      const result = await store.dispatch(scenariosApiSlice.endpoints.getBaseline.initiate({ testId: "test-123" }));
 
       expect(result.data!.baselineId).toBeNull();
     });
@@ -210,9 +229,7 @@ describe("scenariosApiSlice", () => {
       );
 
       const store = createTestStore();
-      const result = await store.dispatch(
-        scenariosApiSlice.endpoints.deleteScenario.initiate("test-123")
-      );
+      const result = await store.dispatch(scenariosApiSlice.endpoints.deleteScenario.initiate("test-123"));
 
       expect(result.data).toEqual({ message: "Scenario deleted" });
     });
@@ -222,7 +239,7 @@ describe("scenariosApiSlice", () => {
     it("sends PUT request with testRunId body", async () => {
       server.use(
         http.put(`${API}/scenarios/test-123/baseline`, async ({ request }) => {
-          const body = await request.json() as any;
+          const body = (await request.json()) as any;
           expect(body.testRunId).toBe("run-001");
           return HttpResponse.json({ message: "Baseline set" });
         })
@@ -258,16 +275,14 @@ describe("scenariosApiSlice", () => {
     it("sends POST request with stop action", async () => {
       server.use(
         http.post(`${API}/scenarios/test-123`, async ({ request }) => {
-          const body = await request.json() as any;
+          const body = (await request.json()) as any;
           expect(body.action).toBe("stop");
           return HttpResponse.json({ message: "Scenario stopped" });
         })
       );
 
       const store = createTestStore();
-      const result = await store.dispatch(
-        scenariosApiSlice.endpoints.stopScenario.initiate({ testId: "test-123" })
-      );
+      const result = await store.dispatch(scenariosApiSlice.endpoints.stopScenario.initiate({ testId: "test-123" }));
 
       expect(result.data).toEqual({ message: "Scenario stopped" });
     });
@@ -277,7 +292,7 @@ describe("scenariosApiSlice", () => {
     it("sends DELETE request with testRunIds array", async () => {
       server.use(
         http.delete(`${API}/scenarios/test-123/testruns`, async ({ request }) => {
-          const body = await request.json() as any;
+          const body = (await request.json()) as any;
           expect(body).toEqual(["run-001", "run-002"]);
           return HttpResponse.json({ message: "Test runs deleted" });
         })
@@ -296,7 +311,7 @@ describe("scenariosApiSlice", () => {
     it("sends POST request with scenario payload", async () => {
       server.use(
         http.post(`${API}/scenarios`, async ({ request }) => {
-          const body = await request.json() as any;
+          const body = (await request.json()) as any;
           expect(body.testName).toBe("New Test");
           return HttpResponse.json({ testId: "new-test-id", testName: "New Test" });
         })
@@ -323,10 +338,7 @@ describe("scenariosApiSlice", () => {
     it("returns error when API responds with error status", async () => {
       server.use(
         http.get(`${API}/scenarios`, () => {
-          return HttpResponse.json(
-            { message: "Internal Server Error" },
-            { status: 500 }
-          );
+          return HttpResponse.json({ message: "Internal Server Error" }, { status: 500 });
         })
       );
 
@@ -368,7 +380,7 @@ describe("scenariosApiSlice", () => {
           ]);
         }),
         http.post(`${API}/scenarios`, async ({ request }) => {
-          const body = await request.json() as any;
+          const body = (await request.json()) as any;
           expect(body.testId).toBe("test-run-123");
           expect(body.testName).toBe("Run Test");
           expect(body.testTaskConfigs[0].taskCount).toBe("2");
@@ -381,32 +393,51 @@ describe("scenariosApiSlice", () => {
       );
 
       const store = createTestStore();
-      const result = await store.dispatch(
-        scenariosApiSlice.endpoints.runScenario.initiate(mockScenario)
-      );
+      const result = await store.dispatch(scenariosApiSlice.endpoints.runScenario.initiate(mockScenario));
 
       expect(result.data).toEqual({ message: "Scenario started" });
     });
 
-    it("handles vCPU/tasks fetch failure gracefully and still posts", async () => {
+    it("carries nativeRunMode through to the re-run payload", async () => {
+      let postBody: any = null;
       server.use(
-        http.get(`${API}/vCPUDetails`, () => {
-          return HttpResponse.json(null, { status: 500 });
-        }),
-        http.get(`${API}/tasks`, () => {
-          return HttpResponse.json(null, { status: 500 });
-        }),
-        http.post(`${API}/scenarios`, () => {
-          return HttpResponse.json({ message: "Scenario started without details" });
+        http.get(`${API}/vCPUDetails`, () =>
+          HttpResponse.json({ "us-east-1": { vCPULimit: 100, vCPUsPerTask: 2, vCPUsInUse: 0 } })
+        ),
+        http.get(`${API}/tasks`, () => HttpResponse.json([])),
+        http.post(`${API}/scenarios`, async ({ request }) => {
+          postBody = await request.json();
+          return HttpResponse.json({ message: "Scenario started" });
+        })
+      );
+
+      const nativeRunMode = {
+        maxTestDurationSeconds: 3600,
+      };
+      const store = createTestStore();
+      await store.dispatch(scenariosApiSlice.endpoints.runScenario.initiate({ ...mockScenario, nativeRunMode } as any));
+
+      expect(postBody.nativeRunMode).toEqual(nativeRunMode);
+      expect(postBody.testScenario).toEqual(mockScenario.testScenario);
+    });
+
+    it("omits nativeRunMode when re-running a Standard scenario", async () => {
+      let postBody: any = null;
+      server.use(
+        http.get(`${API}/vCPUDetails`, () =>
+          HttpResponse.json({ "us-east-1": { vCPULimit: 100, vCPUsPerTask: 2, vCPUsInUse: 0 } })
+        ),
+        http.get(`${API}/tasks`, () => HttpResponse.json([])),
+        http.post(`${API}/scenarios`, async ({ request }) => {
+          postBody = await request.json();
+          return HttpResponse.json({ message: "Scenario started" });
         })
       );
 
       const store = createTestStore();
-      const result = await store.dispatch(
-        scenariosApiSlice.endpoints.runScenario.initiate(mockScenario)
-      );
+      await store.dispatch(scenariosApiSlice.endpoints.runScenario.initiate(mockScenario));
 
-      expect(result.data).toEqual({ message: "Scenario started without details" });
+      expect("nativeRunMode" in postBody).toBe(false);
     });
 
     it("handles post failure and returns error with status code", async () => {
@@ -418,17 +449,12 @@ describe("scenariosApiSlice", () => {
           return HttpResponse.json([]);
         }),
         http.post(`${API}/scenarios`, () => {
-          return HttpResponse.json(
-            { message: "Validation failed" },
-            { status: 400 }
-          );
+          return HttpResponse.json({ message: "Validation failed" }, { status: 400 });
         })
       );
 
       const store = createTestStore();
-      const result = await store.dispatch(
-        scenariosApiSlice.endpoints.runScenario.initiate(mockScenario)
-      );
+      const result = await store.dispatch(scenariosApiSlice.endpoints.runScenario.initiate(mockScenario));
 
       expect(result.error).toBeDefined();
     });
@@ -450,9 +476,7 @@ describe("scenariosApiSlice", () => {
       );
 
       const store = createTestStore();
-      const result = await store.dispatch(
-        scenariosApiSlice.endpoints.runScenario.initiate(mockScenario)
-      );
+      const result = await store.dispatch(scenariosApiSlice.endpoints.runScenario.initiate(mockScenario));
 
       expect(result.data).toEqual({ message: "Started" });
     });
@@ -471,7 +495,7 @@ describe("scenariosApiSlice", () => {
         http.get(`${API}/vCPUDetails`, () => HttpResponse.json({})),
         http.get(`${API}/tasks`, () => HttpResponse.json([])),
         http.post(`${API}/scenarios`, async ({ request }) => {
-          const body = await request.json() as any;
+          const body = (await request.json()) as any;
           expect(body.fileType).toBe("");
           expect(body.showLive).toBe(false);
           expect(body.tags).toEqual([]);
@@ -480,9 +504,7 @@ describe("scenariosApiSlice", () => {
       );
 
       const store = createTestStore();
-      const result = await store.dispatch(
-        scenariosApiSlice.endpoints.runScenario.initiate(minimalScenario)
-      );
+      const result = await store.dispatch(scenariosApiSlice.endpoints.runScenario.initiate(minimalScenario));
 
       expect(result.data).toEqual({ message: "OK" });
     });

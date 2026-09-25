@@ -3,7 +3,7 @@
 
 import Steps from "@cloudscape-design/components/steps";
 import type { StepsProps } from "@cloudscape-design/components/steps";
-import { TestStatus } from "../constants";
+import { TestStatus } from "@amzn/dlt-common/validation";
 
 /**
  * The ordered lifecycle phases shown in the steps indicator.

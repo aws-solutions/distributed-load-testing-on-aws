@@ -1,7 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { MAX_TEST_RUNS_PER_DELETE_REQUEST } from "@amzn/dlt-common";
 import {
   baselineQuerySchema,
   createTestSchema,
@@ -539,7 +540,7 @@ describe("Validation Schemas", () => {
           ...validBaseTest,
           testTaskConfigs: [{ region: "us-east-1", taskCount: 0, concurrency: 1 }],
         })
-      ).toThrow(/Number must be greater than 0/);
+      ).toThrow(/Too small: expected number to be >0/);
 
       // Invalid concurrency
       expect(() =>
@@ -617,8 +618,8 @@ describe("Validation Schemas", () => {
           testTaskConfigs: [{ region: "us-east-1", taskCount: 1, concurrency: "1000" }],
         };
         const result = createTestSchema.parse(test);
-        expect(result.testTaskConfigs[0].concurrency).toBe(1000);
-        expect(typeof result.testTaskConfigs[0].concurrency).toBe("number");
+        expect(result.testTaskConfigs[0]?.concurrency).toBe(1000);
+        expect(typeof result.testTaskConfigs[0]?.concurrency).toBe("number");
       });
     });
 
@@ -699,8 +700,8 @@ describe("Validation Schemas", () => {
           },
         };
         const result = createTestSchema.parse(test2);
-        expect(result.testScenario.execution[0].concurrency).toBe(1000);
-        expect(typeof result.testScenario.execution[0].concurrency).toBe("number");
+        expect(result.testScenario.execution[0]?.concurrency).toBe(1000);
+        expect(typeof result.testScenario.execution[0]?.concurrency).toBe("number");
       });
     });
 
@@ -885,7 +886,7 @@ describe("Validation Schemas", () => {
             execution: [{ "hold-for": 0 }],
           },
         };
-        expect(() => createTestSchema.parse(test1)).toThrow(/Number must be greater than 0/);
+        expect(() => createTestSchema.parse(test1)).toThrow(/Too small: expected number to be >0/);
 
         const test2 = {
           ...validBaseTest,
@@ -894,7 +895,7 @@ describe("Validation Schemas", () => {
             execution: [{ "hold-for": -1 }],
           },
         };
-        expect(() => createTestSchema.parse(test2)).toThrow(/Number must be greater than 0/);
+        expect(() => createTestSchema.parse(test2)).toThrow(/Too small: expected number to be >0/);
       });
 
       it("should reject invalid hold-for format", () => {
@@ -931,7 +932,7 @@ describe("Validation Schemas", () => {
             execution: [{ "hold-for": 0 }],
           },
         };
-        expect(() => createTestSchema.parse(test2)).toThrow(/Number must be greater than 0/);
+        expect(() => createTestSchema.parse(test2)).toThrow(/Too small: expected number to be >0/);
       });
     });
 
@@ -990,7 +991,8 @@ describe("Validation Schemas", () => {
 
   describe("deleteTestRunsSchema", () => {
     it("should validate correct delete test runs request", () => {
-      const validBodies = [["run-123"], ["run-123", "run-456"], ["run-123", "run-456", "run-789"]];
+      const maxSizeBody = Array.from({ length: MAX_TEST_RUNS_PER_DELETE_REQUEST }, (_, index) => `run-${index}`);
+      const validBodies = [["run-123"], ["run-123", "run-456"], maxSizeBody];
 
       validBodies.forEach((body) => {
         expect(() => deleteTestRunsSchema.parse(body)).not.toThrow();
@@ -999,6 +1001,14 @@ describe("Validation Schemas", () => {
 
     it("should reject empty array", () => {
       expect(() => deleteTestRunsSchema.parse([])).toThrow(/At least one testRunId is required/);
+    });
+
+    it("should reject more than the maximum number of test run ids", () => {
+      const body = Array.from({ length: MAX_TEST_RUNS_PER_DELETE_REQUEST + 1 }, (_, index) => `run-${index}`);
+
+      expect(() => deleteTestRunsSchema.parse(body)).toThrow(
+        `A maximum of ${MAX_TEST_RUNS_PER_DELETE_REQUEST} testRunIds is allowed per request`
+      );
     });
 
     it("should reject invalid testRunId formats in array", () => {

@@ -1,6 +1,6 @@
 {
   "name": "@amzn/dlt-real-time-data-publisher",
-  "version": "4.2.6",
+  "version": "4.3.0",
   "private": true,
   "description": "Publishes real-time test metrics from ECS CloudWatch logs to IoT",
   "type": "module",

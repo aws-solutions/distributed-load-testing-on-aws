@@ -102,19 +102,18 @@ describe("handleGetScenarioDetails", () => {
       }
     });
 
-    it("should throw AppError for invalid test_id length", async () => {
-      const event: AgentCoreEvent = {
-        test_id: "short",
+    // The shared testIdSchema allows 1–128 chars, so ids that are not exactly 10 chars are accepted.
+    it("should accept a valid test_id that is not 10 characters", async () => {
+      const mockResponse: HttpResponse = {
+        statusCode: 200,
+        body: JSON.stringify({ testId: "abcdef", testName: "Test" }),
+        headers: {},
       };
+      mockHttpClient.get.mockResolvedValue(mockResponse);
 
-      await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
+      const event: AgentCoreEvent = { test_id: "abcdef" };
 
-      try {
-        await handleGetScenarioDetails(mockHttpClient, apiEndpoint, event);
-      } catch (error) {
-        expect((error as AppError).code).toBe(400);
-        expect((error as AppError).message).toContain("10 character");
-      }
+      await expect(handleGetScenarioDetails(mockHttpClient, apiEndpoint, event)).resolves.toBeDefined();
     });
 
     it("should throw AppError for test_id with invalid characters", async () => {
@@ -128,7 +127,7 @@ describe("handleGetScenarioDetails", () => {
         await handleGetScenarioDetails(mockHttpClient, apiEndpoint, event);
       } catch (error) {
         expect((error as AppError).code).toBe(400);
-        expect((error as AppError).message).toContain("Invalid test_id");
+        expect((error as AppError).message).toContain("testId must contain only alphanumeric characters and hyphens");
       }
     });
   });

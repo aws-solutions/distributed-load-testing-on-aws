@@ -3,6 +3,7 @@
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import createWrapper from "@cloudscape-design/components/test-utils/dom";
 import { beforeAll, describe, it, expect, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import type { ReactElement } from "react";
@@ -98,7 +99,7 @@ describe("SendToAgentModal", () => {
     it("renders the modal with header and buttons when visible", () => {
       renderModal(<SendToAgentModal {...makeDefaultProps()} />);
 
-      expect(screen.getByText("Send to DevOps Agent")).toBeInTheDocument();
+      expect(screen.getByText("Investigate with DevOps Agent")).toBeInTheDocument();
       expect(screen.getByText("Start investigation")).toBeInTheDocument();
       expect(screen.getByText("Cancel")).toBeInTheDocument();
     });
@@ -106,7 +107,9 @@ describe("SendToAgentModal", () => {
     it("renders the description preview with test run details", () => {
       renderModal(<SendToAgentModal {...makeDefaultProps()} />);
 
-      expect(screen.getByText(/API Load Test/)).toBeInTheDocument();
+      // "Title:" only appears in the payload preview; the run summary above it
+      // renders the same headline as a heading.
+      expect(screen.getByText(/Title: API Load Test/)).toBeInTheDocument();
       expect(screen.getByText(/Framework: simple/)).toBeInTheDocument();
     });
 
@@ -184,21 +187,147 @@ describe("SendToAgentModal", () => {
       const button = screen.getByText("Start investigation").closest("button");
       expect(button).toHaveAttribute("aria-disabled", "true");
     });
+
+    it("submits the typed context when the include toggle is on", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      renderModal(<SendToAgentModal {...makeDefaultProps({ onSubmit })} />);
+
+      await user.type(screen.getByRole("textbox"), "P99 target is 500ms");
+      await user.click(screen.getByText("Start investigation"));
+
+      expect(onSubmit).toHaveBeenCalledWith("space-1", "P99 target is 500ms", "MEDIUM");
+    });
+
+    it("withholds the typed context when the include toggle is off", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      renderModal(<SendToAgentModal {...makeDefaultProps({ onSubmit })} />);
+
+      const textarea = screen.getByRole("textbox");
+      await user.type(textarea, "P99 target is 500ms");
+      await user.click(screen.getByText("Include my context in the investigation prompt"));
+      await user.click(screen.getByText("Start investigation"));
+
+      expect(onSubmit).toHaveBeenCalledWith("space-1", "", "MEDIUM");
+      // The text is withheld, not discarded, so toggling back on restores it.
+      expect(textarea).toHaveValue("P99 target is 500ms");
+      expect(textarea).toBeDisabled();
+    });
   });
 
+  describe("run context section", () => {
+    it("summarizes the run configuration", () => {
+      const testRun = makeTestRun({
+        testScenario: {
+          execution: [{ scenario: "API Load Test" }],
+          scenarios: { "API Load Test": { requests: [{ url: "https://api.example.com/health" }] } },
+        },
+      });
+      renderModal(<SendToAgentModal {...makeDefaultProps({ testRun })} />);
+
+      expect(screen.getByText("Framework")).toBeInTheDocument();
+      expect(screen.getByText("simple")).toBeInTheDocument();
+      expect(screen.getByText("5 tasks, 10 concurrent users")).toBeInTheDocument();
+      expect(screen.getByText("2026-06-01T12:00:00Z to 2026-06-01T12:10:00Z")).toBeInTheDocument();
+      expect(screen.getByText("us-east-1")).toBeInTheDocument();
+      expect(screen.getByText("https://api.example.com/health")).toBeInTheDocument();
+    });
+
+    it("summarizes request, failure, and response-time metrics", () => {
+      const testRun = makeTestRun({
+        results: { total: makeTestResults({ succ: 80, fail: 20, avg_rt: "50", p99_0: "200", p99_9: "350" }) },
+      });
+      renderModal(<SendToAgentModal {...makeDefaultProps({ testRun })} />);
+
+      expect(screen.getByText("Total requests")).toBeInTheDocument();
+      expect(screen.getByText("100 (80 success, 20 failures)")).toBeInTheDocument();
+      expect(screen.getByText("20.0%")).toBeInTheDocument();
+      expect(screen.getByText("50ms")).toBeInTheDocument();
+      expect(screen.getByText("200ms")).toBeInTheDocument();
+      expect(screen.getByText("350ms")).toBeInTheDocument();
+    });
+
+    it("rolls up HTTP error codes across endpoints, worst first", () => {
+      const label = (name: string, fail: number, rc: Array<{ count: number; code: string }>) => ({
+        label: name,
+        succ: 10,
+        fail,
+        avg_rt: "50", p99_0: "200", avg_lt: "10", p0_0: "5", stdev_rt: "20", avg_ct: "8",
+        concurrency: "5", p99_9: "300", p100_0: "400", bytes: "512", p95_0: "180",
+        throughput: 5, p90_0: "160", testDuration: "600", p50_0: "45",
+        rc,
+      });
+      const testRun = makeTestRun({
+        results: {
+          total: makeTestResults({
+            succ: 20,
+            fail: 9,
+            labels: [
+              label("/api/users", 4, [{ count: 4, code: "500" }]),
+              label("/api/orders", 5, [{ count: 3, code: "503" }, { count: 2, code: "500" }]),
+            ],
+          }),
+        },
+      });
+      renderModal(<SendToAgentModal {...makeDefaultProps({ testRun })} />);
+
+      expect(screen.getByText("HTTP error codes")).toBeInTheDocument();
+      // 500 totals 6 across both endpoints, so it outranks 503's 3.
+      expect(screen.getByText("6x 500")).toBeInTheDocument();
+      expect(screen.getByText("3x 503")).toBeInTheDocument();
+    });
+
+    it("omits the HTTP error codes list for a clean run", () => {
+      renderModal(<SendToAgentModal {...makeDefaultProps()} />);
+
+      expect(screen.getByText("Total requests")).toBeInTheDocument();
+      expect(screen.queryByText("HTTP error codes")).not.toBeInTheDocument();
+    });
+
+    it("still shows the configuration when the run produced no results", () => {
+      const testRun = makeTestRun({ results: {} });
+      renderModal(<SendToAgentModal {...makeDefaultProps({ testRun })} />);
+
+      expect(screen.getByText("Framework")).toBeInTheDocument();
+      expect(screen.queryByText("Total requests")).not.toBeInTheDocument();
+      expect(screen.queryByText("Error rate")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("advanced options", () => {
+    it("submits the priority chosen under Advanced options", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      renderModal(<SendToAgentModal {...makeDefaultProps({ onSubmit })} />);
+
+      await user.click(screen.getByText("Advanced options"));
+      const priority = createWrapper(document.body).findAllSelects()[1]!;
+      priority.openDropdown();
+      priority.selectOptionByValue("HIGH");
+
+      await user.click(screen.getByText("Start investigation"));
+      expect(onSubmit).toHaveBeenCalledWith("space-1", "", "HIGH");
+    });
+  });
+
+  // The title is rendered twice — as the run summary heading and inside the payload
+  // preview — so these assert on the heading and trust the two share one builder.
   describe("description preview — buildPreviewTitle", () => {
+    const findTitle = (name: RegExp) => screen.getByRole("heading", { level: 3, name });
+
     it("shows failed title when test status is failed", () => {
       renderModal(
         <SendToAgentModal {...makeDefaultProps({ testRun: makeTestRun({ status: "failed" }) })} />,
       );
 
-      expect(screen.getByText(/API Load Test — test run failed/)).toBeInTheDocument();
+      expect(findTitle(/API Load Test — test run failed/)).toBeInTheDocument();
     });
 
     it("shows healthy title when no failures", () => {
       renderModal(<SendToAgentModal {...makeDefaultProps()} />);
 
-      expect(screen.getByText(/API Load Test — healthy \(100 req\)/)).toBeInTheDocument();
+      expect(findTitle(/API Load Test — healthy \(100 req\)/)).toBeInTheDocument();
     });
 
     it("shows failure rate when there are failures", () => {
@@ -207,7 +336,7 @@ describe("SendToAgentModal", () => {
       });
       renderModal(<SendToAgentModal {...makeDefaultProps({ testRun })} />);
 
-      expect(screen.getByText(/API Load Test — 20% failed \(100 req\)/)).toBeInTheDocument();
+      expect(findTitle(/API Load Test — 20% failed \(100 req\)/)).toBeInTheDocument();
     });
 
     it("shows investigation requested when no results", () => {
@@ -216,14 +345,14 @@ describe("SendToAgentModal", () => {
       });
       renderModal(<SendToAgentModal {...makeDefaultProps({ testRun })} />);
 
-      expect(screen.getByText(/API Load Test — investigation requested/)).toBeInTheDocument();
+      expect(findTitle(/API Load Test — investigation requested/)).toBeInTheDocument();
     });
 
     it("uses Unknown when no scenario name is available", () => {
       const testRun = makeTestRun({ testScenario: undefined });
       renderModal(<SendToAgentModal {...makeDefaultProps({ testRun })} />);
 
-      expect(screen.getByText(/Unknown/)).toBeInTheDocument();
+      expect(findTitle(/Unknown/)).toBeInTheDocument();
     });
   });
 

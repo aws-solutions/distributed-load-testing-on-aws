@@ -24,8 +24,7 @@ export function createTemplateWithoutS3Key(stack: Stack): Template {
         "Omitted to remove snapshot dependency on solution version";
     }
     if (templateJson.Resources[key].Properties?.Timestamp) {
-      templateJson.Resources[key].Properties.Timestamp =
-        "Omitted to remove snapshot dependency on timestamp";
+      templateJson.Resources[key].Properties.Timestamp = "Omitted to remove snapshot dependency on timestamp";
     }
     // Sanitize Cognito Domain with token placeholders
     if (

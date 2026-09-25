@@ -195,7 +195,7 @@ exports[`DLT API Test 1`] = `
             "HISTORY_TABLE_GSI_NAME": "testId-startTime-index",
             "INVESTIGATIONS_TABLE": "testInvestigationsTable",
             "METRIC_URL": "https://metrics.awssolutionsbuilder.com/generic",
-            "MIN_COMPATIBLE_VERSION": "4.1.0",
+            "MIN_COMPATIBLE_VERSION": "4.3.0",
             "SCENARIOS_BUCKET": "testScenarioBucketName",
             "SCENARIOS_TABLE": "testDDBTable",
             "SCHEDULER_ROLE_ARN": {

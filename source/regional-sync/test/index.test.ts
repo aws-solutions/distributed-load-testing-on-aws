@@ -61,6 +61,7 @@ function makeRegion(region: string, status: StabilizationStatus, readyTimestamp 
     showLive: true,
     testDuration: 300,
     prefix: "2025-01-01T00-00-00_abc",
+    nativeRunMode: null,
     testTaskConfig: {
       region,
       taskCluster: `dlt-cluster-${region}`,

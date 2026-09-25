@@ -14,6 +14,9 @@
 /** Prefix used for all DLT-managed ECS service names. */
 export const DLT_SERVICE_PREFIX = "dlt-";
 
+/** Root segment of the awslogs stream prefix for load-test containers. */
+export const LIVE_DATA_LOG_STREAM_PREFIX = "load-testing";
+
 /**
  * Builds the ECS service name for a load test in a specific region.
  *
@@ -30,6 +33,38 @@ export function buildServiceName(testId: string, region: string): string {
  */
 export function buildTaskDefinitionFamily(testId: string): string {
   return `dlt-worker-${testId}`;
+}
+
+/**
+ * Builds the awslogs stream prefix for a load test's containers.
+ *
+ * Format: `load-testing/{testId}`
+ *
+ * The awslogs driver names each stream `{prefix}/{containerName}/{ecsTaskId}`,
+ * so the resulting stream name is `load-testing/{testId}/{containerName}/{ecsTaskId}`.
+ * Embedding the testId lets the real-time-data-publisher derive an
+ * infrastructure-controlled test identity from the CloudWatch log stream name
+ * rather than trusting the (customer-writable) log line content. testId is
+ * validated `^[a-zA-Z0-9-]+$`, so it contains no `/` and parses back
+ * unambiguously via {@link parseTestIdFromLogStream}.
+ */
+export function buildLiveDataStreamPrefix(testId: string): string {
+  return `${LIVE_DATA_LOG_STREAM_PREFIX}/${testId}`;
+}
+
+/**
+ * Extracts the testId from a CloudWatch log stream name produced under
+ * {@link buildLiveDataStreamPrefix} (`load-testing/{testId}/{container}/{taskId}`).
+ *
+ * Requires the full three-segment awslogs shape so the legacy two-segment prefix
+ * (`load-testing/{container}/{taskId}`, used before this testId was embedded)
+ * does not resolve its container name as a testId. Returns undefined when the
+ * stream name does not match, so the caller can fail closed rather than publish
+ * to an attacker-influenced or ambiguous topic.
+ */
+export function parseTestIdFromLogStream(logStream: string): string | undefined {
+  const match = /^load-testing\/([a-zA-Z0-9-]+)\/[^/]+\/[^/]+$/.exec(logStream);
+  return match?.[1];
 }
 
 /**

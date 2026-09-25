@@ -139,6 +139,7 @@ describe("#SEND METRICS", () => {
 
     // Assert
     expect(mock.history.post[0].url).toEqual(process.env.METRIC_URL);
+    expect(mock.history.post[0].timeout).toEqual(5000);
     expect(JSON.parse(mock.history.post[0].data)).toMatchObject(expectedMetricObject);
     expect(typeof Date.parse(JSON.parse(mock.history.post[0].data).TimeStamp)).toEqual("number"); // epoch time
   });

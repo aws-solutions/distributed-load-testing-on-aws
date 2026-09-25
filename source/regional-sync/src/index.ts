@@ -1,7 +1,12 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { OperationalMetricEnvelope, RegionalSyncResult, ServiceStabilizationResult, TestType } from "@amzn/dlt-common";
+import type {
+  OperationalMetricEnvelope,
+  RegionalSyncResult,
+  ServiceStabilizationResult,
+  TestType,
+} from "@amzn/dlt-common";
 import {
   createLogger,
   getAwsClientConfig,
@@ -70,7 +75,8 @@ export async function handler(event: RegionalSyncEvent): Promise<RegionalSyncRes
       allReady: result.allReady,
       syncDelay: result.syncDelay,
       regionCount: result.regions.length,
-      ...(result.failedRegions !== undefined ? { failedRegions: result.failedRegions } : {}),
+      ...(result.failedRegions ? { failedRegions: result.failedRegions } : {}),
+      ...(result.errorReason ? { errorReason: result.errorReason } : {}),
     });
 
     await sendOperationalMetric(metricEnvelope, {

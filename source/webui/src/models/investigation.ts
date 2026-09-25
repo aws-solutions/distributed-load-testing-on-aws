@@ -1,18 +1,30 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-export type InvestigationStatus =
-  | "PENDING_TRIAGE"
-  | "LINKED"
-  | "PENDING_START"
-  | "IN_PROGRESS"
-  | "PENDING_CUSTOMER_APPROVAL"
-  | "COMPLETED"
-  | "FAILED"
-  | "TIMED_OUT"
-  | "CANCELED";
+/**
+ * Investigation lifecycle states reported by the DevOps Agent API. The values are
+ * the exact wire strings, so these are safe to compare against API responses.
+ * The backend keeps its own copy in api-services/lib/investigations/index.js
+ * (KNOWN_STATUSES) — the two lists must stay in sync.
+ */
+export enum InvestigationStatus {
+  PENDING_TRIAGE = "PENDING_TRIAGE",
+  LINKED = "LINKED",
+  PENDING_START = "PENDING_START",
+  IN_PROGRESS = "IN_PROGRESS",
+  PENDING_CUSTOMER_APPROVAL = "PENDING_CUSTOMER_APPROVAL",
+  COMPLETED = "COMPLETED",
+  FAILED = "FAILED",
+  TIMED_OUT = "TIMED_OUT",
+  CANCELED = "CANCELED",
+}
 
-export const TERMINAL_STATES: InvestigationStatus[] = ["COMPLETED", "FAILED", "TIMED_OUT", "CANCELED"];
+export const TERMINAL_STATES: InvestigationStatus[] = [
+  InvestigationStatus.COMPLETED,
+  InvestigationStatus.FAILED,
+  InvestigationStatus.TIMED_OUT,
+  InvestigationStatus.CANCELED,
+];
 
 export interface Investigation {
   investigationId: string;
@@ -92,7 +104,7 @@ export interface CancelInvestigationRequest {
 
 export interface CancelInvestigationResponse {
   investigationId: string;
-  status: "CANCELED";
+  status: InvestigationStatus.CANCELED;
   archived: true;
 }
 

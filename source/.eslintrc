@@ -16,6 +16,7 @@
     // Workspace packages (linted by root eslint)
     "cli/**",
     "common/**",
+    "load-tester/**",
     "mcp-server/**",
     "orphan-cleanup/**",
     "regional-sync/**",

@@ -123,7 +123,7 @@ Optional fields:
 - `testRunId`: Valid test run identifier (required)
 
 **DELETE /scenarios/{testId}/testruns** (Delete Test Runs)
-- Array of `testRunId` strings (at least one required)
+- Array of 1-25 `testRunId` strings
 
 ## Error Handling
 

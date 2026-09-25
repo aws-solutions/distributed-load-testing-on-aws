@@ -44,12 +44,14 @@ exports.handler = async (event, context) => {
         await metrics.send(config, requestType);
         break;
       default:
-        throw Error(`${resource} not supported`);
+        throw new Error(`${resource} not supported`);
     }
     await cfn.send(event, context, "SUCCESS", responseData, resource);
   } catch (err) {
-    console.error(`Error in custom resource ${resource}: ${err.message}, Code: ${err.code || 'N/A'}, RequestType: ${requestType}`);
+    console.error(
+      `Error in custom resource ${resource}: ${err.message}, Code: ${err.code || "N/A"}, RequestType: ${requestType}`
+    );
     await cfn.send(event, context, "FAILED", {}, resource);
-    throw new Error(`Custom resource ${resource} failed: ${err.message || 'Unknown error'}`);
+    throw new Error(`Custom resource ${resource} failed: ${err.message || "Unknown error"}`);
   }
 };

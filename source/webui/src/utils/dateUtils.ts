@@ -28,7 +28,7 @@ export const formatToLocalTime = (
     // Build a Date by interpreting dateString in the given timezone.
     const isoish = dateString.replace(" ", "T");
     const rough = new Date(isoish + "Z");
-    if (isNaN(rough.getTime())) return "-";
+    if (Number.isNaN(rough.getTime())) return "-";
 
     // Determine the offset between UTC and the source timezone at this instant
     const utcStr = rough.toLocaleString("en-US", { timeZone: "UTC" });
@@ -40,5 +40,5 @@ export const formatToLocalTime = (
     date = new Date(dateString + "Z");
   }
 
-  return isNaN(date.getTime()) ? "-" : date.toLocaleString(undefined, options);
+  return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString(undefined, options);
 };

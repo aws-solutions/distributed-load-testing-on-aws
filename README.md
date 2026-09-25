@@ -12,12 +12,26 @@ The intended audience for using this solution's features and capabilities in the
 
 ## On this Page
 
+- [Public Roadmap](#public-roadmap)
 - [Architecture Overview](#architecture-overview)
+- [Traffic shape: Standard and Native](#traffic-shape-standard-and-native)
 - [Deployment](#deployment)
 - [Source Code](#source-code)
 - [Local Development](#local-development)
 - [Testing](#testing)
 - [Creating a custom build](#creating-a-custom-build)
+
+## Public Roadmap
+
+See what we're building next on the [DLT Roadmap board](https://github.com/orgs/aws-solutions/projects/24).
+
+We welcome community input:
+
+- **Vote** — add a 👍 reaction to roadmap issues that matter to you
+- **Discuss** — comment on roadmap issues with your use case or feedback
+- **Propose** — open a [Feature Request](https://github.com/aws-solutions/distributed-load-testing-on-aws/issues/new?template=feature_request.md) for capabilities you'd like to see
+
+The roadmap is not a commitment to deliver features by specific dates. Priorities may shift based on community feedback, security requirements, and operational needs.
 
 ## Architecture Overview
 
@@ -37,7 +51,7 @@ The high-level process flow for the solution components deployed with the AWS Cl
 
 4. An [Amazon Virtual Private Cloud](https://aws.amazon.com/vpc) (Amazon VPC) network topology deploys containing the solution's [Amazon Elastic Container Service](https://aws.amazon.com/ecs) (Amazon ECS) containers running on [AWS Fargate](https://aws.amazon.com/fargate).
 
-5. The containers use an [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/) base image with the [Taurus](https://gettaurus.org/) load testing framework installed. Taurus is an open-source test automation framework that supports JMeter, K6, Locust, and other testing tools. The container image is [Open Container Initiative](https://opencontainers.org/) (OCI) compliant and hosted by AWS in an [Amazon Elastic Container Registry](https://aws.amazon.com/ecr) (Amazon ECR) public repository. For more information, refer to [Container image customization](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/container-image.html).
+5. The containers use an [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/) base image with the [Taurus](https://gettaurus.org/) load testing framework installed. Taurus is an open-source test automation framework that supports JMeter, K6, Locust, and other testing tools. Which engine runs a given test depends on its traffic-shape mode: Standard mode executes through Taurus, while Native mode runs the uploaded script under the framework's own command line (see [Traffic shape: Standard and Native](#traffic-shape-standard-and-native) below). The container image is [Open Container Initiative](https://opencontainers.org/) (OCI) compliant and hosted by AWS in an [Amazon Elastic Container Registry](https://aws.amazon.com/ecr) (Amazon ECR) public repository. For more information, refer to [Container image customization](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/container-image.html).
 
 6. A web console powered by [AWS Amplify](https://aws.amazon.com/amplify) deploys into an S3 bucket configured for static web hosting.
 
@@ -66,6 +80,29 @@ The high-level process flow for the solution components deployed with the AWS Cl
 16. Upon successful authentication, AgentCore Gateway forwards the MCP tool request to the DLT MCP Server Lambda function. The Lambda function returns the structured data to AgentCore Gateway, which sends it back to the MCP client for AI-assisted analysis and insights.
 
 17. The Lambda function processes the request and queries the appropriate AWS resources (DynamoDB tables, S3 buckets, or CloudWatch logs) to retrieve the requested load testing data.
+
+## Traffic shape: Standard and Native
+
+Every test scenario runs in one of two traffic-shape modes, which decide whether the solution or your script controls the load. Standard is the default and is what every test used before v4.3.0, so existing scenarios keep behaving exactly as they did.
+
+**Standard.** Standard mode puts DLT in control of the load. You set the Fargate task count per Region, the concurrent virtual users per task, a ramp-up period, and a hold duration, and DLT runs the test through the Taurus automation framework, which applies those values over whatever load your script declares. A Region's virtual users are the task count multiplied by the per-task concurrency. Standard is the only mode that lets you set an exact virtual-user count and change the ramp-up and hold shape without editing the script, and the only one that supports the Simple HTTP Endpoint type. Its limit is expressiveness: anything Taurus cannot represent, such as weighted scenarios, per-stage thresholds, or arrival-rate executors, is unavailable. This is how every DLT test ran before v4.3.0, so existing scenarios keep behaving exactly as they did.
+
+**Native.** Native mode puts your script in control of the load. DLT runs the file you uploaded under the framework's own command line and passes no load flags, so your script is the sole authority on the traffic it generates. Two controls remain: how many Fargate tasks to launch per Region, and a required safety duration of up to 24 hours. The safety duration guards against a script that never exits rather than scheduling the run: if the test is still going when it elapses, DLT stops the framework, keeps the results for the portion that ran, and records the run as completed. Tasks are uncoordinated and each runs a full copy of the script, so a k6 script holding 200 virtual users on five tasks puts 1,000 virtual users on the target. Task count is therefore the only load dial; changing the ramp, the hold time, or the virtual-user count means editing the script. Native requires an uploaded script, so Simple HTTP Endpoint is unavailable, and Locust scripts must not set processes.
+
+| If you need | Use |
+| --- | --- |
+| An exact virtual-user count, set from outside the script | Standard |
+| To change the ramp-up or hold time without editing the script | Standard |
+| A single URL with no script at all | Standard |
+| The same load shape regardless of framework | Standard |
+| To reuse a CI or local script unchanged | Native |
+| The script's own stages, thresholds, or shape honored | Native |
+| k6 scenarios, thresholds, or arrival-rate executors | Native |
+| A Locust `LoadTestShape` or weighted task set | Native |
+| JMeter timers and thread groups run exactly as authored | Native |
+| To scale load only in whole multiples of the script's own load | Native |
+
+Both modes report the same metrics, stream live data to the console during a run, and scale by adding tasks, so results stay comparable across a mode switch. Select the mode on the Traffic shape step of the create form, with `--native-mode` in the [DLT CLI](source/cli/README.md), or with `native_run_mode` through the [MCP server](source/mcp-server/README.md).
 
 ## Deployment
 
@@ -215,7 +252,7 @@ If a test targets an incompatible region, the API rejects the request with a des
 
 ```json
 {
-  "minimumCompatibleVersion": "4.1.0"
+  "minimumCompatibleVersion": "4.3.0"
 }
 ```
 

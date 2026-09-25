@@ -38,7 +38,7 @@ export function colorErrors(val: unknown): string {
   if (val === undefined || val === null || val === "") return String(val ?? "");
   const n = Number(val);
   const s = String(val);
-  if (!isNaN(n) && n > 0) return chalk.red(s);
+  if (!Number.isNaN(n) && n > 0) return chalk.red(s);
   return s;
 }
 

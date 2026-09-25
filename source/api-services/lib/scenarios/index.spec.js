@@ -13,6 +13,13 @@ const mockLambda = jest.fn();
 const mockCloudFormation = jest.fn();
 const mockServiceQuotas = jest.fn();
 const mockScheduler = jest.fn();
+const { NotFound } = jest.requireActual("@aws-sdk/client-s3");
+
+const s3NotFound = () =>
+  new NotFound({
+    message: "Not Found",
+    $metadata: { httpStatusCode: 404 },
+  });
 
 const createMockFactory = (moduleLocation, clientName, mockFn) => () => {
   // This function will be called by Jest during hoisting
@@ -90,11 +97,17 @@ const listData = {
   Items: [{ testId: "1234", totalTestRuns: 5 }, { testId: "5678", totalTestRuns: 3 }],
 };
 
+// A prior run in a terminal (safe) state: this is the realistic state of an
+// existing scenario when a new run is started. Starting over an active run is
+// now rejected by the server-side single-run guard (see concurrency-guard.spec.js),
+// so createTest "start" tests use a terminal status here. Read-only tests
+// (getTest, getTestRuns) do not depend on this value.
 const origData = {
   Item: {
     testId: "1234",
-    name: "mytest",
-    status: "running",
+    testName: "mytest",
+    testType: "simple",
+    status: "complete",
     testScenario: '{"name":"example"}',
     testTaskConfigs: [
       {
@@ -110,7 +123,8 @@ let getData;
 let getDataWithNoConfigs = {
   Item: {
     testId: "1234",
-    name: "mytest",
+    testName: "mytest",
+    testType: "simple",
     status: "running",
     testScenario: '{"name":"example"}',
   },
@@ -119,7 +133,8 @@ let getDataWithNoConfigs = {
 let getDataWithEmptyConfigs = {
   Item: {
     testId: "1234",
-    name: "mytest",
+    testName: "mytest",
+    testType: "simple",
     status: "running",
     testScenario: '{"name":"example"}',
     testTaskConfigs: [{}],
@@ -453,12 +468,21 @@ const rulesResponse = {
   ],
 };
 
+const nativeTaskDefinitions = {
+  jmeter: "arn:aws:ecs:us-east-1:123456789012:task-definition/testJmeterTaskDef:1",
+  k6: "arn:aws:ecs:us-east-1:123456789012:task-definition/testK6TaskDef:1",
+  locust: "arn:aws:ecs:us-east-1:123456789012:task-definition/testLocustTaskDef:1",
+};
+
+// The hub region's row. nativeTaskDefinitions is absent on a hub deployed
+// before native mode — see the legacy-hub test below.
 const getRegionalConf = {
   Item: {
     testId: "region-us-east-1",
     ecsCloudWatchLogGroup: "testCluster-DLTEcsDLTCloudWatchLogsGroup",
     taskCluster: "testCluster",
     taskDefinition: "arn:aws:ecs:us-east-1:123456789012:task-definition/testTaskDef1:1",
+    nativeTaskDefinitions,
     subnetB: "subnet-123abc",
     region: "us-east-1",
     taskImage: "test-load-tester-image",
@@ -764,6 +788,7 @@ describe("#SCENARIOS API:: ", () => {
     mockLambda.mockReset();
     mockCloudFormation.mockReset();
     mockServiceQuotas.mockReset();
+    mockScheduler.mockReset();
     mockGetLatestVersionFromRss.mockReset();
     mockGetLatestVersionFromRss.mockResolvedValue("9.9.9");
 
@@ -801,7 +826,51 @@ describe("#SCENARIOS API:: ", () => {
     );
 
     const response = await lambda.getTest(testId);
-    expect(response.name).toEqual("mytest");
+    expect(response.testName).toEqual("mytest");
+  });
+
+  it("getTest derives scheduleDate/scheduleTime from nextRun for a one-time schedule", async () => {
+    // One-time schedule: nextRun set, no cronValue. The pair is never persisted,
+    // so it must be derived on read (FC-075) for the edit form to restore Run Once.
+    getData.Item.nextRun = "2026-12-25 14:30:00";
+    getData.Item.scheduleTimezone = "America/New_York";
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
+    mockDynamoDB.mockImplementation(() => Promise.resolve(historyEntries));
+
+    const response = await lambda.getTest(testId);
+    expect(response.scheduleDate).toEqual("2026-12-25");
+    // Seconds dropped: the client time field expects HH:MM.
+    expect(response.scheduleTime).toEqual("14:30");
+    expect(response.scheduleTimezone).toEqual("America/New_York");
+  });
+
+  it("getTest does not derive schedule fields for a recurring (cron) schedule", async () => {
+    // Recurring: nextRun is the next occurrence, not the configured time, so the
+    // pair must not be derived from it.
+    getData.Item.cronValue = "0 8 * * *";
+    getData.Item.nextRun = "2026-12-25 14:30:00";
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
+    mockDynamoDB.mockImplementation(() => Promise.resolve(historyEntries));
+
+    const response = await lambda.getTest(testId);
+    expect(response.scheduleDate).toBeUndefined();
+    expect(response.scheduleTime).toBeUndefined();
+  });
+
+  it("listTests derives one-time schedule fields but leaves recurring untouched", async () => {
+    const oneTime = { testId: "ot", nextRun: "2026-12-25 14:30:00", scheduleTimezone: "America/New_York" };
+    const recurring = { testId: "rec", nextRun: "2026-12-26 08:00:00", cronValue: "0 8 * * *" };
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Items: [oneTime, recurring] }));
+
+    const response = await lambda.listTests();
+    const otItem = response.Items.find((i) => i.testId === "ot");
+    const recItem = response.Items.find((i) => i.testId === "rec");
+    expect(otItem.scheduleDate).toEqual("2026-12-25");
+    expect(otItem.scheduleTime).toEqual("14:30");
+    expect(recItem.scheduleDate).toBeUndefined();
+    expect(recItem.scheduleTime).toBeUndefined();
   });
 
   it('should return "SUCCESS" when "listTask" returns success', async () => {
@@ -1139,6 +1208,34 @@ describe("#SCENARIOS API:: ", () => {
     expect(mockCloudWatchLogs).not.toHaveBeenCalled();
   });
 
+  it('should return "SUCCESS" when "DELETETEST" is called and the regional config entry no longer exists', async () => {
+    getData.Item.status = "complete";
+    // Simulate a fully removed regional stack: the "region-<region>" config entry is gone,
+    // so getRegionInfraConfigs throws InvalidRegionRequest. Delete must still succeed.
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData)); // getTestEntry
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // getRegionInfraConfigs -> no Item
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve()); // deleteDDBTestEntry
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(historyEntries));
+    mockDynamoDB.mockImplementation(() => Promise.resolve(noUnprocessedItems));
+    mockCloudWatch.mockImplementationOnce(() => Promise.resolve());
+    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve(rulesResponse));
+    mockCloudWatchEvents.mockImplementation(() => Promise.resolve());
+    mockLambda.mockImplementationOnce(() => Promise.resolve());
+
+    const response = await lambda.deleteTest(testId, context.functionName);
+    expect(response).toEqual("success");
+  });
+
+  it('should return "SUCCESS" when "GETTEST" is called and the regional config entry no longer exists', async () => {
+    getData.Item.status = "complete";
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData)); // getTestEntry
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // getRegionInfraConfigs -> no Item
+    mockDynamoDB.mockImplementation(() => Promise.resolve(historyEntries)); // getTotalCount + history
+
+    const response = await lambda.getTest(testId);
+    expect(response.testName).toEqual("mytest");
+  });
+
   it.each(["running", "cancelling", "provisioning", "cleaning up", "parsing results"])(
     'should return 409 CONFLICT when "DELETETEST" is called on a %s test',
     async (status) => {
@@ -1161,6 +1258,7 @@ describe("#SCENARIOS API:: ", () => {
     mockS3.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // claimRunSlot
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
     mockStepFunctions.mockImplementation(() => Promise.resolve());
@@ -1179,12 +1277,359 @@ describe("#SCENARIOS API:: ", () => {
     );
   });
 
+  describe("test asset validation", () => {
+    it.each([
+      ["jmeter", "script", "public/test-scenarios/jmeter/asset-test.jmx"],
+      ["locust", "script", "public/test-scenarios/locust/asset-test.py"],
+      ["jmeter", "zip", "public/test-scenarios/jmeter/asset-test.zip"],
+      ["k6", "zip", "public/test-scenarios/k6/asset-test.zip"],
+      ["locust", "zip", "public/test-scenarios/locust/asset-test.zip"],
+    ])("checks the expected %s %s object", async (testType, fileType, expectedKey) => {
+      mockS3.mockResolvedValueOnce({});
+
+      await lambda.validateTestAssetExists(testType, fileType, "asset-test");
+
+      expect(mockS3).toHaveBeenCalledWith({
+        Bucket: "bucket",
+        Key: expectedKey,
+      });
+    });
+
+    it("checks k6 TypeScript before falling back to JavaScript", async () => {
+      mockS3.mockRejectedValueOnce(s3NotFound()).mockResolvedValueOnce({});
+
+      await lambda.validateTestAssetExists("k6", "script", "asset-test");
+
+      expect(mockS3).toHaveBeenNthCalledWith(1, {
+        Bucket: "bucket",
+        Key: "public/test-scenarios/k6/asset-test.ts",
+      });
+      expect(mockS3).toHaveBeenNthCalledWith(2, {
+        Bucket: "bucket",
+        Key: "public/test-scenarios/k6/asset-test.js",
+      });
+    });
+
+    it("returns TEST_ASSET_NOT_FOUND when every candidate is absent", async () => {
+      mockS3.mockRejectedValue(s3NotFound());
+
+      await expect(lambda.validateTestAssetExists("k6", "script", "missing-test")).rejects.toMatchObject({
+        code: "TEST_ASSET_NOT_FOUND",
+        statusCode: 400,
+      });
+      expect(mockS3).toHaveBeenCalledTimes(2);
+    });
+
+    it("returns TEST_ASSET_VALIDATION_FAILED for non-404 S3 failures", async () => {
+      mockS3.mockRejectedValueOnce({ name: "AccessDenied", $metadata: { httpStatusCode: 403 } });
+
+      await expect(lambda.validateTestAssetExists("jmeter", "script", "asset-test")).rejects.toMatchObject({
+        code: "TEST_ASSET_VALIDATION_FAILED",
+        statusCode: 500,
+      });
+      expect(mockS3).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects fileType none for a script-based test without calling S3", async () => {
+      await expect(lambda.validateTestAssetExists("locust", "none", "asset-test")).rejects.toMatchObject({
+        code: "INVALID_FILE_TYPE",
+        statusCode: 400,
+      });
+      expect(mockS3).not.toHaveBeenCalled();
+    });
+
+    it("skips S3 validation for simple tests", async () => {
+      await lambda.validateTestAssetExists("simple", "none", "asset-test");
+      expect(mockS3).not.toHaveBeenCalled();
+    });
+
+    it("defaults omitted fileType to script and fails create before downstream work when the asset is absent", async () => {
+      config.testId = "missing-create";
+      config.testType = "jmeter";
+      mockS3.mockRejectedValueOnce(s3NotFound());
+
+      await expect(lambda.createTest(config, context.functionName)).rejects.toMatchObject({
+        code: "TEST_ASSET_NOT_FOUND",
+        statusCode: 400,
+      });
+      expect(mockS3).toHaveBeenCalledWith({
+        Bucket: "bucket",
+        Key: "public/test-scenarios/jmeter/missing-create.jmx",
+      });
+      expect(mockDynamoDB).not.toHaveBeenCalled();
+      expect(mockStepFunctions).not.toHaveBeenCalled();
+    });
+
+    it("fails scheduling before deleting or creating schedules when the required asset is absent", async () => {
+      config.testId = "missing-schedule";
+      config.testType = "locust";
+      config.fileType = "script";
+      config.scheduleStep = "create";
+      config.recurrence = "daily";
+      mockS3.mockRejectedValueOnce(s3NotFound());
+
+      await expect(lambda.scheduleTest(eventInput(), context)).rejects.toMatchObject({
+        code: "TEST_ASSET_NOT_FOUND",
+        statusCode: 400,
+      });
+      expect(mockScheduler).not.toHaveBeenCalled();
+      expect(mockCloudWatchEvents).not.toHaveBeenCalled();
+      expect(mockDynamoDB).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("native mode", () => {
+    // Mock order matches createTest: scenario read, then the regional config
+    // lookups, then the final update.
+    const primeCreateTestMocks = () => {
+      mockS3.mockImplementation(() => Promise.resolve());
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // claimRunSlot
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
+      mockStepFunctions.mockImplementation(() => Promise.resolve());
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(updateData));
+    };
+
+    const stepFunctionInput = () => JSON.parse(mockStepFunctions.mock.calls[0][0].input);
+
+    it("sends the native fields to the step function", async () => {
+      primeCreateTestMocks();
+      config.nativeRunMode = {
+        maxTestDurationSeconds: 3600,
+      };
+
+      await lambda.createTest(config, context.functionName);
+
+      const input = stepFunctionInput();
+      expect(input.nativeRunMode).toEqual(config.nativeRunMode);
+      expect(input.runMode).toBe("native");
+    });
+
+    it("keeps testDuration as ramp-up plus hold-for for a native test", async () => {
+      primeCreateTestMocks();
+      config.nativeRunMode = { maxTestDurationSeconds: 7200 };
+
+      await lambda.createTest(config, context.functionName);
+
+      const input = stepFunctionInput();
+      expect(input.nativeRunMode.maxTestDurationSeconds).toBe(7200);
+      expect(input.testDuration).not.toBe(7200);
+    });
+
+    it("sends null nativeRunMode on a legacy test", async () => {
+      primeCreateTestMocks();
+
+      await lambda.createTest(config, context.functionName);
+
+      const input = stepFunctionInput();
+      expect(input.nativeRunMode).toBeNull();
+      expect(input.runMode).toBe("standard");
+    });
+
+    it("passes the hub's native task definitions through", async () => {
+      primeCreateTestMocks();
+      config.nativeRunMode = { maxTestDurationSeconds: 60 };
+
+      await lambda.createTest(config, context.functionName);
+
+      expect(stepFunctionInput().nativeTaskDefinitions).toEqual(nativeTaskDefinitions);
+    });
+
+    it("persists nativeRunMode as one object", async () => {
+      primeCreateTestMocks();
+      config.testType = "k6";
+      config.nativeRunMode = {
+        maxTestDurationSeconds: 1800,
+      };
+
+      await lambda.createTest(config, context.functionName);
+
+      const updateCall = mockDynamoDB.mock.calls
+        .map(([params]) => params)
+        .find((params) => params?.UpdateExpression?.startsWith("set #n = :n"));
+      expect(updateCall.UpdateExpression).toContain("#nrm = :nrm");
+      expect(updateCall.ExpressionAttributeNames["#nrm"]).toBe("nativeRunMode");
+      expect(updateCall.ExpressionAttributeValues[":nrm"]).toEqual(config.nativeRunMode);
+    });
+
+    it("removes nativeRunMode from a legacy scenario", async () => {
+      primeCreateTestMocks();
+
+      await lambda.createTest(config, context.functionName);
+
+      const updateCall = mockDynamoDB.mock.calls
+        .map(([params]) => params)
+        .find((params) => params?.UpdateExpression?.startsWith("set #n = :n"));
+      expect(updateCall.UpdateExpression).toContain("remove #nrm");
+      expect(updateCall.ExpressionAttributeNames["#nrm"]).toBe("nativeRunMode");
+      expect(updateCall.ExpressionAttributeValues[":nrm"]).toBeUndefined();
+    });
+
+    it("persists nativeRunMode without overrides when the script decides its own load", async () => {
+      primeCreateTestMocks();
+      config.nativeRunMode = { maxTestDurationSeconds: 60 };
+
+      await lambda.createTest(config, context.functionName);
+
+      const updateCall = mockDynamoDB.mock.calls
+        .map(([params]) => params)
+        .find((params) => params?.UpdateExpression?.startsWith("set #n = :n"));
+      expect(updateCall.ExpressionAttributeValues[":nrm"]).toEqual({ maxTestDurationSeconds: 60 });
+    });
+  });
+
+  // Taurus' k6 executor renders the hold stage as (hold-for - ramp-up), so the
+  // scenario file it reads carries ramp-up + hold-for as its hold-for. Nothing
+  // else may see that adjusted value.
+  // https://github.com/Blazemeter/taurus/blob/1.17.1/bzt/modules/k6.py#L57
+  describe("k6 ramp-up compensation", () => {
+    // Mock order matches createTest: scenario read, then the regional config
+    // lookups, then the final update.
+    const primeCreateTestMocks = () => {
+      mockS3.mockImplementation(() => Promise.resolve());
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // claimRunSlot
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
+      mockStepFunctions.mockImplementation(() => Promise.resolve());
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(updateData));
+    };
+
+    const scenarioFilesWritten = () =>
+      mockS3.mock.calls.map(([params]) => params).filter((params) => params?.Key?.startsWith("test-scenarios/"));
+
+    const scenarioFileFor = (region) =>
+      JSON.parse(scenarioFilesWritten().find((params) => params.Key.endsWith(`-${region}.json`)).Body);
+
+    const storedScenario = () => {
+      const updateCall = mockDynamoDB.mock.calls
+        .map(([params]) => params)
+        .find((params) => params?.ExpressionAttributeNames?.["#t"] === "testScenario");
+      return JSON.parse(updateCall.ExpressionAttributeValues[":t"]);
+    };
+
+    const stepFunctionInput = () => JSON.parse(mockStepFunctions.mock.calls[0][0].input);
+
+    beforeEach(() => {
+      config.testType = "k6";
+      config.testScenario.execution[0].executor = "k6";
+    });
+
+    it("sends ramp-up plus hold-for as the hold-for Taurus reads", async () => {
+      primeCreateTestMocks();
+
+      await lambda.createTest(config, context.functionName);
+
+      // ramp-up 30s + hold-for 1m, so Taurus renders --stage 30s:C --stage 60s:C
+      // for a 90 second run instead of collapsing it to 60.
+      expect(scenarioFilesWritten()).toHaveLength(2);
+      for (const params of scenarioFilesWritten()) {
+        const execution = JSON.parse(params.Body).execution[0];
+        expect(execution["hold-for"]).toBe("90s");
+        expect(execution["ramp-up"]).toBe("30s");
+      }
+    });
+
+    it("keeps the customer's hold-for out of the stored scenario and the step function duration", async () => {
+      primeCreateTestMocks();
+
+      await lambda.createTest(config, context.functionName);
+
+      expect(storedScenario().execution[0]["hold-for"]).toBe("1m");
+      expect(storedScenario().execution[0]["ramp-up"]).toBe("30s");
+      expect(stepFunctionInput().testDuration).toBe(90);
+    });
+
+    it("keeps a longer ramp-up than hold-for off the negative stage duration", async () => {
+      primeCreateTestMocks();
+      config.testScenario.execution[0]["ramp-up"] = "2m";
+
+      await lambda.createTest(config, context.functionName);
+
+      // Taurus would otherwise emit --stage -60s:C and k6 would refuse to start.
+      expect(scenarioFileFor("us-east-1").execution[0]["hold-for"]).toBe("180s");
+    });
+
+    it("keeps each region's own task count and concurrency", async () => {
+      primeCreateTestMocks();
+      config.testTaskConfigs[0].taskCount = "3";
+      config.testTaskConfigs[1].taskCount = "7";
+
+      await lambda.createTest(config, context.functionName);
+
+      expect(scenarioFileFor("us-east-1").execution[0].taskCount).toBe(3);
+      expect(scenarioFileFor("eu-west-1").execution[0].taskCount).toBe(7);
+      expect(scenarioFileFor("us-east-1").execution[0].concurrency).toBe(5);
+    });
+
+    it("leaves the scenario alone when ramp-up is zero", async () => {
+      primeCreateTestMocks();
+      config.testScenario.execution[0]["ramp-up"] = "0s";
+
+      await lambda.createTest(config, context.functionName);
+
+      // Taurus takes its --vus/--duration path here, which already honours hold-for.
+      expect(scenarioFileFor("us-east-1").execution[0]["hold-for"]).toBe("1m");
+    });
+
+    it.each(["jmeter", "locust"])("leaves a %s scenario alone", async (executor) => {
+      primeCreateTestMocks();
+      config.testType = executor;
+      config.testScenario.execution[0].executor = executor;
+
+      await lambda.createTest(config, context.functionName);
+
+      expect(scenarioFileFor("us-east-1").execution[0]["hold-for"]).toBe("1m");
+    });
+
+    it("leaves a scenario without an executor alone", async () => {
+      primeCreateTestMocks();
+      delete config.testScenario.execution[0].executor;
+
+      await lambda.createTest(config, context.functionName);
+
+      // Taurus falls back to its default executor, JMeter, which handles ramp-up.
+      expect(scenarioFileFor("us-east-1").execution[0]["hold-for"]).toBe("1m");
+    });
+
+    it("leaves a native mode k6 scenario alone", async () => {
+      primeCreateTestMocks();
+      config.nativeRunMode = {
+        maxTestDurationSeconds: 3600,
+      };
+
+      await lambda.createTest(config, context.functionName);
+
+      // The native runner downloads this same object and already sums the
+      // stages itself, so compensating would count the ramp-up twice.
+      for (const params of scenarioFilesWritten()) {
+        expect(JSON.parse(params.Body).execution[0]["hold-for"]).toBe("1m");
+      }
+    });
+
+    it("leaves the scenario alone for durations the seconds parser cannot read", async () => {
+      // h and d suffixes pass API validation but already fail createTest's own
+      // testDuration calculation, which is a separate pre-existing bug.
+      // Compensation must not add an earlier failure of its own.
+      primeCreateTestMocks();
+      config.testScenario.execution[0]["hold-for"] = "2h";
+
+      await expect(lambda.createTest(config, context.functionName)).rejects.toThrow();
+
+      expect(scenarioFileFor("us-east-1").execution[0]["hold-for"]).toBe("2h");
+    });
+  });
+
   it("should use the right nextRun value for manually triggered recurring tests", async () => {
     config.recurrence = "daily";
     getData.Item.nextRun = "2017-04-23 02:28:37";
     mockS3.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // claimRunSlot
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
     mockStepFunctions.mockImplementation(() => Promise.resolve());
@@ -1206,6 +1651,7 @@ describe("#SCENARIOS API:: ", () => {
     mockStepFunctions.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // claimRunSlot
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(updateData));
@@ -1227,6 +1673,7 @@ describe("#SCENARIOS API:: ", () => {
     mockStepFunctions.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // claimRunSlot
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(updateData));
@@ -1243,6 +1690,7 @@ describe("#SCENARIOS API:: ", () => {
     mockStepFunctions.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // claimRunSlot
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(updateData));
@@ -1255,6 +1703,7 @@ describe("#SCENARIOS API:: ", () => {
     config.recurrence = "weekly";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // claimRunSlot
     mockS3.mockImplementation(() => Promise.resolve());
     mockStepFunctions.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
@@ -1276,6 +1725,7 @@ describe("#SCENARIOS API:: ", () => {
     config.recurrence = "biweekly";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // claimRunSlot
     mockS3.mockImplementation(() => Promise.resolve());
     mockStepFunctions.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
@@ -1297,6 +1747,7 @@ describe("#SCENARIOS API:: ", () => {
     config.recurrence = "monthly";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // claimRunSlot
     mockS3.mockImplementation(() => Promise.resolve());
     mockStepFunctions.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
@@ -1314,14 +1765,16 @@ describe("#SCENARIOS API:: ", () => {
   });
 
   it('should return SUCCESS when "CANCELTEST" finds running tasks and returns success', async () => {
+    // Only an active run can be cancelled; origData is terminal ("complete").
+    getData.Item.status = "running";
     // getTestEntry
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     // getTestAndRegionConfigs (getTestEntry + getRegionConfigs)
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
+    // tryTransitionToCancelling (atomic conditional write; succeeds for an active run)
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve());
     // describeServiceTaskCounts (ECS describeServices)
     mockEcs.mockImplementationOnce(() => Promise.resolve({ services: [{ runningCount: 1, pendingCount: 0, desiredCount: 1 }] }));
-    // dynamoDB.update (set status to cancelling)
-    mockDynamoDB.mockImplementationOnce(() => Promise.resolve());
     // lambda.invoke (task canceler)
     mockLambda.mockImplementationOnce(() => Promise.resolve());
     // s3.listObjectsV2 (check for partial results)
@@ -1334,6 +1787,31 @@ describe("#SCENARIOS API:: ", () => {
         Payload: JSON.stringify({ testId: testId }),
       })
     );
+  });
+
+  it('should return 409 CONFLICT when "CANCELTEST" is called on a run that is not active', async () => {
+    // The atomic transition to "cancelling" is gated on the run being active.
+    // When it is not (a terminal run, or a run that went terminal mid-cancel),
+    // the conditional write fails and cancelTest must surface 409 without
+    // invoking the canceler — otherwise the scenario status would be rewritten
+    // while the run/history record keeps its true outcome.
+    const { ConditionalCheckFailedException } = jest.requireActual("@aws-sdk/client-dynamodb");
+    // getTestEntry
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    // getRegionInfraConfigs (per region)
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
+    // tryTransitionToCancelling: conditional write fails (run not active)
+    mockDynamoDB.mockImplementationOnce(() =>
+      Promise.reject(new ConditionalCheckFailedException({ message: "conditional request failed", $metadata: {} }))
+    );
+
+    await expect(lambda.cancelTest(testId)).rejects.toMatchObject({
+      code: "TEST_NOT_ACTIVE",
+      statusCode: 409,
+    });
+
+    // The cancel flow must not proceed: the canceler is never invoked.
+    expect(mockLambda).not.toHaveBeenCalled();
   });
 
   it('should return SUCCESS when "SCHEDULETEST" returns success and scheduleStep is "create"', async () => {
@@ -1352,6 +1830,41 @@ describe("#SCENARIOS API:: ", () => {
 
     const response = await lambda.scheduleTest(eventInput(), context);
     expect(response.testStatus).toEqual("scheduled");
+
+    const updateCall = mockDynamoDB.mock.calls
+      .map(([params]) => params)
+      .find((params) => params?.UpdateExpression?.startsWith("set #n = :n"));
+    expect(updateCall.UpdateExpression).toContain("remove #nrm");
+  });
+
+  it('should preserve nativeRunMode when "SCHEDULETEST" creates a schedule', async () => {
+    config.scheduleStep = "create";
+    config.recurrence = "daily";
+    config.testType = "k6";
+    config.nativeRunMode = {
+      maxTestDurationSeconds: 3600,
+    };
+
+    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve({ Rules: [] }));
+    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve(rulesResponse));
+    mockLambda.mockImplementationOnce(() => Promise.resolve());
+    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
+    mockDynamoDB.mockImplementation(() => {
+      const scheduleData = updateData;
+      scheduleData.Attributes.testStatus = "scheduled";
+      return Promise.resolve(scheduleData);
+    });
+
+    await lambda.scheduleTest(eventInput(), context);
+
+    const scheduleCall = mockScheduler.mock.calls.at(-1)[0];
+    const scheduledEvent = JSON.parse(scheduleCall.Target.Input);
+    expect(JSON.parse(scheduledEvent.body).nativeRunMode).toEqual(config.nativeRunMode);
+
+    const updateCall = mockDynamoDB.mock.calls
+      .map(([params]) => params)
+      .find((params) => params?.UpdateExpression?.startsWith("set #n = :n"));
+    expect(updateCall.ExpressionAttributeValues[":nrm"]).toEqual(config.nativeRunMode);
   });
 
   it('should return SUCCESS when "SCHEDULETEST" returns success and scheduleStep is "create" but with cronValue', async () => {
@@ -1416,7 +1929,7 @@ describe("#SCENARIOS API:: ", () => {
     await lambda.scheduleTest(eventInput(), context);
     expect(mockScheduler).toHaveBeenCalledWith(
       expect.objectContaining({
-        ScheduleExpression: "rate(1 day)",
+        ScheduleExpression: "rate(7 days)",
       })
     );
   });
@@ -1845,6 +2358,7 @@ describe("#SCENARIOS API:: ", () => {
     mockS3.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // claimRunSlot
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getRegionalConf2));
     mockStepFunctions.mockImplementation(() => Promise.reject("STEP FUNCTIONS ERROR"));
@@ -2010,6 +2524,7 @@ describe("#SCENARIOS API:: ", () => {
     mockS3.mockImplementation(() => Promise.resolve());
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // claimRunSlot
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(notRegionalConf));
     await lambda.createTest(config, context.functionName).catch((err) => {
       expect(err.message.toString()).toEqual(
@@ -2214,24 +2729,20 @@ it('should return "DDB ERROR" when retrieveTestRegionConfigs fails', async () =>
   }
 });
 
-it('should return "InvalidConfiguration" when no testTaskConfigs are returned', async () => {
+it('should return "TEST_NOT_FOUND" when record fails schema validation (missing testTaskConfigs)', async () => {
   mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getDataWithNoConfigs));
 
-  try {
-    await lambda.getTest(testId);
-  } catch (error) {
-    expect(error.code).toEqual("InvalidConfiguration");
-  }
+  await expect(lambda.getTest(testId)).rejects.toMatchObject({
+    code: "TEST_NOT_FOUND",
+  });
 });
 
-it('should return "InvalidInfrastructureConfiguration" when an empty testTaskConfigs are returned', async () => {
-  mockDynamoDB.mockImplementation(() => Promise.resolve(getDataWithEmptyConfigs));
+it('should return "TEST_NOT_FOUND" when record fails schema validation (invalid testTaskConfigs)', async () => {
+  mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getDataWithEmptyConfigs));
 
-  try {
-    await lambda.getTest(testId);
-  } catch (error) {
-    expect(error.code).toEqual("InvalidInfrastructureConfiguration");
-  }
+  await expect(lambda.getTest(testId)).rejects.toMatchObject({
+    code: "TEST_NOT_FOUND",
+  });
 });
 
 it("should return an error when no exports returned", async () => {
@@ -2459,8 +2970,10 @@ describe("deleteTestRuns", () => {
     Item: {
       testId: "1234",
       testName: "mytest",
+      testType: "simple",
       status: "complete",
       testScenario: '{"name":"example"}',
+      testTaskConfigs: [{ region: "us-east-1", taskCount: "1", concurrency: "1" }],
     },
   };
 
@@ -2675,8 +3188,10 @@ describe("deleteTestRuns", () => {
       Item: {
         testId: "1234",
         testName: "mytest",
+        testType: "simple",
         status: "complete",
         testScenario: '{"name":"example"}',
+        testTaskConfigs: [{ region: "us-east-1", taskCount: "1", concurrency: "1" }],
         baselineId: "run-002",
       },
     };
@@ -2698,8 +3213,10 @@ describe("deleteTestRuns", () => {
       Item: {
         testId: "1234",
         testName: "mytest",
+        testType: "simple",
         status: "complete",
         testScenario: '{"name":"example"}',
+        testTaskConfigs: [{ region: "us-east-1", taskCount: "1", concurrency: "1" }],
         baselineId: "run-baseline",
       },
     };
@@ -2717,6 +3234,333 @@ describe("deleteTestRuns", () => {
     const response = await lambda.deleteTestRuns("1234", ["run-001", "run-002"]);
     expect(response.deletedCount).toEqual(2);
   });
+
+  describe("scenario reconciliation after deletion", () => {
+    beforeEach(() => {
+      mockDynamoDB.mockReset();
+    });
+
+    const queueDeletionMocks = (testEntryData) => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(testEntryData)); // getTestEntry
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Item: { testId: "1234", testRunId: "run-001" } })); // validate run
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ UnprocessedItems: {} })); // batch delete
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // decrementTestRunCount
+    };
+
+    it("should update the scenario record to reflect the most recent remaining run", async () => {
+      queueDeletionMocks(testData);
+      // GSI Query returns the latest surviving summary (sorted desc by startTime, Limit = deletedCount + 1)
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({
+          Items: [
+            {
+              testRunId: "run-new",
+              status: "cancelled",
+              startTime: "2024-02-01 10:00:00",
+              endTime: "2024-02-01 10:02:00",
+              results: { total: { avg_rt: "0.5" } },
+            },
+          ],
+        })
+      );
+      // GetItem on base table returns the full run (adds completeTasks not in GSI projection)
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({
+          Item: {
+            testRunId: "run-new",
+            status: "cancelled",
+            startTime: "2024-02-01 10:00:00",
+            endTime: "2024-02-01 10:02:00",
+            results: { total: { avg_rt: "0.5" } },
+            completeTasks: { "us-east-1": 2 },
+          },
+        })
+      );
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // reconcile update
+
+      const response = await lambda.deleteTestRuns("1234", ["run-001"]);
+      expect(response.deletedCount).toEqual(1);
+
+      const gsiQueryParams = mockDynamoDB.mock.calls[mockDynamoDB.mock.calls.length - 3][0];
+      expect(gsiQueryParams.IndexName).toBeDefined();
+      expect(gsiQueryParams.ScanIndexForward).toEqual(false);
+      expect(gsiQueryParams.Limit).toEqual(2); // deletedIds.length (1) + 1
+
+      const getParams = mockDynamoDB.mock.calls[mockDynamoDB.mock.calls.length - 2][0];
+      expect(getParams.Key).toEqual({ testId: "1234", testRunId: "run-new" });
+
+      const updateParams = mockDynamoDB.mock.calls[mockDynamoDB.mock.calls.length - 1][0];
+      expect(updateParams.Key).toEqual({ testId: "1234" });
+      expect(updateParams.ExpressionAttributeValues).toEqual({
+        ":s": "cancelled",
+        ":st": "2024-02-01 10:00:00",
+        ":et": "2024-02-01 10:02:00",
+        ":r": { total: { avg_rt: "0.5" } },
+        ":ct": { "us-east-1": 2 },
+        ":zero": 0,
+      });
+      expect(updateParams.UpdateExpression).toContain("taskFailureCount = :zero");
+      expect(updateParams.UpdateExpression).toContain("remove errorReason");
+    });
+
+    it("should skip the reconcile update when the most recent remaining run is the one the scenario already reflects", async () => {
+      const currentStartTime = "2024-07-01 10:00:00";
+      const scenarioAlreadyOnLatest = {
+        Item: { ...testData.Item, startTime: currentStartTime },
+      };
+      queueDeletionMocks(scenarioAlreadyOnLatest);
+      // GSI Query returns the same run the scenario already reflects (an older run was deleted)
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({
+          Items: [
+            {
+              testRunId: "run-current",
+              status: "complete",
+              startTime: currentStartTime,
+              endTime: "2024-07-01 10:05:00",
+              results: { total: { avg_rt: "0.4" } },
+            },
+          ],
+        })
+      );
+
+      const response = await lambda.deleteTestRuns("1234", ["run-001"]);
+      expect(response.deletedCount).toEqual(1);
+
+      // Only the 4 deletion mocks + the GSI Query should have fired — no GetItem, no scenario update.
+      // Critically, taskFailureCount on the scenario is NOT rewritten to 0 for the still-displayed run.
+      expect(mockDynamoDB).toHaveBeenCalledTimes(5);
+    });
+
+    it("should filter out just-deleted testRunIds returned by a stale GSI read", async () => {
+      queueDeletionMocks(testData);
+      // GSI stale-reads and returns the just-deleted run alongside the real survivor
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({
+          Items: [
+            { testRunId: "run-001", status: "cancelled", startTime: "2024-06-01 10:00:00" }, // ghost
+            {
+              testRunId: "run-survivor",
+              status: "complete",
+              startTime: "2024-05-01 10:00:00",
+              endTime: "2024-05-01 10:05:00",
+              results: { total: { avg_rt: "0.3" } },
+            },
+          ],
+        })
+      ); // GSI Query
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({
+          Item: {
+            testRunId: "run-survivor",
+            status: "complete",
+            startTime: "2024-05-01 10:00:00",
+            endTime: "2024-05-01 10:05:00",
+            results: { total: { avg_rt: "0.3" } },
+            completeTasks: { "us-east-1": 1 },
+          },
+        })
+      ); // GetItem
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // reconcile update
+
+      const response = await lambda.deleteTestRuns("1234", ["run-001"]);
+      expect(response.deletedCount).toEqual(1);
+
+      const getParams = mockDynamoDB.mock.calls[mockDynamoDB.mock.calls.length - 2][0];
+      expect(getParams.Key).toEqual({ testId: "1234", testRunId: "run-survivor" }); // ghost skipped
+
+      const updateParams = mockDynamoDB.mock.calls[mockDynamoDB.mock.calls.length - 1][0];
+      expect(updateParams.ExpressionAttributeValues[":s"]).toEqual("complete");
+      expect(updateParams.ExpressionAttributeValues[":st"]).toEqual("2024-05-01 10:00:00");
+    });
+
+    it("should treat a GSI query response with no Items field as no runs remaining", async () => {
+      queueDeletionMocks(testData);
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // GSI Query - no Items field at all
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // reconcile update
+
+      const response = await lambda.deleteTestRuns("1234", ["run-001"]);
+      expect(response.deletedCount).toEqual(1);
+
+      const updateParams = mockDynamoDB.mock.calls[mockDynamoDB.mock.calls.length - 1][0];
+      expect(updateParams.ExpressionAttributeValues[":s"]).toEqual("created");
+    });
+
+    it("should treat a stale GSI read that only returns just-deleted runs as no runs remaining", async () => {
+      queueDeletionMocks(testData);
+      // GSI stale-reads and only returns the ghost of the just-deleted run
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({
+          Items: [{ testRunId: "run-001", status: "cancelled", startTime: "2024-06-01 10:00:00" }],
+        })
+      ); // GSI Query
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // reconcile update
+
+      const response = await lambda.deleteTestRuns("1234", ["run-001"]);
+      expect(response.deletedCount).toEqual(1);
+
+      // Should go to the empty branch and reset the scenario, not sync to the ghost
+      const updateParams = mockDynamoDB.mock.calls[mockDynamoDB.mock.calls.length - 1][0];
+      expect(updateParams.ExpressionAttributeValues).toEqual({
+        ":s": "created",
+        ":st": "",
+        ":et": "",
+        ":r": {},
+        ":zero": 0,
+      });
+    });
+
+    it("should carry over errorReason when the most recent remaining run failed", async () => {
+      queueDeletionMocks(testData);
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({
+          Items: [
+            {
+              testRunId: "run-failed",
+              status: "failed",
+              startTime: "2024-03-01 10:00:00",
+              endTime: "2024-03-01 10:01:00",
+              results: {},
+            },
+          ],
+        })
+      ); // GSI Query
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({
+          Item: {
+            testRunId: "run-failed",
+            status: "failed",
+            startTime: "2024-03-01 10:00:00",
+            endTime: "2024-03-01 10:01:00",
+            results: {},
+            completeTasks: { "us-east-1": 0 },
+            errorReason: "Task failure threshold breached: 1/1 tasks failed",
+          },
+        })
+      ); // GetItem
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // reconcile update
+
+      const response = await lambda.deleteTestRuns("1234", ["run-001"]);
+      expect(response.deletedCount).toEqual(1);
+
+      const updateParams = mockDynamoDB.mock.calls[mockDynamoDB.mock.calls.length - 1][0];
+      expect(updateParams.ExpressionAttributeValues[":s"]).toEqual("failed");
+      expect(updateParams.ExpressionAttributeValues[":e"]).toEqual(
+        "Task failure threshold breached: 1/1 tasks failed"
+      );
+      expect(updateParams.ExpressionAttributeValues[":zero"]).toEqual(0);
+      expect(updateParams.UpdateExpression).not.toContain("remove");
+    });
+
+    it("should handle a most recent remaining run with missing optional fields", async () => {
+      queueDeletionMocks(testData);
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({
+          Items: [{ testRunId: "run-sparse", status: "cancelled" }],
+        })
+      ); // GSI Query
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({ Item: { testRunId: "run-sparse", status: "cancelled" } })
+      ); // GetItem
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // reconcile update
+
+      const response = await lambda.deleteTestRuns("1234", ["run-001"]);
+      expect(response.deletedCount).toEqual(1);
+
+      const updateParams = mockDynamoDB.mock.calls[mockDynamoDB.mock.calls.length - 1][0];
+      expect(updateParams.ExpressionAttributeValues).toEqual({
+        ":s": "cancelled",
+        ":st": "",
+        ":et": "",
+        ":r": {},
+        ":zero": 0,
+      });
+      expect(updateParams.UpdateExpression).toContain("remove completeTasks, errorReason");
+    });
+
+    it("should fall back to the GSI summary when the base-table GetItem returns nothing", async () => {
+      queueDeletionMocks(testData);
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({
+          Items: [
+            {
+              testRunId: "run-only-in-gsi",
+              status: "complete",
+              startTime: "2024-05-01 10:00:00",
+              endTime: "2024-05-01 10:05:00",
+              results: { total: { avg_rt: "0.4" } },
+            },
+          ],
+        })
+      ); // GSI Query
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // GetItem returns no Item
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // reconcile update
+
+      const response = await lambda.deleteTestRuns("1234", ["run-001"]);
+      expect(response.deletedCount).toEqual(1);
+
+      const updateParams = mockDynamoDB.mock.calls[mockDynamoDB.mock.calls.length - 1][0];
+      expect(updateParams.ExpressionAttributeValues[":s"]).toEqual("complete");
+      expect(updateParams.ExpressionAttributeValues[":st"]).toEqual("2024-05-01 10:00:00");
+      expect(updateParams.ExpressionAttributeValues[":zero"]).toEqual(0);
+      expect(updateParams.UpdateExpression).toContain("remove completeTasks, errorReason");
+    });
+
+    it("should reset the scenario to 'created' when the last run is deleted", async () => {
+      queueDeletionMocks(testData);
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Items: [] })); // GSI Query - no remaining runs
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // reconcile update
+
+      const response = await lambda.deleteTestRuns("1234", ["run-001"]);
+      expect(response.deletedCount).toEqual(1);
+
+      const updateParams = mockDynamoDB.mock.calls[mockDynamoDB.mock.calls.length - 1][0];
+      expect(updateParams.ExpressionAttributeValues).toEqual({
+        ":s": "created",
+        ":st": "",
+        ":et": "",
+        ":r": {},
+        ":zero": 0,
+      });
+      expect(updateParams.UpdateExpression).toContain("remove completeTasks, errorReason");
+    });
+
+    it("should reset the scenario to 'scheduled' when the last run is deleted and a schedule is active", async () => {
+      const scheduledTestData = {
+        Item: { ...testData.Item, nextRun: "2026-08-01 10:00:00" },
+      };
+      queueDeletionMocks(scheduledTestData);
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Items: [] })); // GSI Query - no remaining runs
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // reconcile update
+
+      const response = await lambda.deleteTestRuns("1234", ["run-001"]);
+      expect(response.deletedCount).toEqual(1);
+
+      const updateParams = mockDynamoDB.mock.calls[mockDynamoDB.mock.calls.length - 1][0];
+      expect(updateParams.ExpressionAttributeValues[":s"]).toEqual("scheduled");
+    });
+
+    it("should not reconcile the scenario when the test is actively running", async () => {
+      const runningTestData = {
+        Item: { ...testData.Item, status: "running" },
+      };
+      queueDeletionMocks(runningTestData);
+
+      const response = await lambda.deleteTestRuns("1234", ["run-001"]);
+      expect(response.deletedCount).toEqual(1);
+
+      // getTestEntry, run validation, batch delete, decrement - no GSI query, no GetItem, no reconcile update
+      expect(mockDynamoDB).toHaveBeenCalledTimes(4);
+    });
+
+    it("should not fail the deletion when reconciliation errors", async () => {
+      queueDeletionMocks(testData);
+      mockDynamoDB.mockImplementationOnce(() => Promise.reject(new Error("DB ERROR"))); // GSI Query fails
+
+      const response = await lambda.deleteTestRuns("1234", ["run-001"]);
+      expect(response.deletedCount).toEqual(1);
+    });
+  });
 });
 
 //Baseline management tests
@@ -2725,8 +3569,10 @@ describe("Baseline Management", () => {
     Item: {
       testId: "1234",
       testName: "mytest",
+      testType: "simple",
       status: "complete",
       testScenario: '{"name":"example"}',
+      testTaskConfigs: [{ region: "us-east-1", taskCount: "1", concurrency: "1" }],
     },
   };
 
@@ -2826,6 +3672,36 @@ describe("Baseline Management", () => {
         await lambda.setBaseline("1234", "run-5678");
       } catch (error) {
         expect(error).toEqual("DB ERROR");
+      }
+    });
+
+    it('should return "INVALID_BASELINE_STATUS" (409) when "setBaseline" targets a non-complete run', async () => {
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineTestData));
+      mockDynamoDB.mockImplementationOnce(() =>
+        Promise.resolve({ Item: { ...baselineHistoryData.Item, status: "failed" } })
+      );
+
+      try {
+        await lambda.setBaseline("1234", "run-5678");
+        throw new Error("Expected setBaseline to reject a non-complete run");
+      } catch (error) {
+        expect(error.code).toEqual("INVALID_BASELINE_STATUS");
+        expect(error.statusCode).toEqual(409);
+      }
+    });
+
+    it('should reject "setBaseline" when the run has no recorded status (not complete)', async () => {
+      const noStatusItem = { ...baselineHistoryData.Item };
+      delete noStatusItem.status;
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(baselineTestData));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Item: noStatusItem }));
+
+      try {
+        await lambda.setBaseline("1234", "run-5678");
+        throw new Error("Expected setBaseline to reject a run with no status");
+      } catch (error) {
+        expect(error.code).toEqual("INVALID_BASELINE_STATUS");
+        expect(error.statusCode).toEqual(409);
       }
     });
   });

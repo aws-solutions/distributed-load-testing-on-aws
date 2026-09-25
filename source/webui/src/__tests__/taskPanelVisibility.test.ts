@@ -2,11 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import fc from "fast-check";
-import {
-  TestStatus,
-  ACTIVE_TEST_STATES,
-  getPollingInterval,
-} from "../pages/scenarios/constants";
+import { getPollingInterval } from "../pages/scenarios/constants";
+import { ACTIVE_RUN_STATUSES, TestStatus } from "@amzn/dlt-common/validation";
 
 /** The exact set of statuses considered "active" for auto-refresh gating. */
 const expectedActiveStatuses: ReadonlySet<TestStatus> = new Set([
@@ -22,16 +19,16 @@ describe("Task Panel Visibility — Property Tests", () => {
   /**
    * Property 4: Auto-refresh activation matches the active state set
    *
-   * For any TestStatus value, ACTIVE_TEST_STATES.has(status) returns true
+   * For any TestStatus value, ACTIVE_RUN_STATUSES.has(status) returns true
    * iff status is queued, provisioning, running, cancelling, cleaning up,
    * or parsing results.
    *
    * **Validates: Requirements 5.1, 5.2**
    */
-  it("Property 4: ACTIVE_TEST_STATES membership matches expected set", () => {
+  it("Property 4: ACTIVE_RUN_STATUSES membership matches expected set", () => {
     fc.assert(
       fc.property(fc.constantFrom(...Object.values(TestStatus)), (status) => {
-        const actual = ACTIVE_TEST_STATES.has(status);
+        const actual = ACTIVE_RUN_STATUSES.has(status);
         const expected = expectedActiveStatuses.has(status);
 
         expect(actual).toBe(expected);
@@ -65,11 +62,11 @@ describe("Task Panel Visibility — Property Tests", () => {
 });
 
 describe("Task Panel Visibility — Unit Tests", () => {
-  it("queued state IS in ACTIVE_TEST_STATES (still active for auto-refresh)", () => {
-    expect(ACTIVE_TEST_STATES.has(TestStatus.QUEUED)).toBe(true);
+  it("queued state IS in ACTIVE_RUN_STATUSES (still active for auto-refresh)", () => {
+    expect(ACTIVE_RUN_STATUSES.has(TestStatus.QUEUED)).toBe(true);
   });
 
-  it("parsing results state IS in ACTIVE_TEST_STATES (still active for auto-refresh)", () => {
-    expect(ACTIVE_TEST_STATES.has(TestStatus.PARSING_RESULTS)).toBe(true);
+  it("parsing results state IS in ACTIVE_RUN_STATUSES (still active for auto-refresh)", () => {
+    expect(ACTIVE_RUN_STATUSES.has(TestStatus.PARSING_RESULTS)).toBe(true);
   });
 });

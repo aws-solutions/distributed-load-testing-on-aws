@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Link, StatusIndicator } from "@cloudscape-design/components";
+import { isTerminalRunStatus } from "@amzn/dlt-common/validation";
 import React, { useCallback, useMemo } from "react";
 import { formatToLocalTime } from "../../../utils/dateUtils";
+import { InvestigationCell } from "../components/InvestigationCell";
+import { STATUS_INDICATOR_MAP } from "../constants";
 import { TableColumn, TestRun } from "../types";
 import { createBaselineCellWithStatus, getBaselineDelta, getBaselineText } from "../utils";
-import { STATUS_INDICATOR_MAP } from "../constants";
-import { InvestigationCell } from "../components/InvestigationCell";
 
 const METRICS_CONFIG = [
   { id: "requests", header: "Requests", metricType: 'higher-is-better' as const },
@@ -72,8 +73,12 @@ export const useTestRunColumns = (
       createColumn(
         "testRunId",
         "Test Run ID",
-        (item) =>
-          React.createElement(
+        (item) => {
+          // For running tests, display test run without link test run detail page
+          if (item.status === undefined || !isTerminalRunStatus(item.status)) return item.testRunId;
+
+          // For finalized tests, link to test run detail page
+          return React.createElement(
             Link,
             {
               href: `/scenarios/${testId}/testruns/${item.testRunId}`,
@@ -83,7 +88,8 @@ export const useTestRunColumns = (
               },
             },
             item.testRunId
-          ),
+          );
+        },
         (item) => item.testRunId,
         undefined,
         "testRunId"
@@ -168,7 +174,7 @@ export const useTestRunColumns = (
     });
 
     return columns;
-  }, [baselineTestRun]);
+  }, [baselineTestRun, createColumn, formatValue, onTestRunClick, testId]);
 
   const getFilteredColumns = (preferences: any) => {
     const columnMap = new Map(allColumns.map((col) => [col.id, col]));

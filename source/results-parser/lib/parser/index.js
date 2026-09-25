@@ -12,6 +12,8 @@ const awsOptions = utils.getOptions({ region: AWS_REGION });
 const dynamoDb = DynamoDBDocument.from(new DynamoDB(awsOptions));
 const s3 = new S3(awsOptions);
 
+const acceptedCodes = ["200", "201", "202", "204", "300", "301", "302", "303", "304", "307", "308", "101", "1000"];
+
 /**
  * Breaking down results item and creating the basic breakdown object.
  * @param {group} each result item in xml file
@@ -39,16 +41,15 @@ function breakdownGroupResults(group) {
  */
 function updateResultsResponseCode(stats, responseCodes) {
   // loop through response codes, rc is a object for single responses array for multiple
-  const acceptedCodes = ["200", "201", "202", "204", "300", "301", "302", "303", "304", "307", "308", "101", "1000"];
   if (Array.isArray(responseCodes)) {
     for (let responseCode of responseCodes) {
       if (!acceptedCodes.includes(responseCode._attributes.param)) {
-        stats.rc.push({ code: responseCode._attributes.param, count: parseInt(responseCode._attributes.value) });
+        stats.rc.push({ code: responseCode._attributes.param, count: Number.parseInt(responseCode._attributes.value) });
       }
     }
   } else {
     if (!acceptedCodes.includes(responseCodes._attributes.param)) {
-      stats.rc.push({ code: responseCodes._attributes.param, count: parseInt(responseCodes._attributes.value) });
+      stats.rc.push({ code: responseCodes._attributes.param, count: Number.parseInt(responseCodes._attributes.value) });
     }
   }
 }
@@ -137,8 +138,8 @@ const getAvg = (array) => {
  */
 const getReducedResponseCodes = (array) =>
   array.reduce((accumulator, currentValue) => {
-    const count = parseInt(currentValue.count);
-    currentValue.count = isNaN(count) ? 0 : count;
+    const count = Number.parseInt(currentValue.count);
+    currentValue.count = Number.isNaN(count) ? 0 : count;
 
     const existing = accumulator.find((acc) => acc.code === currentValue.code);
     if (existing) {
@@ -303,7 +304,11 @@ async function finalResults(testId, data) {
 
   // parse all of the results to generate the final results.
   createFinalResults(all, testFinalResults);
-  console.log(`Final results calculated for testId: ${testId}, success=${testFinalResults.succ || 0}, failures=${testFinalResults.fail || 0}`);
+  console.log(
+    `Final results calculated for testId: ${testId}, success=${testFinalResults.succ || 0}, failures=${
+      testFinalResults.fail || 0
+    }`
+  );
   return testFinalResults;
 }
 
@@ -339,10 +344,36 @@ async function updateTestHistoryResults({ testId, testRunId, results, completeTa
     };
     await dynamoDb.update(ddbParams);
   } catch (err) {
-    console.error(`Error occured updating test history table after parsing results for testId=${testId}, testRunId=${testRunId}`);
+    console.error(
+      `Error occured updating test history table after parsing results for testId=${testId}, testRunId=${testRunId}`
+    );
     console.error(err);
     throw err;
   }
+}
+
+/**
+ * Store the framework-exit summary separately from normal results.
+ *
+ * This lets the summary exist when no usable results were produced, and lets
+ * the caller ignore a DynamoDB size or condition failure without losing normal
+ * result updates. The complete per-task report remains in S3.
+ */
+async function updateFrameworkExitSummary({ testId, testRunId, summary }) {
+  await dynamoDb.update({
+    TableName: HISTORY_TABLE,
+    Key: { testId, testRunId },
+    UpdateExpression: "set #frameworkExitSummary = :frameworkExitSummary",
+    ConditionExpression: "attribute_exists(#testId) AND attribute_exists(#testRunId)",
+    ExpressionAttributeNames: {
+      "#frameworkExitSummary": "frameworkExitSummary",
+      "#testId": "testId",
+      "#testRunId": "testRunId",
+    },
+    ExpressionAttributeValues: {
+      ":frameworkExitSummary": summary,
+    },
+  });
 }
 
 // Updating scenarios table with test results
@@ -370,8 +401,10 @@ async function updateTable(params) {
 }
 
 module.exports = {
+  acceptedCodes,
   results,
   finalResults,
   updateTestHistoryResults,
+  updateFrameworkExitSummary,
   updateTable,
 };

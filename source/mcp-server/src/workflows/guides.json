@@ -1,0 +1,529 @@
+{
+  "run_and_monitor": {
+    "workflow": "run_and_monitor",
+    "description": "Start an existing test run and poll until completion",
+    "steps": [
+      {
+        "step": 1,
+        "action": "Find the test",
+        "tool": "list_scenarios or get_scenario_details",
+        "details": "If you have the test_id, proceed to step 2. If you need to find the test by name, call list_scenarios to retrieve all tests and identify the correct test_id from the results."
+      },
+      {
+        "step": 2,
+        "action": "Start the test run",
+        "tool": "start_run",
+        "details": "Call start_run with the test_id. The test's stored configuration will be used automatically. The response will confirm the test status is 'queued'. The test has not started running yet. If the test is already running, the API will return an error — inform the user the test must complete or be stopped (using stop_run) before starting a new run."
+      },
+      {
+        "step": 3,
+        "action": "Poll for completion",
+        "tool": "get_latest_test_run",
+        "details": "Call get_latest_test_run with the test_id. Check the 'status' field in the response. Terminal statuses: 'complete' (success), 'failed' (error occurred), 'cancelled' (manually stopped). Non-terminal statuses: 'queued' (waiting to start), 'running' (in progress), 'cleaning up' (test finished, resources being released). Note: a 404 response is expected for 1-3 minutes after start_run while ECS tasks are launching — treat it as non-terminal and continue polling. Recommended polling interval: 30 seconds. Continue polling until a terminal status is reached."
+      },
+      {
+        "step": 4,
+        "action": "Report results",
+        "tool": null,
+        "details": "Once status is terminal, the test run response contains the following metrics: 'requests' (total request count), 'success' (successful requests), 'errors' (failed requests), 'requestsPerSecond' (throughput), 'avgResponseTime' (in milliseconds), 'avgLatency' (in milliseconds), 'avgConnectionTime' (in milliseconds), 'avgBandwidth' (bytes/second), and 'percentiles' object with p0, p50, p90, p95, p99, p99_9, p100 (all in milliseconds). If status is 'failed', check the 'errorReason' field for details."
+      }
+    ]
+  },
+  "baseline_comparison": {
+    "workflow": "baseline_comparison",
+    "description": "Run a load test and compare results against a baseline run",
+    "steps": [
+      {
+        "step": 1,
+        "action": "Find the test",
+        "tool": "list_scenarios or get_scenario_details",
+        "details": "If you have the test_id, proceed to step 2. If you need to find the test by name, call list_scenarios to retrieve all tests and identify the correct test_id from the results."
+      },
+      {
+        "step": 2,
+        "action": "Start the test run",
+        "tool": "start_run",
+        "details": "Call start_run with the test_id. The test's stored configuration will be used automatically. If the test is already running, the API will return an error — inform the user the test must complete or be stopped (using stop_run) before starting a new run."
+      },
+      {
+        "step": 3,
+        "action": "Poll for completion",
+        "tool": "get_latest_test_run",
+        "details": "Poll get_latest_test_run until status is 'complete'. Recommended interval: 30 seconds. If status is 'failed' or 'cancelled', the comparison cannot proceed — report the failure. Non-terminal statuses: 'queued', 'running', 'cleaning up'. Note: a 404 response is expected for 1-3 minutes after start_run while ECS tasks are launching — treat it as non-terminal and continue polling. Keep the final poll response — you will use its metrics in step 5 as the 'latest run' for comparison."
+      },
+      {
+        "step": 4,
+        "action": "Retrieve the baseline run",
+        "tool": "get_baseline_test_run",
+        "details": "Call get_baseline_test_run with the test_id. If no baseline is set (response contains 'baselineId': null), skip comparison and report the run results directly — inform the user that no baseline exists for comparison."
+      },
+      {
+        "step": 5,
+        "action": "Compare results",
+        "tool": null,
+        "details": "Compare the latest run metrics against the baseline run metrics. Both responses contain the same metric fields: 'requests' (total request count), 'success' (successful requests), 'errors' (failed requests), 'requestsPerSecond' (throughput), 'avgResponseTime' (milliseconds), 'avgLatency' (milliseconds), 'avgConnectionTime' (milliseconds), 'avgBandwidth' (bytes/second), and 'percentiles' object with p0, p50, p90, p95, p99, p99_9, p100 (all in milliseconds). Present the comparison to the user and let them determine if the results are acceptable."
+      }
+    ]
+  },
+  "schedule_test": {
+    "workflow": "schedule_test",
+    "description": "Create a test with a recurring or one-time schedule",
+    "steps": [
+      {
+        "step": 1,
+        "action": "Determine schedule type",
+        "tool": null,
+        "details": "Decide whether this is a one-time schedule or a recurring schedule. For one-time: use create_simple_schedule — you need schedule_date and schedule_time. The scheduled time must be in the future. For recurring: use create_cron_schedule — you need cron_value and recurrence, optionally cron_expiry_date. Schedule constraints: (1) recurring schedules must have at least 1 hour between executions, (2) the interval must be long enough for the test to complete before the next run starts, (3) cron expressions must specify exactly one minute value (e.g., '0 9 * * *' not '*/30 * * * *'), (4) if cron_expiry_date is provided, it must be after the next scheduled run date."
+      },
+      {
+        "step": 2,
+        "action": "Upload test script (script-based tests only)",
+        "tool": "upload_test_script",
+        "details": "If this is a script-based test (jmeter, k6, or locust), you MUST call upload_test_script before creating the schedule. This tool generates the test_id that links the script to the scenario. Provide the script file content (base64 encoded), test_type, and file_extension. Omit test_id for new tests — the system will generate one. For existing tests, pass the test_id to upload the script to the correct location. The response will return a test_id and script_filename — pass the test_id to create_simple_schedule or create_cron_schedule and reference the script_filename in test_scenario.scenarios. Skip this step ONLY for simple HTTP tests.",
+        "example_jmeter": {
+          "test_type": "jmeter",
+          "file_extension": "jmx",
+          "file_content": "<base64 encoded .jmx file content>"
+        },
+        "example_k6": {
+          "test_type": "k6",
+          "file_extension": "js",
+          "file_content": "<base64 encoded .js file content>"
+        },
+        "example_locust": {
+          "test_type": "locust",
+          "file_extension": "py",
+          "file_content": "<base64 encoded .py file content>"
+        }
+      },
+      {
+        "step": 3,
+        "action": "Create the scheduled test",
+        "tool": "create_simple_schedule or create_cron_schedule",
+        "details": "Call create_simple_schedule for one-time schedules or create_cron_schedule for recurring schedules. Both require the full test configuration plus their respective schedule fields. For one-time (create_simple_schedule): provide schedule_date (YYYY-MM-DD) and schedule_time (HH:MM in 24-hour format). For recurring (create_cron_schedule): provide cron_value (standard 5-field cron expression, e.g., '0 9 * * *' for daily at 9am) and recurrence (human label like 'daily'). Optional for both: schedule_timezone (IANA timezone, defaults to 'UTC'). Optional for recurring: cron_expiry_date (YYYY-MM-DD, when the recurring schedule stops). If you uploaded a script in step 2, use the test_id returned from upload_test_script and set the script field in test_scenario.scenarios to the script_filename returned. Important: the 'scenario' field in test_scenario.execution[0] must match a key in test_scenario.scenarios — use the same value as test_name for both. Traffic shape: omit native_run_mode for Standard mode, where the concurrency, ramp-up, and hold-for values you supply are the load. Include native_run_mode to select Native mode, where the uploaded script defines the load and each task runs a full copy of it; see the create_native_and_run workflow. Every example below is Standard mode.",
+        "example_simple_one_time": {
+          "description": "One-time schedule using create_simple_schedule",
+          "test_name": "Checkout endpoint scheduled test",
+          "test_description": "One-time scheduled load test of checkout API",
+          "test_type": "simple",
+          "test_task_configs": [
+            { "region": "us-east-1", "task_count": 5, "concurrency": 100 }
+          ],
+          "test_scenario": {
+            "execution": [
+              { "ramp-up": "1m", "hold-for": "10m", "scenario": "Checkout endpoint scheduled test" }
+            ],
+            "scenarios": {
+              "Checkout endpoint scheduled test": {
+                "requests": [
+                  { "url": "https://api.example.com/checkout", "method": "POST", "headers": { "Content-Type": "application/json" }, "body": "{\"item_id\": \"123\", \"quantity\": 1}" }
+                ]
+              }
+            }
+          },
+          "schedule_date": "2026-07-15",
+          "schedule_time": "09:00",
+          "schedule_timezone": "America/New_York"
+        },
+        "example_cron_recurring": {
+          "description": "Recurring schedule using create_cron_schedule",
+          "test_name": "Daily regression test",
+          "test_description": "Recurring daily load test at 9am UTC",
+          "test_type": "simple",
+          "test_task_configs": [
+            { "region": "us-east-1", "task_count": 3, "concurrency": 50 }
+          ],
+          "test_scenario": {
+            "execution": [
+              { "ramp-up": "30s", "hold-for": "5m", "scenario": "Daily regression test" }
+            ],
+            "scenarios": {
+              "Daily regression test": {
+                "requests": [
+                  { "url": "https://api.example.com/health", "method": "GET", "headers": {} }
+                ]
+              }
+            }
+          },
+          "cron_value": "0 9 * * *",
+          "cron_expiry_date": "2026-12-31",
+          "recurrence": "daily",
+          "schedule_timezone": "UTC"
+        },
+        "example_script_recurring": {
+          "description": "Locust script-based test with weekly recurring schedule using create_cron_schedule. The test_id and script filename come from the upload_test_script call in step 2.",
+          "test_id": "<test_id from upload_test_script>",
+          "test_name": "Weekly Locust load test",
+          "test_description": "Weekly Locust script simulating peak traffic",
+          "test_type": "locust",
+          "test_task_configs": [
+            { "region": "us-east-1", "task_count": 8, "concurrency": 200 }
+          ],
+          "test_scenario": {
+            "execution": [
+              { "ramp-up": "2m", "hold-for": "15m", "scenario": "Weekly Locust load test" }
+            ],
+            "scenarios": {
+              "Weekly Locust load test": {
+                "script": "<test_id>.py"
+              }
+            }
+          },
+          "cron_value": "0 0 * * 5",
+          "cron_expiry_date": "2026-12-31",
+          "recurrence": "weekly",
+          "schedule_timezone": "UTC"
+        }
+      },
+      {
+        "step": 4,
+        "action": "Verify the schedule was created",
+        "tool": "get_scenario_details",
+        "details": "Call get_scenario_details with the test_id returned from step 3. Verify that status is 'scheduled' and nextRun shows the expected next execution time."
+      }
+    ]
+  },
+  "create_and_run": {
+    "workflow": "create_and_run",
+    "description": "Create a new test from scratch and immediately execute it",
+    "steps": [
+      {
+        "step": 1,
+        "action": "Upload test script (script-based tests only)",
+        "tool": "upload_test_script",
+        "details": "If this is a script-based test (jmeter, k6, or locust), you MUST call upload_test_script before create_test. This tool generates the test_id that links the script to the scenario. Provide the script file content (base64 encoded), test_type, and file_extension. Omit test_id for new tests — the system will generate one. The response will return a test_id and script_filename — pass the test_id to create_test and reference the script_filename in test_scenario.scenarios. Skip this step ONLY for simple HTTP tests.",
+        "example_jmeter": {
+          "test_type": "jmeter",
+          "file_extension": "jmx",
+          "file_content": "<base64 encoded .jmx file content>"
+        },
+        "example_k6": {
+          "test_type": "k6",
+          "file_extension": "js",
+          "file_content": "<base64 encoded .js file content>"
+        },
+        "example_locust": {
+          "test_type": "locust",
+          "file_extension": "py",
+          "file_content": "<base64 encoded .py file content>"
+        }
+      },
+      {
+        "step": 2,
+        "action": "Create the test",
+        "tool": "create_test",
+        "details": "Call create_test with the full test configuration. The test will be saved without executing. For simple HTTP tests: omit test_id and the system will generate one — note the test_id from the response for subsequent steps. For script-based tests: pass the test_id returned by upload_test_script in step 1 and reference the script_filename in the test_scenario.scenarios object. Important: the 'scenario' field in test_scenario.execution[0] must match a key in test_scenario.scenarios — use the same value as test_name for both. Traffic shape: omit native_run_mode for Standard mode, where the concurrency, ramp-up, and hold-for values you supply are the load. Include native_run_mode to select Native mode, where the uploaded script defines the load and each task runs a full copy of it; see the create_native_and_run workflow. Every example below is Standard mode.",
+        "example_simple_http": {
+          "description": "Simple HTTP test — single endpoint, single region",
+          "test_name": "Checkout API load test",
+          "test_description": "Load test the checkout endpoint with 100 concurrent users",
+          "test_type": "simple",
+          "test_task_configs": [
+            { "region": "us-east-1", "task_count": 5, "concurrency": 100 }
+          ],
+          "test_scenario": {
+            "execution": [
+              { "ramp-up": "1m", "hold-for": "5m", "scenario": "Checkout API load test" }
+            ],
+            "scenarios": {
+              "Checkout API load test": {
+                "requests": [
+                  {
+                    "url": "https://api.example.com/checkout",
+                    "method": "POST",
+                    "headers": { "Content-Type": "application/json", "Authorization": "Bearer token123" },
+                    "body": "{\"item_id\": \"SKU-001\", \"quantity\": 1}"
+                  }
+                ]
+              }
+            }
+          },
+          "tags": ["checkout", "regression"]
+        },
+        "example_simple_http_multi_region": {
+          "description": "Simple HTTP test — single endpoint, multiple regions",
+          "test_name": "Multi-region API test",
+          "test_description": "Test API from multiple regions simultaneously",
+          "test_type": "simple",
+          "test_task_configs": [
+            { "region": "us-east-1", "task_count": 3, "concurrency": 50 },
+            { "region": "us-west-2", "task_count": 3, "concurrency": 50 },
+            { "region": "eu-west-1", "task_count": 2, "concurrency": 50 }
+          ],
+          "test_scenario": {
+            "execution": [
+              { "ramp-up": "2m", "hold-for": "10m", "scenario": "Multi-region API test" }
+            ],
+            "scenarios": {
+              "Multi-region API test": {
+                "requests": [
+                  { "url": "https://api.example.com/products", "method": "GET", "headers": {} }
+                ]
+              }
+            }
+          }
+        },
+        "example_jmeter": {
+          "description": "JMeter script-based test. The 'script' field value is the script_filename returned by upload_test_script (format: <test_id>.<extension>).",
+          "test_id": "<test_id from upload_test_script>",
+          "test_name": "JMeter checkout flow",
+          "test_description": "JMeter script testing full checkout flow",
+          "test_type": "jmeter",
+          "test_task_configs": [
+            { "region": "us-east-1", "task_count": 10, "concurrency": 200 }
+          ],
+          "test_scenario": {
+            "execution": [
+              { "ramp-up": "2m", "hold-for": "15m", "scenario": "JMeter checkout flow" }
+            ],
+            "scenarios": {
+              "JMeter checkout flow": {
+                "script": "<test_id>.jmx"
+              }
+            }
+          }
+        },
+        "example_k6": {
+          "description": "k6 script-based test. The 'script' field value is the script_filename returned by upload_test_script (format: <test_id>.<extension>).",
+          "test_id": "<test_id from upload_test_script>",
+          "test_name": "k6 API performance test",
+          "test_description": "k6 script testing API performance under load",
+          "test_type": "k6",
+          "test_task_configs": [
+            { "region": "us-west-2", "task_count": 5, "concurrency": 100 }
+          ],
+          "test_scenario": {
+            "execution": [
+              { "ramp-up": "1m", "hold-for": "10m", "scenario": "k6 API performance test" }
+            ],
+            "scenarios": {
+              "k6 API performance test": {
+                "script": "<test_id>.js"
+              }
+            }
+          }
+        },
+        "example_locust": {
+          "description": "Locust script-based test. The 'script' field value is the script_filename returned by upload_test_script (format: <test_id>.<extension>).",
+          "test_id": "<test_id from upload_test_script>",
+          "test_name": "Locust user simulation",
+          "test_description": "Locust script simulating user behavior",
+          "test_type": "locust",
+          "test_task_configs": [
+            { "region": "eu-west-1", "task_count": 4, "concurrency": 150 }
+          ],
+          "test_scenario": {
+            "execution": [
+              { "ramp-up": "1m", "hold-for": "10m", "scenario": "Locust user simulation" }
+            ],
+            "scenarios": {
+              "Locust user simulation": {
+                "script": "<test_id>.py"
+              }
+            }
+          }
+        }
+      },
+      {
+        "step": 3,
+        "action": "Start the test run",
+        "tool": "start_run",
+        "details": "Call start_run with the test_id returned from step 2's response. The test's stored configuration will be used automatically. The response will confirm status is 'queued'. If the test is already running, the API will return an error — inform the user the test must complete or be stopped (using stop_run) before starting a new run."
+      },
+      {
+        "step": 4,
+        "action": "Poll for completion",
+        "tool": "get_latest_test_run",
+        "details": "Poll get_latest_test_run with the test_id until status is terminal ('complete', 'failed', or 'cancelled'). Non-terminal statuses: 'queued', 'running', 'cleaning up'. Note: a 404 response is expected for 1-3 minutes after start_run while ECS tasks are launching — treat it as non-terminal and continue polling. Recommended polling interval: 30 seconds."
+      },
+      {
+        "step": 5,
+        "action": "Report results",
+        "tool": null,
+        "details": "Once complete, the test run response contains the following metrics: 'requests' (total request count), 'success' (successful requests), 'errors' (failed requests), 'requestsPerSecond' (throughput), 'avgResponseTime' (milliseconds), 'avgLatency' (milliseconds), 'avgConnectionTime' (milliseconds), 'avgBandwidth' (bytes/second), and 'percentiles' object with p0, p50, p90, p95, p99, p99_9, p100 (all in milliseconds). Present these metrics to the user."
+      }
+    ]
+  },
+  "update_and_run": {
+    "workflow": "update_and_run",
+    "description": "Modify an existing test's configuration and immediately execute it",
+    "steps": [
+      {
+        "step": 1,
+        "action": "Retrieve the current test configuration",
+        "tool": "list_scenarios or get_scenario_details",
+        "details": "If you have the test_id, call get_scenario_details directly. If you need to find the test by name, call list_scenarios first. Retrieve the full current configuration — you will modify it and submit the entire object back (update_test is a full replace, not a partial update). Note: the response uses camelCase fields. Convert to snake_case for update_test (e.g., 'testName' → 'test_name', 'testTaskConfigs' → 'test_task_configs')."
+      },
+      {
+        "step": 2,
+        "action": "Upload new test script (only if changing the script)",
+        "tool": "upload_test_script",
+        "details": "If you are changing the test script (or switching from simple to script-based), call upload_test_script with the new script file content (base64 encoded), test_type, file_extension, and the existing test_id. The response will return the script_filename to reference in the updated test_scenario. Skip this step if you are not changing the script file.",
+        "example": {
+          "test_id": "<existing_test_id>",
+          "test_type": "k6",
+          "file_extension": "js",
+          "file_content": "<base64 encoded .js file content>"
+        }
+      },
+      {
+        "step": 3,
+        "action": "Update the test configuration",
+        "tool": "update_test",
+        "details": "Call update_test with the test_id and the COMPLETE modified test configuration. This is a full replace — you must include ALL fields, not just the ones you changed. Apply the user's requested modifications to the configuration retrieved in step 1 (e.g., change concurrency, add regions, update endpoint URL, change hold-for duration). The test must not be currently running. Important: the 'scenario' field in test_scenario.execution[0] must match a key in test_scenario.scenarios — use the same value as test_name for both. Traffic shape: omit native_run_mode for Standard mode, where the concurrency, ramp-up, and hold-for values you supply are the load. Include native_run_mode to select Native mode, where the uploaded script defines the load and each task runs a full copy of it; see the create_native_and_run workflow. Every example below is Standard mode.",
+        "example_change_concurrency": {
+          "description": "Example: user asked to increase concurrency to 200 users. Only test_task_configs changes; all other fields remain as retrieved in step 1.",
+          "test_id": "<existing_test_id>",
+          "test_name": "Checkout API load test",
+          "test_description": "Load test the checkout endpoint",
+          "test_type": "simple",
+          "test_task_configs": [
+            { "region": "us-east-1", "task_count": 5, "concurrency": 200 }
+          ],
+          "test_scenario": {
+            "execution": [
+              { "ramp-up": "1m", "hold-for": "5m", "scenario": "Checkout API load test" }
+            ],
+            "scenarios": {
+              "Checkout API load test": {
+                "requests": [
+                  { "url": "https://api.example.com/checkout", "method": "POST", "headers": { "Content-Type": "application/json" }, "body": "{\"item_id\": \"SKU-001\", \"quantity\": 1}" }
+                ]
+              }
+            }
+          }
+        },
+        "example_add_region": {
+          "description": "Example: user asked to add eu-west-1 to the test. A new entry is added to test_task_configs; all other fields remain as retrieved in step 1.",
+          "test_id": "<existing_test_id>",
+          "test_name": "Multi-region API test",
+          "test_description": "Test API from multiple regions",
+          "test_type": "simple",
+          "test_task_configs": [
+            { "region": "us-east-1", "task_count": 3, "concurrency": 50 },
+            { "region": "eu-west-1", "task_count": 3, "concurrency": 50 }
+          ],
+          "test_scenario": {
+            "execution": [
+              { "ramp-up": "2m", "hold-for": "10m", "scenario": "Multi-region API test" }
+            ],
+            "scenarios": {
+              "Multi-region API test": {
+                "requests": [
+                  { "url": "https://api.example.com/products", "method": "GET", "headers": {} }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "step": 4,
+        "action": "Start the test run",
+        "tool": "start_run",
+        "details": "Call start_run with the test_id. The test's stored configuration (as updated in step 3) will be used automatically. The response will confirm status is 'queued'. If the test is already running, the API will return an error — inform the user the test must complete or be stopped (using stop_run) before starting a new run."
+      },
+      {
+        "step": 5,
+        "action": "Poll for completion",
+        "tool": "get_latest_test_run",
+        "details": "Poll get_latest_test_run with the test_id until status is terminal ('complete', 'failed', or 'cancelled'). Non-terminal statuses: 'queued', 'running', 'cleaning up'. Note: a 404 response is expected for 1-3 minutes after start_run while ECS tasks are launching — treat it as non-terminal and continue polling. Recommended polling interval: 30 seconds."
+      },
+      {
+        "step": 6,
+        "action": "Report results",
+        "tool": null,
+        "details": "Once complete, the test run response contains the following metrics: 'requests' (total request count), 'success' (successful requests), 'errors' (failed requests), 'requestsPerSecond' (throughput), 'avgResponseTime' (milliseconds), 'avgLatency' (milliseconds), 'avgConnectionTime' (milliseconds), 'avgBandwidth' (bytes/second), and 'percentiles' object with p0, p50, p90, p95, p99, p99_9, p100 (all in milliseconds). Present these metrics to the user."
+      }
+    ]
+  },
+  "create_native_and_run": {
+    "workflow": "create_native_and_run",
+    "description": "Create a Native traffic-shape test from an existing script and immediately execute it",
+    "traffic_shape": {
+      "standard": "DLT controls the load: you set tasks, concurrent virtual users, ramp-up, and hold duration, and Taurus applies them, overriding any load shape your script defines. This is the behavior DLT has always used, and the only mode that supports testing a single URL with no script.",
+      "native": "Your script controls the load: DLT runs it under the framework's own command line and passes no load flags, setting only the task count per Region and a safety duration. Each task runs a full copy of the script, so total load is your script's own load multiplied by the task count.",
+      "choosing": [
+        "Standard: An exact virtual-user count, set from outside the script",
+        "Standard: To change the ramp-up or hold time without editing the script",
+        "Standard: A single URL with no script at all",
+        "Standard: The same load shape regardless of framework",
+        "Native: To reuse a CI or local script unchanged",
+        "Native: The script's own stages, thresholds, or shape honored",
+        "Native: k6 scenarios, thresholds, or arrival-rate executors",
+        "Native: A Locust LoadTestShape or weighted task set",
+        "Native: JMeter timers and thread groups run exactly as authored",
+        "Native: To scale load only in whole multiples of the script's own load"
+      ]
+    },
+    "steps": [
+      {
+        "step": 1,
+        "action": "Confirm Native is the right traffic shape",
+        "tool": null,
+        "details": "Native runs the uploaded script under the framework's own command line and passes no load flags, so the script is the sole authority on the load it generates. Use it when the script already encodes the load shape you want, for example a k6 script with stages or thresholds, a Locust LoadTestShape, or a JMeter plan with its own thread groups and timers. Use Standard instead when you need to set an exact virtual-user count or change the ramp-up and hold time from outside the script. Native is unavailable for the 'simple' test type, which has no script."
+      },
+      {
+        "step": 2,
+        "action": "Upload the test script",
+        "tool": "upload_test_script",
+        "details": "Native always requires a script, so this step is never skipped. Provide the base64-encoded file content, test_type (jmeter, k6, or locust), and file_extension. Pass the returned test_id to create_test and reference the returned script_filename in test_scenario.scenarios. Do not modify the script to add load settings: Native runs it exactly as authored."
+      },
+      {
+        "step": 3,
+        "action": "Create the test with native_run_mode",
+        "tool": "create_test",
+        "details": "Call create_test with native_run_mode set. maxTestDurationSeconds is required and is a safety timeout rather than a schedule: it stops a script that never exits. If the test is still running when it elapses, DLT stops the framework, collects the results for the portion that ran, and records the run as completed. Total load is the script's own load multiplied by task_count, because tasks are uncoordinated and each runs a full copy. Ask the user for task_count rather than inferring it, and tell them about the multiplication. The schema still requires concurrency, ramp-up, and hold-for; supply valid placeholders and do not report them to the user as the load, because Native ignores them.",
+        "example_k6": {
+          "description": "Native k6 test. The script's own options block defines the load; task_count multiplies it.",
+          "test_id": "<test_id from upload_test_script>",
+          "test_name": "k6 native checkout",
+          "test_description": "Run the pipeline's k6 script unchanged across 3 tasks",
+          "test_type": "k6",
+          "test_task_configs": [
+            {
+              "region": "us-east-1",
+              "task_count": 3,
+              "concurrency": 1
+            }
+          ],
+          "test_scenario": {
+            "execution": [
+              {
+                "ramp-up": "0s",
+                "hold-for": "1s",
+                "scenario": "k6 native checkout"
+              }
+            ],
+            "scenarios": {
+              "k6 native checkout": {
+                "script": "<test_id>.js"
+              }
+            }
+          },
+          "native_run_mode": {
+            "maxTestDurationSeconds": 3600
+          }
+        }
+      },
+      {
+        "step": 4,
+        "action": "Start the test run",
+        "tool": "start_run",
+        "details": "Call start_run with the test_id from step 3. If the test is already running, the API returns an error: the run must complete or be stopped with stop_run first."
+      },
+      {
+        "step": 5,
+        "action": "Poll for completion",
+        "tool": "get_latest_test_run",
+        "details": "Poll get_latest_test_run until status is terminal ('complete', 'failed', or 'cancelled'). A 404 is expected for 1-3 minutes after start_run while ECS tasks launch; treat it as non-terminal. Recommended interval: 30 seconds. A run that reached its safety timeout still reports as complete, with results for the portion that ran."
+      },
+      {
+        "step": 6,
+        "action": "Report results",
+        "tool": null,
+        "details": "Native reports the same metric set as Standard: requests, success, errors, requestsPerSecond, avgResponseTime, avgLatency, avgConnectionTime, avgBandwidth, and the percentiles object. When describing the load that produced them, state the script's own load multiplied by task_count rather than the stored concurrency value, which Native never applied."
+      }
+    ]
+  }
+}

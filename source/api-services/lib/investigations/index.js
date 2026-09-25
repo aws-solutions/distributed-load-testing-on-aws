@@ -16,6 +16,7 @@ const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb");
 const { DynamoDB } = require("@aws-sdk/client-dynamodb");
 const { randomUUID } = require("crypto");
 
+const { TestStatus } = require("@amzn/dlt-common");
 const utils = require("solution-utils");
 const { createBacklogTask, getBacklogTask, updateBacklogTask, listExecutions, listJournalRecords } = require("../integrations/aidevops");
 const { buildDescription } = require("./payload");
@@ -90,7 +91,7 @@ const buildTitle = (testRun) => {
   if (testRun.startTime) {
     try {
       const d = new Date(testRun.startTime);
-      if (!isNaN(d.getTime())) {
+      if (!Number.isNaN(d.getTime())) {
         parts.push(d.toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC"));
       }
     } catch { /* ignore malformed dates */ }
@@ -100,7 +101,7 @@ const buildTitle = (testRun) => {
   // A "failed" status means the test run itself did not complete successfully.
   // This overrides the request-level success rate so we never label a failed
   // run "healthy".
-  if (testRun.status === "failed") {
+  if (testRun.status === TestStatus.FAILED) {
     return `${name}${tag} — test run failed`;
   }
 

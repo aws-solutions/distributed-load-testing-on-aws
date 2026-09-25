@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { RemovalPolicy } from "aws-cdk-lib";
+import { Duration, RemovalPolicy } from "aws-cdk-lib";
 import { AttributeType, BillingMode, Table, TableEncryption, ProjectionType } from "aws-cdk-lib/aws-dynamodb";
 import { Effect, Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { BlockPublicAccess, Bucket, BucketEncryption, HttpMethods } from "aws-cdk-lib/aws-s3";
@@ -42,6 +42,9 @@ export class ScenarioTestRunnerStorageConstruct extends Construct {
       enforceSSL: true,
       versioned: true,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
+      // Clean up parts left behind if a task is terminated before it can abort its upload.
+      // https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpu-abort-incomplete-mpu-lifecycle-config.html
+      lifecycleRules: [{ abortIncompleteMultipartUploadAfter: Duration.days(1) }],
       cors: [
         {
           allowedMethods: [HttpMethods.GET, HttpMethods.POST, HttpMethods.PUT, HttpMethods.HEAD],

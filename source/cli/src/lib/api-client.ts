@@ -88,11 +88,56 @@ export class ApiClient {
     return this.handleResponse<T>(resp);
   }
 
+  /**
+   * DELETE a resource at a path on the API and return the parsed JSON response.
+   */
+  async delete<T = unknown>(path: string, body?: unknown): Promise<T> {
+    const opts: { url: string; method: string; body?: string } = {
+      url: `${this.apiEndpoint}${path}`,
+      method: "DELETE",
+    };
+    if (body !== undefined) {
+      opts.body = JSON.stringify(body);
+    }
+    const resp = await this.client.request(opts);
+    return this.handleResponse<T>(resp);
+  }
+
+  /**
+   * PUT a JSON body to a path on the API and return the parsed JSON response.
+   */
+  async put<T = unknown>(path: string, body: unknown): Promise<T> {
+    const resp = await this.client.request({
+      url: `${this.apiEndpoint}${path}`,
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+    return this.handleResponse<T>(resp);
+  }
+
   private handleResponse<T>(resp: { statusCode: number; body: string }): T {
-    if (resp.statusCode !== 200) {
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
       const hint = resp.statusCode === 403 ? ' Your session may have expired — try running "dlt login" again.' : "";
       throw new Error(`API returned HTTP ${resp.statusCode}: ${resp.body}${hint}`);
     }
-    return JSON.parse(resp.body) as T;
+
+    // A successful response may legitimately carry no body (e.g. 204 No Content
+    // from a DELETE). Return an empty object rather than failing to parse it —
+    // callers that read a field off a write response (create/copy/update return
+    // { testId }, cancel returns { status }) then get `undefined` for that field
+    // (handled by their `?? fallback`) instead of throwing "Cannot read
+    // properties of undefined". All API responses are JSON objects, so this
+    // never masks an array/primitive body.
+    const body = resp.body?.trim();
+    if (!body) {
+      return {} as T;
+    }
+
+    try {
+      return JSON.parse(body) as T;
+    } catch {
+      const snippet = body.length > 200 ? `${body.slice(0, 200)}…` : body;
+      throw new Error(`API returned a non-JSON response (HTTP ${resp.statusCode}): ${snippet}`);
+    }
   }
 }

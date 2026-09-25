@@ -6,11 +6,12 @@
 // the field is touched or a submit has been attempted (showValidationErrors).
 
 import { Container, FormField, Header, Input, Select, SpaceBetween, Textarea } from "@cloudscape-design/components";
-import { useState } from "react";
 import { isValidJSON } from "../../../utils/jsonValidator";
-import { isValidUri } from "../../../utils/uriValidator";
 import { HttpMethodOptions } from "../constants";
+import { useFieldReveal } from "../hooks/useFieldReveal";
 import { FormData } from "../types";
+import { httpEndpointError } from "../utils/scenarioValidation";
+import { InfoLink } from "../../../help";
 
 interface Props {
   formData: FormData;
@@ -19,14 +20,13 @@ interface Props {
 }
 
 export const HttpEndpointSection = ({ formData, updateFormData, showValidationErrors = false }: Props) => {
-  const [endpointTouched, setEndpointTouched] = useState(false);
+  const { markTouched, isRevealed } = useFieldReveal(showValidationErrors);
   const isHeadersValid = isValidJSON(formData.requestHeaders || "");
   const isBodyValid = isValidJSON(formData.bodyPayload || "");
-  const uriValidation = formData.httpEndpoint ? isValidUri(formData.httpEndpoint) : { isValid: true, errorMessage: "" };
 
-  const showEndpointError = endpointTouched || showValidationErrors;
-  const endpointMissing = showEndpointError && !formData.httpEndpoint?.trim();
-  const endpointInvalid = !!formData.httpEndpoint && !uriValidation.isValid;
+  // Validation rule from the shared validator;
+  // error reveals once the field is touched or a submit is attempted.
+  const endpointError = httpEndpointError(formData.httpEndpoint, isRevealed("httpEndpoint"));
 
   return (
     // Plain Container (not a collapsible FormSection) because the HTTP/Upload
@@ -34,7 +34,7 @@ export const HttpEndpointSection = ({ formData, updateFormData, showValidationEr
     // section-level data-section-id wrapper for scroll-to-error.
     <Container
       header={
-        <Header variant="h2" description="Define the endpoint to be tested">
+        <Header variant="h2" description="Define the endpoint to be tested" info={<InfoLink topicId="http-endpoint" />}>
           HTTP Endpoint Configuration
         </Header>
       }
@@ -43,21 +43,15 @@ export const HttpEndpointSection = ({ formData, updateFormData, showValidationEr
         <FormField
           label="HTTP Endpoint"
           description="The endpoint that will be tested"
-          errorText={
-            endpointMissing
-              ? "HTTP endpoint is required"
-              : endpointInvalid
-                ? uriValidation.errorMessage
-                : undefined
-          }
+          errorText={endpointError}
         >
           <Input
             data-cy="http-endpoint-input"
             value={formData.httpEndpoint}
             onChange={({ detail }) => updateFormData({ httpEndpoint: detail.value })}
-            onBlur={() => setEndpointTouched(true)}
+            onBlur={() => markTouched("httpEndpoint")}
             placeholder="http://www.example.com"
-            invalid={endpointMissing || endpointInvalid}
+            invalid={!!endpointError}
           />
         </FormField>
 

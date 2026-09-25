@@ -2,6 +2,34 @@
 
 ![architecture diagram](../../docs/images/mcp_architecture.jpeg)
 
+## Traffic shape: Standard and Native
+
+Every scenario an agent creates or reads runs in one of two traffic-shape modes. The mode is carried by a single field: a `native_run_mode` object on the write tools, surfaced as `nativeRunMode` in `get_scenario_details` responses. Its absence means Standard.
+
+**Standard.** Standard mode puts DLT in control of the load. You set the Fargate task count per Region, the concurrent virtual users per task, a ramp-up period, and a hold duration, and DLT runs the test through the Taurus automation framework, which applies those values over whatever load your script declares. A Region's virtual users are the task count multiplied by the per-task concurrency. Standard is the only mode that lets you set an exact virtual-user count and change the ramp-up and hold shape without editing the script, and the only one that supports the Simple HTTP Endpoint type. Its limit is expressiveness: anything Taurus cannot represent, such as weighted scenarios, per-stage thresholds, or arrival-rate executors, is unavailable. This is how every DLT test ran before v4.3.0, so existing scenarios keep behaving exactly as they did.
+
+**Native.** Native mode puts your script in control of the load. DLT runs the file you uploaded under the framework's own command line and passes no load flags, so your script is the sole authority on the traffic it generates. Two controls remain: how many Fargate tasks to launch per Region, and a required safety duration of up to 24 hours. The safety duration guards against a script that never exits rather than scheduling the run: if the test is still going when it elapses, DLT stops the framework, keeps the results for the portion that ran, and records the run as completed. Tasks are uncoordinated and each runs a full copy of the script, so a k6 script holding 200 virtual users on five tasks puts 1,000 virtual users on the target. Task count is therefore the only load dial; changing the ramp, the hold time, or the virtual-user count means editing the script. Native requires an uploaded script, so Simple HTTP Endpoint is unavailable, and Locust scripts must not set processes.
+
+### Choosing a mode
+
+| If you need | Use |
+| --- | --- |
+| An exact virtual-user count, set from outside the script | Standard |
+| To change the ramp-up or hold time without editing the script | Standard |
+| A single URL with no script at all | Standard |
+| The same load shape regardless of framework | Standard |
+| To reuse a CI or local script unchanged | Native |
+| The script's own stages, thresholds, or shape honored | Native |
+| k6 scenarios, thresholds, or arrival-rate executors | Native |
+| A Locust `LoadTestShape` or weighted task set | Native |
+| JMeter timers and thread groups run exactly as authored | Native |
+| To scale load only in whole multiples of the script's own load | Native |
+
+### What an agent needs to know
+
+- `concurrency`, `ramp-up`, and `hold-for` are Standard-only. The write schemas still mark them required, so a Native test has to carry placeholder values. Those values are stored but never applied, so do not report them back to a user as the load that ran.
+- `get_workflow_guides` returns a `create_native_and_run` workflow covering the Native path end to end. The wording in this section, the tool descriptions, and that guide all come from the same source, `@amzn/dlt-common/traffic-shape`.
+
 ## Tools
 
 * [list_scenarios](#️-list_scenarios)

@@ -55,6 +55,10 @@ const SCENARIOS_BUCKET = getRequiredEnv("SCENARIOS_BUCKET");
 const MAIN_STACK_REGION = getRequiredEnv("MAIN_STACK_REGION");
 const AWS_ACCOUNT_ID = getRequiredEnv("AWS_ACCOUNT_ID");
 
+const ddb = DynamoDBDocumentClient.from(
+  new DynamoDBClient(getAwsClientConfig({ solutionId: SOLUTION_ID, version: VERSION }))
+);
+
 const metricEnvelope: OperationalMetricEnvelope = {
   solutionId: SOLUTION_ID,
   uuid: UUID,
@@ -72,6 +76,107 @@ function isCompletionEvent(event: TaskStatusCheckerEvent): event is CompletionMo
   return "serviceName" in event;
 }
 
+// CompletionState builds from a subset of updated CompletionMonitoringEvent fields via Pick<>,
+// as well as an optional errorReason if applicable.
+type CompletionState = Pick<
+  CompletionMonitoringEvent,
+  | "completedTaskCount"
+  | "isComplete"
+  | "maxDurationReached"
+  | "timedOut"
+  | "pollStartTime"
+  | "pollIntervalSeconds"
+  | "warningDeadline"
+> & {
+  readonly errorReason?: string;
+};
+
+// Update CompletionMonitoringEvent fields that change with each status check loop.
+function withCompletionState(event: CompletionMonitoringEvent, state: CompletionState): CompletionMonitoringEvent {
+  const result = { ...event, ...state };
+  if (state.errorReason === undefined) {
+    delete result.errorReason;
+  }
+  return result;
+}
+
+/**
+ * Load test frameworks may exit for fatal reasons such as a bad script or the JMeter
+ * JVM running out of memory. They may also exit for non-fatal reasons such as a
+ * script-defined threshold for latency or error rate being breached.
+ *
+ * Since we cannot determine fatal vs non-fatal exits, we consider a meaningful number
+ * of non-zero framework exit codes to be a "warning" signal.
+ *
+ * In the case of thresholds being breached, all tasks should complete within the alotted
+ * "grace period", since each script will run for the same duration.
+ *
+ * In the case of fatal exits, tasks may exit significantly earlier than "healthy" tasks.
+ * Once we exceed the healthy threshold, we start the "grace period" timer. If all tasks
+ * are not completed within the grace period, we shut down the load test and consider it
+ * a failure. We still parse available results and display available information to users.
+ */
+const WARNING_GRACE_PERIOD_MS = 120_000;
+
+function evaluateWarningDeadline(input: {
+  readonly event: CompletionMonitoringEvent;
+  readonly warningTaskCount: number;
+  readonly healthyThreshold: number;
+  readonly isComplete: boolean;
+  readonly maxDurationTimedOut: boolean;
+  readonly warningDeadlineReached: boolean;
+  readonly logger: ReturnType<typeof createLogger>;
+}): {
+  readonly warningDeadline: number | undefined;
+  readonly warningTimedOut: boolean;
+} {
+  const { event, warningTaskCount, healthyThreshold, isComplete, maxDurationTimedOut, warningDeadlineReached, logger } =
+    input;
+  let warningDeadline = event.warningDeadline;
+
+  if (event.nativeRunMode === null || isComplete || maxDurationTimedOut) {
+    return { warningDeadline, warningTimedOut: false };
+  }
+
+  if (event.desiredCount > 0 && warningDeadline === undefined) {
+    const healthyPercent = ((event.desiredCount - warningTaskCount) / event.desiredCount) * 100;
+    if (healthyPercent < healthyThreshold) {
+      warningDeadline = Date.now() + WARNING_GRACE_PERIOD_MS;
+      logger.warn("Regional framework-warning threshold breached — starting grace period", {
+        warningTaskCount,
+        desiredCount: event.desiredCount,
+        healthyThreshold,
+        warningDeadline,
+      });
+    }
+  }
+
+  const warningTimedOut = warningDeadline !== undefined && warningDeadlineReached;
+  return { warningDeadline, warningTimedOut };
+}
+
+// Update test scenario's failure details within the Scenarios table.
+async function updateFailureStatus(
+  ddb: DynamoDBDocumentClient,
+  testId: string,
+  logger: ReturnType<typeof createLogger>
+): Promise<void> {
+  try {
+    await ddb.send(
+      new UpdateCommand({
+        TableName: SCENARIOS_TABLE,
+        Key: { testId },
+        UpdateExpression: "SET #s = :s, #e = :e",
+        ExpressionAttributeNames: { "#s": "status", "#e": "errorReason" },
+        ExpressionAttributeValues: { ":s": "failed", ":e": "Failed to check task status." },
+      })
+    );
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error("Failed to update DynamoDB status", { error: message });
+  }
+}
+
 /**
  * Task Status Checker Lambda handler.
  *
@@ -82,9 +187,10 @@ function isCompletionEvent(event: TaskStatusCheckerEvent): event is CompletionMo
  *
  * 2. **Completion Monitoring** (has `serviceName`): Checks DDB status for
  *    early failure detection, counts S3 completion markers, and enforces a
- *    deadline of `testDuration + GRACE_PERIOD_SECONDS`.
+ *    deadline of `nativeRunMode.maxTestDurationSeconds + GRACE_PERIOD_SECONDS`
+ *    for native tests, or `testDuration + GRACE_PERIOD_SECONDS` for legacy tests.
  */
-export async function handler(
+export async function handler( // NOSONAR - S3776: keep orchestration linear until refactor
   event: TaskStatusCheckerEvent
 ): Promise<RunningCheckResponse | CompletionMonitoringEvent> {
   const logger = createLogger({ serviceName: "task-status-checker", solutionId: SOLUTION_ID, version: VERSION });
@@ -97,7 +203,6 @@ export async function handler(
       // ── Running Check Path ──
       logger.info("Running check mode");
 
-      const ddb = DynamoDBDocumentClient.from(new DynamoDBClient(getAwsClientConfig({ solutionId: SOLUTION_ID, version: VERSION })));
       const { isRunning } = await checkRunningStatus({
         ddb,
         scenariosTable: SCENARIOS_TABLE,
@@ -110,10 +215,16 @@ export async function handler(
 
     // ── Completion Monitoring Path ──
     const pollStartTime = event.pollStartTime ?? Date.now();
+    const elapsedSeconds = (Date.now() - pollStartTime) / 1000;
+    const nativeMaxDuration = event.nativeRunMode?.maxTestDurationSeconds;
+    const nativeMaxDurationReached = nativeMaxDuration ? elapsedSeconds > nativeMaxDuration : false;
+    const maxDurationReached = event.maxDurationReached || nativeMaxDurationReached;
+    const durationDeadlineSeconds = (nativeMaxDuration ?? event.testDuration) + GRACE_PERIOD_SECONDS;
+    const maxDurationTimedOut = elapsedSeconds > durationDeadlineSeconds;
 
-    // Recomputed rather than threaded through so it survives a redrive. Read by
-    // the Wait state via SecondsPath, so it must be present on every response.
-    const pollIntervalSeconds = computePollIntervalSeconds(event.testDuration);
+    // Recomputed rather than threaded through so it survives a redrive. Must be
+    // returned on every path — the Wait state reads it via SecondsPath.
+    const pollIntervalSeconds = computePollIntervalSeconds(nativeMaxDuration ?? event.testDuration);
 
     logger.info("Completion monitoring mode", {
       serviceName: event.serviceName,
@@ -123,34 +234,15 @@ export async function handler(
       pollIntervalSeconds,
     });
 
-    // Build the pass-through result fields once
-    const baseResult: Omit<CompletionMonitoringEvent, "completedTaskCount" | "isComplete" | "timedOut" | "pollStartTime" | "errorReason"> = {
-      testId: event.testId,
-      testRunId: event.testRunId,
-      testType: event.testType,
-      fileType: event.fileType,
-      showLive: event.showLive,
-      testDuration: event.testDuration,
-      prefix: event.prefix,
-      testTaskConfig: event.testTaskConfig,
-      serviceName: event.serviceName,
-      serviceArn: event.serviceArn,
-      taskDefinitionArn: event.taskDefinitionArn,
-      taskDefinitionFamily: event.taskDefinitionFamily,
-      desiredCount: event.desiredCount,
-      pollIntervalSeconds,
-    };
-
     // Check if the test has been marked as failed (e.g., task failure threshold breached)
-    const ddb = DynamoDBDocumentClient.from(new DynamoDBClient(getAwsClientConfig({ solutionId: SOLUTION_ID, version: VERSION })));
-    const { isRunning } = await checkRunningStatus({
+    const { isRunning, healthyThreshold = 90 } = await checkRunningStatus({
       ddb,
       scenariosTable: SCENARIOS_TABLE,
       testId,
       logger,
     });
 
-    if (!isRunning) {
+    if (!isRunning && !maxDurationReached) {
       logger.error("Test is no longer running — short-circuiting completion monitor", {
         logEvent: LogEvent.COMPLETION_TIMEOUT,
       });
@@ -164,19 +256,22 @@ export async function handler(
         DesiredCount: event.desiredCount,
       }).catch((err) => logger.warn("Failed to send CompletionThresholdBreached metric", { error: err }));
 
-      return {
-        ...baseResult,
+      return withCompletionState(event, {
         completedTaskCount: event.completedTaskCount ?? 0,
         isComplete: false,
+        maxDurationReached: event.maxDurationReached ?? false,
         timedOut: true,
         pollStartTime,
+        pollIntervalSeconds,
         errorReason: "Task failure threshold breached",
-      };
+      });
     }
 
-    // Count S3 completion markers
-    const s3 = new S3Client(getAwsClientConfig({ solutionId: SOLUTION_ID, version: VERSION, region: MAIN_STACK_REGION }));
-    const { completedTaskCount, isComplete } = await monitorCompletion({
+    const s3 = new S3Client(
+      getAwsClientConfig({ solutionId: SOLUTION_ID, version: VERSION, region: MAIN_STACK_REGION })
+    );
+    const warningDeadlineReached = event.warningDeadline !== undefined && Date.now() >= event.warningDeadline;
+    const completion = await monitorCompletion({
       s3,
       bucket: SCENARIOS_BUCKET,
       testId,
@@ -186,10 +281,8 @@ export async function handler(
       logger,
     });
 
-    // Deadline-based timeout: testDuration + grace period
-    const elapsedSeconds = (Date.now() - pollStartTime) / 1000;
-    const deadline = event.testDuration + GRACE_PERIOD_SECONDS;
-    const timedOut = elapsedSeconds > deadline;
+    const { completedTaskCount, isComplete, warningTaskCount } = completion;
+    const warningGraceStarted = event.warningDeadline !== undefined;
 
     if (isComplete) {
       logger.info("All tasks completed", {
@@ -208,13 +301,33 @@ export async function handler(
       }).catch((err) => logger.warn("Failed to send RegionComplete metric", { error: err }));
     }
 
+    const warningState = evaluateWarningDeadline({
+      event,
+      warningTaskCount,
+      healthyThreshold,
+      isComplete,
+      maxDurationTimedOut,
+      warningDeadlineReached,
+      logger,
+    });
+    const { warningDeadline, warningTimedOut } = warningState;
+
+    const timedOut = maxDurationTimedOut || warningTimedOut;
+    const errorReason = warningTimedOut ? "Framework warning threshold breached" : "Test execution timed out";
+    const timeoutDeadlineSeconds =
+      warningTimedOut && warningDeadline !== undefined
+        ? Math.round((warningDeadline - pollStartTime) / 1000)
+        : durationDeadlineSeconds;
+
     if (timedOut && !isComplete) {
+      const timeoutCause = maxDurationTimedOut ? "execution_deadline" : "framework_warning_grace";
       logger.error("Completion monitoring timed out — deadline exceeded", {
         logEvent: LogEvent.COMPLETION_TIMEOUT,
         elapsedSeconds,
-        deadline,
+        deadline: timeoutDeadlineSeconds,
         completedTaskCount,
         desiredCount: event.desiredCount,
+        warningTaskCount,
       });
 
       await sendOperationalMetric(metricEnvelope, {
@@ -223,45 +336,43 @@ export async function handler(
         TestRunId: event.testRunId,
         Region: region,
         ElapsedSeconds: Math.round(elapsedSeconds),
-        Deadline: deadline,
+        Deadline: timeoutDeadlineSeconds,
         CompletedTaskCount: completedTaskCount,
         DesiredCount: event.desiredCount,
+        TimeoutCause: timeoutCause,
+        WarningTaskCount: warningTaskCount,
+        HealthyThreshold: healthyThreshold,
+        WarningGraceStarted: warningGraceStarted,
       }).catch((err) => logger.warn("Failed to send CompletionTimeout metric", { error: err }));
     }
 
-    const result: CompletionMonitoringEvent = {
-      ...baseResult,
+    const result = withCompletionState(event, {
       completedTaskCount,
       isComplete,
+      maxDurationReached,
       timedOut,
       pollStartTime,
-      ...(timedOut && !isComplete && { errorReason: "Test execution timed out" }),
-    };
+      pollIntervalSeconds,
+      ...(warningDeadline !== undefined && { warningDeadline }),
+      ...(timedOut && !isComplete && { errorReason }),
+    });
 
-    logger.info("Completion monitoring result", { completedTaskCount, isComplete, timedOut, elapsedSeconds });
+    logger.info("Completion monitoring result", {
+      completedTaskCount,
+      isComplete,
+      maxDurationReached,
+      timedOut,
+      elapsedSeconds,
+      warningTaskCount,
+      warningDeadline,
+    });
 
     return result;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     logger.error("Task status checker failed", { error: message });
 
-    // Update DynamoDB with failure status
-    try {
-      const ddb = DynamoDBDocumentClient.from(new DynamoDBClient(getAwsClientConfig({ solutionId: SOLUTION_ID, version: VERSION })));
-      await ddb.send(
-        new UpdateCommand({
-          TableName: SCENARIOS_TABLE,
-          Key: { testId },
-          UpdateExpression: "SET #s = :s, #e = :e",
-          ExpressionAttributeNames: { "#s": "status", "#e": "errorReason" },
-          ExpressionAttributeValues: { ":s": "failed", ":e": "Failed to check task status." },
-        })
-      );
-    } catch (ddbError: unknown) {
-      const ddbMessage = ddbError instanceof Error ? ddbError.message : String(ddbError);
-      logger.error("Failed to update DynamoDB status", { error: ddbMessage });
-    }
-
+    await updateFailureStatus(ddb, testId, logger);
     throw new Error(message);
   }
 }

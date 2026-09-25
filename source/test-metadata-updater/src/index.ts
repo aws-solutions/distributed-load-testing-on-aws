@@ -6,11 +6,12 @@ import {
   getAwsClientConfig,
   getRequiredEnv,
   incrementTestRunCount,
+  type NativeRunMode,
   parseSafeJson,
   TestStatus,
 } from "@amzn/dlt-common";
-import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { ConditionalCheckFailedException, DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 
 const SOLUTION_ID = getRequiredEnv("SOLUTION_ID");
 const VERSION = getRequiredEnv("VERSION");
@@ -34,6 +35,8 @@ interface TestScenario {
   readonly scheduleTimezone?: string;
   readonly startTime?: string;
   readonly status?: string;
+  readonly errorReason?: string;
+  readonly nativeRunMode?: NativeRunMode;
 }
 
 const ddb = DynamoDBDocumentClient.from(
@@ -65,9 +68,22 @@ export async function handler(event: TestMetadataUpdateEvent): Promise<void> {
   // Log current DDB status before updating
   console.log(`Current DDB status=${testScenario.status}`);
 
-  await updateTestScenarioStatus(event);
+  // A failure can be recorded directly on the scenario by a proximate writer
+  // (e.g. the Task Failure Handler on a healthy-threshold breach) without that
+  // reason reaching this terminal write via $.errorReason — it is stripped at
+  // the Execution Map boundary in the step function. When the event carries no
+  // reason, fall back to the reason already on the scenario so the run/history
+  // record shows the same cause instead of nothing. Safe because errorReason is
+  // cleared when a run starts (the `queued` transition removes it), so any value
+  // present here belongs to the current run, not a previous one.
+  const effectiveErrorReason = event.errorReason || testScenario.errorReason;
+  const effectiveEvent: TestMetadataUpdateEvent = effectiveErrorReason
+    ? { ...event, errorReason: effectiveErrorReason }
+    : event;
+
+  await updateTestScenarioStatus(effectiveEvent);
   console.log("Updated Test Scenario");
-  await updateTestHistoryStatus(event, testScenario);
+  await updateTestHistoryStatus(effectiveEvent, testScenario);
   console.log("Updated Test History");
 }
 
@@ -97,61 +113,97 @@ async function getTestScenario({ testId }: TestMetadataUpdateEvent): Promise<Tes
  * @param {string} status status to update the scenario to
  * @param {string?} endTime optional endTime value to update
  */
+/**
+ * Sends an UpdateCommand, treating a failed ConditionExpression as a no-op: the
+ * guarded precondition was not met (the scenario is already terminal, or it was
+ * deleted), so there is nothing to do. Any other error propagates.
+ */
+async function sendIgnoringFailedCondition(command: UpdateCommand): Promise<void> {
+  try {
+    await ddb.send(command);
+  } catch (error) {
+    if (!(error instanceof ConditionalCheckFailedException)) {
+      throw error;
+    }
+  }
+}
+
+/**
+ * Builds the guarded scenario status/endTime UpdateCommand. The terminal-state
+ * guard is applied only when a status is being written, so terminal states stay
+ * immutable while an endTime-only update is unconditional.
+ */
+function buildScenarioStatusUpdate(testId: string, status?: TestStatus, endTime?: string): UpdateCommand {
+  const updateList: string[] = [];
+  const ExpressionAttributeNames: Record<string, string> = {};
+  const ExpressionAttributeValues: Record<string, string> = {};
+  let terminalGuard: string | undefined;
+
+  if (status) {
+    terminalGuard = "#s <> :complete AND #s <> :cancelled AND #s <> :failed";
+    updateList.push("#s = :s");
+    ExpressionAttributeNames["#s"] = "status";
+    ExpressionAttributeValues[":s"] = status;
+    ExpressionAttributeValues[":complete"] = TestStatus.COMPLETE;
+    ExpressionAttributeValues[":cancelled"] = TestStatus.CANCELLED;
+    ExpressionAttributeValues[":failed"] = TestStatus.FAILED;
+  }
+  if (endTime) {
+    updateList.push("endTime = :endTime");
+    ExpressionAttributeValues[":endTime"] = formatDate(new Date(endTime));
+  }
+
+  return new UpdateCommand({
+    TableName: SCENARIOS_TABLE,
+    Key: { testId },
+    ConditionExpression: terminalGuard,
+    UpdateExpression: `SET ${updateList.join(", ")}`,
+    ExpressionAttributeNames: Object.keys(ExpressionAttributeNames).length ? ExpressionAttributeNames : undefined,
+    ExpressionAttributeValues,
+  });
+}
+
 async function updateTestScenarioStatus({
   testId,
   status,
   endTime,
   errorReason,
 }: TestMetadataUpdateEvent): Promise<void> {
-  try {
-    const updateList = [];
-    const ExpressionAttributeNames: Record<string, string> = {};
-    const ExpressionAttributeValues: any = {};
-    let terminalGuard;
+  // 1. Status/endTime — guarded so terminal states (complete/cancelled/failed)
+  //    are immutable. Skipped once the scenario is terminal (e.g. the Task Runner
+  //    already marked it `failed` for a fast-fail signal); a failed guard here is
+  //    a no-op, so the errorReason below is still recorded.
+  if (status || endTime) {
+    await sendIgnoringFailedCondition(buildScenarioStatusUpdate(testId, status, endTime));
+  }
 
-    // Update status and endTime if present
-    if (status) {
-      terminalGuard = "#s <> :complete AND #s <> :cancelled AND #s <> :failed";
-      const conditionValues: Record<string, string> = {
-        ":complete": TestStatus.COMPLETE,
-        ":cancelled": TestStatus.CANCELLED,
-        ":failed": TestStatus.FAILED,
-      };
-      updateList.push("#s = :s");
-      ExpressionAttributeNames["#s"] = "status";
-      ExpressionAttributeValues[":s"] = status;
-      Object.assign(ExpressionAttributeValues, conditionValues);
-    }
-    if (endTime) {
-      updateList.push("endTime = :endTime");
-      ExpressionAttributeValues[":endTime"] = formatDate(new Date(endTime));
-    }
-    if (errorReason) {
-      updateList.push("#e = :e");
-      ExpressionAttributeNames["#e"] = "errorReason";
-      ExpressionAttributeValues[":e"] = errorReason;
-    }
-    if (!updateList.length) {
-      // Do not update table entry if status and endTime not present
-      return;
-    }
-
-    await ddb.send(
+  // 2. errorReason — written separately from the status/endTime guard so it can
+  //    still land when that guard is a no-op: the Task Runner's fast-fail path
+  //    marks the scenario `failed` before this terminal write, so the status
+  //    update above is rejected while the reason still needs to attach. The write
+  //    is guarded so it never touches a `complete` or `cancelled` scenario —
+  //    those are successful/deliberate terminal outcomes, and stapling a failure
+  //    reason onto them (e.g. a late FAILED event reaching a healthy COMPLETE run)
+  //    would break the terminal-immutability invariant. `failed` is intentionally
+  //    excluded from the guard so the fast-fail reason lands. attribute_exists(testId)
+  //    still prevents resurrecting a scenario deleted between the failure and this
+  //    write. errorReason has a single writer (this terminal write), so overwriting
+  //    keeps the scenario reason identical to the run/history record.
+  if (errorReason) {
+    await sendIgnoringFailedCondition(
       new UpdateCommand({
         TableName: SCENARIOS_TABLE,
         Key: { testId },
-        ConditionExpression: terminalGuard,
-        UpdateExpression: `SET ${updateList.join(", ")}`,
-        ExpressionAttributeNames: Object.keys(ExpressionAttributeNames).length ? ExpressionAttributeNames : undefined,
-        ExpressionAttributeValues,
+        UpdateExpression: "SET #e = :e",
+        ConditionExpression: "attribute_exists(testId) AND #s <> :complete AND #s <> :cancelled",
+        ExpressionAttributeNames: { "#e": "errorReason", "#s": "status" },
+        ExpressionAttributeValues: {
+          ":e": errorReason,
+          ":complete": TestStatus.COMPLETE,
+          ":cancelled": TestStatus.CANCELLED,
+        },
       })
     );
-  } catch (error) {
-    if (error instanceof ConditionalCheckFailedException) {
-      // Status is already in a protected state — nothing to do.
-      return;
-    }
-    throw error;
   }
 }
 
@@ -189,6 +241,11 @@ async function updateTestHistoryStatus(
       ":startTime": scenario.startTime,
     };
     const ExpressionAttributeNames: Record<string, string> = {};
+    if (scenario.nativeRunMode) {
+      // Add native mode attributes to the history table's record
+      updateList.push("nativeRunMode = if_not_exists(nativeRunMode, :nativeRunMode)");
+      ExpressionAttributeValues[":nativeRunMode"] = scenario.nativeRunMode;
+    }
 
     // Update status, start, and end time field if present
     if (status) {

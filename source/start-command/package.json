@@ -16,6 +16,6 @@
   },
   "dependencies": {
     "@amzn/dlt-common": "*",
-    "@aws-sdk/client-s3": "^3.981.0"
+    "@aws-sdk/client-s3": "^3.1002.0"
   }
 }

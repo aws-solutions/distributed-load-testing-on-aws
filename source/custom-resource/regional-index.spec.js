@@ -49,15 +49,15 @@ describe("#REGIONAL-INDEX HANDLER::", () => {
 
       expect(mockCfn.send).toHaveBeenCalledTimes(1);
       const [, , status, responseData, resource] = mockCfn.send.mock.calls[0];
-      
+
       expect(status).toBe("SUCCESS");
       expect(resource).toBe("UUID");
       expect(responseData).toHaveProperty("UUID");
       expect(responseData).toHaveProperty("SUFFIX");
-      
+
       // Verify UUID format (8-4-4-4-12 pattern)
       expect(responseData.UUID).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
-      
+
       // Verify SUFFIX is last 10 characters of a UUID
       expect(responseData.SUFFIX).toHaveLength(10);
     });
@@ -74,7 +74,7 @@ describe("#REGIONAL-INDEX HANDLER::", () => {
 
       expect(mockCfn.send).toHaveBeenCalledTimes(1);
       const [, , status, responseData] = mockCfn.send.mock.calls[0];
-      
+
       expect(status).toBe("SUCCESS");
       expect(responseData).toEqual({});
     });
@@ -91,7 +91,7 @@ describe("#REGIONAL-INDEX HANDLER::", () => {
 
       expect(mockCfn.send).toHaveBeenCalledTimes(1);
       const [, , status, responseData] = mockCfn.send.mock.calls[0];
-      
+
       expect(status).toBe("SUCCESS");
       expect(responseData).toEqual({});
     });
@@ -132,7 +132,7 @@ describe("#REGIONAL-INDEX HANDLER::", () => {
   describe("GetIotEndpoint Resource", () => {
     it("should return IoT endpoint on Create request", async () => {
       mockIot.getIotEndpoint.mockResolvedValue("test-iot-endpoint.amazonaws.com");
-      
+
       const event = {
         RequestType: "Create",
         ResourceProperties: {
@@ -154,7 +154,7 @@ describe("#REGIONAL-INDEX HANDLER::", () => {
 
     it("should call getIotEndpoint on Update request", async () => {
       mockIot.getIotEndpoint.mockResolvedValue("test-iot-endpoint.amazonaws.com");
-      
+
       const event = {
         RequestType: "Update",
         ResourceProperties: {
@@ -213,7 +213,7 @@ describe("#REGIONAL-INDEX HANDLER::", () => {
 
     it("should handle errors from dependencies and send FAILED response", async () => {
       mockIot.getIotEndpoint.mockRejectedValue(new Error("IoT Error"));
-      
+
       const event = {
         RequestType: "Create",
         ResourceProperties: {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, it, expect } from "vitest";
+import { MAX_TEST_RUNS_PER_DELETE_REQUEST } from "@amzn/dlt-common";
 import {
   validateTestId,
   validateTestRunId,
@@ -53,7 +54,7 @@ describe("Validation Functions", () => {
     });
 
     it("should provide descriptive error messages", () => {
-      expect(() => validateTestId(undefined)).toThrow("Required");
+      expect(() => validateTestId(undefined)).toThrow("Invalid input: expected string, received undefined");
       expect(() => validateTestId("")).toThrow("testId is required");
       expect(() => validateTestId("a".repeat(129))).toThrow("testId must not exceed 128 characters");
       expect(() => validateTestId("test_invalid")).toThrow(
@@ -97,7 +98,7 @@ describe("Validation Functions", () => {
     });
 
     it("should provide descriptive error messages", () => {
-      expect(() => validateTestRunId(undefined)).toThrow("Required");
+      expect(() => validateTestRunId(undefined)).toThrow("Invalid input: expected string, received undefined");
       expect(() => validateTestRunId("")).toThrow("testRunId is required");
       expect(() => validateTestRunId("r".repeat(129))).toThrow("testRunId must not exceed 128 characters");
       expect(() => validateTestRunId("run_invalid")).toThrow(
@@ -379,7 +380,8 @@ describe("Validation Functions", () => {
 
   describe("validateDeleteTestRunsBody", () => {
     it("should validate correct delete test runs body", () => {
-      const validBodies = [["run-123"], ["run-123", "run-456"], ["run-123", "run-456", "run-789"]];
+      const maxSizeBody = Array.from({ length: MAX_TEST_RUNS_PER_DELETE_REQUEST }, (_, index) => `run-${index}`);
+      const validBodies = [["run-123"], ["run-123", "run-456"], maxSizeBody];
 
       validBodies.forEach((body) => {
         expect(() => validateDeleteTestRunsBody(body)).not.toThrow();
@@ -397,6 +399,14 @@ describe("Validation Functions", () => {
       invalidBodies.forEach((body) => {
         expect(() => validateDeleteTestRunsBody(body)).toThrow();
       });
+    });
+
+    it("should reject more than the maximum number of test run ids", () => {
+      const body = Array.from({ length: MAX_TEST_RUNS_PER_DELETE_REQUEST + 1 }, (_, index) => `run-${index}`);
+
+      expect(() => validateDeleteTestRunsBody(body)).toThrow(
+        `A maximum of ${MAX_TEST_RUNS_PER_DELETE_REQUEST} testRunIds is allowed per request`
+      );
     });
   });
 

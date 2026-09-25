@@ -115,7 +115,8 @@ describe("Task Data States — ECS Edge Cases", () => {
         Promise.resolve({
           Item: {
             testId,
-            name: "service-not-found-test",
+            testName: "service-not-found-test",
+            testType: "simple",
             status: "provisioning",
             testScenario: '{"name":"example"}',
             testTaskConfigs: [
@@ -174,7 +175,8 @@ describe("Task Data States — ECS Edge Cases", () => {
         Promise.resolve({
           Item: {
             testId,
-            name: "desired-status-test",
+            testName: "desired-status-test",
+            testType: "simple",
             status: "running",
             testScenario: '{"name":"example"}',
             testTaskConfigs: [

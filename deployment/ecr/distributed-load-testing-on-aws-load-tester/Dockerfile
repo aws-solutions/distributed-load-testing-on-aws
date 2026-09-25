@@ -12,9 +12,14 @@ ENV PIP_INSTALL="pip3.11 install --no-cache-dir"
 # breaking Taurus/bzt which imports it at startup. bzt requires urwid>=3.0.2.
 # https://github.com/Blazemeter/taurus/issues/1972
 # https://github.com/Blazemeter/taurus/blob/master/requirements.txt
+#
+# Pin bzt — its k6 executor renders the hold stage as (hold-for - ramp-up), which
+# compensateK6RampUp in source/api-services/lib/scenarios/index.js cancels out.
+# If upstream fixes the line below, drop the compensation in the same change.
+# https://github.com/Blazemeter/taurus/blob/1.17.1/bzt/modules/k6.py#L57
 RUN $PIP_INSTALL --upgrade pip && \
-    $PIP_INSTALL --upgrade 'urwid==3.0.5' bzt awscli setuptools h11 && \
-    $PIP_INSTALL --upgrade 'urwid==3.0.5' bzt
+    $PIP_INSTALL --upgrade 'urwid==3.0.5' 'bzt==1.17.1' awscli setuptools h11 && \
+    $PIP_INSTALL --upgrade 'urwid==3.0.5' 'bzt==1.17.1'
 
 # Create directories and copy application files
 RUN mkdir /bzt-configs /tmp/artifacts /frameworks

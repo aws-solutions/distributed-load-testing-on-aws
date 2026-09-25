@@ -189,16 +189,13 @@ describe("login command", () => {
     });
 
     it("falls back to port 3000 when port 7521 is in use", async () => {
-      const eaddrinuseError = Object.assign(
-        new Error("listen EADDRINUSE: address already in use 127.0.0.1:7521"),
-        { code: "EADDRINUSE" }
-      );
-      mockStartCallbackServer
-        .mockRejectedValueOnce(eaddrinuseError)
-        .mockResolvedValueOnce({
-          code: "auth-code",
-          server: { close: vi.fn() },
-        });
+      const eaddrinuseError = Object.assign(new Error("listen EADDRINUSE: address already in use 127.0.0.1:7521"), {
+        code: "EADDRINUSE",
+      });
+      mockStartCallbackServer.mockRejectedValueOnce(eaddrinuseError).mockResolvedValueOnce({
+        code: "auth-code",
+        server: { close: vi.fn() },
+      });
       mockExchangeCodeForTokens.mockResolvedValue({
         id_token: "id-tok",
         access_token: "access-tok",
@@ -225,27 +222,18 @@ describe("login command", () => {
         "verifier",
         "http://localhost:3000/callback"
       );
-      expect(mockSaveCredentials).toHaveBeenCalledWith(
-        expect.objectContaining({ authMode: "browser" })
-      );
+      expect(mockSaveCredentials).toHaveBeenCalledWith(expect.objectContaining({ authMode: "browser" }));
       consoleSpy.mockRestore();
     });
 
     it("throws when all fallback ports are in use", async () => {
       const makeEaddrinuse = (port: number) =>
-        Object.assign(
-          new Error(`listen EADDRINUSE: address already in use 127.0.0.1:${port}`),
-          { code: "EADDRINUSE" }
-        );
-      mockStartCallbackServer
-        .mockRejectedValueOnce(makeEaddrinuse(7521))
-        .mockRejectedValueOnce(makeEaddrinuse(3000));
+        Object.assign(new Error(`listen EADDRINUSE: address already in use 127.0.0.1:${port}`), { code: "EADDRINUSE" });
+      mockStartCallbackServer.mockRejectedValueOnce(makeEaddrinuse(7521)).mockRejectedValueOnce(makeEaddrinuse(3000));
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       const program = createProgram();
-      await expect(program.parseAsync(["node", "dlt", "login"])).rejects.toThrow(
-        "Failed to start callback server"
-      );
+      await expect(program.parseAsync(["node", "dlt", "login"])).rejects.toThrow("Failed to start callback server");
 
       expect(mockStartCallbackServer).toHaveBeenCalledTimes(2);
       consoleSpy.mockRestore();

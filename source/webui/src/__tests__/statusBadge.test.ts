@@ -1,8 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { TestStatus } from "@amzn/dlt-common/validation";
 import fc from "fast-check";
-import { TestStatus, StatusIndicatorType, getStatusConfig } from "../pages/scenarios/constants";
+import { StatusIndicatorType, getStatusConfig } from "../pages/scenarios/constants";
 
 const validStatusIndicatorTypes: ReadonlySet<string> = new Set(Object.values(StatusIndicatorType));
 const validTestStatusValues: ReadonlySet<string> = new Set(Object.values(TestStatus));

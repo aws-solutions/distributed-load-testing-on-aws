@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { TestLifecycleSteps } from "../../pages/scenarios/components/TestLifecycleSteps";
-import { TestStatus } from "../../pages/scenarios/constants";
+import { TestStatus } from "@amzn/dlt-common/validation";
 
 describe("TestLifecycleSteps", () => {
   it("renders all 5 lifecycle phase labels", () => {

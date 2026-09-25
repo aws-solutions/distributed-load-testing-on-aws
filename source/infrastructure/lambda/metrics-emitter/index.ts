@@ -22,6 +22,7 @@ interface MetricsEmitterEvent {
 /**
  * Thin Lambda that forwards an operational metric to the solutions
  * metrics endpoint.
+ * @param event
  */
 export async function handler(event: MetricsEmitterEvent): Promise<void> {
   await sendOperationalMetric(

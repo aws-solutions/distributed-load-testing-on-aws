@@ -558,7 +558,7 @@ export function TestResultsTable({
   // Download table data as CSV
   const handleDownload = () => {
     const csvContent = generateCSV(visibleColumns, filteredRows, !!baseline);
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
+    const timestamp = new Date().toISOString().slice(0, 19).replaceAll(":", "-");
     const filename = `test-run-results-${timestamp}.csv`;
     downloadCSV(csvContent, filename);
   };
@@ -573,16 +573,11 @@ export function TestResultsTable({
               <SegmentedControl
                 selectedId={viewMode}
                 onChange={({ detail }) => {
-                  const newMode = detail.selectedId as ViewMode;
-                  onViewModeChange(newMode);
-
-                  // Auto-select the single row in Overall mode
-                  if (newMode === ViewMode.Overall && filteredRows.length > 0) {
-                    onSelectionChange([filteredRows[0]]);
-                  } else {
-                    // Clear selection when switching to other modes
-                    onSelectionChange([]);
-                  }
+                  onViewModeChange(detail.selectedId as ViewMode);
+                  // Rows for the new mode have not been computed yet, so just drop the
+                  // stale selection. In Overall mode the effect above re-selects the
+                  // aggregate row once those rows exist.
+                  onSelectionChange([]);
                 }}
                 options={[
                   { text: "Overall", id: ViewMode.Overall },
@@ -614,8 +609,12 @@ export function TestResultsTable({
       stickyColumns={preferences.stickyColumns}
       ariaLabels={{
         selectionGroupLabel: "Test results selection",
+        // Compared by id, not identity: a default selection is derived from the run
+        // data rather than taken from `items`, so it is a different object instance.
         itemSelectionLabel: ({ selectedItems }, item) =>
-          `${item.testLabel} in ${item.region} is ${selectedItems.indexOf(item) < 0 ? "not " : ""}selected`,
+          `${item.testLabel} in ${item.region} is ${
+            selectedItems.some((selected) => selected.id === item.id) ? "" : "not "
+          }selected`,
       }}
       sortingColumn={sortingColumn}
       sortingDescending={sortingDescending}

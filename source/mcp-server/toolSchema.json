@@ -9,7 +9,7 @@
   },
   {
     "name": "get_scenario_details",
-    "description": "Retrieve the test configuration and most recent test run for a single test scenario",
+    "description": "Retrieve the test configuration and most recent test run for a single test scenario. The response reports the scenario's traffic-shape mode: a nativeRunMode object means Native, where the uploaded script owns the load and each task runs a full copy of it, and its absence means Standard, where the stored concurrency, ramp-up, and hold-for values are the load. For a Native scenario the stored concurrency, ramp-up, and hold-for values were never applied, so do not report them as the load and do not reuse them when composing an update.",
     "inputSchema": {
       "properties": {
         "test_id": {

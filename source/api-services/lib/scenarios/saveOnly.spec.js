@@ -134,7 +134,8 @@ const baseConfig = {
 const existingTestEntry = (status) => ({
   Item: {
     testId,
-    name: "mytest",
+    testName: "mytest",
+    testType: "simple",
     status,
     startTime: "2017-04-22 02:28:37",
     testScenario: '{"name":"example"}',
@@ -209,11 +210,17 @@ const context = { functionName: "lambdaFunctionName" };
 //   3. mergeTestAndInfraConfiguration -> hub region get
 //   4. mergeTestAndInfraConfiguration -> spoke region get
 //   5. updateTestDBEntry (Attributes)
-const wireCreateTestMocks = ({ existing }) => {
+// withClaim inserts the claimRunSlot conditional-write mock, which only occurs
+// on the non-saveOnly start path against an existing scenario. saveOnly edits
+// skip the claim, so they leave withClaim at its default of false.
+const wireCreateTestMocks = ({ existing, withClaim = false }) => {
   mockS3.mockImplementation(() => Promise.resolve());
   mockStepFunctions.mockImplementation(() => Promise.resolve());
   mockDynamoDB.mockImplementationOnce(() => Promise.resolve(existing || {}));
   mockDynamoDB.mockImplementationOnce(() => Promise.resolve(allRegionalConfs));
+  if (withClaim) {
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // claimRunSlot
+  }
   mockDynamoDB.mockImplementationOnce(() => Promise.resolve(hubRegionalConf));
   mockDynamoDB.mockImplementationOnce(() => Promise.resolve(spokeRegionalConf));
   mockDynamoDB.mockImplementationOnce((params) => {
@@ -328,7 +335,7 @@ describe("saveOnly behavior", () => {
   // Test 5: default path is preserved when saveOnly is undefined or false.
   it('CREATETEST without saveOnly starts Step Functions and writes status "queued"', async () => {
     const config = { ...baseConfig };
-    wireCreateTestMocks({ existing: existingTestEntry("complete") });
+    wireCreateTestMocks({ existing: existingTestEntry("complete"), withClaim: true });
 
     const response = await lambda.createTest(config, context.functionName);
 
@@ -343,7 +350,7 @@ describe("saveOnly behavior", () => {
 
   it('CREATETEST with saveOnly=false starts Step Functions and writes status "queued"', async () => {
     const config = { ...baseConfig, saveOnly: false };
-    wireCreateTestMocks({ existing: existingTestEntry("complete") });
+    wireCreateTestMocks({ existing: existingTestEntry("complete"), withClaim: true });
 
     const response = await lambda.createTest(config, context.functionName);
 

@@ -144,21 +144,6 @@ describe("handleListTestRuns", () => {
       }
     });
 
-    it("should throw AppError for invalid test_id length", async () => {
-      const event: AgentCoreEvent = {
-        test_id: "short",
-      };
-
-      await expect(handleListTestRuns(mockHttpClient, apiEndpoint, event)).rejects.toThrow(AppError);
-
-      try {
-        await handleListTestRuns(mockHttpClient, apiEndpoint, event);
-      } catch (error) {
-        expect((error as AppError).code).toBe(400);
-        expect((error as AppError).message).toContain("10 character");
-      }
-    });
-
     it("should throw AppError for test_id with invalid characters", async () => {
       const event: AgentCoreEvent = {
         test_id: "test_12345",
@@ -170,7 +155,7 @@ describe("handleListTestRuns", () => {
         await handleListTestRuns(mockHttpClient, apiEndpoint, event);
       } catch (error) {
         expect((error as AppError).code).toBe(400);
-        expect((error as AppError).message).toContain("Invalid test_id");
+        expect((error as AppError).message).toContain("testId must contain only alphanumeric characters and hyphens");
       }
     });
 

@@ -7,7 +7,6 @@ import {
   ColumnLayout,
   Container,
   CopyToClipboard,
-  FormField,
   Header,
   Icon,
   Link,
@@ -15,14 +14,16 @@ import {
   SpaceBetween,
   Spinner,
   StatusIndicator,
-  Tabs,
 } from "@cloudscape-design/components";
 import { Amplify } from "aws-amplify";
 import { getUrl } from "aws-amplify/storage";
 import { formatToLocalTime } from "../../../utils/dateUtils";
 import { getConsoleDomain } from "../../../utils/aws-console";
-import { ACTIVE_TEST_STATES, TestStatus, getStatusConfig, isTerminalState } from "../constants";
-import type { ScenarioDefinition } from "../types";
+import { getStatusConfig, getTestTypeLabel } from "../constants";
+import { ACTIVE_RUN_STATUSES, isTerminalRunStatus, TestStatus } from "@amzn/dlt-common/validation";
+import type { ScenarioDefinition, TestRun } from "../types";
+import { useInView } from "../hooks/useInView";
+import { LoadConfigurationTable } from "./LoadConfigurationTable";
 import { TaskStatus } from "./TaskStatus";
 import { TestLifecycleSteps } from "./TestLifecycleSteps";
 
@@ -32,7 +33,44 @@ import { TestRuns } from "./TestRuns";
 const isTestStatus = (status: string): status is TestStatus =>
   (Object.values(TestStatus) as ReadonlyArray<string>).includes(status);
 
-export function ScenarioDetailsContent({ scenario_definition, isRefreshing }: { scenario_definition: ScenarioDefinition; isRefreshing?: boolean }) {
+interface ScenarioDetailsContentProps {
+  readonly scenario_definition: ScenarioDefinition;
+  readonly latestTestRun?: TestRun;
+}
+
+/**
+ * Keywords sit on their own full-width row below the overview grid so long lists wrap
+ * instead of crowding the header actions.
+ *
+ * A helper rather than a component so the empty case yields `null` directly: SpaceBetween
+ * wraps each element child in a flex item and would pay the row gap for a component that
+ * renders nothing, leaving a blank strip under the grid.
+ */
+const renderKeywordsRow = (tags?: string[]) => {
+  if (!tags?.length) return null;
+
+  return (
+    <div>
+      <Box variant="awsui-key-label">Keywords</Box>
+      {/* Badges have no leading whitespace of their own, unlike the plain-text values
+          in the grid above, so add the gap under the key label. */}
+      <Box padding={{ top: "xxs" }}>
+        <SpaceBetween direction="horizontal" size="xs">
+          {tags.map((tag) => (
+            <Badge color="severity-neutral" key={tag}>
+              {tag}
+            </Badge>
+          ))}
+        </SpaceBetween>
+      </Box>
+    </div>
+  );
+};
+
+export function ScenarioDetailsContent({
+  scenario_definition,
+  latestTestRun,
+}: ScenarioDetailsContentProps) {
   const schedule = scenario_definition.cronValue ? "cron" : scenario_definition.scheduleRecurrence || "Run Once";
 
   const handleFullTestDataLocation = async () => {
@@ -79,106 +117,151 @@ export function ScenarioDetailsContent({ scenario_definition, isRefreshing }: { 
     return <StatusIndicator type={config.type}>{config.label}</StatusIndicator>;
   };
 
+  const hasScript = Boolean(scenario_definition.testScenario?.scenarios?.[scenario_definition.testName]?.script);
+
+  // Load configuration is derived from the scenario config (not run results), so it
+  // renders for never-run scenarios too.
+  const execution = scenario_definition.testScenario?.execution?.[0];
+  const rampUp = execution?.["ramp-up"] || "-";
+  const holdFor = execution?.["hold-for"] || "-";
+  const threshold = scenario_definition.healthyThreshold ?? 90;
+  const regionConfigs = scenario_definition.testTaskConfigs ?? [];
+
+  const showTaskStatus =
+    isTestStatus(scenario_definition.status) &&
+    (ACTIVE_RUN_STATUSES.has(scenario_definition.status) || isTerminalRunStatus(scenario_definition.status));
+
+  // Test Runs stays in the page but only mounts (and fetches run history) once it
+  // scrolls near the viewport, so opening the page to run/read config costs nothing.
+  const { ref: testRunsRef, inView: showTestRuns } = useInView<HTMLDivElement>();
+
   return (
-    <Tabs
-      tabs={[
-        {
-          label: "Scenario Details",
-          id: "scenario_details_tab",
-          content: (
-            <SpaceBetween size="l">
-              <Container
-                header={
-                  <Header variant={"h2"}>
-                    Scenario ID:
-                    <CopyToClipboard
-                      copyButtonAriaLabel="Copy Scenario ID"
-                      copyErrorText="Scenario ID failed to copy"
-                      copySuccessText="Scenario ID copied"
-                      textToCopy={scenario_definition.testId}
-                      variant="icon"
-                    />
-                    <span style={{ color: "#687078" }}>{scenario_definition.testId}</span>
-                  </Header>
-                }
-              >
-                {isRefreshing ? (
-                  <Box textAlign="center" padding="xxl">
-                    <Spinner size="large" />
-                  </Box>
+    <SpaceBetween size="l">
+      {/* Scenario Overview */}
+      <Container
+        header={
+          <Header
+            variant="h2"
+            description={scenario_definition.testDescription || undefined}
+            actions={
+              <SpaceBetween direction="horizontal" size="xs" alignItems="center">
+                {isTestStatus(scenario_definition.status) &&
+                !isTerminalRunStatus(scenario_definition.status) &&
+                scenario_definition.status !== TestStatus.CANCELLING ? (
+                  <Popover
+                    header="Test lifecycle"
+                    content={<TestLifecycleSteps status={scenario_definition.status} />}
+                    triggerType="text"
+                    size="medium"
+                  >
+                    {getStatusIndicator(scenario_definition.status)}
+                  </Popover>
+                ) : scenario_definition.status === TestStatus.FAILED && scenario_definition.errorReason ? (
+                  <Popover
+                    header="Error details"
+                    content={<StatusIndicator type="error">{scenario_definition.errorReason}</StatusIndicator>}
+                    triggerType="text"
+                    size="medium"
+                  >
+                    {getStatusIndicator(scenario_definition.status)}
+                  </Popover>
                 ) : (
-                <ColumnLayout borders="vertical" columns={3}>
-                  <FormField label="Test Name">{scenario_definition.testName || "--"}</FormField>
-                  <FormField label="Tags">
-                    {scenario_definition.tags && scenario_definition.tags.length > 0 ? (
-                      <SpaceBetween direction="horizontal" size="xs">
-                        {scenario_definition.tags.map((tag, index) => (
-                          <Badge color="severity-neutral" key={index}>{tag}</Badge>
-                        ))}
-                      </SpaceBetween>
-                    ) : (
-                      "-"
-                    )}
-                  </FormField>
-                  <FormField label="Status">
-                    {isTestStatus(scenario_definition.status) && !isTerminalState(scenario_definition.status) && scenario_definition.status !== TestStatus.CANCELLING ? (
-                      <Popover
-                        header="Test lifecycle"
-                        content={<TestLifecycleSteps status={scenario_definition.status} />}
-                        triggerType="text"
-                        size="medium"
-                      >
-                        {getStatusIndicator(scenario_definition.status)}
-                      </Popover>
-                    ) : scenario_definition.status === TestStatus.FAILED && scenario_definition.errorReason ? (
-                      <Popover
-                        header="Error details"
-                        content={<StatusIndicator type="error">{scenario_definition.errorReason}</StatusIndicator>}
-                        triggerType="text"
-                        size="medium"
-                      >
-                        {getStatusIndicator(scenario_definition.status)}
-                      </Popover>
-                    ) : (
-                      getStatusIndicator(scenario_definition.status)
-                    )}
-                  </FormField>
-                  <FormField label="Test Type">{scenario_definition.testType || "--"}</FormField>
-                  <FormField label="Schedule">{schedule}</FormField>
-                  <FormField label="Last Run">{formatToLocalTime(scenario_definition.startTime, { timeZoneName: "short" })}</FormField>
-                  <FormField label="Test Script">
-                    {scenario_definition.testScenario.scenarios[scenario_definition.testName].script ? (
-                      <Link onFollow={handleScriptDownload}>
-                        <Icon name="download" />{" "}
-                        <span style={{ fontWeight: "normal" }}>
-                          {getFilename()}
-                        </span>
-                      </Link>
-                    ) : (
-                      "--"
-                    )}
-                  </FormField>
-                  <FormField label="Raw Test Results">
-                    <Link external onFollow={handleFullTestDataLocation}>
-                      <span style={{ fontWeight: "normal" }}>S3 Results Bucket</span>
-                    </Link>
-                  </FormField>
-                  <FormField label="Next Run">{formatToLocalTime(scenario_definition.nextRun, { timeZoneName: "short" }, scenario_definition.scheduleTimezone)}</FormField>
-                </ColumnLayout>
+                  getStatusIndicator(scenario_definition.status)
                 )}
-              </Container>
-              {isTestStatus(scenario_definition.status) && (ACTIVE_TEST_STATES.has(scenario_definition.status) || isTerminalState(scenario_definition.status)) ? (
-                <TaskStatus scenario_definition={scenario_definition} isRefreshing={isRefreshing} />
-              ) : null}
-            </SpaceBetween>
-          ),
-        },
-        {
-          label: "Test Runs",
-          id: "test_runs_tab",
-          content: <TestRuns testId={scenario_definition.testId} />,
-        },
-      ]}
-    />
+              </SpaceBetween>
+            }
+          >
+            Scenario Overview
+          </Header>
+        }
+      >
+        <SpaceBetween size="l">
+          <ColumnLayout columns={4}>
+            <div>
+              <Box variant="awsui-key-label">Scenario ID</Box>
+              <SpaceBetween direction="horizontal" size="xxs">
+                <Box>{scenario_definition.testId}</Box>
+                <CopyToClipboard
+                  copyButtonAriaLabel="Copy Scenario ID"
+                  copyErrorText="Scenario ID failed to copy"
+                  copySuccessText="Scenario ID copied"
+                  textToCopy={scenario_definition.testId}
+                  variant="icon"
+                />
+              </SpaceBetween>
+            </div>
+            <div>
+              <Box variant="awsui-key-label">Test Type</Box>
+              <Box>{scenario_definition.testType ? getTestTypeLabel(scenario_definition.testType) : "--"}</Box>
+            </div>
+            <div>
+              <Box variant="awsui-key-label">Test Script</Box>
+              {hasScript ? (
+                <Link onFollow={handleScriptDownload}>
+                  <Icon name="download" /> {getFilename()}
+                </Link>
+              ) : (
+                <Box>--</Box>
+              )}
+            </div>
+            <div>
+              <Box variant="awsui-key-label">Results</Box>
+              <Link external onFollow={handleFullTestDataLocation}>
+                S3 Results Bucket
+              </Link>
+            </div>
+            <div>
+              <Box variant="awsui-key-label">Schedule</Box>
+              <Box>{schedule}</Box>
+            </div>
+            <div>
+              <Box variant="awsui-key-label">Last Run</Box>
+              <Box>{formatToLocalTime(scenario_definition.startTime, { timeZoneName: "short" })}</Box>
+            </div>
+            <div>
+              <Box variant="awsui-key-label">Next Run</Box>
+              <Box>
+                {formatToLocalTime(
+                  scenario_definition.nextRun,
+                  { timeZoneName: "short" },
+                  scenario_definition.scheduleTimezone,
+                )}
+              </Box>
+            </div>
+            <div>
+              <Box variant="awsui-key-label">Total Runs</Box>
+              <Box>{scenario_definition.totalTestRuns ?? "--"}</Box>
+            </div>
+          </ColumnLayout>
+          {renderKeywordsRow(scenario_definition.tags)}
+        </SpaceBetween>
+      </Container>
+
+      {/* Load Configuration — always visible, sourced from scenario config */}
+      <LoadConfigurationTable
+        configs={regionConfigs}
+        nativeRunMode={scenario_definition.nativeRunMode}
+        rampUp={rampUp}
+        holdFor={holdFor}
+        threshold={threshold}
+        emptyText="No regions configured"
+      />
+
+      {showTaskStatus ? <TaskStatus scenario_definition={scenario_definition} /> : null}
+
+      {/* Test Runs — always in the page; mounts and loads history when scrolled near. */}
+      <div ref={testRunsRef}>
+        {showTestRuns ? (
+          <TestRuns
+            testId={scenario_definition.testId}
+            latestTestRun={latestTestRun}
+          />
+        ) : (
+          <Box textAlign="center" padding="l">
+            <Spinner />
+          </Box>
+        )}
+      </div>
+    </SpaceBetween>
   );
 }

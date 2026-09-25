@@ -58,9 +58,7 @@ const buildCsp = (directives) => {
  */
 const getCspAndUpdate = async (policyId, cognitoOrigin) => {
   // Get current policy and ETag
-  const getResponse = await client.send(
-    new GetResponseHeadersPolicyCommand({ Id: policyId })
-  );
+  const getResponse = await client.send(new GetResponseHeadersPolicyCommand({ Id: policyId }));
   const etag = getResponse.ETag;
   const policyConfig = getResponse.ResponseHeadersPolicy.ResponseHeadersPolicyConfig;
 

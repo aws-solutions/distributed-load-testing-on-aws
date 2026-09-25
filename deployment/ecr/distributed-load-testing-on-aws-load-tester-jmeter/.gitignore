@@ -1,0 +1,2 @@
+# Staged here by pre-build.sh and rebuilt on every image build.
+/jmeter.js

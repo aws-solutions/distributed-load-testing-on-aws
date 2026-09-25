@@ -40,7 +40,7 @@ export AWS_REGION=$(TARGET_REGION)
 .SILENT:
 
 # Declare all targets as phony (targets execute commands instead of making files)
-.PHONY: help dev install-deps test web-assets jmeter-assets \
+.PHONY: help dev install-deps test sync web-assets jmeter-assets \
 	deploy diff changeset regional-deploy \
 	_ensure-bootstrap-region _docker-pre-build _regional-deploy-single \
 	_synth-regional-template bundle-cli worktree-add worktree-remove
@@ -57,6 +57,7 @@ help:
 	echo "  make regional-deploy                 - Deploy regional stacks (all REGIONAL_STACKS regions)"
 	echo "  make regional-deploy REGION=<region> - Deploy regional stack to a single region"
 	echo "  make test                             - Run all unit tests, linting, and formatting checks"
+	echo "  make sync                            - Fix auto-fixable workspace dependency mismatches (syncpack)"
 	echo "  make bundle-cli                      - Bundle DLT CLI into a single portable file"
 	echo "  make worktree-add                    - Create a dev worktree (new branch, copies .env, installs deps)"
 	echo "  make worktree-remove                 - Remove a dev worktree (optionally deletes the branch)"
@@ -84,24 +85,23 @@ install-deps:
 test:
 	cd deployment && bash run-unit-tests.sh --skip-install
 
+# Fix auto-fixable workspace dependency version mismatches across package.json files
+sync:
+	npm run sync
+
 # Build web assets to be uploaded during stack deployment
-web-assets:
-	# Check if node_modules needs update (package-lock.json changed)
-	if [ ! -d source/webui/node_modules ] || [ source/webui/package-lock.json -nt source/webui/node_modules ]; then \
-		echo "Installing WebUI dependencies..."; \
-		cd source/webui && npm ci && touch node_modules; \
-	fi
+web-assets: install-deps
 	# Check if build is needed (src files changed)
 	if [ ! -d source/webui/dist ] || [ -n "$$(find source/webui/src -newer source/webui/dist -type f 2>/dev/null | head -1)" ]; then \
 		echo "Building WebUI..."; \
-		cd source/webui && npm run build; \
+		npm run build -w source/webui; \
 	else \
 		echo "WebUI assets up to date, skipping build"; \
 	fi
 
 # Build JMeter assets to be uploaded during stack deployment
 jmeter-assets:
-	if [ ! -f deployment/jmeter-assets/jmeter-bundle.tgz ] || [ jmeter.json -nt deployment/jmeter-assets/jmeter-bundle.tgz ]; then \
+	if ! tar -xOzf deployment/jmeter-assets/jmeter-bundle.tgz jmeter-bundle/jmeter.json 2>/dev/null | cmp -s - jmeter.json; then \
 		echo "Preparing JMeter bundle..."; \
 		./scripts/download-jmeter-bundle.sh deployment/jmeter-assets; \
 	else \
@@ -144,10 +144,27 @@ changeset: jmeter-assets web-assets _docker-pre-build
 		--no-execute
 
 # Run web UI development server locally (fetches config from deployed stack)
+# Resolves the console bucket from the stack's ConsoleResourceBucket output (present on all
+# deployment modes), then fetches aws-exports.json into source/webui/public:
+#   - CloudFront/S3: the file exists in the bucket, so it is copied directly.
+#   - ALB/ECS and headless: the bucket holds only dlt-web-console.zip, so the direct
+#     copy fails and we fall back to extracting aws-exports.json out of that ZIP.
 dev:
 	echo "Running web app"
-	aws s3 cp s3://$$(aws cloudformation describe-stacks --stack-name '$(MAIN_STACK_NAME)' --query 'Stacks[0].Outputs[?OutputKey==`ConsoleResourceBucket`].OutputValue' --output text)/aws-exports.json source/webui/public/aws-exports.json
-	cd source/webui && npm run dev
+	bucket=$$(aws cloudformation describe-stacks --stack-name '$(MAIN_STACK_NAME)' --query 'Stacks[0].Outputs[?OutputKey==`ConsoleResourceBucket`].OutputValue' --output text); \
+	if [ -z "$$bucket" ] || [ "$$bucket" = "None" ]; then \
+		echo "ERROR: ConsoleResourceBucket output not found on stack '$(MAIN_STACK_NAME)'"; exit 1; \
+	fi; \
+	if aws s3 cp "s3://$$bucket/aws-exports.json" source/webui/public/aws-exports.json 2>/dev/null; then \
+		echo "Fetched aws-exports.json directly from bucket"; \
+	else \
+		echo "aws-exports.json not found directly, extracting from dlt-web-console.zip"; \
+		tmp=$$(mktemp -d); \
+		aws s3 cp "s3://$$bucket/dlt-web-console.zip" "$$tmp/dlt-web-console.zip"; \
+		unzip -o -j "$$tmp/dlt-web-console.zip" aws-exports.json -d source/webui/public; \
+		rm -rf "$$tmp"; \
+	fi
+	npm run dev -w source/webui
 
 # Internal: Check if region is bootstrapped, bootstrap if needed
 _ensure-bootstrap-region:

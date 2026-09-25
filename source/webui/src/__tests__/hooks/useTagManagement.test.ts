@@ -29,7 +29,7 @@ describe("useTagManagement", () => {
     });
 
     expect(updateFormData).toHaveBeenCalledWith({
-      tags: [{ label: "my-tag", dismissLabel: "Remove my-tag tag" }],
+      tags: [{ label: "my-tag", dismissLabel: "Remove my-tag keyword" }],
     });
     expect(result.current.newTag).toBe("");
     expect(result.current.tagError).toBe("");
@@ -47,7 +47,7 @@ describe("useTagManagement", () => {
     });
 
     expect(updateFormData).toHaveBeenCalledWith({
-      tags: [{ label: "spaced", dismissLabel: "Remove spaced tag" }],
+      tags: [{ label: "spaced", dismissLabel: "Remove spaced keyword" }],
     });
   });
 
@@ -67,7 +67,7 @@ describe("useTagManagement", () => {
   });
 
   it("shows error when tag already exists (case-insensitive)", () => {
-    const existingTags = { tags: [{ label: "Existing", dismissLabel: "Remove Existing tag" }] } as unknown as FormData;
+    const existingTags = { tags: [{ label: "Existing", dismissLabel: "Remove Existing keyword" }] } as unknown as FormData;
     const updateFormData = vi.fn();
     const { result } = renderHook(() => useTagManagement(existingTags, updateFormData));
 
@@ -79,12 +79,12 @@ describe("useTagManagement", () => {
     });
 
     expect(updateFormData).not.toHaveBeenCalled();
-    expect(result.current.tagError).toBe("This tag already exists.");
+    expect(result.current.tagError).toBe("This keyword already exists.");
   });
 
   it("shows error when maximum 5 tags reached", () => {
     const fullTags = {
-      tags: Array.from({ length: 5 }, (_, i) => ({ label: `tag${i}`, dismissLabel: `Remove tag${i} tag` })),
+      tags: Array.from({ length: 5 }, (_, i) => ({ label: `tag${i}`, dismissLabel: `Remove tag${i} keyword` })),
     } as unknown as FormData;
     const updateFormData = vi.fn();
     const { result } = renderHook(() => useTagManagement(fullTags, updateFormData));
@@ -97,7 +97,7 @@ describe("useTagManagement", () => {
     });
 
     expect(updateFormData).not.toHaveBeenCalled();
-    expect(result.current.tagError).toBe("Maximum 5 tags allowed.");
+    expect(result.current.tagError).toBe("Maximum 5 keywords allowed.");
   });
 
   it("removes a tag by index", () => {

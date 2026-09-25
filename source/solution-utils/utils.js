@@ -60,12 +60,13 @@ const sendMetric = async (metricData) => {
       headers: {
         "Content-Type": "application/json",
       },
+      timeout: 5000,
       data: metrics,
     };
     data = await axios(params);
     return data.status;
   } catch (err) {
-    console.error(`Error sending metric: ${err.message}, Code: ${err.code || 'N/A'}`);
+    console.error(`Error sending metric: ${err.message}, Code: ${err.code || "N/A"}`);
   }
 };
 

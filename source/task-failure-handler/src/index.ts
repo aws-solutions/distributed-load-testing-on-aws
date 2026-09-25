@@ -10,7 +10,9 @@ import {
   LogEvent,
   OPERATIONAL_METRIC_EVENT_VERSION,
   OperationalMetricEvent,
+  sanitizeStopReason,
   sendOperationalMetric,
+  TestStatus,
 } from "@amzn/dlt-common";
 import { ConditionalCheckFailedException, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, UpdateCommand } from "@aws-sdk/lib-dynamodb";
@@ -94,7 +96,9 @@ export async function handler(event: ECSTaskStateChangeEvent): Promise<void> {
       stopCategory,
     });
 
-    // Emit per-task operational metric
+    // Emit per-task operational metric.
+    // StopReason is the ECS free-text reason, sanitized to strip customer data
+    // before it leaves the customer account. ExitCode is null when no container ran.
     await sendOperationalMetric(metricEnvelope, {
       Type: OperationalMetricEvent.TaskFailure,
       TestId: testId,
@@ -102,12 +106,14 @@ export async function handler(event: ECSTaskStateChangeEvent): Promise<void> {
       Region: region,
       StopCode: stopCode,
       StopCategory: stopCategory,
+      StopReason: sanitizeStopReason(stoppedReason),
+      ExitCode: exitCode ?? null,
       FailureCount: result.taskFailureCount,
       DesiredCount: result.desiredCount,
     });
 
     // Skip threshold check if test is already in a terminal state
-    if (result.status !== "running") {
+    if (result.status !== TestStatus.RUNNING) {
       logger.info("Test not running — skipping threshold check", { status: result.status });
       return;
     }
@@ -149,9 +155,9 @@ export async function handler(event: ECSTaskStateChangeEvent): Promise<void> {
         ConditionExpression: "attribute_exists(testId) AND #s = :running",
         ExpressionAttributeNames: { "#s": "status", "#e": "errorReason" },
         ExpressionAttributeValues: {
-          ":s": "failed",
+          ":s": TestStatus.FAILED,
           ":e": `Task failure threshold breached: ${result.taskFailureCount}/${result.desiredCount} tasks failed (healthy threshold: ${result.healthyThreshold}%)`,
-          ":running": "running",
+          ":running": TestStatus.RUNNING,
         },
         ReturnValuesOnConditionCheckFailure: "ALL_OLD",
       })

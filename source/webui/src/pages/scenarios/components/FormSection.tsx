@@ -7,6 +7,7 @@
 
 import { Container, Header } from "@cloudscape-design/components";
 import { ReactNode } from "react";
+import { InfoLink } from "../../../help";
 
 interface Props {
   /** Stable section id; also emitted as the `data-section-id` DOM attribute. */
@@ -18,7 +19,13 @@ interface Props {
 
 export const FormSection = ({ sectionId, headerText, headerDescription, children }: Props) => (
   <div data-section-id={sectionId}>
-    <Container header={<Header variant="h2" description={headerDescription}>{headerText}</Header>}>
+    <Container
+      header={
+        <Header variant="h2" description={headerDescription} info={<InfoLink topicId={sectionId} />}>
+          {headerText}
+        </Header>
+      }
+    >
       {children}
     </Container>
   </div>

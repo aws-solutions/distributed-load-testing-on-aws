@@ -3,13 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import {
-  parseEventWithSchema,
-  TEST_RUN_ID_LENGTH,
-  TEST_RUN_ID_REGEX,
-  TEST_SCENARIO_ID_LENGTH,
-  TEST_SCENARIO_ID_REGEX,
-} from "../../src/lib/common.js";
+import { parseEventWithSchema } from "../../src/lib/common.js";
 import { AppError } from "../../src/lib/errors.js";
 
 describe("parseEventWithSchema", () => {
@@ -68,45 +62,5 @@ describe("parseEventWithSchema", () => {
 
     expect(() => parseEventWithSchema(errorSchema, event)).toThrow("Generic error");
     expect(() => parseEventWithSchema(errorSchema, event)).not.toThrow(AppError);
-  });
-});
-
-describe("Constants", () => {
-  it("should have correct TEST_SCENARIO_ID_LENGTH", () => {
-    expect(TEST_SCENARIO_ID_LENGTH).toBe(10);
-  });
-
-  it("should have correct TEST_RUN_ID_LENGTH", () => {
-    expect(TEST_RUN_ID_LENGTH).toBe(10);
-  });
-
-  describe("TEST_SCENARIO_ID_REGEX", () => {
-    it("should match valid scenario IDs", () => {
-      expect(TEST_SCENARIO_ID_REGEX.test("abc123-xyz")).toBe(true);
-      expect(TEST_SCENARIO_ID_REGEX.test("ABC123XYZ9")).toBe(true);
-      expect(TEST_SCENARIO_ID_REGEX.test("test-id-01")).toBe(true);
-    });
-
-    it("should reject invalid scenario IDs", () => {
-      expect(TEST_SCENARIO_ID_REGEX.test("abc_123")).toBe(false);
-      expect(TEST_SCENARIO_ID_REGEX.test("abc 123")).toBe(false);
-      expect(TEST_SCENARIO_ID_REGEX.test("abc@123")).toBe(false);
-      expect(TEST_SCENARIO_ID_REGEX.test("")).toBe(false);
-    });
-  });
-
-  describe("TEST_RUN_ID_REGEX", () => {
-    it("should match valid run IDs", () => {
-      expect(TEST_RUN_ID_REGEX.test("run123-xyz")).toBe(true);
-      expect(TEST_RUN_ID_REGEX.test("RUN123XYZ9")).toBe(true);
-      expect(TEST_RUN_ID_REGEX.test("test-run-1")).toBe(true);
-    });
-
-    it("should reject invalid run IDs", () => {
-      expect(TEST_RUN_ID_REGEX.test("run_123")).toBe(false);
-      expect(TEST_RUN_ID_REGEX.test("run 123")).toBe(false);
-      expect(TEST_RUN_ID_REGEX.test("run@123")).toBe(false);
-      expect(TEST_RUN_ID_REGEX.test("")).toBe(false);
-    });
   });
 });

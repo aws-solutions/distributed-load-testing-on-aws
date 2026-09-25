@@ -1,8 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { CfnOutput, CfnParameter } from "aws-cdk-lib";
-import { DLTBaseStack, IDLTConsole, ECR_IMAGE_URI_PATTERN } from "./distributed-load-testing-on-aws-base-stack";
+import { CfnOutput } from "aws-cdk-lib";
+import { DLTBaseStack, IDLTConsole } from "./distributed-load-testing-on-aws-base-stack";
+import { defineParam, PARAMETERS } from "./common-resources/cfn-parameter-factory";
 import { DLTConsoleAlbEcsConstruct } from "./front-end/console-alb-ecs";
 
 // S3 key for web console assets - shared between stack and construct
@@ -19,38 +20,12 @@ const WEB_CONSOLE_ZIP_KEY = "dlt-web-console.zip";
  */
 export class DLTAlbEcsStack extends DLTBaseStack {
   protected createConsoleConstruct(): IDLTConsole {
-    // Add ALB+ECS specific parameters
-    const consoleDomainName = new CfnParameter(this, "ConsoleDomainName", {
-      type: "String",
-      description: "Custom domain name for the web console (e.g., dlt.example.com). Must match the ACM certificate.",
-      minLength: 3,
-      allowedPattern: String.raw`^([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`,
-      constraintDescription: "Must be a valid fully qualified domain name (e.g., dlt.example.com)",
-    });
-
-    const acmCertificateArn = new CfnParameter(this, "ACMCertificateArn", {
-      type: "String",
-      description: "ARN of the ACM certificate for HTTPS. Must be in the same region as the stack.",
-      allowedPattern: String.raw`^arn:aws[a-z-]*:acm:[a-z0-9-]+:\d{12}:certificate/[a-f0-9-]+$`,
-      constraintDescription: "Must be a valid ACM certificate ARN",
-    });
-
-    const webConsoleImageUri = new CfnParameter(this, "WebConsoleImageUri", {
-      type: "String",
-      default: "",
-      description: "URI of web console container image. If empty, the default public image is used.",
-      allowedPattern: ECR_IMAGE_URI_PATTERN,
-      constraintDescription:
-        "Must be empty or a valid ECR image URI (e.g., 123456789012.dkr.ecr.us-east-1.amazonaws.com/my-repo:tag or .../my-repo@sha256:<64-hex-chars>).",
-    });
-
-    const deployWaf = new CfnParameter(this, "DeployWAF", {
-      type: "String",
-      default: "Yes",
-      description:
-        "Deploy AWS WAF WebACL on the Application Load Balancer with AWS managed rule groups for common threats, known bad inputs, and IP reputation. Select No to skip WAF deployment.",
-      allowedValues: ["Yes", "No"],
-    });
+    // Add ALB+ECS specific parameters. Constraints come from the parameter spec
+    // (single source of truth shared with the Launch Wizard metadata).
+    const consoleDomainName = defineParam(this, PARAMETERS.ConsoleDomainName);
+    const acmCertificateArn = defineParam(this, PARAMETERS.ACMCertificateArn);
+    const webConsoleImageUri = defineParam(this, PARAMETERS.WebConsoleImageUri);
+    const deployWaf = defineParam(this, PARAMETERS.DeployWAF);
 
     // Add new parameter group for Web Console configuration
     const existingMetadata = this.templateOptions.metadata as {

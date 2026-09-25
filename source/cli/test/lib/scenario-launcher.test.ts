@@ -105,7 +105,7 @@ describe("scenario-launcher", () => {
         post: vi.fn(),
       };
 
-      await expect(startScenario(mockApi as any, "t1")).rejects.toThrow("already running");
+      await expect(startScenario(mockApi as any, "t1")).rejects.toThrow("already has an active run");
     });
   });
 
@@ -212,6 +212,25 @@ describe("scenario-launcher", () => {
       };
       const payload = buildStartPayload(scenario, regionalTaskDetails);
       expect(payload["showLive"]).toBe(false);
+    });
+
+    it("carries nativeRunMode through so a re-run stays native", () => {
+      const scenario: Scenario = {
+        ...baseScenario,
+        testType: "locust",
+        nativeRunMode: {
+          maxTestDurationSeconds: 600,
+        },
+      };
+      const payload = buildStartPayload(scenario, regionalTaskDetails);
+      expect(payload["nativeRunMode"]).toEqual({
+        maxTestDurationSeconds: 600,
+      });
+    });
+
+    it("omits nativeRunMode for a standard scenario", () => {
+      const payload = buildStartPayload(baseScenario, regionalTaskDetails);
+      expect(payload).not.toHaveProperty("nativeRunMode");
     });
   });
 });

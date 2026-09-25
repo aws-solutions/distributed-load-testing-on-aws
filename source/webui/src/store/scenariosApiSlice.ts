@@ -40,20 +40,21 @@ export const scenariosApiSlice = solutionApi.injectEndpoints({
         startTimestamp?: string;
         endTimestamp?: string;
         limit?: number;
+        latest?: boolean;
       }
     >({
-      query: ({ testId, nextToken, startTimestamp, endTimestamp, limit = 20 }) => {
+      query: ({ testId, nextToken, startTimestamp, endTimestamp, limit = 20, latest }) => {
         const params = new URLSearchParams();
         params.append("limit", limit.toString());
         if (nextToken) params.append("next_token", nextToken);
         if (startTimestamp) params.append("start_timestamp", startTimestamp);
         if (endTimestamp) params.append("end_timestamp", endTimestamp);
+        if (latest) params.append("latest", "true");
 
         return `${ApiEndpoints.SCENARIOS}/${testId}/testruns?${params.toString()}`;
       },
-      providesTags: (result, error, { testId }) => [
-        { type: "TestRuns", id: `${testId}-all` }
-      ],
+      providesTags: (result, error, { testId, latest }) =>
+        latest ? [] : [{ type: "TestRuns", id: `${testId}-all` }],
     }),
     setTestRunBaseline: builder.mutation<{ message: string }, { testId: string; testRunId: string }>({
       query: ({ testId, testRunId }) => ({
@@ -101,6 +102,7 @@ export const scenariosApiSlice = solutionApi.injectEndpoints({
       invalidatesTags: (result, error, { testId }) => [
         { type: "TestRuns", id: `${testId}-all` },
         { type: "TestRuns", id: `${testId}-baseline` },
+        { type: "Scenarios", id: testId },
       ],
     }),
     runScenario: builder.mutation<{ message: string }, ScenarioDefinition>({
@@ -156,6 +158,7 @@ export const scenariosApiSlice = solutionApi.injectEndpoints({
           showLive: scenario.showLive || false,
           regionalTaskDetails,
           tags: scenario.tags || [],
+          ...(scenario.nativeRunMode ? { nativeRunMode: scenario.nativeRunMode } : {}),
         };
 
         try {
@@ -208,6 +211,7 @@ export const {
   useDeleteScenarioMutation,
   useGetScenarioDetailsQuery,
   useGetTestRunsQuery,
+  useLazyGetTestRunsQuery,
   useSetTestRunBaselineMutation,
   useRemoveTestRunBaselineMutation,
   useGetTestRunDetailsQuery,

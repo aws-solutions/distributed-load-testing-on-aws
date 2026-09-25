@@ -1,6 +1,21 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import {
+  FRAMEWORKS,
+  TEST_TYPES,
+  concurrencySchema,
+  healthyThresholdSchema,
+  regionSchema,
+  tagsSchema,
+  taskCountSchema,
+  testDescriptionSchema,
+  testIdSchema,
+  testNameSchema,
+  testRunIdSchema,
+  testScenarioSchema,
+  nativeRunModeSchema,
+} from "@amzn/dlt-common";
 import { z } from "zod";
 import { AppError } from "./errors.js";
 
@@ -45,24 +60,59 @@ export interface ToolResponse {
 }
 
 /**
- * Allow alphanumeric characters and dashes
+ * Valid test types — derived from @amzn/dlt-common TestType.
  */
-export const TEST_SCENARIO_ID_REGEX = /^[A-Za-z0-9-]+$/;
+export const VALID_TEST_TYPES = [...TEST_TYPES] as [string, ...string[]];
 
 /**
- * Allow alphanumeric characters and dashes
+ * Valid script-based test types — materialized from the shared set for Zod.
  */
-export const TEST_RUN_ID_REGEX = /^[A-Za-z0-9-]+$/;
+export const VALID_FRAMEWORKS = [...FRAMEWORKS] as [string, ...string[]];
 
 /**
- * Test ID length
+ * Base schema with only the `test_id` defined. This is a common schema we can reuse.
  */
-export const TEST_SCENARIO_ID_LENGTH = 10;
+export const BaseTestIdSchema = z.object({
+  test_id: testIdSchema,
+});
 
 /**
- * Test Run ID length
+ * Base schema with `test_id` and `test_run_id`. This is a common schema we can reuse.
  */
-export const TEST_RUN_ID_LENGTH = 10;
+export const BaseTestRunSchema = BaseTestIdSchema.extend({
+  test_run_id: testRunIdSchema,
+});
+
+/**
+ * Base schema shared by the existing scenario write tools (update test and schedules).
+ * Tool-specific schemas extend this with their extra fields (e.g. schedule/cron params).
+ * Same as BaseScenarioSchema except `test_id` is required.
+ */
+export const BaseExistingScenarioSchema = BaseTestIdSchema.extend({
+  // Auto-trim, then reuse the shared name schema so MCP validation matches the API contract.
+  test_name: z.string().trim().pipe(testNameSchema),
+  test_description: testDescriptionSchema,
+  test_type: z.enum(VALID_TEST_TYPES),
+  test_task_configs: z.array(z.object({
+    region: regionSchema,
+    task_count: taskCountSchema,
+    concurrency: concurrencySchema,
+  })),
+  test_scenario: testScenarioSchema,
+  show_live: z.boolean().optional(),
+  tags: tagsSchema,
+  healthy_threshold: healthyThresholdSchema.optional(),
+  native_run_mode: nativeRunModeSchema.optional(),
+});
+
+/**
+ * Base schema shared by the new scenario write tools (create test and schedules).
+ * Tool-specific schemas extend this with their extra fields (e.g. schedule/cron params)
+ * Same as BaseExistingScenarioSchema except `test_id` is optional.
+ */
+export const BaseScenarioSchema = BaseExistingScenarioSchema.partial({
+  test_id: true,
+});
 
 /**
  * Helper function to safely parse and validate event parameters using Zod schema

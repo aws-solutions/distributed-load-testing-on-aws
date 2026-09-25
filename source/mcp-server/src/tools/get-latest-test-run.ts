@@ -4,23 +4,14 @@
 import { z } from "zod";
 import {
   parseEventWithSchema,
-  TEST_SCENARIO_ID_LENGTH,
-  TEST_SCENARIO_ID_REGEX,
+  BaseTestIdSchema,
   type AgentCoreEvent,
 } from "../lib/common";
 import { AppError } from "../lib/errors";
 import type { HttpResponse, IHttpClient } from "../lib/http-client";
 
 // Zod schema for get_latest_test_run parameters
-export const GetLatestTestRunSchema = z.object({
-  test_id: z
-    .string()
-    .length(
-      TEST_SCENARIO_ID_LENGTH,
-      `test_id should be the ${TEST_SCENARIO_ID_LENGTH} character unique id for a test scenario`
-    )
-    .regex(TEST_SCENARIO_ID_REGEX, "Invalid test_id"),
-});
+export const GetLatestTestRunSchema = BaseTestIdSchema;
 
 // TypeScript type derived from Zod schema
 export type GetLatestTestRunParameters = z.infer<typeof GetLatestTestRunSchema>;

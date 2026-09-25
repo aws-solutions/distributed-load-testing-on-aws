@@ -82,6 +82,7 @@ export async function handler(event: StabilizationCheckerInput): Promise<Service
     showLive: event.showLive,
     testDuration: event.testDuration,
     prefix: event.prefix,
+    nativeRunMode: event.nativeRunMode,
     testTaskConfig: event.testTaskConfig,
     serviceName: event.serviceName,
     serviceArn: event.serviceArn,

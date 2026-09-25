@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("../../../src/lib/http-client.js", () => ({
   httpsPostForm: vi.fn(),
@@ -11,6 +11,7 @@ import {
   generatePkceChallenge,
   buildAuthorizeUrl,
   startCallbackServer,
+  getLoginTimeoutMs,
   exchangeCodeForTokens,
   refreshTokens,
 } from "../../../src/lib/auth/pkce.js";
@@ -64,9 +65,12 @@ describe("pkce", () => {
   });
 
   describe("startCallbackServer", () => {
+    // Production binds to `localhost`; these tests pin bind + connect to 127.0.0.1
+    // (one address family) so the client connection is deterministic in CI.
+    const LONG_TIMEOUT = 300_000;
     it("resolves with code on successful callback", async () => {
       const port = 17521;
-      const promise = startCallbackServer(port);
+      const promise = startCallbackServer(port, LONG_TIMEOUT, "127.0.0.1");
 
       // Make a request to the callback endpoint
       await new Promise<void>((resolve) => {
@@ -80,7 +84,7 @@ describe("pkce", () => {
 
     it("rejects on OAuth error", async () => {
       const port = 17522;
-      const promise = startCallbackServer(port);
+      const promise = startCallbackServer(port, LONG_TIMEOUT, "127.0.0.1");
 
       // Add a catch handler immediately to prevent unhandled rejection
       const caught = promise.catch((e: Error) => e);
@@ -100,7 +104,7 @@ describe("pkce", () => {
 
     it("rejects when no code is provided", async () => {
       const port = 17523;
-      const promise = startCallbackServer(port);
+      const promise = startCallbackServer(port, LONG_TIMEOUT, "127.0.0.1");
 
       // Add a catch handler immediately to prevent unhandled rejection
       const caught = promise.catch((e: Error) => e);
@@ -117,7 +121,7 @@ describe("pkce", () => {
 
     it("returns 404 for non-callback paths", async () => {
       const port = 17524;
-      const serverPromise = startCallbackServer(port);
+      const serverPromise = startCallbackServer(port, LONG_TIMEOUT, "127.0.0.1");
 
       const statusCode = await new Promise<number>((resolve) => {
         http.get(`http://127.0.0.1:${port}/other`, (res) => {
@@ -132,6 +136,45 @@ describe("pkce", () => {
         http.get(`http://127.0.0.1:${port}/callback?code=cleanup`, () => resolve());
       });
       await serverPromise;
+    });
+
+    it("rejects with a timeout error when no callback arrives", async () => {
+      const port = 17525;
+      // Pass a tiny timeout directly so the test does not wait for the default.
+      const error = await startCallbackServer(port, 50, "127.0.0.1").catch((e: Error) => e);
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toContain("Login timed out");
+    });
+  });
+
+  describe("getLoginTimeoutMs", () => {
+    const original = process.env["DLT_LOGIN_TIMEOUT_MS"];
+    afterEach(() => {
+      if (original === undefined) {
+        delete process.env["DLT_LOGIN_TIMEOUT_MS"];
+      } else {
+        process.env["DLT_LOGIN_TIMEOUT_MS"] = original;
+      }
+    });
+
+    it("defaults to 300000ms when unset", () => {
+      delete process.env["DLT_LOGIN_TIMEOUT_MS"];
+      expect(getLoginTimeoutMs()).toBe(300_000);
+    });
+
+    it("honours a valid override", () => {
+      process.env["DLT_LOGIN_TIMEOUT_MS"] = "1000";
+      expect(getLoginTimeoutMs()).toBe(1000);
+    });
+
+    it("falls back to the default for an invalid override", () => {
+      process.env["DLT_LOGIN_TIMEOUT_MS"] = "not-a-number";
+      expect(getLoginTimeoutMs()).toBe(300_000);
+    });
+
+    it("caps an excessively large override at the max login timeout (1 hour)", () => {
+      process.env["DLT_LOGIN_TIMEOUT_MS"] = "9999999999";
+      expect(getLoginTimeoutMs()).toBe(3_600_000);
     });
   });
 

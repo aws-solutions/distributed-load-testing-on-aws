@@ -4,23 +4,15 @@
 import { z } from "zod";
 import {
   parseEventWithSchema,
-  TEST_SCENARIO_ID_LENGTH,
-  TEST_SCENARIO_ID_REGEX,
+  BaseTestIdSchema,
   type AgentCoreEvent,
 } from "../lib/common";
 import { AppError } from "../lib/errors";
 import type { HttpResponse, IHttpClient } from "../lib/http-client";
 
 // Zod schema for list_test_runs parameters
-export const ListTestRunsSchema = z
-  .object({
-    test_id: z
-      .string()
-      .length(
-        TEST_SCENARIO_ID_LENGTH,
-        `test_id should be the ${TEST_SCENARIO_ID_LENGTH} character unique id for a test scenario`
-      )
-      .regex(TEST_SCENARIO_ID_REGEX, "Invalid test_id"),
+export const ListTestRunsSchema = BaseTestIdSchema
+  .extend({
     limit: z.number().int().positive().max(30, "limit must be an integer between 1 and 30").optional(),
     start_timestamp: z.iso
       .datetime("start_timestamp must be a valid ISO 8601 timestamp (e.g. 2025-10-13T16:05:42.123Z)")

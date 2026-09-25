@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.0] - 2026-09-24
+
+### Added
+
+- **Native traffic-shape mode (preview)**: Run uploaded JMeter, k6, and Locust tests directly through their framework runners without DLT load-shape overrides. The script controls traffic and intended duration, while DLT controls task count per Region and enforces a safety duration of up to 24 hours. Existing scenarios remain in Standard mode.
+- **Custom Python packages for Locust**: Install dependencies declared in a top-level `requirements.txt` from PyPI, or bundle wheels in a `packages/` directory for offline installation. This is supported in both Standard and Native modes.
+- **MCP server write operations**: Optionally enable agents to upload scripts and create, update, delete, schedule, start, and stop load tests. Write operations remain disabled by default and are enforced through MCP tool visibility and IAM permissions.
+- **CLI test management and automation**: Added scenario creation, updating, copying, deletion, cancellation, script uploads, run-history deletion, baseline management, JSON specifications, dry-run previews, CSV output, Native mode, and CI/CD performance gates.
+
+### Changed
+
+- **Web console scenario experience**: Redesigned scenario creation, details, and artifact views with contextual help, integrated regional capacity and traffic configuration, live-run refresh, and artifacts grouped by type with Region and file metadata.
+- **Load-test failure reporting**: Added consistent setup and Region failure reasons, Native framework warnings, and retention of available partial results.
+- **Regional stack compatibility**: Primary and regional stacks must all be upgraded to v4.3.0 before running tests.
+
+### Fixed
+
+- **Scenario lifecycle safety**: Prevented overlapping runs, starts while a previous ECS service is still draining, invalid late cancellations, and selection of incomplete runs as baselines.
+- **CLI reliability**: Fixed browser login hangs, one-time schedule updates, start-time filtering, and artifact downloads for high-volume, scheduled, and legacy runs.
+- **Removed regional stacks**: Kept scenarios viewable and deletable after a referenced regional stack is removed.
+- **ZIP compatibility**: Accepted archives that record permission bits without explicit file-type bits.
+
+### Security
+
+- Hardened uploaded ZIP extraction and downloaded artifact handling against symlink traversal, zip-slip, path traversal, unsafe filenames, and terminal control characters.
+- Protected CLI CSV exports against formula injection and enforced owner-only permissions for CLI configuration and credentials.
+- Retained WAF and web-console logs for ten years and redacted authorization and cookie data from WAF logs.
+
 ## [4.2.6] - 2026-09-18
 
 ### Security

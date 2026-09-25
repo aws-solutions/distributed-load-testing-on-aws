@@ -18,6 +18,7 @@ import type {
   InvestigationStatusResponse,
   InvestigationFindingsResponse,
 } from "../../models/investigation";
+import { InvestigationStatus } from "../../models/investigation";
 
 const MOCK_SERVER_URL = "http://localhost:3001/";
 
@@ -61,7 +62,7 @@ function overrideHandlers(options: {
   const investigations = options.investigations ?? [makeInvestigation()];
   const statusResp: InvestigationStatusResponse = {
     investigationId: "task-001",
-    status: "IN_PROGRESS",
+    status: InvestigationStatus.IN_PROGRESS,
     statusReason: null,
     createdAt: "2026-06-01T12:00:00.000Z",
     agentSpaceName: "Production Agent Space",
@@ -119,7 +120,7 @@ describe("InvestigationPanel", () => {
   });
 
   it("renders in-progress status with cancel button", async () => {
-    overrideHandlers({ status: { status: "IN_PROGRESS" } });
+    overrideHandlers({ status: { status: InvestigationStatus.IN_PROGRESS } });
 
     renderWithProviders(<InvestigationPanel testId={testId} testRunId={testRunId} />);
 
@@ -130,7 +131,7 @@ describe("InvestigationPanel", () => {
 
   it("does not show cancel button on terminal state", async () => {
     overrideHandlers({
-      status: { status: "COMPLETED" },
+      status: { status: InvestigationStatus.COMPLETED },
       findings: {
         findings: "# Root Cause\n\nConnection pool exhausted.",
         recordType: "investigation_summary_md",
@@ -147,7 +148,7 @@ describe("InvestigationPanel", () => {
 
   it("renders completed state with findings summary", async () => {
     overrideHandlers({
-      status: { status: "COMPLETED" },
+      status: { status: InvestigationStatus.COMPLETED },
       findings: {
         findings: JSON.stringify({
           type: "investigation_summary",
@@ -179,7 +180,7 @@ describe("InvestigationPanel", () => {
   });
 
   it("renders failed state with error message", async () => {
-    overrideHandlers({ status: { status: "FAILED", statusReason: "Agent quota exceeded" } });
+    overrideHandlers({ status: { status: InvestigationStatus.FAILED, statusReason: "Agent quota exceeded" } });
 
     renderWithProviders(<InvestigationPanel testId={testId} testRunId={testRunId} />);
 
@@ -193,7 +194,7 @@ describe("InvestigationPanel", () => {
   });
 
   it("renders timed-out state", async () => {
-    overrideHandlers({ status: { status: "TIMED_OUT" } });
+    overrideHandlers({ status: { status: InvestigationStatus.TIMED_OUT } });
 
     renderWithProviders(<InvestigationPanel testId={testId} testRunId={testRunId} />);
 
@@ -209,11 +210,14 @@ describe("InvestigationPanel", () => {
     const user = userEvent.setup();
 
     let cancelCalled = false;
-    overrideHandlers({ status: { status: "IN_PROGRESS" } });
+    overrideHandlers({ status: { status: InvestigationStatus.IN_PROGRESS } });
     server.use(
       http.put(`${MOCK_SERVER_URL}/scenarios/:testId/testruns/:testRunId/investigations/:investigationId`, () => {
         cancelCalled = true;
-        return HttpResponse.json({ investigationId: "task-001", status: "CANCELED", archived: true }, { status: 200 });
+        return HttpResponse.json(
+          { investigationId: "task-001", status: InvestigationStatus.CANCELED, archived: true },
+          { status: 200 }
+        );
       })
     );
 
@@ -231,7 +235,7 @@ describe("InvestigationPanel", () => {
     const user = userEvent.setup();
 
     overrideHandlers({
-      status: { status: "COMPLETED" },
+      status: { status: InvestigationStatus.COMPLETED },
       findings: {
         findings: "# Findings\n\nSome findings here.",
         recordType: "investigation_summary_md",
@@ -254,7 +258,7 @@ describe("InvestigationPanel", () => {
 
   it("does not show mitigation step when completed", async () => {
     overrideHandlers({
-      status: { status: "COMPLETED" },
+      status: { status: InvestigationStatus.COMPLETED },
       findings: {
         findings: "# Done\n\nRoot cause identified.",
         recordType: "investigation_summary_md",
@@ -278,7 +282,7 @@ describe("InvestigationPanel", () => {
 
   it("renders completed-no-findings layout for healthy test run (all arrays empty)", async () => {
     overrideHandlers({
-      status: { status: "COMPLETED" },
+      status: { status: InvestigationStatus.COMPLETED },
       findings: {
         findings: JSON.stringify({
           type: "investigation_summary",
@@ -302,7 +306,7 @@ describe("InvestigationPanel", () => {
 
   it("renders investigation_gaps even without root cause or symptoms", async () => {
     overrideHandlers({
-      status: { status: "COMPLETED" },
+      status: { status: InvestigationStatus.COMPLETED },
       findings: {
         findings: JSON.stringify({
           type: "investigation_summary",
@@ -328,7 +332,7 @@ describe("InvestigationPanel", () => {
 
   it("handles null findings response gracefully when completed", async () => {
     overrideHandlers({
-      status: { status: "COMPLETED" },
+      status: { status: InvestigationStatus.COMPLETED },
       findings: { findings: null, recordType: null },
     });
 
@@ -342,7 +346,7 @@ describe("InvestigationPanel", () => {
 
   it("preserves unknown finding types from the agent", async () => {
     overrideHandlers({
-      status: { status: "COMPLETED" },
+      status: { status: InvestigationStatus.COMPLETED },
       findings: {
         findings: JSON.stringify({
           type: "investigation_summary",
@@ -373,13 +377,18 @@ describe("InvestigationPanel", () => {
 
   it("accepts versioned recordType (forward-compatible)", async () => {
     overrideHandlers({
-      status: { status: "COMPLETED" },
+      status: { status: InvestigationStatus.COMPLETED },
       findings: {
         findings: JSON.stringify({
           type: "investigation_summary_v2",
           symptoms: [{ title: "High latency detected", description: "P99 > 500ms" }],
           findings: [
-            { id: "rc-1", title: "Cold start spike", description: "Lambda cold starts caused latency.", type: "root_cause" },
+            {
+              id: "rc-1",
+              title: "Cold start spike",
+              description: "Lambda cold starts caused latency.",
+              type: "root_cause",
+            },
           ],
           investigation_gaps: [],
         }),
@@ -399,7 +408,7 @@ describe("InvestigationPanel", () => {
 
   it("rejects non-summary recordType gracefully", async () => {
     overrideHandlers({
-      status: { status: "COMPLETED" },
+      status: { status: InvestigationStatus.COMPLETED },
       findings: {
         findings: JSON.stringify({ type: "investigation_log", entries: [] }),
         recordType: "investigation_log",

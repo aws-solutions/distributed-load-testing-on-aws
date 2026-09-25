@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 import createWrapper from "@cloudscape-design/components/test-utils/dom";
 import { http } from "msw";
@@ -148,7 +148,13 @@ describe("TestResultsTable via TestRunDetailsPage", () => {
       ),
     );
 
-    renderAppContent({ initialRoute: "/scenarios/test-2labels/testruns/run-2labels" });
+    const { renderResult } = renderAppContent({ initialRoute: "/scenarios/test-2labels/testruns/run-2labels" });
+
+    // The page opens in Overall, which aggregates every endpoint into one row, so
+    // switch to By Endpoint to see the per-label rows.
+    const wrapper = createWrapper(renderResult.container);
+    await waitFor(() => expect(wrapper.findSegmentedControl()).toBeTruthy());
+    wrapper.findSegmentedControl()!.findSegmentById(ViewMode.ByEndpoint)!.click();
 
     expect(await screen.findByText("/api/users")).toBeInTheDocument();
     expect(screen.getByText("/api/orders")).toBeInTheDocument();

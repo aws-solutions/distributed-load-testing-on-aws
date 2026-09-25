@@ -1,0 +1,160 @@
+{
+  "schema": "dlt.result.v1",
+  "testId": "test-123",
+  "taskId": "abc123",
+  "region": "us-east-1",
+  "startTime": "2026-05-14T10:01:00.000Z",
+  "endTime": "2026-05-14T10:02:00.000Z",
+  "testDurationSeconds": 60,
+  "task": {
+    "vcpus": 2,
+    "memoryMiB": 4096,
+    "ecsDurationSeconds": 120
+  },
+  "summary": {
+    "label": "",
+    "successCount": 1,
+    "failureCount": 1,
+    "totalRequestCount": 2,
+    "concurrency": 3,
+    "totalBytesReceived": 4,
+    "averageResponseTimeMilliseconds": 200,
+    "averageLatencyMilliseconds": 15,
+    "averageConnectTimeMilliseconds": 6,
+    "responseTimeStdDevMilliseconds": 100,
+    "minResponseTimeMilliseconds": 100,
+    "p50": 100.003,
+    "p90": 300,
+    "p95": 300,
+    "p99": 300,
+    "p99_9": 300,
+    "maxResponseTimeMilliseconds": 300,
+    "responseCodes": [
+      {
+        "code": "200",
+        "count": 1
+      },
+      {
+        "code": "500",
+        "count": 1
+      }
+    ]
+  },
+  "labels": [
+    {
+      "label": "Sleep",
+      "successCount": 1,
+      "failureCount": 1,
+      "totalRequestCount": 2,
+      "concurrency": 3,
+      "totalBytesReceived": 4,
+      "averageResponseTimeMilliseconds": 200,
+      "averageLatencyMilliseconds": 15,
+      "averageConnectTimeMilliseconds": 6,
+      "responseTimeStdDevMilliseconds": 100,
+      "minResponseTimeMilliseconds": 100,
+      "p50": 100.003,
+      "p90": 300,
+      "p95": 300,
+      "p99": 300,
+      "p99_9": 300,
+      "maxResponseTimeMilliseconds": 300,
+      "responseCodes": [
+        {
+          "code": "200",
+          "count": 1
+        },
+        {
+          "code": "500",
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "statistics": {
+    "histogramLayout": "dlt.latency-us.rel-0p5pct.0-24h.v1",
+    "summary": {
+      "requests": {
+        "total": 2,
+        "success": 1,
+        "failure": 1
+      },
+      "bytesReceived": 4,
+      "latency": {
+        "count": 2,
+        "meanUs": 200000,
+        "m2UsSquared": 20000000000,
+        "minUs": 100000,
+        "maxUs": 300000,
+        "histogram": {
+          "zeroCount": 0,
+          "bins": [
+            [816, 1],
+            [926, 1]
+          ]
+        }
+      },
+      "waitingTime": {
+        "count": 2,
+        "meanUs": 15000
+      },
+      "connectTime": {
+        "count": 2,
+        "meanUs": 6000
+      },
+      "responseCodes": [
+        {
+          "code": "200",
+          "count": 1
+        },
+        {
+          "code": "500",
+          "count": 1
+        }
+      ]
+    },
+    "labels": [
+      {
+        "label": "Sleep",
+        "requests": {
+          "total": 2,
+          "success": 1,
+          "failure": 1
+        },
+        "bytesReceived": 4,
+        "latency": {
+          "count": 2,
+          "meanUs": 200000,
+          "m2UsSquared": 20000000000,
+          "minUs": 100000,
+          "maxUs": 300000,
+          "histogram": {
+            "zeroCount": 0,
+            "bins": [
+              [816, 1],
+              [926, 1]
+            ]
+          }
+        },
+        "waitingTime": {
+          "count": 2,
+          "meanUs": 15000
+        },
+        "connectTime": {
+          "count": 2,
+          "meanUs": 6000
+        },
+        "responseCodes": [
+          {
+            "code": "200",
+            "count": 1
+          },
+          {
+            "code": "500",
+            "count": 1
+          }
+        ]
+      }
+    ]
+  }
+}

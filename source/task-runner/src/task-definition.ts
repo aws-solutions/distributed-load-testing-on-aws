@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { buildTaskDefinitionFamily, type Logger } from "@amzn/dlt-common";
+import { buildLiveDataStreamPrefix, buildTaskDefinitionFamily, type Logger } from "@amzn/dlt-common";
 import type { ECSClient } from "@aws-sdk/client-ecs";
 import { DescribeTaskDefinitionCommand, RegisterTaskDefinitionCommand } from "@aws-sdk/client-ecs";
 
@@ -61,7 +61,7 @@ export async function createTestTaskDefinition(params: CreateTestTaskDefinitionP
   logger.info("Fetching hub task definition", { hubTaskDefinition });
 
   const describeResponse = await hubEcs.send(
-    new DescribeTaskDefinitionCommand({ taskDefinition: hubTaskDefinition, include: ["TAGS"] }),
+    new DescribeTaskDefinitionCommand({ taskDefinition: hubTaskDefinition, include: ["TAGS"] })
   );
 
   const hubDef = describeResponse.taskDefinition;
@@ -111,13 +111,17 @@ export async function createTestTaskDefinition(params: CreateTestTaskDefinitionP
       memory: hubContainer.memory,
       memoryReservation: hubContainer.memoryReservation,
       essential: hubContainer.essential,
+      stopTimeout: hubContainer.stopTimeout,
       portMappings: hubContainer.portMappings,
       logConfiguration: {
         logDriver: "awslogs" as const,
         options: {
           "awslogs-group": ecsCloudWatchLogGroup,
           "awslogs-region": region,
-          "awslogs-stream-prefix": "load-testing",
+          // Embed testId in the stream prefix so the real-time-data-publisher can
+          // derive an infrastructure-controlled test identity from the log stream
+          // name instead of trusting the (customer-writable) log line content.
+          "awslogs-stream-prefix": buildLiveDataStreamPrefix(testId),
         },
       },
       healthCheck: hubContainer.healthCheck,
@@ -143,7 +147,7 @@ export async function createTestTaskDefinition(params: CreateTestTaskDefinitionP
       memory: hubDef.memory,
       runtimePlatform: hubDef.runtimePlatform,
       tags: [
-        ...(describeResponse.tags?.filter(t => t.key !== "SolutionId") ?? []),
+        ...(describeResponse.tags?.filter((t) => t.key !== "SolutionId") ?? []),
         { key: "SolutionId", value: solutionId },
         { key: "TestId", value: testId },
         { key: "TestRunId", value: testRunId },

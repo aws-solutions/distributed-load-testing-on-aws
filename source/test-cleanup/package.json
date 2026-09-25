@@ -18,8 +18,8 @@
     "@amzn/dlt-common": "*",
     "@aws-sdk/client-cloudwatch": "^3.993.0",
     "@aws-sdk/client-cloudwatch-logs": "^3.993.0",
-    "@aws-sdk/client-dynamodb": "^3.993.0",
+    "@aws-sdk/client-dynamodb": "^3.1030.0",
     "@aws-sdk/client-ecs": "^3.993.0",
-    "@aws-sdk/lib-dynamodb": "^3.993.0"
+    "@aws-sdk/lib-dynamodb": "^3.1030.0"
   }
 }

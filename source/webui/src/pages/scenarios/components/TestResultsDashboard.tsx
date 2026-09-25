@@ -44,24 +44,24 @@ interface DashboardMetrics {
 }
 
 const sortHttpErrors = (a: { errorCode: string }, b: { errorCode: string }): number => {
-  const codeA = parseInt(a.errorCode, 10);
-  const codeB = parseInt(b.errorCode, 10);
+  const codeA = Number.parseInt(a.errorCode, 10);
+  const codeB = Number.parseInt(b.errorCode, 10);
   
   // Both are valid numbers - sort numerically
-  if (!isNaN(codeA) && !isNaN(codeB)) {
+  if (!Number.isNaN(codeA) && !Number.isNaN(codeB)) {
     return codeA - codeB;
   }
   
   // If one is numeric and one isn't, numeric comes first
-  if (!isNaN(codeA)) return -1;
-  if (!isNaN(codeB)) return 1;
+  if (!Number.isNaN(codeA)) return -1;
+  if (!Number.isNaN(codeB)) return 1;
   
   // Both are non-numeric - sort alphabetically
   return a.errorCode.localeCompare(b.errorCode);
 };
 
 const formatTime = (timeInSeconds: string | number): string => {
-  const time = typeof timeInSeconds === 'string' ? parseFloat(timeInSeconds) : timeInSeconds;
+  const time = typeof timeInSeconds === 'string' ? Number.parseFloat(timeInSeconds) : timeInSeconds;
   if (time >= 1) {
     return `${time.toFixed(3)}s`;
   } else {
@@ -74,8 +74,8 @@ const formatTime = (timeInSeconds: string | number): string => {
 };
 
 const formatBandwidth = (bytes: string, duration: string): string => {
-  const bytesNum = parseFloat(bytes);
-  const durationNum = parseFloat(duration);
+  const bytesNum = Number.parseFloat(bytes);
+  const durationNum = Number.parseFloat(duration);
   if (durationNum > 0) {
     const kbps = (bytesNum / 1024) / durationNum;
     return `${kbps.toFixed(2)} KB/s`;
@@ -88,7 +88,7 @@ const calculateMetrics = (selectedRow: TableRow, testRunDetails: TestRunDetails,
   
   // Handle Overall mode - aggregate all labels
   if (viewMode === ViewMode.Overall && regionData?.labels) {
-    const testDuration = parseFloat(regionData.testDuration);
+    const testDuration = Number.parseFloat(regionData.testDuration);
     const aggregated = aggregateEndpoints(regionData.labels, testDuration);
     
     // Collect all HTTP errors from all labels
@@ -162,11 +162,11 @@ const calculateMetrics = (selectedRow: TableRow, testRunDetails: TestRunDetails,
     { percentile: '100%', responseTime: formatTime(labelData.p100_0) }
   ];
 
-  const avgRtMs = parseFloat(labelData.avg_rt) * 1000;
-  const avgLtMs = parseFloat(labelData.avg_lt) * 1000;
-  const avgCtMs = parseFloat(labelData.avg_ct) * 1000;
-  const bytesNum = parseFloat(labelData.bytes);
-  const durationNum = parseFloat(regionData.testDuration);
+  const avgRtMs = Number.parseFloat(labelData.avg_rt) * 1000;
+  const avgLtMs = Number.parseFloat(labelData.avg_lt) * 1000;
+  const avgCtMs = Number.parseFloat(labelData.avg_ct) * 1000;
+  const bytesNum = Number.parseFloat(labelData.bytes);
+  const durationNum = Number.parseFloat(regionData.testDuration);
   const kbps = durationNum > 0 ? (bytesNum / 1024) / durationNum : 0;
   const rps = durationNum > 0 ? labelData.throughput / durationNum : 0;
   const successRateNum = labelData.throughput > 0 ? (labelData.succ / labelData.throughput) * 100 : 0;
@@ -211,7 +211,7 @@ const calculateBaselineMetrics = (selectedRow: TableRow, baseline: any, viewMode
   
   // Handle Overall mode - aggregate all baseline labels
   if (viewMode === ViewMode.Overall && baselineRegionData?.labels) {
-    const testDuration = parseFloat(baselineRegionData.testDuration);
+    const testDuration = Number.parseFloat(baselineRegionData.testDuration);
     const aggregated = aggregateEndpoints(baselineRegionData.labels, testDuration);
     
     return {
@@ -233,12 +233,12 @@ const calculateBaselineMetrics = (selectedRow: TableRow, baseline: any, viewMode
 
   const successRateNum = baselineLabelData.throughput > 0 ? 
     ((baselineLabelData.succ / baselineLabelData.throughput) * 100) : 0;
-  const avgRtMs = parseFloat(baselineLabelData.avg_rt) * 1000;
-  const avgLtMs = parseFloat(baselineLabelData.avg_lt) * 1000;
-  const avgCtMs = parseFloat(baselineLabelData.avg_ct) * 1000;
-  const durationNum = parseFloat(baselineRegionData.testDuration);
+  const avgRtMs = Number.parseFloat(baselineLabelData.avg_rt) * 1000;
+  const avgLtMs = Number.parseFloat(baselineLabelData.avg_lt) * 1000;
+  const avgCtMs = Number.parseFloat(baselineLabelData.avg_ct) * 1000;
+  const durationNum = Number.parseFloat(baselineRegionData.testDuration);
   const rps = durationNum > 0 ? baselineLabelData.throughput / durationNum : 0;
-  const bytesNum = parseFloat(baselineLabelData.bytes);
+  const bytesNum = Number.parseFloat(baselineLabelData.bytes);
   const kbps = durationNum > 0 ? (bytesNum / 1024) / durationNum : 0;
 
   return {

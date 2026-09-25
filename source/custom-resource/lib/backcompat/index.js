@@ -35,9 +35,9 @@ const getAllTestScenarios = async () => {
   // `testScenario` field is stored as json-string,
   // parse into a JSON object before returning.
   console.log(`Fetched ${items.length} tests from DynamoDB`);
-  return items.map(scenario => ({
+  return items.map((scenario) => ({
     ...scenario,
-    testScenario: JSON.parse(scenario.testScenario)
+    testScenario: JSON.parse(scenario.testScenario),
   }));
 };
 
@@ -48,11 +48,11 @@ const getAllTestScenarios = async () => {
  * 3. requests.body is `object` type
  * Then stringifies the `object` body into a JSON string and returns the new testScenario
  * Otherwise, returns the original testScenario
- * 
+ *
  * @param {string} testName - Name of the test to update
  * @param {string} testType - Type of the test to update
  * @param {object} testScenario - Scenario Configuration of the test to update
- * 
+ *
  * @returns The updated testScenario or undefined if no updates were applicable
  */
 const updateTestScenario = (testName, testType, testScenario) => {
@@ -60,13 +60,13 @@ const updateTestScenario = (testName, testType, testScenario) => {
   if (testType !== "simple" || !testScenario?.scenarios?.[testName]?.requests) {
     return;
   }
-  testScenario.scenarios[testName].requests.forEach(requestConfig => {
-    if (requestConfig.body && typeof requestConfig.body === 'object') {
-      requestConfig.body = JSON.stringify(requestConfig.body)
+  testScenario.scenarios[testName].requests.forEach((requestConfig) => {
+    if (requestConfig.body && typeof requestConfig.body === "object") {
+      requestConfig.body = JSON.stringify(requestConfig.body);
     }
   });
   return testScenario;
-}
+};
 
 /**
  * Sets the file type of the test, if the test is simple HTTP endpoint test, fileType is `none`,
@@ -77,7 +77,7 @@ const updateTestScenario = (testName, testType, testScenario) => {
  */
 const updateFileType = (testType, fileType) => {
   if (testType === "simple" && !fileType) {
-    return "none"
+    return "none";
   }
 };
 
@@ -86,14 +86,12 @@ const updateFileType = (testType, fileType) => {
  * tests stored in DynamoDB which migrated from v3 to v4
  * have issues if the testType is `simple` because the configured
  * request body is an object. DLT v4 expects this field to be a string.
- * 
+ *
  * @param { string } testId - Id of the test to update
  * @param { string } testType - type of the test (simple, jmeter, locust, etc)
  * @param { object } testScenarios - configuration object of the test to update
  */
-const updateDynamoTestConfig = async ({
-  testId, testName, testType, fileType, testScenario
-}) => {
+const updateDynamoTestConfig = async ({ testId, testName, testType, fileType, testScenario }) => {
   const newTestScenario = updateTestScenario(testName, testType, testScenario);
   const newFileType = updateFileType(testType, fileType);
 
@@ -110,7 +108,7 @@ const updateDynamoTestConfig = async ({
   }
 
   if (expressionParts.length === 0) {
-    console.log(`Skipping DynamoDB test config update for testId: ${testId}`)
+    console.log(`Skipping DynamoDB test config update for testId: ${testId}`);
     return;
   }
 
@@ -127,9 +125,9 @@ const updateDynamoTestConfig = async ({
  * Lists EventBridge rules for a given testId and fetches their targets.
  * Each target's Input field contains the stored test configuration payload.
  * Returns an array of { rule, targets } objects.
- * 
+ *
  * @param {string} testId - Id of the test to fetch rules for
- * 
+ *
  * @returns - Rule and Targets for the test configured in EventBridge
  */
 const getScheduledRules = async (testId) => {
@@ -156,9 +154,9 @@ const getScheduledRules = async (testId) => {
  * 2. if any of `cronValue`, `cronExpiryDate`, `recurrence` or `fileType` fields are falsy
  * Deletes those fields. DLT v4 enforces a specific format or enum of any of these
  * are truthy, and it also does not allow empty-string values for them.
- * 
- * @param {object[]} targets 
- * @returns 
+ *
+ * @param {object[]} targets
+ * @returns
  */
 const getRuleTargetsToUpdate = (targets) => {
   const updateTargets = [];
@@ -173,7 +171,7 @@ const getRuleTargetsToUpdate = (targets) => {
       inputBodyJson.testScenario = scenario;
       shouldUpdate = true;
     }
-    ['cronValue', 'cronExpiryDate', 'recurrence', 'fileType'].forEach(field => {
+    ["cronValue", "cronExpiryDate", "recurrence", "fileType"].forEach((field) => {
       if (inputBodyJson[field] === "" || inputBodyJson[field] === null) {
         delete inputBodyJson[field];
         shouldUpdate = true;
@@ -182,17 +180,17 @@ const getRuleTargetsToUpdate = (targets) => {
     if (shouldUpdate) {
       input.body = JSON.stringify(inputBodyJson);
       target.Input = JSON.stringify(input);
-      updateTargets.push(target)
+      updateTargets.push(target);
     }
     shouldUpdate = false;
   }
   return updateTargets;
-}
+};
 
 /**
  * Fetches configured EventBridge rules and targets and updates them
  * according to the new validation logic in DLT v4.
- * 
+ *
  * @param {string} testId - Id of the test to update EventBridge rule targets for
  */
 const updateEventBridgeRuleTargets = async (testId) => {
@@ -200,22 +198,22 @@ const updateEventBridgeRuleTargets = async (testId) => {
   for (const rule of rules) {
     const targetsToUpdate = getRuleTargetsToUpdate(rule.targets);
     if (!targetsToUpdate.length) {
-      console.log(`No EventBridge rule targets to update for testId: ${testId}`)
+      console.log(`No EventBridge rule targets to update for testId: ${testId}`);
       continue;
     }
     const targetParams = {
       Rule: rule.ruleName,
       Targets: targetsToUpdate,
     };
-    console.log(`Updating targets for rule: ${rule.ruleName}`)
+    console.log(`Updating targets for rule: ${rule.ruleName}`);
     await cloudwatchevents.putTargets(targetParams);
   }
-}
+};
 
 /**
  * Updates test configurations stored in both
  * DynamoDB and EventBridge Rules
- * 
+ *
  * @param { string } testId - Id of the test to update
  * @param {string} testName - Name of the test to update
  * @param {string} testType - Type of the test to update
@@ -232,7 +230,7 @@ const updateScheduledTests = async () => {
   for (const scenario of testScenarios) {
     await updateTestConfigs(scenario);
   }
-}
+};
 
 module.exports = {
   updateScheduledTests,

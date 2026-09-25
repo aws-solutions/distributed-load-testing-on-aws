@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import fc from "fast-check";
-import { TestStatus } from "../pages/scenarios/constants";
+import { TestStatus } from "@amzn/dlt-common/validation";
 import { computeTaskStatusItem } from "../pages/scenarios/components/TaskStatus";
 import { buildPercentageSeries } from "../pages/scenarios/components/RegionProgressIndicator";
 import type { TasksPerRegion, TestTaskConfig, TaskStatusItem } from "../pages/scenarios/types";

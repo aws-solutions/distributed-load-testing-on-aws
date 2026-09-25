@@ -117,12 +117,9 @@ main() {
     mv "$global_dist_dir"/*-regional.template "$regional_dist_dir"
 
     header "[Build-Console] Building console assets"
-    cd "$source_dir/webui/" || exit 1
-    # Remove old build assets
-    rm -rf dist/
-    npm ci
-    # npm run build outputs to dist/
-    GENERATE_SOURCEMAP=false INLINE_RUNTIME_CHUNK=false npm run build
+    rm -rf "$source_dir/webui/dist"
+    cd "${project_root}"
+    GENERATE_SOURCEMAP=false INLINE_RUNTIME_CHUNK=false npm run build -w source/webui
     if [ $? -eq 0 ]
     then
       header "UI build succeeded"
@@ -165,6 +162,11 @@ main() {
         # Materialize versioned asset folders,
         # substituting ${VERSION} from VERSION.txt.
         bash "${launch_wizard_dir}/apply-version.sh"
+        # Inject parameter validationRules from the CDK parameter spec (single
+        # source of truth) into the versioned metadata.json files. This overwrites
+        # the skeleton metadata written above so Launch Wizard validation matches
+        # the CloudFormation parameter constraints exactly.
+        (cd "${launch_wizard_dir}/generator" && npm run generate -- "${launch_wizard_dir}")
         for profile_dir in "${launch_wizard_dir}"/*; do
             [[ "$(basename "${profile_dir}")" == "test" ]] && continue
             if [ -d "${profile_dir}" ]; then

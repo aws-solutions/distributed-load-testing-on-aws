@@ -11,6 +11,7 @@ import {
   Alert,
 } from "@cloudscape-design/components";
 import { useNavigate } from "react-router-dom";
+import { MAX_TEST_RUNS_PER_DELETE_REQUEST } from "@amzn/dlt-common/validation";
 
 import { useTestRuns } from "../hooks/useTestRuns";
 import { sendConsoleMetric } from "../../../utils/consoleMetrics";
@@ -46,10 +47,11 @@ const INITIAL_PREFERENCES = {
 const PREFERENCES_KEY = "testRunsTablePreferences";
 
 interface TestRunsProps {
-  testId: string;
+  readonly testId: string;
+  readonly latestTestRun?: TestRun;
 }
 
-export function TestRuns({ testId }: TestRunsProps) {
+export function TestRuns({ testId, latestTestRun }: TestRunsProps) {
   const navigate = useNavigate();
   const [deleteTestRuns, { isLoading: isDeletingTestRuns }] = useDeleteTestRunsMutation();
 
@@ -70,7 +72,7 @@ export function TestRuns({ testId }: TestRunsProps) {
     handleRemoveBaseline,
     handleDateFilterChange,
     refetch,
-  } = useTestRuns(testId);
+  } = useTestRuns(testId, latestTestRun);
 
   // extra is only emitted in PageDataReady (not PageInitialLoad), so
   // BaselineEnabled reflects the actual loaded baseline state.
@@ -80,9 +82,17 @@ export function TestRuns({ testId }: TestRunsProps) {
     extra: { BaselineEnabled: baselineTestRun ? "true" : "false" },
   });
 
-  const handleTestRunClick = (testRunId: string) => {
+  // The full page owns the count; polling may add one run that page has not seen yet.
+  const hasNewLatestTestRun =
+    firstPageData?.testRuns !== undefined &&
+    allTestRuns[0] !== undefined &&
+    !firstPageData.testRuns.some(testRun => testRun.testRunId === allTestRuns[0].testRunId);
+  // Count = the last full server count + one new polled row.
+  const totalCount = (firstPageData?.pagination?.total_count ?? 0) + (hasNewLatestTestRun ? 1 : 0);
+
+  const handleTestRunClick = useCallback((testRunId: string) => {
     navigate(`/scenarios/${testId}/testruns/${testRunId}`);
-  };
+  }, [navigate, testId]);
 
   const { allColumns, getFilteredColumns } = useTestRunColumns(testId, baselineTestRun, handleTestRunClick);
 
@@ -119,6 +129,10 @@ export function TestRuns({ testId }: TestRunsProps) {
   };
 
   const confirmDeleteTestRuns = async () => {
+    if (testRunsToDelete.length > MAX_TEST_RUNS_PER_DELETE_REQUEST) {
+      return;
+    }
+
     try {
       const testRunIds = testRunsToDelete.map(testRun => testRun.testRunId);
       await deleteTestRuns({ testId, testRunIds }).unwrap();
@@ -135,6 +149,8 @@ export function TestRuns({ testId }: TestRunsProps) {
       });
     }
   };
+
+  const deleteSelectionExceedsLimit = testRunsToDelete.length > MAX_TEST_RUNS_PER_DELETE_REQUEST;
 
 
 
@@ -197,7 +213,7 @@ export function TestRuns({ testId }: TestRunsProps) {
           isSettingBaseline={isSettingBaseline}
           isLoadingMore={isLoadingMore}
           isLoading={isLoading}
-          totalCount={firstPageData?.pagination?.total_count}
+          totalCount={totalCount}
           filter={<TestRunsDateFilter dateFilter={dateFilter} onChange={handleDateFilterChange} />}
           downloadCSV={handleDownloadCSV}
           onDeleteTestRuns={handleDeleteTestRuns}
@@ -217,7 +233,7 @@ export function TestRuns({ testId }: TestRunsProps) {
               variant="primary"
               onClick={confirmDeleteTestRuns}
               loading={isDeletingTestRuns}
-              disabled={selectedIncludesBaseline(testRunsToDelete)}
+              disabled={selectedIncludesBaseline(testRunsToDelete) || deleteSelectionExceedsLimit}
               data-testid="modal-delete-button"
             >
               Delete
@@ -226,6 +242,12 @@ export function TestRuns({ testId }: TestRunsProps) {
         }
       >
         <SpaceBetween size="m">
+          {deleteSelectionExceedsLimit && (
+            <Alert type="error">
+              You can delete a maximum of {MAX_TEST_RUNS_PER_DELETE_REQUEST} test runs at a time. Reduce your selection
+              and try again.
+            </Alert>
+          )}
           {selectedIncludesBaseline(testRunsToDelete) && (
             <Alert type="error">
               One or more selected test runs is currently set as the baseline. Remove it as the baseline before deleting.

@@ -4,10 +4,13 @@
 import { describe, expect, it } from "vitest";
 import {
     buildExecutionName,
+    buildLiveDataStreamPrefix,
     buildServiceName,
     buildTaskDefinitionFamily,
     DLT_SERVICE_PREFIX,
+    LIVE_DATA_LOG_STREAM_PREFIX,
     parseExecutionName,
+    parseTestIdFromLogStream,
 } from "../src/naming.ts";
 
 describe("buildServiceName", () => {
@@ -24,6 +27,48 @@ describe("buildServiceName", () => {
 describe("buildTaskDefinitionFamily", () => {
   it("builds task definition family from testId", () => {
     expect(buildTaskDefinitionFamily("abc123")).toBe("dlt-worker-abc123");
+  });
+});
+
+describe("buildLiveDataStreamPrefix", () => {
+  it("builds the stream prefix from testId", () => {
+    expect(buildLiveDataStreamPrefix("abc123")).toBe("load-testing/abc123");
+  });
+
+  it("uses LIVE_DATA_LOG_STREAM_PREFIX as the root segment", () => {
+    expect(buildLiveDataStreamPrefix("abc123").startsWith(`${LIVE_DATA_LOG_STREAM_PREFIX}/`)).toBe(true);
+  });
+});
+
+describe("parseTestIdFromLogStream", () => {
+  // The awslogs driver appends /{container}/{taskId} to the prefix.
+  const streamFor = (testId: string) => `${buildLiveDataStreamPrefix(testId)}/dlt-stack-load-tester-locust/task123`;
+
+  it("extracts the testId from a well-formed live-data stream name", () => {
+    expect(parseTestIdFromLogStream(streamFor("abc123"))).toBe("abc123");
+  });
+
+  it("roundtrips with buildLiveDataStreamPrefix for a hyphenated testId", () => {
+    expect(parseTestIdFromLogStream(streamFor("my-test-01"))).toBe("my-test-01");
+  });
+
+  it("returns undefined for a stream name without the load-testing prefix", () => {
+    expect(parseTestIdFromLogStream("ecs/load-tester/task123")).toBeUndefined();
+  });
+
+  it("returns undefined for the legacy two-segment prefix (no testId embedded)", () => {
+    // Before the testId was embedded, streams were load-testing/{container}/{taskId}.
+    // The parser must not resolve the container name as a testId.
+    expect(parseTestIdFromLogStream("load-testing/dlt-stack-load-tester-locust/task123")).toBeUndefined();
+  });
+
+  it("returns undefined when the container/task suffix is missing", () => {
+    expect(parseTestIdFromLogStream("load-testing/abc123")).toBeUndefined();
+    expect(parseTestIdFromLogStream("load-testing/abc123/onlyOneSegment")).toBeUndefined();
+  });
+
+  it("returns undefined for an empty string", () => {
+    expect(parseTestIdFromLogStream("")).toBeUndefined();
   });
 });
 

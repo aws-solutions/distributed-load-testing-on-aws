@@ -11,6 +11,8 @@ import { ListObjectsV2Command } from "@aws-sdk/client-s3";
  * Each Fargate task writes a zero-byte completion marker to:
  *   `s3://{bucket}/results/{testId}/{prefix}/completion/{region}/{taskId}`
  *
+ * Warning completions append `.warning` to the task ID.
+ *
  * This function counts those markers to determine how many tasks have
  * finished. The step function drives the polling loop (Wait → Lambda →
  * Choice); this function is called once per iteration.
@@ -26,19 +28,18 @@ export interface CompletionMonitorInput {
 }
 
 export interface CompletionMonitorResult {
-  /** Number of S3 completion markers found */
+  /** Number of completion markers found in the current region */
   readonly completedTaskCount: number;
   /** True when completedTaskCount >= desiredCount */
   readonly isComplete: boolean;
+  /** Number of warning markers found in the current region */
+  readonly warningTaskCount: number;
 }
 
 /**
- * Counts S3 completion markers for a single region and returns whether
- * all tasks have finished.
+ * Counts completion and warning markers for one region.
  *
  * Uses paginated `ListObjectsV2` to handle tests with >1000 tasks.
- * Only counts the number of objects under the completion prefix — does
- * not inspect object contents (markers are zero-byte files).
  */
 export async function monitorCompletion(input: CompletionMonitorInput): Promise<CompletionMonitorResult> {
   const { s3, bucket, testId, prefix, region, desiredCount, logger } = input;
@@ -48,6 +49,7 @@ export async function monitorCompletion(input: CompletionMonitorInput): Promise<
   logger.info("Listing completion markers", { bucket, completionPrefix, desiredCount });
 
   let completedTaskCount = 0;
+  let warningTaskCount = 0;
   let continuationToken: string | undefined;
 
   do {
@@ -60,12 +62,16 @@ export async function monitorCompletion(input: CompletionMonitorInput): Promise<
     );
 
     completedTaskCount += response.KeyCount ?? 0;
+    for (const object of response.Contents ?? []) {
+      if (object.Key?.endsWith(".warning")) warningTaskCount++;
+    }
+
     continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
   } while (continuationToken);
 
   const isComplete = completedTaskCount >= desiredCount;
 
-  logger.info("Completion monitor result", { completedTaskCount, desiredCount, isComplete });
+  logger.info("Completion monitor result", { completedTaskCount, desiredCount, isComplete, warningTaskCount });
 
-  return { completedTaskCount, isComplete };
+  return { completedTaskCount, isComplete, warningTaskCount };
 }

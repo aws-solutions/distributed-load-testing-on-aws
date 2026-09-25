@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws-infrastructure",
-  "version": "4.2.6",
+  "version": "4.3.0",
   "author": {
     "name": "Amazon Web Services",
     "url": "https://aws.amazon.com/solutions"
@@ -16,7 +16,7 @@
     "watch": "tsc -w",
     "test": "NODE_OPTIONS='--max-old-space-size=4096' jest --coverage",
     "cdk": "cdk",
-    "install:all": "cd ../ && npm run install:all && npm run build:webui && npm run build:metrics-utils"
+    "install:all": "cd ../ && npm run install:all && npm run build:metrics-utils"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.993.0",

@@ -46,12 +46,17 @@ export async function srpAuthenticate(config: DltConfig, username: string, passw
   }
 
   if (initiateAuthResponse.ChallengeName !== ChallengeNameType.PASSWORD_VERIFIER) {
-    throw new Error(`SRP authentication failed: unexpected challenge ${initiateAuthResponse.ChallengeName ?? "<none>"}`);
+    throw new Error(
+      `SRP authentication failed: unexpected challenge ${initiateAuthResponse.ChallengeName ?? "<none>"}`
+    );
   }
 
   // Cast required: cognito-srp-helper's InitiateAuthResponse uses non-exact-optional fields
   // that conflict with the SDK's InitiateAuthCommandOutput under exactOptionalPropertyTypes.
-  const signedSession = signSrpSession(session, initiateAuthResponse as unknown as Parameters<typeof signSrpSession>[1]);
+  const signedSession = signSrpSession(
+    session,
+    initiateAuthResponse as unknown as Parameters<typeof signSrpSession>[1]
+  );
 
   // USERNAME in the challenge response must match USER_ID_FOR_SRP — otherwise Cognito
   // rejects the password signature when the user signed in via an alias (email/phone).

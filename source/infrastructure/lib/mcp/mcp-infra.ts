@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { ArnFormat, Aws, CfnResource, Duration, Stack } from "aws-cdk-lib";
+import { ArnFormat, Aspects, Aws, CfnCondition, CfnResource, Duration, Fn, Stack } from "aws-cdk-lib";
 import { RestApi } from "aws-cdk-lib/aws-apigateway";
 import {
   OAuthScope,
@@ -10,13 +10,15 @@ import {
   UserPoolClient,
   UserPoolResourceServer,
 } from "aws-cdk-lib/aws-cognito";
-import { Effect, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
+import { Effect, Policy, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import { Architecture, Runtime } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { Construct } from "constructs";
 import * as path from "path";
 import toolSchemaJson from "../../../mcp-server/toolSchema.json";
+import toolSchemaWriteJson from "../../../mcp-server/toolSchema.write.json";
 import { Solution, SOLUTIONS_METRICS_ENDPOINT } from "../../bin/solution";
+import { ConditionAspect } from "../common-resources/condition-aspect";
 import { AgentCoreGateway } from "./gateway-construct";
 import { AgentCoreGatewayTarget } from "./gateway-target-construct";
 
@@ -33,9 +35,42 @@ export interface MCPServerProps {
   readonly userPoolId: string;
   readonly allowedClients: string[];
   readonly uuid: string;
+  readonly accessMode: string;
 }
 
 const GATEWAY_NAME = "dlt-mcp-server";
+
+const CFN_KEY_MAP: Record<string, string> = {
+  name: "Name",
+  description: "Description",
+  inputSchema: "InputSchema",
+  type: "Type",
+  properties: "Properties",
+  required: "Required",
+  items: "Items",
+};
+
+const UNSUPPORTED_SCHEMA_KEYS = new Set(["minimum", "maximum", "maxItems", "minItems", "pattern", "format", "enum"]);
+
+function toCfnSchema(schema: unknown[]): unknown[] {
+  return schema.map((item) => deepTransform(item));
+}
+
+function deepTransform(obj: unknown): unknown {
+  if (Array.isArray(obj)) {
+    return obj.map((item) => deepTransform(item));
+  }
+  if (obj !== null && typeof obj === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+      if (UNSUPPORTED_SCHEMA_KEYS.has(key)) continue;
+      const cfnKey = CFN_KEY_MAP[key] ?? key;
+      result[cfnKey] = deepTransform(value);
+    }
+    return result;
+  }
+  return obj;
+}
 
 /**
  * Construct for creating an MCP server via AgentCore Gateway, using a Lambda function as the target.
@@ -48,6 +83,10 @@ export class MCPServer extends Construct {
 
   constructor(scope: Construct, id: string, props: MCPServerProps) {
     super(scope, id);
+
+    const isReadWrite = new CfnCondition(this, "IsReadWriteCondition", {
+      expression: Fn.conditionEquals(props.accessMode, "ReadWrite"),
+    });
 
     // Add scope for gateway:read
     // We must provide scope(s) to app clients, and standard user-related scopes don't apply for M2M auth
@@ -101,11 +140,11 @@ export class MCPServer extends Construct {
       inlinePolicies: {
         MCPLambdaPolicy: new PolicyDocument({
           statements: [
-            // Invoke API permissions
+            // Invoke API permissions (read-only)
             new PolicyStatement({
               effect: Effect.ALLOW,
               actions: ["execute-api:Invoke"],
-              resources: [props.api.arnForExecuteApi("GET")], // scope policy down to GET requests only
+              resources: [props.api.arnForExecuteApi("GET")],
             }),
             // CloudWatch Logs permissions
             new PolicyStatement({
@@ -117,6 +156,37 @@ export class MCPServer extends Construct {
         }),
       },
     });
+
+    // Write permissions — only deployed when MCPServerAccessMode is ReadWrite.
+    // Note: The ConditionAspect from the parent stack sets cfnOptions.condition
+    // on all resources in this construct with deployMcpServerCondition. Since the write
+    // policy should only exist when BOTH MCP is deployed AND mode is ReadWrite, we add
+    // a ConditionAspect for isReadWrite to the policy allowing write actions. The two
+    // conditions will be merged by ConditionAspect so both "deployMcpServer" and "isReadWrite"
+    // must be try to satisfy the condition to create the policy.
+    // The Fn.conditionIf on the gateway target schema ensures agents only see write tools
+    // when ReadWrite mode is active.
+    const mcpWriteStatements = [
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ["execute-api:Invoke"],
+        resources: [
+          props.api.arnForExecuteApi("POST"),
+          props.api.arnForExecuteApi("PUT"),
+          props.api.arnForExecuteApi("DELETE"),
+        ],
+      }),
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ["s3:PutObject"],
+        resources: [`arn:${Aws.PARTITION}:s3:::${props.scenarioBucketName}/public/test-scenarios/*`],
+      }),
+    ];
+    const mcpWritePolicy = new Policy(this, "MCPWritePolicy", {
+      roles: [mcpToolLambdaRole],
+      statements: mcpWriteStatements,
+    });
+    Aspects.of(mcpWritePolicy).add(new ConditionAspect(isReadWrite));
 
     // MCP Lambda Function
     this.mcpToolLambdaFunction = new NodejsFunction(this, "MCPToolLambdaFunction", {
@@ -178,13 +248,21 @@ export class MCPServer extends Construct {
     this.gatewayArn = gateway.gatewayArn;
     this.gatewayUrl = gateway.gatewayUrl;
 
-    // Gateway to Lambda Target (via custom resource)
+    // Gateway to Lambda Target — schema selected based on access mode.
+    // ReadOnly: read tools only. ReadWrite: read + write tools concatenated.
+    // Fn.conditionIf bypasses CDK's camelCase→PascalCase synthesis, so we
+    // pre-convert the schema keys to match CFN's expected format.
+    const readOnlyCfnSchema = toCfnSchema(toolSchemaJson);
+    const readWriteCfnSchema = toCfnSchema([...toolSchemaJson, ...toolSchemaWriteJson]);
+
+    const toolSchema = Fn.conditionIf(isReadWrite.logicalId, readWriteCfnSchema, readOnlyCfnSchema);
+
     const lambdaTarget = new AgentCoreGatewayTarget(this, "AgentCoreGatewayTargetConstruct", {
       gatewayId: this.gatewayId,
       lambdaArn: this.mcpToolLambdaFunction.functionArn,
       targetName: "DltMcpToolsLambda",
       targetDescription: "Tool provider for DLT MCP server",
-      toolSchema: toolSchemaJson,
+      toolSchema,
     });
 
     // CfnGuard suppressions (copied from existing suppressions in DLT)

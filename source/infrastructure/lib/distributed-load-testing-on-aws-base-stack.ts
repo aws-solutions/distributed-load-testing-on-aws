@@ -14,20 +14,18 @@ import {
   CfnMapping,
   CfnOutput,
   CfnParameter,
-  CfnResource,
   CfnRule,
   Fn,
-  IAspect,
   Stack,
   StackProps,
 } from "aws-cdk-lib";
+import { ContainerDefinition } from "aws-cdk-lib/aws-ecs";
 import { Rule } from "aws-cdk-lib/aws-events";
 import { LambdaFunction as LambdaFunctionTarget } from "aws-cdk-lib/aws-events-targets";
 import { Effect, Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { Bucket, IBucket } from "aws-cdk-lib/aws-s3";
-import { ContainerDefinition } from "aws-cdk-lib/aws-ecs";
 import { BucketDeployment, Source } from "aws-cdk-lib/aws-s3-deployment";
-import { Construct, IConstruct } from "constructs";
+import { Construct } from "constructs";
 import * as path from "path";
 import { SolutionsMetrics } from "../../metrics-utils";
 import { Solution, SOLUTIONS_METRICS_ENDPOINT } from "../bin/solution";
@@ -37,6 +35,8 @@ import { ScenarioTestRunnerStorageConstruct } from "./back-end/scenarios-storage
 import { TaskRunnerStepFunctionConstruct } from "./back-end/step-functions";
 import { TestRunnerLambdasConstruct } from "./back-end/test-task-lambdas";
 import { CidrBlockCfnParameters } from "./common-resources/common-cfn-parameters";
+import { defineParam, PARAMETERS } from "./common-resources/cfn-parameter-factory";
+import { ConditionAspect } from "./common-resources/condition-aspect";
 import { CommonResources } from "./common-resources/common-resources";
 import { CustomResourcesConstruct } from "./common-resources/custom-resources";
 import { DLTAPI } from "./front-end/api";
@@ -47,31 +47,9 @@ import { ECSResourcesConstruct } from "./testing-resources/ecs";
 import { RealTimeDataConstruct } from "./testing-resources/real-time-data";
 import { FargateVpcConstruct } from "./testing-resources/vpc";
 
-// Allowed pattern for ECR image URIs
-export const ECR_IMAGE_URI_PATTERN =
-  "^$|^\\d{12}\\.dkr\\.ecr\\.[a-z]{2}(-gov)?-(central|north|south|east|west|northeast|southeast|northwest|southwest)-\\d\\.amazonaws\\.com\\/[a-z0-9._\\/-]+(:[a-zA-Z0-9._-]+|@sha256:[a-fA-F0-9]{64})?$";
-
-/**
- * CDK Aspect implementation to set up conditions to the entire Construct resources
- */
-export class ConditionAspect implements IAspect {
-  private readonly condition: CfnCondition;
-
-  constructor(condition: CfnCondition) {
-    this.condition = condition;
-  }
-
-  /**
-   * Implement IAspect.visit to set the condition to whole resources in Construct.
-   * @param {IConstruct} node Construct node to visit
-   */
-  visit(node: IConstruct): void {
-    const resource = node as CfnResource;
-    if (resource.cfnOptions) {
-      resource.cfnOptions.condition = this.condition;
-    }
-  }
-}
+// Allowed pattern for ECR image URIs. Defined in the parameter spec (the single
+// source of truth) and re-exported here so existing importers keep working.
+export { ECR_IMAGE_URI_PATTERN } from "./common-resources/parameter-spec";
 
 /**
  * DLTStack props
@@ -141,83 +119,26 @@ export abstract class DLTBaseStack extends Stack {
     this.templateOptions.templateFormatVersion = "2010-09-09";
     this.templateOptions.description = props.solution.description;
 
-    // CFN Parameters
-    // Admin name
-    this.adminName = new CfnParameter(this, "AdminName", {
-      type: "String",
-      minLength: 4,
-      maxLength: 20,
-      allowedPattern: "[a-zA-Z0-9-]+",
-      constraintDescription: "Admin username must be a minimum of 4 characters and cannot include spaces",
-    });
+    // CFN Parameters. Constraints come from the parameter spec (single source of
+    // truth shared with the Launch Wizard metadata generator). Creation order is
+    // preserved to keep the template's parameter ordering stable.
+    this.adminName = defineParam(this, PARAMETERS.AdminName);
+    this.adminEmail = defineParam(this, PARAMETERS.AdminEmail);
 
-    // Admin email
-    this.adminEmail = new CfnParameter(this, "AdminEmail", {
-      type: "String",
-      allowedPattern: "^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$",
-      constraintDescription: "Admin email must be a valid email address",
-      minLength: 5,
-    });
-
-    // Existing VPC ID
-    const existingVpcId = new CfnParameter(this, "ExistingVPCId", {
-      type: "String",
-      default: "",
-      description: "Existing VPC ID",
-      allowedPattern: "(?:^$|^vpc-[a-zA-Z0-9-]+)",
-    });
-
-    const existingSubnetA = new CfnParameter(this, "ExistingSubnetA", {
-      type: "String",
-      default: "",
-      description: "First existing subnet",
-      allowedPattern: "(?:^$|^subnet-[a-zA-Z0-9-]+)",
-    });
-
-    const existingSubnetB = new CfnParameter(this, "ExistingSubnetB", {
-      type: "String",
-      default: "",
-      description: "Second existing subnet",
-      allowedPattern: "(?:^$|^subnet-[a-zA-Z0-9-]+)",
-    });
+    const existingVpcId = defineParam(this, PARAMETERS.ExistingVPCId);
+    const existingSubnetA = defineParam(this, PARAMETERS.ExistingSubnetA);
+    const existingSubnetB = defineParam(this, PARAMETERS.ExistingSubnetB);
 
     const vpcCidrBlockCfnParameters = new CidrBlockCfnParameters(this, "DLTMain");
 
-    // Egress CIDR Block
-    const egressCidrBlock = new CfnParameter(this, "EgressCidr", {
-      type: "String",
-      default: "0.0.0.0/0",
-      description: "CIDR Block to restrict the Amazon ECS container outbound access",
-      minLength: 9,
-      maxLength: 18,
-      allowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2}))",
-      constraintDescription: "The Egress CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.",
-    });
-
-    const stableTagging = new CfnParameter(this, "UseStableTagging", {
-      description:
-        "Automatically use the most up to date and secure image up until the next minor release. Selecting 'No' will pull the image as originally released, without any security updates.",
-      type: "String",
-      default: "No",
-      allowedValues: ["Yes", "No"],
-    });
-
-    const loadTesterImageUri = new CfnParameter(this, "LoadTesterImageUri", {
-      type: "String",
-      default: "",
-      description: "URI of load tester container image. If empty, the default public image is used.",
-      allowedPattern: ECR_IMAGE_URI_PATTERN,
-      constraintDescription:
-        "Must be empty or a valid ECR image URI (e.g., 123456789012.dkr.ecr.us-east-1.amazonaws.com/my-repo:tag or .../my-repo@sha256:<64-hex-chars>).",
-    });
-
-    const deployMcpServer = new CfnParameter(this, "DeployMCPServer", {
-      description:
-        "Deploy a remote MCP server to connect AI applications to DLT. See the Implementation Guide for more details.",
-      type: "String",
-      default: "No",
-      allowedValues: ["Yes", "No"],
-    });
+    const egressCidrBlock = defineParam(this, PARAMETERS.EgressCidr);
+    const stableTagging = defineParam(this, PARAMETERS.UseStableTagging);
+    const loadTesterImageUri = defineParam(this, PARAMETERS.LoadTesterImageUri);
+    const locustLoadTesterImageUri = defineParam(this, PARAMETERS.LocustLoadTesterImageUri);
+    const deployMcpServer = defineParam(this, PARAMETERS.DeployMCPServer);
+    const mcpServerAccessMode = defineParam(this, PARAMETERS.MCPServerAccessMode);
+    const k6LoadTesterImageUri = defineParam(this, PARAMETERS.K6LoadTesterImageUri);
+    const jmeterLoadTesterImageUri = defineParam(this, PARAMETERS.JMeterLoadTesterImageUri);
 
     // CloudFormation metadata
     this.templateOptions.metadata = {
@@ -243,13 +164,20 @@ export abstract class DLTBaseStack extends Stack {
 
           {
             Label: { default: "Load tester container image configuration" },
-            Parameters: [stableTagging.logicalId, loadTesterImageUri.logicalId],
+            Parameters: [
+              stableTagging.logicalId,
+              loadTesterImageUri.logicalId,
+              locustLoadTesterImageUri.logicalId,
+              k6LoadTesterImageUri.logicalId,
+              jmeterLoadTesterImageUri.logicalId,
+            ],
           },
         ],
         ParameterLabels: {
           [this.adminName.logicalId]: { default: "* Administrator Name" },
           [this.adminEmail.logicalId]: { default: "* Administrator Email" },
           [deployMcpServer.logicalId]: { default: "Deploy MCP Server" },
+          [mcpServerAccessMode.logicalId]: { default: "MCP Server Access Mode" },
           [existingVpcId.logicalId]: { default: "Select an existing VPC in the region" },
           [existingSubnetA.logicalId]: { default: "Select first subnet from the existing VPC" },
           [existingSubnetB.logicalId]: { default: "Select second subnet from the existing VPC" },
@@ -267,6 +195,9 @@ export abstract class DLTBaseStack extends Stack {
           },
           [stableTagging.logicalId]: { default: "Auto-update Container Image" },
           [loadTesterImageUri.logicalId]: { default: "Load Tester Container Image" },
+          [locustLoadTesterImageUri.logicalId]: { default: "Locust Load Tester Container Image" },
+          [k6LoadTesterImageUri.logicalId]: { default: "k6 Load Tester Container Image" },
+          [jmeterLoadTesterImageUri.logicalId]: { default: "JMeter Load Tester Container Image" },
         },
       },
     };
@@ -408,6 +339,9 @@ export abstract class DLTBaseStack extends Stack {
       stableTagCondition: stableTagCondition.logicalId,
       buildFromSource: this.shouldBuildFromSource,
       loadTesterImageUri: loadTesterImageUri.valueAsString,
+      locustLoadTesterImageUri: locustLoadTesterImageUri.valueAsString,
+      k6LoadTesterImageUri: k6LoadTesterImageUri.valueAsString,
+      jmeterLoadTesterImageUri: jmeterLoadTesterImageUri.valueAsString,
     });
 
     const realTimeDataConstruct = new RealTimeDataConstruct(this, "RealTimeData", {
@@ -662,6 +596,7 @@ export abstract class DLTBaseStack extends Stack {
       userPoolId: cognitoResources.cognitoUserPoolId,
       allowedClients: [cognitoResources.cognitoUserPoolClientId],
       uuid,
+      accessMode: mcpServerAccessMode.valueAsString,
     });
     Aspects.of(mcpServer).add(new ConditionAspect(deployMcpServerCondition));
 
@@ -713,8 +648,13 @@ export abstract class DLTBaseStack extends Stack {
       putRegionalTemplateCR.node.addDependency(regionalTemplateStaging);
     }
 
-    if (!fargateResources.taskDefinitionArn) {
-      throw new Error("Hub stack must have a task definition ARN");
+    if (
+      !fargateResources.taskDefinitionArn ||
+      !fargateResources.locustTaskDefinitionArn ||
+      !fargateResources.k6TaskDefinitionArn ||
+      !fargateResources.jmeterTaskDefinitionArn
+    ) {
+      throw new Error("Hub stack must have load test task definition ARNs");
     }
 
     customResources.hubTestingResourcesConfigCR({
@@ -722,6 +662,11 @@ export abstract class DLTBaseStack extends Stack {
       ecsCloudWatchLogGroup: fargateResources.ecsCloudWatchLogGroup.logGroupName,
       taskSecurityGroup: fargateResources.ecsSecurityGroupId,
       taskDefinition: fargateResources.taskDefinitionArn,
+      nativeTaskDefinitions: {
+        jmeter: fargateResources.jmeterTaskDefinitionArn,
+        k6: fargateResources.k6TaskDefinitionArn,
+        locust: fargateResources.locustTaskDefinitionArn,
+      },
       subnetA: fargateSubnetA,
       subnetB: fargateSubnetB,
       version: props.solution.version,
@@ -874,11 +819,13 @@ export abstract class DLTBaseStack extends Stack {
         description: "Web portal for DLT",
         value: dltConsole.webAppURL,
       });
-      new CfnOutput(this, "ConsoleResourceBucket", {
-        description: "Resource Bucket for Web Portal",
-        value: dltConsole.consoleBucket.bucketName,
-      });
     }
+    // Console asset bucket, exposed on all deployment modes (CloudFront, ALB/ECS, headless)
+    // so `make dev` can fetch aws-exports.json (directly or from the web console ZIP).
+    new CfnOutput(this, "ConsoleResourceBucket", {
+      description: "Resource Bucket for Web Portal",
+      value: dltConsole.consoleBucket.bucketName,
+    });
     new CfnOutput(this, "SolutionUUID", {
       description: "Unique ID for deployment",
       value: uuid,

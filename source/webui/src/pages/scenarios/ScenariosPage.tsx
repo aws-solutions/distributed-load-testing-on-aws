@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useGetScenariosQuery } from "../../store/scenariosApiSlice.ts";
-import { Alert, StatusIndicator } from "@cloudscape-design/components";
 import ScenariosContent from "./ScenariosContent.tsx";
 import { usePageLoadMetric } from "../../hooks/usePageLoadMetric";
+import { PageLoadingState, PageErrorState } from "../../components/common";
 
 export default function ScenariosPage() {
   const { data, isLoading, isFetching, error, refetch } = useGetScenariosQuery();
@@ -13,11 +13,17 @@ export default function ScenariosPage() {
   const scenariosContent = <ScenariosContent scenarios={scenariosArray} refetch={refetch} isFetching={isFetching} />;
 
   if (isLoading) {
-    return <StatusIndicator type={isLoading ? "loading" : "error"}>Loading</StatusIndicator>;
+    return <PageLoadingState title="Test Scenarios" />;
   }
 
   if (error) {
-    return <Alert type="error">Failed to load test scenarios</Alert>;
+    return (
+      <PageErrorState
+        title="Test Scenarios"
+        message="Failed to load test scenarios"
+        actions={[{ label: "Retry", onClick: refetch }]}
+      />
+    );
   }
 
   return scenariosContent;

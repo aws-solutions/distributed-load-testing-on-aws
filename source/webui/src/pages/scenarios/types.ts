@@ -1,8 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { TestStatus } from "./constants";
-import { TestTypes } from "./constants";
+import type { NativeRunMode, TestStatus } from "@amzn/dlt-common/validation";
+import { TestMode, TestTypes } from "./constants";
 
 // TypeScript interfaces for form data
 import React from "react";
@@ -12,6 +12,20 @@ export interface RegionConfig {
   taskCount: string;
   concurrency: string;
 }
+
+export type DurationUnit = "seconds" | "minutes" | "hours";
+
+export type DurationInput = {
+  value: string;
+  unit: DurationUnit;
+};
+
+export type NativeModeInput = {
+  // Native mode "Safety duration": the run is stopped after this cap.
+  maxDuration: DurationInput;
+};
+
+export type UpdateNativeMode = (updates: Partial<NativeModeInput>) => void;
 
 export interface FormData {
   testName: string;
@@ -37,12 +51,15 @@ export interface FormData {
   cronExpiryDate: string;
   scheduleTimezone: string;
   regions: RegionConfig[];
-  rampUpUnit: string;
+  testMode: TestMode;
+  rampUpUnit: DurationUnit;
   rampUpValue: string;
-  holdForUnit: string;
+  holdForUnit: DurationUnit;
   holdForValue: string;
   healthyThreshold: string;
   k6LicenseAcknowledged: boolean;
+
+  nativeMode: NativeModeInput;
 }
 
 export interface Option {
@@ -80,7 +97,7 @@ export interface TestRun {
   testRunId: string;
   startTime: string;
   endTime?: string;
-  status?: "running" | "complete" | "failed" | "cancelled";
+  status?: TestStatus;
   scheduleTimezone?: string;
   requests?: number;
   success?: number;
@@ -141,8 +158,9 @@ export interface ScenarioDefinition {
   scheduleTimezone?: string;
   showLive?: boolean;
   fileType?: string;
-  tags?: string[];
-   
+  tags?: string[]; // Renamed to keyword in UI
+  healthyThreshold?: number;
+  nativeRunMode?: NativeRunMode;
   testScenario?: any;
   history?: TestRun[];
   results?: Record<string, unknown>;

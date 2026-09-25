@@ -3,7 +3,25 @@
 exports[`DLT ECS Hub Test 1`] = `
 {
   "Conditions": {
+    "UsePublicJMeterLoadTestingImageCondition": {
+      "Fn::Equals": [
+        "",
+        "",
+      ],
+    },
+    "UsePublicK6LoadTestingImageCondition": {
+      "Fn::Equals": [
+        "",
+        "",
+      ],
+    },
     "UsePublicLoadTestingImageCondition": {
+      "Fn::Equals": [
+        "",
+        "",
+      ],
+    },
+    "UsePublicLocustLoadTestingImageCondition": {
       "Fn::Equals": [
         "",
         "",
@@ -108,7 +126,7 @@ exports[`DLT ECS Hub Test 1`] = `
             "Environment": [
               {
                 "Name": "JVM_ARGS",
-                "Value": "-Xms1g -Xmx3g",
+                "Value": "-Xms1g -Xmx3g -XX:+ExitOnOutOfMemoryError -XX:-HeapDumpOnOutOfMemoryError",
               },
             ],
             "Essential": true,
@@ -119,7 +137,7 @@ exports[`DLT ECS Hub Test 1`] = `
               ],
               "Interval": 5,
               "Retries": 10,
-              "StartPeriod": 10,
+              "StartPeriod": 120,
               "Timeout": 5,
             },
             "Image": {
@@ -159,6 +177,7 @@ exports[`DLT ECS Hub Test 1`] = `
                 ],
               ],
             },
+            "StopTimeout": 120,
           },
         ],
         "Cpu": "2048",
@@ -297,6 +316,7 @@ exports[`DLT ECS Hub Test 1`] = `
                     "s3:PutObject",
                     "s3:GetObject",
                     "s3:ListBucket",
+                    "s3:AbortMultipartUpload",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -334,6 +354,261 @@ exports[`DLT ECS Hub Test 1`] = `
         ],
       },
       "Type": "AWS::IAM::Role",
+    },
+    "TestECSJMeterDLTTaskDefinition663B2FDE": {
+      "Properties": {
+        "ContainerDefinitions": [
+          {
+            "Environment": [
+              {
+                "Name": "JVM_ARGS",
+                "Value": "-Xms1g -Xmx3g -XX:+ExitOnOutOfMemoryError -XX:-HeapDumpOnOutOfMemoryError",
+              },
+            ],
+            "Essential": true,
+            "HealthCheck": {
+              "Command": [
+                "CMD-SHELL",
+                "test -f /tmp/health_ready || exit 1",
+              ],
+              "Interval": 5,
+              "Retries": 10,
+              "StartPeriod": 120,
+              "Timeout": 5,
+            },
+            "Image": {
+              "Fn::If": [
+                "UsePublicJMeterLoadTestingImageCondition",
+                {
+                  "Fn::If": [
+                    "UseStableTagCondition",
+                    "registry/distributed-load-testing-on-aws-load-tester-jmeter:tag_stable",
+                    "registry/distributed-load-testing-on-aws-load-tester-jmeter:tag",
+                  ],
+                },
+                "",
+              ],
+            },
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": {
+                  "Ref": "TestECSDLTCloudWatchLogsGroup505959A6",
+                },
+                "awslogs-region": {
+                  "Ref": "AWS::Region",
+                },
+                "awslogs-stream-prefix": "load-testing",
+              },
+            },
+            "Memory": 4096,
+            "Name": {
+              "Fn::Join": [
+                "",
+                [
+                  {
+                    "Ref": "AWS::StackName",
+                  },
+                  "-load-tester-jmeter",
+                ],
+              ],
+            },
+            "StopTimeout": 120,
+          },
+        ],
+        "Cpu": "2048",
+        "ExecutionRoleArn": {
+          "Fn::GetAtt": [
+            "TestECSDLTTaskExecutionRole104D057B",
+            "Arn",
+          ],
+        },
+        "Family": "DLTStackTestECSJMeterDLTTaskDefinition9487BB69",
+        "Memory": "4096",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": [
+          "FARGATE",
+        ],
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+        "TaskRoleArn": {
+          "Fn::GetAtt": [
+            "TestECSDLTTaskRole0261D12F",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::ECS::TaskDefinition",
+    },
+    "TestECSK6DLTTaskDefinitionEC64A4DA": {
+      "Properties": {
+        "ContainerDefinitions": [
+          {
+            "Essential": true,
+            "HealthCheck": {
+              "Command": [
+                "CMD-SHELL",
+                "test -f /tmp/health_ready || exit 1",
+              ],
+              "Interval": 5,
+              "Retries": 10,
+              "StartPeriod": 180,
+              "Timeout": 5,
+            },
+            "Image": {
+              "Fn::If": [
+                "UsePublicK6LoadTestingImageCondition",
+                {
+                  "Fn::If": [
+                    "UseStableTagCondition",
+                    "registry/distributed-load-testing-on-aws-load-tester-k6:tag_stable",
+                    "registry/distributed-load-testing-on-aws-load-tester-k6:tag",
+                  ],
+                },
+                "",
+              ],
+            },
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": {
+                  "Ref": "TestECSDLTCloudWatchLogsGroup505959A6",
+                },
+                "awslogs-region": {
+                  "Ref": "AWS::Region",
+                },
+                "awslogs-stream-prefix": "load-testing",
+              },
+            },
+            "Memory": 4096,
+            "Name": {
+              "Fn::Join": [
+                "",
+                [
+                  {
+                    "Ref": "AWS::StackName",
+                  },
+                  "-load-tester-k6",
+                ],
+              ],
+            },
+            "StopTimeout": 120,
+          },
+        ],
+        "Cpu": "2048",
+        "ExecutionRoleArn": {
+          "Fn::GetAtt": [
+            "TestECSDLTTaskExecutionRole104D057B",
+            "Arn",
+          ],
+        },
+        "Family": "DLTStackTestECSK6DLTTaskDefinition09597E84",
+        "Memory": "4096",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": [
+          "FARGATE",
+        ],
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+        "TaskRoleArn": {
+          "Fn::GetAtt": [
+            "TestECSDLTTaskRole0261D12F",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::ECS::TaskDefinition",
+    },
+    "TestECSLocustDLTTaskDefinitionC71A38C2": {
+      "Properties": {
+        "ContainerDefinitions": [
+          {
+            "Essential": true,
+            "HealthCheck": {
+              "Command": [
+                "CMD-SHELL",
+                "test -f /tmp/health_ready || exit 1",
+              ],
+              "Interval": 5,
+              "Retries": 10,
+              "StartPeriod": 180,
+              "Timeout": 5,
+            },
+            "Image": {
+              "Fn::If": [
+                "UsePublicLocustLoadTestingImageCondition",
+                {
+                  "Fn::If": [
+                    "UseStableTagCondition",
+                    "registry/distributed-load-testing-on-aws-load-tester-locust:tag_stable",
+                    "registry/distributed-load-testing-on-aws-load-tester-locust:tag",
+                  ],
+                },
+                "",
+              ],
+            },
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": {
+                  "Ref": "TestECSDLTCloudWatchLogsGroup505959A6",
+                },
+                "awslogs-region": {
+                  "Ref": "AWS::Region",
+                },
+                "awslogs-stream-prefix": "load-testing",
+              },
+            },
+            "Memory": 4096,
+            "Name": {
+              "Fn::Join": [
+                "",
+                [
+                  {
+                    "Ref": "AWS::StackName",
+                  },
+                  "-load-tester-locust",
+                ],
+              ],
+            },
+            "StopTimeout": 120,
+          },
+        ],
+        "Cpu": "2048",
+        "ExecutionRoleArn": {
+          "Fn::GetAtt": [
+            "TestECSDLTTaskExecutionRole104D057B",
+            "Arn",
+          ],
+        },
+        "Family": "DLTStackTestECSLocustDLTTaskDefinition9FB152E0",
+        "Memory": "4096",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": [
+          "FARGATE",
+        ],
+        "Tags": [
+          {
+            "Key": "SolutionId",
+            "Value": "SO0062",
+          },
+        ],
+        "TaskRoleArn": {
+          "Fn::GetAtt": [
+            "TestECSDLTTaskRole0261D12F",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::ECS::TaskDefinition",
     },
     "TestECSMetricFilterCountAlarm1FA1C5D4": {
       "Metadata": {

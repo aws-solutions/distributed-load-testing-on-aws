@@ -15,7 +15,6 @@ import {
 
 /**
  * Metrics collector Lambda handler.
- *
  * @param {EventBridgeQueryEvent | SQSEvent} event The EventBridge or SQS request event.
  * @param {Context}_context The request context
  * @returns {any}  Processed request response.

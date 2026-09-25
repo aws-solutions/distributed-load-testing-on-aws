@@ -12,9 +12,11 @@ import { useSelector } from "react-redux";
 import { RootState } from "./store/store.ts";
 import { STACK_INFO_CACHE_SECONDS, useGetStackInfoQuery } from "./store/stackInfoApiSlice.ts";
 import { useGetRegionsQuery } from "./store/regionsSlice.ts";
+import { HelpPanelContent, useHelp } from "./help";
 
 export default function Layout() {
   const { notifications } = useContext(NotificationContext);
+  const { isOpen: isHelpOpen, setOpen: setHelpOpen } = useHelp();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   // The create/edit scenario form uses the form-optimized content width + panel defaults.
@@ -58,7 +60,7 @@ export default function Layout() {
                     >
                       View update instructions
                     </a>
-                    .
+                    {"."}
                   </Alert>
                 )}
                 {hasIncompatibleRegions && showIncompatibilityBanner && (
@@ -80,7 +82,7 @@ export default function Layout() {
                     >
                       View multi-region deployment details
                     </a>
-                    .
+                    {"."}
                   </Alert>
                 )}
                 <Outlet />
@@ -90,6 +92,9 @@ export default function Layout() {
           contentType={isScenarioForm ? "form" : "dashboard"}
           breadcrumbs={<Breadcrumbs />}
           navigation={<SideNavigationBar />}
+          tools={<HelpPanelContent />}
+          toolsOpen={isHelpOpen}
+          onToolsChange={({ detail }) => setHelpOpen(detail.open)}
           notifications={<Flashbar stackItems={true} items={notifications}></Flashbar>}
           stickyNotifications={true}
           ariaLabels={{

@@ -31,10 +31,7 @@ test("SavedQueriesConstruct creates 4 query definitions with deploy-time names",
   for (const name of expectedNames) {
     template.hasResourceProperties("AWS::Logs::QueryDefinition", {
       Name: {
-        "Fn::Join": Match.arrayWith([
-          Match.exact(""),
-          Match.arrayWith([Match.stringLikeRegexp(name)]),
-        ]),
+        "Fn::Join": Match.arrayWith([Match.exact(""), Match.arrayWith([Match.stringLikeRegexp(name)])]),
       },
     });
   }

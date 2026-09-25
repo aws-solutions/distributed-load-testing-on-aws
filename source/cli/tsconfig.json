@@ -4,6 +4,12 @@
     "outDir": "dist",
     "rootDir": "src",
     "noEmit": false,
+    // The CLI emits JS via tsc yet also consumes @amzn/dlt-common, whose source
+    // uses `.ts` import specifiers. `allowImportingTsExtensions` lets tsc accept
+    // those specifiers; `rewriteRelativeImportExtensions` permits it alongside
+    // emit (the CLI's own imports use `.js`, so its emitted output is unchanged).
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
     "declaration": true,
     "sourceMap": true
   },

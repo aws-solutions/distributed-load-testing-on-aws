@@ -1,10 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect } from "vitest";
-import { ZodError, ZodIssue } from "zod";
+import { describe, expect, it } from "vitest";
+import z, { ZodError } from "zod";
 import { formatZodError, getFirstZodError, groupZodIssuesByPath, zodIssuesToValidationErrors } from "./errors";
-import { testIdSchema, createTestSchema } from "./schemas";
+import { createTestSchema, testIdSchema } from "./schemas";
 
 describe("Error Handling Functions", () => {
   describe("formatZodError", () => {
@@ -61,8 +61,8 @@ describe("Error Handling Functions", () => {
       } catch (error) {
         const formatted = formatZodError(error as ZodError);
         expect(formatted).toContain("Invalid region format");
-        expect(formatted).toContain("Number must be greater than 0");
-        expect(formatted).toContain("Number must be greater than 0");
+        expect(formatted).toContain("Too small: expected number to be >0");
+        expect(formatted).toContain("Too small: expected number to be >0");
       }
     });
 
@@ -197,31 +197,28 @@ describe("Error Handling Functions", () => {
 
   describe("groupZodIssuesByPath", () => {
     it("should group issues by their path", () => {
-      const issues: ZodIssue[] = [
+      const issues: z.core.$ZodIssue[] = [
         {
           code: "too_small",
           minimum: 3,
-          type: "string",
+          origin: "string",
           inclusive: true,
-          exact: false,
           message: "testName must be at least 3 characters",
           path: ["testName"],
         },
         {
           code: "too_small",
           minimum: 3,
-          type: "string",
+          origin: "string",
           inclusive: true,
-          exact: false,
           message: "testDescription must be at least 3 characters",
           path: ["testDescription"],
         },
         {
-          code: "invalid_enum_value",
-          options: ["simple", "jmeter", "locust", "k6"],
+          code: "invalid_value",
+          values: ["simple", "jmeter", "locust", "k6"],
           message: "testType must be one of: simple, jmeter, locust, k6",
           path: ["testType"],
-          received: "invalid",
         },
       ];
 
@@ -230,25 +227,24 @@ describe("Error Handling Functions", () => {
       expect(grouped).toHaveProperty("testName");
       expect(grouped).toHaveProperty("testDescription");
       expect(grouped).toHaveProperty("testType");
-      expect(grouped.testName).toHaveLength(1);
-      expect(grouped.testDescription).toHaveLength(1);
-      expect(grouped.testType).toHaveLength(1);
+      expect(grouped["testName"]).toHaveLength(1);
+      expect(grouped["testDescription"]).toHaveLength(1);
+      expect(grouped["testType"]).toHaveLength(1);
     });
 
     it("should handle nested paths", () => {
-      const issues: ZodIssue[] = [
+      const issues: z.core.$ZodIssue[] = [
         {
-          code: "invalid_string",
-          validation: "regex",
+          code: "invalid_format",
+          format: "regex",
           message: "Invalid region format",
           path: ["testTaskConfigs", 0, "region"],
         },
         {
           code: "too_small",
           minimum: 1,
-          type: "number",
+          origin: "number",
           inclusive: true,
-          exact: false,
           message: "taskCount must be a positive integer",
           path: ["testTaskConfigs", 0, "taskCount"],
         },
@@ -265,22 +261,20 @@ describe("Error Handling Functions", () => {
     });
 
     it("should handle multiple issues for same path", () => {
-      const issues: ZodIssue[] = [
+      const issues: z.core.$ZodIssue[] = [
         {
           code: "too_small",
           minimum: 3,
-          type: "string",
+          origin: "string",
           inclusive: true,
-          exact: false,
           message: "testName must be at least 3 characters",
           path: ["testName"],
         },
         {
           code: "too_big",
           maximum: 255,
-          type: "string",
+          origin: "string",
           inclusive: true,
-          exact: false,
           message: "testName must not exceed 255 characters",
           path: ["testName"],
         },
@@ -289,7 +283,7 @@ describe("Error Handling Functions", () => {
       const grouped = groupZodIssuesByPath(issues);
 
       expect(grouped).toHaveProperty("testName");
-      expect(grouped.testName).toHaveLength(2);
+      expect(grouped["testName"]).toHaveLength(2);
     });
 
     it("should handle empty issues array", () => {
@@ -300,22 +294,20 @@ describe("Error Handling Functions", () => {
 
   describe("zodIssuesToValidationErrors", () => {
     it("should convert ZodIssues to validation error objects", () => {
-      const issues: ZodIssue[] = [
+      const issues: z.core.$ZodIssue[] = [
         {
           code: "too_small",
           minimum: 3,
-          type: "string",
+          origin: "string",
           inclusive: true,
-          exact: false,
           message: "testName must be at least 3 characters",
           path: ["testName"],
         },
         {
-          code: "invalid_enum_value",
-          options: ["simple", "jmeter", "locust", "k6"],
+          code: "invalid_value",
+          values: ["simple", "jmeter", "locust", "k6"],
           message: "testType must be one of: simple, jmeter, locust, k6",
           path: ["testType"],
-          received: "invalid",
         },
       ];
 
@@ -333,16 +325,16 @@ describe("Error Handling Functions", () => {
       expect(validationErrors[1]).toEqual({
         field: "testType",
         message: "testType must be one of: simple, jmeter, locust, k6",
-        code: "invalid_enum_value",
+        code: "invalid_value",
         path: ["testType"],
       });
     });
 
     it("should handle nested paths in field names", () => {
-      const issues: ZodIssue[] = [
+      const issues: z.core.$ZodIssue[] = [
         {
-          code: "invalid_string",
-          validation: "regex",
+          code: "invalid_format",
+          format: "regex",
           message: "Invalid region format",
           path: ["testTaskConfigs", 0, "region"],
         },
@@ -354,17 +346,16 @@ describe("Error Handling Functions", () => {
       expect(validationErrors[0]).toEqual({
         field: "testTaskConfigs[0].region",
         message: "Invalid region format",
-        code: "invalid_string",
+        code: "invalid_format",
         path: ["testTaskConfigs", 0, "region"],
       });
     });
 
     it("should handle empty path as value field", () => {
-      const issues: ZodIssue[] = [
+      const issues: z.core.$ZodIssue[] = [
         {
           code: "invalid_type",
           expected: "object",
-          received: "string",
           message: "Expected object, received string",
           path: [],
         },

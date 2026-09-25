@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { isActiveRunStatus } from "@amzn/dlt-common";
 import type { TestRun, BaselineResponse } from "./types.js";
 import { colorStatus, colorErrors, colorDelta, markAsBaseline, type MetricDirection } from "./color.js";
 
@@ -22,14 +23,18 @@ export function formatTimestamp(ts: string): string {
 // Active-status helpers
 // ---------------------------------------------------------------------------
 
-export const ACTIVE_STATUSES = new Set(["running", "pending", "provisioning"]);
-
 /**
+ * True when a scenario/run status represents an in-flight run.
  *
- * @param status
+ * Delegates to the shared `isActiveRunStatus` so the CLI's notion of "active"
+ * matches the API, the start guard, and the console — a single source of truth
+ * for the active-run status set (queued, provisioning, running, cancelling,
+ * cleaning up, parsing results). Lowercased first so display-cased statuses
+ * still match.
+ * @param status The scenario or run status to test.
  */
 export function isActive(status: string | undefined): boolean {
-  return !!status && ACTIVE_STATUSES.has(status.toLowerCase());
+  return !!status && isActiveRunStatus(status.toLowerCase());
 }
 
 // ---------------------------------------------------------------------------
@@ -67,8 +72,8 @@ export function curateRunRow(r: TestRun): Record<string, unknown> {
       // results.total has string values in seconds — convert to ms for display
       const toMs = (v: unknown): string | number => {
         if (v === undefined || v === null) return "";
-        const n = parseFloat(String(v));
-        return isNaN(n) ? "" : parseFloat((n * 1000).toFixed(2));
+        const n = Number.parseFloat(String(v));
+        return Number.isNaN(n) ? "" : Number.parseFloat((n * 1000).toFixed(2));
       };
       requests = total["succ"] ?? raw["succPercent"] ?? "";
       success = total["succ"] ?? raw["succPercent"] ?? "";
@@ -124,15 +129,15 @@ export function extractBaselineMetrics(baseline: BaselineResponse): BaselineMetr
   const total = baseline.testRunDetails.results["total"];
   if (!total) return null;
 
-  const duration = parseFloat(String(total.testDuration ?? "0")) || 0;
+  const duration = Number.parseFloat(String(total.testDuration ?? "0")) || 0;
   const throughput = total.throughput ?? 0;
   const succ = total.succ ?? 0;
   const fail = total.fail ?? 0;
 
   const toMs = (v: unknown): number => {
     if (v === undefined || v === null) return 0;
-    const n = parseFloat(String(v));
-    return isNaN(n) ? 0 : parseFloat((n * 1000).toFixed(2));
+    const n = Number.parseFloat(String(v));
+    return Number.isNaN(n) ? 0 : Number.parseFloat((n * 1000).toFixed(2));
   };
 
   return {
@@ -141,7 +146,7 @@ export function extractBaselineMetrics(baseline: BaselineResponse): BaselineMetr
     success: succ,
     errors: fail,
     avgResponseTime: toMs(total.avg_rt),
-    requestsPerSecond: duration > 0 ? parseFloat((throughput / duration).toFixed(2)) : 0,
+    requestsPerSecond: duration > 0 ? Number.parseFloat((throughput / duration).toFixed(2)) : 0,
     p50: toMs(total.p50_0),
     p90: toMs(total.p90_0),
     p99: toMs(total.p99_0),
@@ -178,7 +183,7 @@ export function curateRunRowWithBaseline(r: TestRun, bm: BaselineMetrics): Recor
   const num = (v: unknown): number | undefined => {
     if (v === undefined || v === null || v === "") return undefined;
     const n = Number(v);
-    return isNaN(n) ? undefined : n;
+    return Number.isNaN(n) ? undefined : n;
   };
 
   const delta = (field: string, baselineVal: number): string => {
@@ -279,7 +284,7 @@ export function enrichRunWithBaseline(r: TestRun, bm: BaselineMetrics): Record<s
   const num = (v: unknown): number | undefined => {
     if (v === undefined || v === null || v === "") return undefined;
     const n = Number(v);
-    return isNaN(n) ? undefined : n;
+    return Number.isNaN(n) ? undefined : n;
   };
 
   const metricDelta = (field: string, baselineVal: number): MetricDelta | null => {

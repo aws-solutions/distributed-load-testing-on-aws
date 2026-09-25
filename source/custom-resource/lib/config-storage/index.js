@@ -32,6 +32,7 @@ const testingResourcesConfigFile = async (config) => {
         taskSecurityGroup: config.taskSecurityGroup,
         taskCluster: config.taskCluster,
         ...(config.taskDefinition != null && { taskDefinition: config.taskDefinition }),
+        ...(config.nativeTaskDefinitions != null && { nativeTaskDefinitions: config.nativeTaskDefinitions }),
         version: config.version,
         stackId: config.stackId,
         taskRoleArn: config.taskRoleArn,

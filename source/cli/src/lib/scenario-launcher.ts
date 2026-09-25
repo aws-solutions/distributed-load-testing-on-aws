@@ -1,7 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { isActiveRunStatus } from "@amzn/dlt-common";
 import { ApiClient } from "./api-client.js";
+import { buildScenarioBody, type CreateScenarioPayload } from "./scenario-payload.js";
 import type { Scenario, VCpuDetailsResponse, VCpuRegionDetails } from "./types.js";
 
 interface RegionalTaskDetails {
@@ -54,37 +56,36 @@ export async function fetchAndValidateCapacity(api: ApiClient, scenario: Scenari
 
 /**
  * Build the POST body for starting a test scenario.
+ *
+ * Routes through the shared `buildScenarioBody` so `start` carries exactly the
+ * same field set as `create`/`update` — including `nativeRunMode`, which must
+ * survive the re-POST or the re-run reverts to Standard mode and the
+ * stored native config is wiped.
  */
 export function buildStartPayload(
   scenario: Scenario,
   regionalTaskDetails: RegionalTaskDetails
-): Record<string, unknown> {
+): CreateScenarioPayload {
   const testScenario =
-    typeof scenario.testScenario === "string" ? JSON.parse(scenario.testScenario) : scenario.testScenario;
+    typeof scenario.testScenario === "string" ? JSON.parse(scenario.testScenario) : (scenario.testScenario ?? {});
 
-  const cleanTaskConfigs = (scenario.testTaskConfigs ?? []).map((tc) => ({
-    region: tc.region,
-    taskCount: tc.taskCount,
-    concurrency: tc.concurrency,
-  }));
-
-  const body: Record<string, unknown> = {
+  return buildScenarioBody({
     testId: scenario.testId,
     testName: scenario.testName,
     testDescription: scenario.testDescription,
-    testType: scenario.testType,
-    showLive: scenario.showLive ?? false,
-    testTaskConfigs: cleanTaskConfigs,
-    testScenario,
+    testType: scenario.testType ?? "",
     fileType: scenario.fileType,
+    showLive: scenario.showLive ?? false,
+    testTaskConfigs: (scenario.testTaskConfigs ?? []).map((tc) => ({
+      region: tc.region,
+      taskCount: tc.taskCount,
+      concurrency: tc.concurrency,
+    })),
+    testScenario: testScenario as Record<string, unknown>,
     regionalTaskDetails,
-  };
-
-  if (scenario.tags) {
-    body["tags"] = scenario.tags;
-  }
-
-  return body;
+    tags: scenario.tags,
+    nativeRunMode: scenario.nativeRunMode,
+  });
 }
 
 /**
@@ -95,8 +96,13 @@ export async function startScenario(api: ApiClient, testId: string): Promise<unk
   console.error(`Fetching scenario ${testId}.`);
   const scenario = await api.get<Scenario>(`/scenarios/${encodeURIComponent(testId)}?history=false&latest=false`);
 
-  if (scenario.status === "running") {
-    throw new Error(`Test ${testId} is already running. Cancel it first before starting a new run.`);
+  // Client-side fast-fail using the shared active-run definition. The server
+  // enforces this authoritatively (409 TEST_RUNNING); this just avoids a
+  // pointless round trip and gives an immediate message for any active state.
+  if (scenario.status && isActiveRunStatus(scenario.status)) {
+    throw new Error(
+      `Test ${testId} already has an active run (status: ${scenario.status}). Cancel it before starting a new run.`
+    );
   }
 
   // 2. Validate capacity

@@ -16,7 +16,12 @@ import {
   enrichRunWithBaseline,
   formatTimestamp,
 } from "../lib/run-formatters.js";
+import { fetchLatestRun, renderRun } from "../lib/results-formatter.js";
 import { colorStatus } from "../lib/color.js";
+import { validateOutboundRequest } from "../lib/request-validation.js";
+import { parsePositiveInt } from "../lib/parse.js";
+import { MAX_TEST_RUNS_PER_DELETE_REQUEST, deleteTestRunsSchema, setBaselineSchema } from "@amzn/dlt-common";
+import type { SetBaselineValidation, DeleteTestRunsValidation } from "@amzn/dlt-common";
 import type { OutputFormat, TestRun, TestRunsResponse, ScenariosListResponse, BaselineResponse } from "../lib/types.js";
 
 export function registerRunsCommand(program: Command): void {
@@ -43,11 +48,37 @@ export function registerRunsCommand(program: Command): void {
     .addOption(formatOption())
     .action(withErrorHandler(handleLatestRun));
 
-  runs
-    .command("baseline <testId>")
+  const baseline = runs.command("baseline").description("Manage baseline runs for a scenario");
+
+  baseline
+    .command("get <testId>")
     .description("Get the baseline test run for a scenario")
     .addOption(formatOption())
     .action(withErrorHandler(handleBaselineRun));
+
+  baseline
+    .command("set <testId>")
+    .description(
+      "Set the baseline run for a scenario\n\n" + "Examples:\n" + "  dlt runs baseline set abc123 --run-id run-456"
+    )
+    .requiredOption("--run-id <runId>", "The test run ID to set as baseline")
+    .action(withErrorHandler(handleBaselineSet));
+
+  baseline
+    .command("clear <testId>")
+    .description("Clear the baseline run for a scenario\n\n" + "Examples:\n" + "  dlt runs baseline clear abc123")
+    .action(withErrorHandler(handleBaselineClear));
+
+  runs
+    .command("delete <testId>")
+    .description(
+      "Delete test run(s) for a scenario\n\n" +
+        "Examples:\n" +
+        "  dlt runs delete abc123 --run-id run-1\n" +
+        "  dlt runs delete abc123 --run-id run-1 --run-id run-2"
+    )
+    .requiredOption("--run-id <runId...>", `One to ${MAX_TEST_RUNS_PER_DELETE_REQUEST} run IDs to delete`)
+    .action(withErrorHandler(handleDeleteRuns));
 
   runs
     .command("artifacts <testId> <runId>")
@@ -122,11 +153,14 @@ async function handleListRuns(
 ): Promise<void> {
   const api = await ApiClient.create();
 
-  const params = new URLSearchParams();
-  if (options.limit) params.set("limit", options.limit);
-  if (options.startTimestamp) params.set("startTimestamp", options.startTimestamp);
+  // Validate --limit up front: a non-numeric value would otherwise parse to NaN,
+  // defeating the result cap (allRuns.length >= NaN is always false) and getting
+  // forwarded verbatim to the API.
+  const userLimit = options.limit === undefined ? undefined : parsePositiveInt(options.limit, "--limit");
 
-  const userLimit = options.limit ? parseInt(options.limit, 10) : undefined;
+  const params = new URLSearchParams();
+  if (userLimit !== undefined) params.set("limit", String(userLimit));
+  if (options.startTimestamp) params.set("start_timestamp", options.startTimestamp);
 
   // When the user specifies --limit, honour it: fetch all pages but cap the
   // total number of results to the requested limit.
@@ -135,26 +169,32 @@ async function handleListRuns(
   // Optionally fetch baseline for comparison
   const baselineMetrics = options.baseline ? await fetchBaselineMetrics(api, testId) : null;
 
-  if (options.format === "table") {
+  renderRunsList(runs, options.format as OutputFormat, baselineMetrics);
+}
+
+/** Render the runs list in the requested format, optionally including baseline comparison. */
+function renderRunsList(
+  runs: TestRun[],
+  format: OutputFormat,
+  baselineMetrics: NonNullable<Awaited<ReturnType<typeof fetchBaselineMetrics>>> | null
+): void {
+  if (format === "table") {
     if (baselineMetrics) {
       const rows = runs.map((r: TestRun) =>
         colorBaselineRow(curateRunRowWithBaseline(r, baselineMetrics), baselineMetrics.baselineRunId)
       );
       printResult(rows, { format: "table" });
     } else {
-      const rows = runs.map((r: TestRun) => {
-        const raw = r as Record<string, unknown>;
-        return colorRunRow({
-          runId: r.testRunId,
-          status: r.status,
-          startTime: formatTimestamp(r.startTime ?? ""),
-          endTime: formatTimestamp(r.endTime ?? ""),
-          requests: raw["requests"] ?? "",
-          errors: raw["errors"] ?? "",
-          avgResponseTime: raw["avgResponseTime"] ?? "",
-        });
-      });
+      const rows = runs.map((r: TestRun) => colorRunRow(curateRunRow(r)));
       printResult(rows, { format: "table" });
+    }
+  } else if (format === "csv") {
+    if (baselineMetrics) {
+      const rows = runs.map((r: TestRun) => curateRunRowWithBaseline(r, baselineMetrics));
+      printResult(rows, { format: "csv" });
+    } else {
+      const rows = runs.map((r: TestRun) => curateRunRow(r));
+      printResult(rows, { format: "csv" });
     }
   } else {
     if (baselineMetrics) {
@@ -193,30 +233,21 @@ async function handleGetRun(testId: string, runId: string, options: { format: st
   const api = await ApiClient.create();
   const data = await api.get<TestRun>(`/scenarios/${encodeURIComponent(testId)}/testruns/${encodeURIComponent(runId)}`);
 
-  if (options.format === "table") {
-    printResult(colorRunRow(curateRunRow(data)), { format: "table" });
-  } else {
-    printResult(data, { format: "json" });
-  }
+  // Shared renderer keeps the metric columns identical to `runs latest` /
+  // `scenarios results`; JSON emits the full raw API response.
+  renderRun(data, options.format as OutputFormat, data);
 }
 
 async function handleLatestRun(testId: string, options: { format: string }): Promise<void> {
   const api = await ApiClient.create();
 
-  // limit=1 + latest=true returns just the most recent run — no pagination needed
-  const data = await api.get<TestRunsResponse>(`/scenarios/${encodeURIComponent(testId)}/testruns?limit=1&latest=true`);
-
-  const latest = data.testRuns?.[0];
+  const latest = await fetchLatestRun(api, testId);
   if (!latest) {
-    console.error("No test runs found for this scenario.");
-    process.exit(1);
+    throw new Error("No test runs found for this scenario.");
   }
 
-  if (options.format === "table") {
-    printResult(colorRunRow(curateRunRow(latest)), { format: "table" });
-  } else {
-    printResult(latest, { format: "json" });
-  }
+  // Shared renderer; JSON emits the raw latest run for machine consumption.
+  renderRun(latest, options.format as OutputFormat, latest);
 }
 
 async function handleBaselineRun(testId: string, options: { format: string }): Promise<void> {
@@ -246,6 +277,44 @@ async function handleDownloadArtifacts(
 ): Promise<void> {
   const api = await ApiClient.create();
   await downloadRunArtifacts(api, testId, runId, options);
+}
+
+// ---------------------------------------------------------------------------
+// Delete runs
+// ---------------------------------------------------------------------------
+
+async function handleDeleteRuns(testId: string, options: { runId: string[] }): Promise<void> {
+  const api = await ApiClient.create();
+  // Derive the request body type from the shared DELETE /testruns schema so a
+  // change to that contract (e.g. no longer a bare array of ids) fails here.
+  const runIds: DeleteTestRunsValidation = Array.isArray(options.runId) ? options.runId : [options.runId];
+  // Validate the run-id list against the shared DELETE /testruns schema before
+  // sending so an invalid id fails locally with a clear, field-level message.
+  validateOutboundRequest(deleteTestRunsSchema, runIds, "delete test runs");
+  await api.delete(`/scenarios/${encodeURIComponent(testId)}/testruns`, runIds);
+  console.error(`Deleted ${runIds.length} run(s) for scenario ${testId}.`);
+}
+
+// ---------------------------------------------------------------------------
+// Baseline set / clear
+// ---------------------------------------------------------------------------
+
+async function handleBaselineSet(testId: string, options: { runId: string }): Promise<void> {
+  const api = await ApiClient.create();
+  // Derive the request body type from the shared PUT /baseline schema so a
+  // renamed/removed field (e.g. `testRunId`) fails this build.
+  const body: SetBaselineValidation = { testRunId: options.runId };
+  // Validate against the shared PUT /baseline schema before sending so a
+  // malformed run id fails locally with a clear, field-level message.
+  validateOutboundRequest(setBaselineSchema, body, "set baseline");
+  await api.put(`/scenarios/${encodeURIComponent(testId)}/baseline`, body);
+  console.error(`Baseline set to run ${options.runId} for scenario ${testId}.`);
+}
+
+async function handleBaselineClear(testId: string): Promise<void> {
+  const api = await ApiClient.create();
+  await api.delete(`/scenarios/${encodeURIComponent(testId)}/baseline`);
+  console.error(`Baseline cleared for scenario ${testId}.`);
 }
 
 // ---------------------------------------------------------------------------

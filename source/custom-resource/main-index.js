@@ -7,15 +7,15 @@ const metrics = require("./lib/metrics");
 const s3 = require("./lib/s3");
 const iot = require("./lib/iot");
 const storeConfig = require("./lib/config-storage");
-const backCompat = require('./lib/backcompat');
+const backCompat = require("./lib/backcompat");
 const cloudfrontCsp = require("./lib/cloudfront-csp");
 const scenarios = require("./lib/scenarios");
 
 const RequestType = Object.freeze({
-  CREATE: 'Create',
-  UPDATE: 'Update',
-  DELETE: 'Delete',
-})
+  CREATE: "Create",
+  UPDATE: "Update",
+  DELETE: "Delete",
+});
 
 const testingResourcesConfigFile = async (config, requestType) => {
   if (requestType === RequestType.DELETE) {
@@ -26,7 +26,9 @@ const testingResourcesConfigFile = async (config, requestType) => {
 };
 
 const s3Handler = async (config, requestType, resource) => {
-  switch (resource) { // NOSONAR
+  switch (
+    resource // NOSONAR
+  ) {
     case "PutRegionalTemplate":
       if (requestType !== RequestType.DELETE) {
         await s3.putRegionalTemplate(config);
@@ -110,12 +112,14 @@ exports.handler = async (event, context) => {
         }
         break;
       default:
-        throw Error(`${resource} not supported`);
+        throw new Error(`${resource} not supported`);
     }
     await cfn.send(event, context, "SUCCESS", responseData, resource);
   } catch (err) {
-    console.error(`Error in custom resource ${resource}: ${err.message}, Code: ${err.code || 'N/A'}, RequestType: ${requestType}`);
+    console.error(
+      `Error in custom resource ${resource}: ${err.message}, Code: ${err.code || "N/A"}, RequestType: ${requestType}`
+    );
     await cfn.send(event, context, "FAILED", {}, resource);
-    throw new Error(`Custom resource ${resource} failed: ${err.message || 'Unknown error'}`);
+    throw new Error(`Custom resource ${resource} failed: ${err.message || "Unknown error"}`);
   }
 };

@@ -9,7 +9,7 @@ const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb");
 const { DynamoDB } = require("@aws-sdk/client-dynamodb");
 const { ECS } = require("@aws-sdk/client-ecs");
 const { Lambda } = require("@aws-sdk/client-lambda");
-const { S3 } = require("@aws-sdk/client-s3");
+const { NotFound, S3 } = require("@aws-sdk/client-s3");
 const { isDeepStrictEqual } = require("util");
 const { Scheduler } = require("@aws-sdk/client-scheduler");
 const { ServiceQuotas } = require("@aws-sdk/client-service-quotas");
@@ -22,6 +22,14 @@ const {
   getLatestVersionFromRss,
   incrementTestRunCount,
   decrementTestRunCount,
+  ScenariosRepository,
+  InvalidDataError,
+  TestStatus,
+  isActiveRunStatus,
+  isBaselineEligibleRunStatus,
+  buildServiceName,
+  getTestAssetCandidates,
+  isLoadTestFramework,
   validateCronExpression,
   parseCronExpression,
   timezoneAwareNow,
@@ -49,12 +57,15 @@ const stepFunctions = new SFN(options);
 const cloudwatchevents = new CloudWatchEvents(options);
 const scheduler = new Scheduler(options);
 const cloudformation = new CloudFormation(options);
+const scenariosRepo = new ScenariosRepository({ ddbClient: dynamoDB, tableName: SCENARIOS_TABLE });
 
 /**
  * Default minimum percentage of healthy ECS tasks across all regions.
  * Used when the client does not provide healthyThreshold in the request.
  */
 const DEFAULT_HEALTHY_THRESHOLD = 90;
+
+
 
 /**
  * Fields tracked for change detection when updating a scenario.
@@ -78,8 +89,7 @@ const TRACKED_FIELDS = [
  * @param {object} newConfig     - The incoming request config
  * @returns {string[]} Names of the fields that differ
  */
-const computeChangedFields = (existingEntry, newConfig) => {
-  return TRACKED_FIELDS.filter(field => {
+const computeChangedFields = (existingEntry, newConfig) => TRACKED_FIELDS.filter(field => {
     let oldVal = existingEntry[field];
     const newVal = newConfig[field];
 
@@ -90,7 +100,6 @@ const computeChangedFields = (existingEntry, newConfig) => {
 
     return !isDeepStrictEqual(oldVal, newVal);
   });
-};
 
 const { StatusCodes, ErrorException } = require("../constants");
 
@@ -104,7 +113,7 @@ const ERROR_INCOMPATIBLE_REGIONAL_STACKS = "INCOMPATIBLE_REGIONAL_STACKS";
  * @returns {function(string): string} - Lookup function: (type) => value
  */
 const getTimezoneParts = (date, timezone) => {
-  if (!date || isNaN(date.getTime())) {
+  if (!date || Number.isNaN(date.getTime())) {
     throw new ErrorException("InvalidParameter", "Invalid date for timezone conversion");
   }
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -242,24 +251,18 @@ const getAllRegionConfigs = async () => {
 };
 
 /**
- * Returns the dynamoDB entry for a given testId
+ * Returns the scenario record for a given testId, validated against the shared schema.
+ * A record that exists but fails validation is logged and surfaced as undefined to the caller.
  * @param {string} testId
- * @returns {object} Test configuration stored in DynamoDB
+ * @returns {Promise<import("@amzn/dlt-common").ScenarioRecord | undefined>}
  */
 const getTestEntry = async (testId) => {
-  try {
-    let params = {
-      TableName: SCENARIOS_TABLE,
-      Key: {
-        testId: testId,
-      },
-    };
-    const response = await dynamoDB.get(params);
-    return response.Item;
-  } catch (err) {
-    console.error(err);
-    throw err;
+  const result = await scenariosRepo.get(testId);
+  if (result.ok) return result.data;
+  if (result.error instanceof InvalidDataError) {
+    console.error(`Scenario record for testId=${testId} failed validation: ${result.error.message}`);
   }
+  return undefined;
 };
 
 /**
@@ -301,8 +304,20 @@ const getTestAndRegionConfigs = async (testId) => {
     if (!testEntry) throw new ErrorException("TEST_NOT_FOUND", `testId '${testId}' not found`, StatusCodes.NOT_FOUND);
     if (testEntry.testTaskConfigs) {
       for (let testRegionSettings of testEntry.testTaskConfigs) {
-        const regionInfraConfig = await getRegionInfraConfigs(testRegionSettings.region);
-        Object.assign(testRegionSettings, regionInfraConfig);
+        try {
+          const regionInfraConfig = await getRegionInfraConfigs(testRegionSettings.region);
+          Object.assign(testRegionSettings, regionInfraConfig);
+        } catch (err) {
+          // A region whose regional (spoke) stack has since been deleted no longer has a
+          // stored infrastructure configuration. Skip merging its live infra so the scenario
+          // remains viewable and deletable; the run path fetches configs separately and still
+          // fails fast when a region is missing.
+          if (err.code !== "InvalidRegionRequest") throw err;
+          console.warn(
+            `No stored infrastructure configuration for region ${testRegionSettings.region}; ` +
+              `continuing with stored scenario config only.`
+          );
+        }
       }
     }
     return testEntry;
@@ -366,6 +381,32 @@ const getTestHistoryEntries = async (testId) => {
 };
 
 /**
+ * Derive the one-time schedule's scheduleDate/scheduleTime from the stored
+ * nextRun so clients can reconstruct the "Run Once" execution timing.
+ *
+ * A one-time schedule is persisted only as nextRun ("YYYY-MM-DD HH:MM:SS") plus
+ * scheduleTimezone; the scheduleDate/scheduleTime pair is never stored. Without
+ * it, a client cannot tell a one-time schedule from Run Now and silently falls
+ * back to Run Now (see FC-075). Deriving on read repairs every client at once,
+ * needs no migration, and backfills existing scenarios, with nextRun remaining
+ * the single source of truth.
+ *
+ * Recurring schedules (cronValue set) are left untouched: their nextRun is the
+ * next occurrence, not the configured time. scheduleTime is returned as HH:MM
+ * (the client time field's format), dropping the seconds nextRun carries.
+ *
+ * @param {object} item A scenario record (from getTest or listTests).
+ * @returns {object} The item with scheduleDate/scheduleTime added when the
+ *   schedule is one-time; otherwise the item unchanged.
+ */
+const withOneTimeScheduleFields = (item) => {
+  if (!item || item.cronValue || !item.nextRun) return item;
+  const [scheduleDate, time] = String(item.nextRun).split(" ");
+  if (!scheduleDate || !time) return item;
+  return { ...item, scheduleDate, scheduleTime: time.slice(0, 5) };
+};
+
+/**
  * Creates a list of all test scenarios sorted by startTime descending
  * @returns {object} All created tests sorted by creation time
  */
@@ -424,7 +465,9 @@ const listTests = async (filterTags = null) => {
       return bTime - aTime;
     });
 
-    return { Items: response.map((item) => ({ ...item, totalTestRuns: item.totalTestRuns || 0 })) };
+    return {
+      Items: response.map((item) => withOneTimeScheduleFields({ ...item, totalTestRuns: item.totalTestRuns || 0 })),
+    };
   } catch (err) {
     console.error(err);
     throw err;
@@ -464,7 +507,7 @@ const convertLinuxCronToAwsCron = (linuxCron, cronExpiryDate, scheduleTimezone) 
     if (match === "0" || match === "7") {
       return "1";
     } else {
-      return (parseInt(match) + 1).toString();
+      return (Number.parseInt(match) + 1).toString();
     }
   });
   awsDayOfWeek = dayOfWeekParts.join("#");
@@ -648,13 +691,21 @@ const scheduleTest = async (event, context) => { // NOSONAR
       }
     }
 
-    // Clean up any existing schedules (new Scheduler + legacy CloudWatch Events rules)
-    if (testId) {
-      await deleteSchedules(testId, functionArn);
-    }
-    // generate new testId if not provided
+    // Resolve testId and fileType up front so we can check the asset.
+    const isExistingTest = Boolean(testId);
     testId = setTestId(testId);
     config.testId = testId;
+    config.fileType = setFileType(config.testType, config.fileType);
+
+    // Validate the asset before tearing anything down, so a missing file
+    // can't remove a working schedule.
+    await validateTestAssetExists(config.testType, config.fileType, testId);
+
+    // Only a test that already had an id could have prior schedules to remove.
+    if (isExistingTest) {
+      await deleteSchedules(testId, functionArn);
+    }
+
     let createRun;
     if (config.scheduleStep === "create") {
       testTaskConfigs = validateTaskCountConcurrency(testTaskConfigs, regionalTaskDetails);
@@ -747,7 +798,7 @@ const scheduleTest = async (event, context) => { // NOSONAR
       const validatedTags = validateTags(config.tags);
 
       // Compute the total desired task count across all regions for threshold checking
-      const desiredTaskCount = config.testTaskConfigs.reduce((sum, c) => sum + (parseInt(c.taskCount) || 0), 0);
+      const desiredTaskCount = config.testTaskConfigs.reduce((sum, c) => sum + (Number.parseInt(c.taskCount) || 0), 0);
 
       const updateDBData = {
         testId,
@@ -768,6 +819,7 @@ const scheduleTest = async (event, context) => { // NOSONAR
         tags: validatedTags,
         healthyThreshold: config.healthyThreshold ?? DEFAULT_HEALTHY_THRESHOLD,
         desiredTaskCount,
+        nativeRunMode: config.nativeRunMode,
       };
       let data = await updateTestDBEntry(updateDBData);
       console.log(`Schedule test complete: testId=${testId}, status=scheduled`);
@@ -797,6 +849,60 @@ const setFileType = (testType, fileType) => {
     fileType = "script";
   }
   return fileType;
+};
+
+/**
+ * Confirms that the test asset selected by the runtime contract exists.
+ * Unknown test types are left to request schema validation.
+ * @param {string} testType
+ * @param {string} fileType
+ * @param {string} testId
+ */
+const validateTestAssetExists = async (testType, fileType, testId) => {
+  // Skip "simple" - all frameworks require a valid test asset
+  if (!isLoadTestFramework(testType)) return;
+
+  if (fileType === "none") {
+    throw new ErrorException(
+      "INVALID_FILE_TYPE",
+      `fileType must be script or zip for ${testType} tests`,
+      StatusCodes.BAD_REQUEST
+    );
+  }
+
+  const candidates = getTestAssetCandidates(testType, fileType, testId);
+  const results = await Promise.all(candidates.map(({ key }) => testAssetExists(key)));
+  if (results.some(Boolean)) return;
+
+  throw new ErrorException(
+    "TEST_ASSET_NOT_FOUND",
+    `Required test asset not found for testId '${testId}'. Expected one of: ${candidates
+      .map((candidate) => candidate.key)
+      .join(", ")}`,
+    StatusCodes.BAD_REQUEST
+  );
+};
+
+/**
+ * Reports whether an object exists in the scenarios bucket. A 404 is a
+ * definitive "no"; any other S3 error is surfaced as a server error.
+ * @param {string} key
+ * @returns {Promise<boolean>}
+ */
+const testAssetExists = async (key) => {
+  try {
+    await s3.headObject({ Bucket: SCENARIOS_BUCKET, Key: key });
+    return true;
+  } catch (err) {
+    if (err instanceof NotFound) return false;
+
+    console.error(`Failed to validate test asset ${key}:`, err);
+    throw new ErrorException(
+      "TEST_ASSET_VALIDATION_FAILED",
+      `Unable to verify test asset '${key}'`,
+      StatusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
 };
 
 /**
@@ -856,12 +962,12 @@ const validateTaskCountConcurrency = (testTaskConfigs, regionalTaskDetails) => {
         `The regional stack for "${region}" no longer exists. Please remove this region from the scenario or redeploy the regional stack.`
       );
     }
-    const availableTasks = parseInt(regionalTaskDetails[region].dltAvailableTasks);
+    const availableTasks = Number.parseInt(regionalTaskDetails[region].dltAvailableTasks);
     if (typeof regionalTestConfig.taskCount === "string") {
       regionalTestConfig.taskCount = regionalTestConfig.taskCount.trim();
     }
-    const taskCount = parseInt(regionalTestConfig.taskCount);
-    if (isNaN(taskCount) || parseInt(taskCount) < 1 || parseInt(taskCount) > availableTasks) {
+    const taskCount = Number.parseInt(regionalTestConfig.taskCount);
+    if (Number.isNaN(taskCount) || Number.parseInt(taskCount) < 1 || Number.parseInt(taskCount) > availableTasks) {
       throw new ErrorException(
         "InvalidParameter",
         `Task count should be positive number between 1 to ${availableTasks}.`
@@ -872,11 +978,11 @@ const validateTaskCountConcurrency = (testTaskConfigs, regionalTaskDetails) => {
     if (typeof regionalTestConfig.concurrency === "string") {
       regionalTestConfig.concurrency = regionalTestConfig.concurrency.trim();
     }
-    const concurrency = parseInt(regionalTestConfig.concurrency);
-    if (isNaN(concurrency) || parseInt(regionalTestConfig.concurrency) < 1) {
+    const concurrency = Number.parseInt(regionalTestConfig.concurrency);
+    if (Number.isNaN(concurrency) || Number.parseInt(regionalTestConfig.concurrency) < 1) {
       throw new ErrorException("InvalidParameter", "Concurrency should be positive number");
     }
-    regionalTestConfig.concurrency = parseInt(concurrency);
+    regionalTestConfig.concurrency = Number.parseInt(concurrency);
   }
   return testTaskConfigs;
 };
@@ -904,10 +1010,10 @@ const validateParameter = (patterns, key) => {
  */
 const validateNumber = (result, key, value, min) => {
   // Number
-  if (isNaN(value) || parseInt(value) < min) {
+  if (Number.isNaN(Number(value)) || Number.parseInt(value) < min) {
     throw new ErrorException("InvalidParameter", `${key} should be positive number equal to or greater than ${min}.`);
   }
-  return `${result}${parseInt(value)}`;
+  return `${result}${Number.parseInt(value)}`;
 };
 
 /**
@@ -948,9 +1054,9 @@ const getTestDurationSeconds = (testDuration) => {
   const splitDurationRegex = /[a-z]+|\d+/gi;
   const [durationValue, durationUnit] = testDuration.match(splitDurationRegex);
   if (durationUnit === "s") {
-    return parseInt(durationValue);
+    return Number.parseInt(durationValue);
   } else if (durationUnit === "m") {
-    return parseInt(durationValue) * 60;
+    return Number.parseInt(durationValue) * 60;
   } else {
     throw new ErrorException("InvalidParameter", "Invalid hold-for unit, it should be either m or s.");
   }
@@ -966,7 +1072,7 @@ const validateTimeUnit = (testScenario, key, min) => {
   const timeRegex = /[a-z]+|[^a-z]+/gi;
   testScenario = formatStringKey(testScenario, key);
 
-  if (isNaN(testScenario.execution[0][key])) {
+  if (Number.isNaN(Number(testScenario.execution[0][key]))) {
     let patterns = testScenario.execution[0][key].match(timeRegex);
     validateParameter(patterns, key);
 
@@ -981,7 +1087,7 @@ const validateTimeUnit = (testScenario, key, min) => {
     }
     testScenario.execution[0][key] = result;
   } else {
-    testScenario.execution[0][key] = parseInt(testScenario.execution[0][key]);
+    testScenario.execution[0][key] = Number.parseInt(testScenario.execution[0][key]);
     if (testScenario.execution[0][key] < min) {
       throw new ErrorException("InvalidParameter", `${key} should be positive number equal to or greater than ${min}.`);
     }
@@ -990,18 +1096,50 @@ const validateTimeUnit = (testScenario, key, min) => {
 };
 
 /**
+ * Taurus' k6 executor renders the hold stage as (hold-for - ramp-up), so a test
+ * runs for hold-for in total instead of ramp-up + hold-for, and fails outright
+ * when ramp-up is longer (negative stage). Send it the sum so its subtraction
+ * yields the hold the customer asked for. Re-check before bumping the bzt pin in
+ * the load-tester Dockerfile:
+ * https://github.com/Blazemeter/taurus/blob/1.17.1/bzt/modules/k6.py#L57
+ *
+ * Only the S3 copy changes; DynamoDB and testDuration keep the customer's
+ * values. Native mode reads the same object but sums the stages correctly
+ * itself (source/load-tester/src/k6/k6-args.ts), so it must not be compensated.
+ * @param {object} execution execution block of the S3 copy, mutated in place
+ * @param {object} [nativeRunMode] native run mode config, absent for Taurus runs
+ */
+const compensateK6RampUp = (execution, nativeRunMode) => {
+  if (nativeRunMode) return;
+  // Taurus picks its executor from this field alone; JMeter and Locust are fine.
+  if (execution.executor !== "k6" || !execution["ramp-up"]) return;
+  try {
+    const rampUpSeconds = getTestDurationSeconds(String(execution["ramp-up"]));
+    if (rampUpSeconds <= 0) return;
+    execution["hold-for"] = `${getTestDurationSeconds(String(execution["hold-for"])) + rampUpSeconds}s`;
+  } catch {
+    // Durations this parser cannot read (h/d, bare numbers) already fail later
+    // in createTest, so don't add a second throw site here.
+  }
+};
+
+/**
  *
  * @param {object} testTaskConfigs
  * @param {object} testScenario
  * @param {string} testId
+ * @param {object} [nativeRunMode] native run mode config, absent for Taurus runs
  */
-const writeTestScenarioToS3 = async (testTaskConfigs, testScenario, testId) => {
+const writeTestScenarioToS3 = async (testTaskConfigs, testScenario, testId, nativeRunMode) => {
   // 1. Write test scenario to S3 for each region
   try {
     const s3Promises = testTaskConfigs.map((testTaskConfig) => {
-      const testScenarioS3 = testScenario;
+      // Clone per region so the task counts and the k6 compensation below stay
+      // out of the DynamoDB record and the testDuration derived after this write.
+      const testScenarioS3 = structuredClone(testScenario);
       testScenarioS3.execution[0].taskCount = testTaskConfig.taskCount;
       testScenarioS3.execution[0].concurrency = testTaskConfig.concurrency;
+      compensateK6RampUp(testScenarioS3.execution[0], nativeRunMode);
       const params = {
         Body: JSON.stringify(testScenarioS3),
         Bucket: SCENARIOS_BUCKET,
@@ -1027,6 +1165,7 @@ const mergeTestAndInfraConfiguration = async (testTaskConfigs) => {
   const hubRegion = process.env.AWS_REGION;
   const hubConfig = await getRegionInfraConfigs(hubRegion);
   const hubTaskDefinition = hubConfig.taskDefinition;
+  const nativeTaskDefinitions = hubConfig.nativeTaskDefinitions;
 
   const regionalTestAndInfraConfiguration = [];
   for (const regionalTestConfig of testTaskConfigs) {
@@ -1037,7 +1176,7 @@ const mergeTestAndInfraConfiguration = async (testTaskConfigs) => {
       ...regionalInfraConfiguration,
     });
   }
-  return { testTaskConfig: regionalTestAndInfraConfiguration, hubTaskDefinition };
+  return { testTaskConfig: regionalTestAndInfraConfiguration, hubTaskDefinition, nativeTaskDefinitions };
 };
 
 /**
@@ -1051,7 +1190,7 @@ const startStepFunctionExecution = async (stepFunctionParams) => {
     const timestamp = new Date()
       .toISOString()
       .replace(/\.\d{3}Z$/, "")
-      .replace(/:/g, "-");
+      .replaceAll(":", "-");
     const prefix = timestamp + "_" + testRunId;
     // When api-services is migrated to TS, import buildExecutionName from @amzn/dlt-common
     const executionName = `scenario-${stepFunctionParams.testId}-run-${testRunId}`;
@@ -1094,11 +1233,16 @@ const updateTestDBEntry = async (updateTestConfigs) => {
       tags,
       healthyThreshold,
       desiredTaskCount,
+      nativeRunMode,
     } = updateTestConfigs;
 
     let cronValue = updateTestConfigs.cronValue || "";
     let scheduleTimezone = updateTestConfigs.scheduleTimezone || "UTC";
     let endTime = "";
+
+    const removeFields = [];
+    if (!nativeRunMode) removeFields.push("#nrm");
+    if (status === TestStatus.QUEUED) removeFields.push("#e");
 
     const params = {
       TableName: SCENARIOS_TABLE,
@@ -1107,7 +1251,8 @@ const updateTestDBEntry = async (updateTestConfigs) => {
       },
       UpdateExpression:
         "set #n = :n, #d = :d, #tc = :tc, #t = :t, #s = :s, #r = :r, #st = :st, #et = :et, #nr = :nr, #sr = :sr, #sl = :sl, #tt = :tt, #ft = :ft, #cv = :cv, #ced = :ced, #tg = :tg, #stz = :stz, #ht = :ht, #dtc = :dtc, #tfc = :zero" +
-        (status === "queued" ? " remove #e" : ""),
+        (nativeRunMode ? ", #nrm = :nrm" : "") +
+        (removeFields.length > 0 ? ` remove ${removeFields.join(", ")}` : ""),
       ExpressionAttributeNames: {
         "#n": "testName",
         "#d": "testDescription",
@@ -1129,7 +1274,8 @@ const updateTestDBEntry = async (updateTestConfigs) => {
         "#ht": "healthyThreshold",
         "#dtc": "desiredTaskCount",
         "#tfc": "taskFailureCount",
-        ...(status === "queued" && { "#e": "errorReason" }),
+        "#nrm": "nativeRunMode",
+        ...(status === TestStatus.QUEUED && { "#e": "errorReason" }),
       },
       ExpressionAttributeValues: {
         ":n": testName,
@@ -1152,6 +1298,7 @@ const updateTestDBEntry = async (updateTestConfigs) => {
         ":ht": healthyThreshold,
         ":dtc": desiredTaskCount,
         ":zero": 0,
+        ...(nativeRunMode && { ":nrm": nativeRunMode }),
       },
       ReturnValues: "ALL_NEW",
     };
@@ -1181,7 +1328,7 @@ const updateTestDBEntry = async (updateTestConfigs) => {
  */
 const convertDateToString = (date, timezone) => {
   // Validate date to prevent RangeError with invalid Date objects
-  if (!date || isNaN(date.getTime())) {
+  if (!date || Number.isNaN(date.getTime())) {
     throw new ErrorException("InvalidParameter", "Invalid date provided for conversion");
   }
   if (timezone) {
@@ -1239,7 +1386,183 @@ const getEbSchedTestStartTime = (cronValue, scheduleTime, cronExpiryDate, schedu
  * Description: returns a consolidated list of test scenarios
  * @config {object} test scenario configuration
  */
+/**
+ * Atomically claims the single run slot for a scenario.
+ *
+ * Transitions the scenario's status to "queued" with a conditional write that
+ * only succeeds when the current status is not an active run state. Because a
+ * DynamoDB conditional write is atomic per item, two concurrent start requests
+ * for the same scenario cannot both succeed: exactly one wins the claim and the
+ * other's condition fails. This closes the race that a plain read-then-check
+ * leaves open, guaranteeing a second trigger can never start a colliding run
+ * (and therefore can never corrupt the in-flight run's ECS service or record).
+ *
+ * Only "status" is written here so the prior run's other fields (startTime,
+ * results, taskFailureCount) are left intact until the full record write later
+ * in createTest — this lets us cleanly revert on a failed start.
+ *
+ * @param {string} testId
+ * @throws {ErrorException} TEST_RUNNING (409) when the scenario already has an
+ *   active run (the condition fails).
+ */
+const claimRunSlot = async (testId) => {
+  const result = await scenariosRepo.tryClaimRunSlot(testId);
+  if (result.ok) return;
+
+  // Lost the race: another start claimed this scenario between our read and
+  // this write. Re-read (best effort) to name the now-active run for the caller.
+  let currentStatus;
+  try {
+    const current = await getTestEntry(testId);
+    currentStatus = current?.status;
+  } catch (readErr) {
+    console.error(`Failed to re-read status after claim conflict for testId=${testId}: ${readErr.message}`);
+  }
+  const statusText = currentStatus ? ` (status: ${currentStatus})` : "";
+  throw new ErrorException(
+    "TEST_RUNNING",
+    `testId '${testId}' already has an active run${statusText}. ` +
+      `Wait for it to finish or cancel it before starting a new run.`,
+    StatusCodes.CONFLICT
+  );
+};
+
+/**
+ * Atomically transitions an active run into "cancelling" via the repository's
+ * conditional write. The cancel-path counterpart to {@link claimRunSlot}.
+ *
+ * The conditional write is race-free: a run that reaches a terminal state
+ * before (or during) this call fails the condition rather than being
+ * overwritten, which is what keeps the scenario status consistent with the
+ * run/history record. CANCELLING is itself an active status, so re-cancelling a
+ * run whose cleanup is already in progress stays idempotent.
+ *
+ * @param {string} testId
+ * @throws {ErrorException} TEST_NOT_ACTIVE (409) when the run is not in a
+ *   cancelable state — already terminal, or finishing (cleaning up / parsing
+ *   results), where a cancel has little value and would race the terminal write.
+ */
+const transitionToCancelling = async (testId) => {
+  const result = await scenariosRepo.tryTransitionToCancelling(testId);
+  if (result.ok) return;
+
+  throw new ErrorException(
+    "TEST_NOT_ACTIVE",
+    `testId '${testId}' is not in a cancelable state; nothing to cancel.`,
+    StatusCodes.CONFLICT
+  );
+};
+
+/**
+ * Best-effort revert of a run-slot claim when the start fails after claiming
+ * (e.g. the S3 write or Step Functions execution throws). Restores the prior
+ * status only if the record is still in the "queued" state we set, so it never
+ * clobbers a status that advanced concurrently. Failures are swallowed: the
+ * caller is already throwing the original start error.
+ *
+ * @param {string} testId
+ * @param {string} previousStatus Status to restore (the scenario's status
+ *   before the claim). Falls back to "failed" if unknown.
+ */
+const revertRunSlotClaim = async (testId, previousStatus) => {
+  try {
+    await dynamoDB.update({
+      TableName: SCENARIOS_TABLE,
+      Key: { testId },
+      UpdateExpression: "SET #s = :prev",
+      ConditionExpression: "#s = :queued",
+      ExpressionAttributeNames: { "#s": "status" },
+      ExpressionAttributeValues: {
+        ":prev": previousStatus || TestStatus.FAILED,
+        ":queued": TestStatus.QUEUED,
+      },
+    });
+  } catch (err) {
+    if (err.name !== "ConditionalCheckFailedException") {
+      console.error(`Failed to revert run-slot claim for testId=${testId}: ${err.message}`);
+    }
+  }
+};
+
+/**
+ * Rejects a start when a previous run's per-region ECS service
+ * (dlt-{testId}-{region}) is still DRAINING — i.e. stopping but not yet INACTIVE.
+ *
+ * DynamoDB status is a lagging proxy for "the service name is free": after a run
+ * ends, DeleteService leaves the service in DRAINING for a short time before it
+ * becomes INACTIVE, but the scenario status has already flipped to a terminal
+ * state. Starting a new run in that window is accepted by the status guard, then
+ * fails in the Task Runner with "Unable to Start a service that is still
+ * Draining." Reject it here instead, with an actionable 409.
+ *
+ * Only DRAINING is treated as "still stopping" — it is transient and self-clears
+ * within seconds. A terminal-status scenario whose service is still ACTIVE is a
+ * different problem: a leaked service whose cleanup never ran. It will not clear
+ * on its own, so blocking it here would wedge the scenario permanently behind a
+ * misleading "wait and retry" message. (A transient ACTIVE window only exists
+ * while the run's status is still active, where the earlier status guard already
+ * rejects — so reaching this point with an ACTIVE service means it is leaked.)
+ * Such a start is left to fail in the Task Runner, where the leaked service is
+ * the appropriate, separately-surfaced failure rather than a fake drain.
+ *
+ * Best-effort and fail-open: a region whose service state cannot be determined
+ * (throttling/transient error) is treated as clear, so this never blocks a
+ * legitimate start or adds a new hard dependency to the start path. Regions are
+ * checked in parallel.
+ *
+ * @param {string} testId
+ * @param {Array<{region: string}>} testTaskConfigs Regions the start will use
+ * @param {Array<{region: string, taskCluster?: string}>} regionalConfigs Infra configs
+ * @throws {ErrorException} SERVICE_DRAINING (409) when any region's service is still stopping
+ */
+const assertNoDrainingService = async (testId, testTaskConfigs, regionalConfigs) => {
+  const checks = (testTaskConfigs || []).map(async ({ region }) => {
+    const taskCluster = regionalConfigs.find((c) => c.region === region)?.taskCluster;
+    // No infra config for the region → no service could exist to collide with.
+    if (!taskCluster) return null;
+
+    const serviceName = buildServiceName(testId, region);
+    try {
+      // Best-effort and latency-bounded: this check must never slow a start.
+      // Cap the added wait per region (regions run in parallel) and skip retries
+      // so a slow or unreachable ECS endpoint degrades to fail-open in ~2s rather
+      // than burning the start's latency on the SDK's default multi-attempt budget.
+      const ecs = new ECS({
+        ...options,
+        region,
+        maxAttempts: 1,
+        requestHandler: { connectionTimeout: 1000, requestTimeout: 2000 },
+      });
+      const response = await ecs.describeServices({ cluster: taskCluster, services: [serviceName] });
+      const service = response.services?.[0];
+      // DRAINING → a previous run is still releasing the name; transient, so
+      // reject with a retryable 409. Missing/INACTIVE means the name is already
+      // free. ACTIVE at terminal status is a leaked service (see doc above) — not
+      // treated as draining; the start falls through instead of being blocked.
+      if (service?.status === "DRAINING") return { region, status: service.status };
+      return null;
+    } catch (err) {
+      // Fail open: do not block a legitimate start on an ECS describe failure.
+      console.error(`Draining check failed for ${serviceName} (region ${region}); proceeding: ${err.message}`);
+      return null;
+    }
+  });
+
+  const stillStopping = (await Promise.all(checks)).filter(Boolean);
+  if (stillStopping.length > 0) {
+    const detail = stillStopping.map((d) => `${d.region}: ${d.status}`).join("; ");
+    throw new ErrorException(
+      "SERVICE_DRAINING",
+      `testId '${testId}' has a previous run still stopping (${detail}). ` +
+        `Wait a few seconds for it to finish, then retry.`,
+      StatusCodes.CONFLICT
+    );
+  }
+};
+
 const createTest = async (config, functionName) => {
+  let claimed = false;
+  let previousStatus;
   try {
     const { testName, testDescription, testType, showLive, regionalTaskDetails, cronValue } = config;
     let { testId, testScenario, testTaskConfigs, fileType, scheduleTime, eventBridge, recurrence, cronExpiryDate } =
@@ -1249,6 +1572,7 @@ const createTest = async (config, functionName) => {
     let nextRun;
     fileType = setFileType(testType, fileType);
     testId = setTestId(testId);
+    await validateTestAssetExists(testType, fileType, testId);
 
     // Validate and normalize tags
     const validatedTags = validateTags(config.tags);
@@ -1262,7 +1586,7 @@ const createTest = async (config, functionName) => {
     }
 
     const testEntry = await getTestEntry(testId);
-    if (testEntry && testEntry.nextRun) nextRun = parseISODate(testEntry.nextRun, scheduleTimezone).toJSDate();
+    if (testEntry?.nextRun) nextRun = parseISODate(testEntry.nextRun, scheduleTimezone).toJSDate();
 
     const operation = testEntry ? 'update' : 'create';
     console.log(`${operation} test: testId=${testId}`)
@@ -1276,6 +1600,38 @@ const createTest = async (config, functionName) => {
           StatusCodes.CONFLICT
         );
       }
+    }
+
+    // Server-side single-run-per-scenario enforcement.
+    //
+    // A start request (non-saveOnly) against a scenario that already has an
+    // active run is rejected deterministically here — before the scenario is
+    // written to S3, before the Step Functions execution starts, and before the
+    // DynamoDB record is overwritten. This prevents the second trigger from
+    // mutating the shared ECS service or clobbering the live run's
+    // status/startTime/results, and guarantees the caller receives a
+    // machine-readable 409 (code TEST_RUNNING) instead of an HTTP 200 followed
+    // by silent corruption of the in-flight run.
+    //
+    // This runs for every non-saveOnly start regardless of caller (console,
+    // API, CLI, MCP) and for EventBridge-triggered scheduled runs, so a
+    // recurring schedule can never launch a colliding run over a still-active
+    // one.
+    //
+    // This read check is a fast path that rejects the common case immediately
+    // with an accurate message. It is NOT the sole safeguard: the atomic
+    // conditional claim below (claimRunSlot) is the authoritative gate and also
+    // closes the race between two concurrent start requests, which a
+    // read-then-check cannot. The client-side guards in the console and CLI are
+    // convenience fast-fails only.
+    if (!config.saveOnly && testEntry?.status && isActiveRunStatus(testEntry.status)) {
+      const startedAt = testEntry.startTime ? `, started ${testEntry.startTime}` : "";
+      throw new ErrorException(
+        "TEST_RUNNING",
+        `testId '${testId}' already has an active run (status: ${testEntry.status}${startedAt}). ` +
+          `Wait for it to finish or cancel it before starting a new run.`,
+        StatusCodes.CONFLICT
+      );
     }
 
     let startTime = new Date();
@@ -1338,14 +1694,30 @@ const createTest = async (config, functionName) => {
 
     console.log(`Test scenario ${operation}d: testId=${testId}, type=${testType}, regions=${testTaskConfigs?.length}`);
 
+    // Atomically claim the scenario's single run slot before any shared-state
+    // mutation (S3 scenario file, Step Functions execution, full record write).
+    // Only an existing scenario can have an in-flight run to protect; a brand
+    // new scenario has a freshly generated testId with no concurrency risk.
+    // A conflict here means a run was started concurrently — reject with 409.
+    if (!config.saveOnly && testEntry) {
+      // Reject if a previous run's ECS service is still draining, before claiming
+      // the slot — so a rejected start never leaves a claimed record behind.
+      await assertNoDrainingService(testId, testTaskConfigs, regionalConfigs);
+      previousStatus = testEntry.status;
+      await claimRunSlot(testId);
+      claimed = true;
+    }
+
     // 1. Write test scenario to S3
-    await writeTestScenarioToS3(testTaskConfigs, testScenario, testId);
+    await writeTestScenarioToS3(testTaskConfigs, testScenario, testId, config.nativeRunMode);
 
     console.log(`test scenario uploaded to s3: test-scenarios/${testId}.json`);
 
     // Based on the selected regions for the test, retrieve the test infrastructure configuration
     // for each region and create an object for the specific region and add it to the list sent to the step functions
-    const { testTaskConfig: regionalTestAndInfraConfiguration, hubTaskDefinition } = await mergeTestAndInfraConfiguration(testTaskConfigs);
+    const { testTaskConfig: regionalTestAndInfraConfiguration, hubTaskDefinition, nativeTaskDefinitions } = await mergeTestAndInfraConfiguration(testTaskConfigs);
+
+    const nativeRunMode = config.nativeRunMode;
 
     /**
      * Start Step Functions execution (skip when saveOnly is true)
@@ -1366,6 +1738,10 @@ const createTest = async (config, functionName) => {
         fileType,
         showLive,
         testDuration,
+        runMode: nativeRunMode == null ? "standard" : "native",
+        // Always present so the Step Function can read it by JSONPath
+        nativeRunMode: nativeRunMode ?? null,
+        nativeTaskDefinitions,
       };
       await startStepFunctionExecution(stepFunctionParams);
     }
@@ -1399,6 +1775,7 @@ const createTest = async (config, functionName) => {
       tags: validatedTags,
       healthyThreshold: config.healthyThreshold ?? DEFAULT_HEALTHY_THRESHOLD,
       desiredTaskCount,
+      nativeRunMode,
     };
 
     const data = await updateTestDBEntry(updateDBData);
@@ -1407,6 +1784,17 @@ const createTest = async (config, functionName) => {
 
     return data.Attributes;
   } catch (err) {
+    // If we claimed the run slot but the start failed downstream (S3 write,
+    // Step Functions, or the record write), restore the prior status so the
+    // scenario is not left stuck in "queued" and the previous run's record is
+    // preserved. This never runs for a conflict-rejected claim (claimed stays
+    // false) or for validation errors thrown before the claim.
+    if (claimed) {
+      // claimed is only ever true for an existing scenario, which requires
+      // config.testId to have been provided, so it is the correct key here.
+      await revertRunSlotClaim(config.testId, previousStatus);
+    }
+
     // Write a failure history entry for existing tests that hit incompatible regional stacks.
     // This is useful for scheduled tests where no caller is waiting for the API response.
     // For new tests, the API response itself notifies the user of the failed test creation.
@@ -1420,7 +1808,7 @@ const createTest = async (config, functionName) => {
             testRunId: utils.generateUniqueId(10),
             startTime: now,
             endTime: now,
-            status: "failed",
+            status: TestStatus.FAILED,
             errorReason: err.message,
             testTaskConfigs: config.testTaskConfigs,
             testType: config.testType,
@@ -1529,7 +1917,9 @@ const getTest = async (testId, queryParams = {}) => {
 
   try {
     //Retrieve test and regional resource information from DDB
-    let data = await getTestAndRegionConfigs(testId);
+    // Derive scheduleDate/scheduleTime for a one-time schedule so the edit form
+    // can restore "Run Once" instead of silently falling back to Run Now.
+    let data = withOneTimeScheduleFields(await getTestAndRegionConfigs(testId));
 
     data.testScenario = JSON.parse(data.testScenario);
 
@@ -1862,7 +2252,13 @@ const cancelTest = async (testId) => {
   try {
     // Throws TEST_NOT_FOUND internally if testId doesn't exist.
     const testAndRegionalInfraConfigs = await getTestAndRegionConfigs(testId);
-    
+
+    // Reject a cancel on a run that is not active (already terminal, or racing a
+    // run that just finished). This atomic guard is what keeps the scenario
+    // status consistent with the run/history record; the console's client-side
+    // guard is best-effort and direct API callers have none.
+    await transitionToCancelling(testId);
+
     // Collect cancellation metrics before triggering the cancel flow
     let tasksLaunched = 0;
     let tasksRunning = 0;
@@ -1892,16 +2288,8 @@ const cancelTest = async (testId) => {
     
     const tasksCompleted = tasksLaunched - tasksRunning;
 
-    // Optimistically set status so the UI reflects the cancel immediately.
-    // The canceler sets it again after stopping the SF (idempotent).
-    await dynamoDB.update({
-      TableName: SCENARIOS_TABLE,
-      Key: { testId },
-      UpdateExpression: "set #s = :s",
-      ExpressionAttributeNames: { "#s": "status" },
-      ExpressionAttributeValues: { ":s": "cancelling" },
-    });
-
+    // Status was atomically transitioned to "cancelling" above; the canceler
+    // sets it again after stopping the SF (idempotent).
     // Single async invocation — the canceler queries SFN for the active
     // execution, extracts testRunId and region configs from the execution
     // input, stops the execution via StopExecution, and invokes test-cleanup
@@ -2133,7 +2521,7 @@ const getRegionDLTvCPUsPerTask = async (ecs, taskDefinition) => {
   console.log("Getting DLT vCPUs per task for a region");
   try {
     const apiResponse = await ecs.describeTaskDefinition({ taskDefinition: taskDefinition });
-    const vCPUs = parseInt(apiResponse.taskDefinition.cpu) / 1024;
+    const vCPUs = Number.parseInt(apiResponse.taskDefinition.cpu) / 1024;
     return vCPUs;
   } catch (error) {
     console.error(error);
@@ -2220,8 +2608,8 @@ const getAccountFargatevCPUDetails = async () => {
  */
 const parseFloatValue = (val) => {
   if (typeof val === "number") return val;
-  if (typeof val === "string") return parseFloat(val);
-  return val && val.S ? parseFloat(val.S) : undefined;
+  if (typeof val === "string") return Number.parseFloat(val);
+  return val && val.S ? Number.parseFloat(val.S) : undefined;
 };
 
 /**
@@ -2231,8 +2619,8 @@ const parseFloatValue = (val) => {
  */
 const parseIntValue = (val) => {
   if (typeof val === "number") return val;
-  if (typeof val === "string") return parseInt(val);
-  return val && val.N ? parseInt(val.N) : undefined;
+  if (typeof val === "string") return Number.parseInt(val);
+  return val && val.N ? Number.parseInt(val.N) : undefined;
 };
 
 /**
@@ -2369,20 +2757,20 @@ const validateTestRunsQueryParams = (queryParams) => {
   const { limit = 20, start_timestamp, end_timestamp, latest, next_token } = queryParams;
 
   // Validate timestamp formats if provided
-  if (start_timestamp && isNaN(Date.parse(start_timestamp))) {
+  if (start_timestamp && Number.isNaN(Date.parse(start_timestamp))) {
     throw new ErrorException(
       "BAD_REQUEST",
       "Invalid start_timestamp format. Expected ISO 8601",
       StatusCodes.BAD_REQUEST
     );
   }
-  if (end_timestamp && isNaN(Date.parse(end_timestamp))) {
+  if (end_timestamp && Number.isNaN(Date.parse(end_timestamp))) {
     throw new ErrorException("BAD_REQUEST", "Invalid end_timestamp format. Expected ISO 8601", StatusCodes.BAD_REQUEST);
   }
 
   // Validate limit parameter
-  const parsedLimit = parseInt(limit);
-  if (isNaN(parsedLimit) || parsedLimit < 1 || parsedLimit > 100) {
+  const parsedLimit = Number.parseInt(limit);
+  if (Number.isNaN(parsedLimit) || parsedLimit < 1 || parsedLimit > 100) {
     throw new ErrorException("BAD_REQUEST", "Limit must be between 1 and 100", StatusCodes.BAD_REQUEST);
   }
 
@@ -2683,6 +3071,21 @@ const setBaseline = async (testId, testRunId) => {
       );
     }
 
+    // Only a completed run is a valid baseline: a failed/cancelled/in-progress run
+    // has no meaningful results to compare future runs against. Eligibility comes
+    // from the shared isBaselineEligibleRunStatus so the API and the web console's
+    // "Set Baseline" control enforce exactly the same rule (no drift).
+    const runStatus = historyEntry.Item.status;
+    if (!isBaselineEligibleRunStatus(runStatus)) {
+      throw new ErrorException(
+        "INVALID_BASELINE_STATUS",
+        `Only completed test runs can be set as a baseline. Test run '${testRunId}' is '${runStatus ?? "unknown"}'.`,
+        // 409: the request is well-formed; the conflict is the run's state, the
+        // same as the sibling state-conflict errors (TEST_RUNNING, BASELINE_CONFLICT).
+        StatusCodes.CONFLICT
+      );
+    }
+
     // Get current baseline if exists
     const currentBaseline = testEntry.baselineId;
 
@@ -2775,6 +3178,108 @@ const clearBaseline = async (testId) => {
 };
 
 /**
+ * Re-derives the scenario record's run-derived fields (status, startTime,
+ * endTime, results, completeTasks, errorReason, taskFailureCount) after test
+ * runs are deleted, so the detail page does not display data from a run that
+ * no longer exists.
+ *
+ * Only runs when the scenario is in a terminal state — an active run will
+ * overwrite these fields itself when it finishes. When runs remain, the
+ * scenario is synced to the most recent one; when none remain, the scenario
+ * is reset to its pre-run state ("scheduled" if a schedule is still active,
+ * otherwise "created").
+ *
+ * The just-deleted testRunIds are filtered out of the GSI query result
+ * client-side to remain correct under DynamoDB's eventual consistency —
+ * a stale read that still includes a deleted run would otherwise cause
+ * the scenario to be re-synced to the ghost run.
+ *
+ * @param {string} testId the unique id of test scenario
+ * @param {object} testEntry the scenario record as it was before deletion
+ * @param {string[]} deletedTestRunIds the testRunIds just deleted in this call
+ */
+const reconcileScenarioAfterRunDeletion = async (testId, testEntry, deletedTestRunIds) => {
+  const terminalStatuses = ["complete", "cancelled", "failed"];
+  if (!terminalStatuses.includes(testEntry.status)) return;
+
+  // Query the History GSI (partition testId, sort startTime) for the most recent
+  // remaining run. Limit is deletedTestRunIds.length + 1 so that even if every
+  // just-deleted row is stale-returned ahead of the latest surviving run, we
+  // still get at least one row that isn't in the deleted set.
+  const deletedSet = new Set(deletedTestRunIds);
+  const latestQuery = await dynamoDB.query(
+    createHistoryQueryParams(testId, { ScanIndexForward: false, Limit: deletedSet.size + 1 })
+  );
+  const latestSummary = (latestQuery.Items || []).find((item) => !deletedSet.has(item.testRunId));
+
+  // If the most recent surviving run is the one the scenario already reflects,
+  // there is nothing to reconcile — deleting older, unrelated runs must not
+  // rewrite the currently-displayed run's fields. Compare on startTime since
+  // the scenario record does not store testRunId directly, but its startTime
+  // is set to the currently-reflected run's startTime by the metadata updater.
+  if (latestSummary?.startTime && latestSummary.startTime === testEntry.startTime) {
+    return;
+  }
+
+  const params = {
+    TableName: SCENARIOS_TABLE,
+    Key: { testId: testId },
+    ExpressionAttributeNames: { "#s": "status", "#r": "results" }, // reserved words in DynamoDB
+  };
+
+  if (latestSummary) {
+    // The GSI only projects testRunId/endTime/status/results, so GetItem the full
+    // run from the base table to also pull completeTasks and errorReason.
+    const latestGet = await dynamoDB.get({
+      TableName: HISTORY_TABLE,
+      Key: { testId: testId, testRunId: latestSummary.testRunId },
+    });
+    const latestRun = latestGet.Item || latestSummary;
+
+    // taskFailureCount is a scenario-level counter that describes the currently-
+    // reflected run and is not stored per-run in history, so it is reset to 0
+    // whenever we point the scenario at a different run.
+    params.UpdateExpression = "set #s = :s, startTime = :st, endTime = :et, #r = :r, taskFailureCount = :zero";
+    params.ExpressionAttributeValues = {
+      ":s": latestRun.status,
+      ":st": latestRun.startTime || "",
+      ":et": latestRun.endTime || "",
+      ":r": latestRun.results || {},
+      ":zero": 0,
+    };
+
+    const removals = [];
+    if (latestRun.completeTasks) {
+      params.UpdateExpression += ", completeTasks = :ct";
+      params.ExpressionAttributeValues[":ct"] = latestRun.completeTasks;
+    } else {
+      removals.push("completeTasks");
+    }
+    if (latestRun.errorReason) {
+      params.UpdateExpression += ", errorReason = :e";
+      params.ExpressionAttributeValues[":e"] = latestRun.errorReason;
+    } else {
+      removals.push("errorReason");
+    }
+    if (removals.length > 0) {
+      params.UpdateExpression += ` remove ${removals.join(", ")}`;
+    }
+  } else {
+    params.UpdateExpression =
+      "set #s = :s, startTime = :st, endTime = :et, #r = :r, taskFailureCount = :zero remove completeTasks, errorReason";
+    params.ExpressionAttributeValues = {
+      ":s": testEntry.nextRun ? "scheduled" : "created",
+      ":st": "",
+      ":et": "",
+      ":r": {},
+      ":zero": 0,
+    };
+  }
+
+  await dynamoDB.update(params);
+};
+
+/**
  * Deletes specific test runs for a given test scenario
  * @param {string} testId the unique id of test scenario
  * @param {Array} testRunIds array of test run IDs to delete
@@ -2842,6 +3347,13 @@ const deleteTestRuns = async (testId, testRunIds) => {
     const testRuns = createBatchRequestItems(testId, existingTestRunIds);
     await parseBatchRequests(testRuns);
     await decrementTestRunCount(dynamoDB, SCENARIOS_TABLE, testId, existingTestRunIds.length);
+
+    // Runs are already deleted, so a reconciliation failure must not fail the request
+    try {
+      await reconcileScenarioAfterRunDeletion(testId, testEntry, existingTestRunIds);
+    } catch (reconcileErr) {
+      console.error(`Failed to reconcile scenario after run deletion for testId: ${testId}`, reconcileErr);
+    }
 
     console.log(`Successfully deleted ${existingTestRunIds.length} test runs for testId: ${testId}`);
     return { deletedCount: existingTestRunIds.length };
@@ -2946,6 +3458,8 @@ module.exports = {
   normalizeTag: normalizeTag,
   getTestRunCount: getTestRunCount,
   computeChangedFields: computeChangedFields,
+  validateTestAssetExists: validateTestAssetExists,
+  assertNoDrainingService: assertNoDrainingService,
   ErrorException: ErrorException,
   StatusCodes: StatusCodes,
 };

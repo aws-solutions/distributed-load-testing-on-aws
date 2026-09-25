@@ -3,7 +3,7 @@
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { DLT_DIR, ensureDltDir } from "./paths.js";
+import { DLT_DIR, ensureDltDir, ensureMode } from "./paths.js";
 
 const CONFIG_FILE = join(DLT_DIR, "config.json");
 
@@ -99,5 +99,10 @@ export function loadConfig(): DltConfig {
 
 export function saveConfig(config: DltConfig): void {
   ensureDltDir();
-  writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + "\n", "utf-8");
+  writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + "\n", { encoding: "utf-8", mode: 0o600 });
+  // Enforce 0600; writeFileSync's `mode` only applies on creation, so an existing
+  // file with looser permissions would otherwise be left as-is. ensureMode skips
+  // the chmod when the mode already matches. The config holds no secrets, but it
+  // reveals stack infrastructure identifiers.
+  ensureMode(CONFIG_FILE, 0o600);
 }

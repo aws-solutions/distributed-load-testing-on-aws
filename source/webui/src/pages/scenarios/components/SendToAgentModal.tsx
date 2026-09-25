@@ -5,15 +5,18 @@ import {
   Alert,
   Box,
   Button,
-  Container,
+  ExpandableSection,
   FormField,
-  Header,
+  Grid,
   Modal,
   Select,
   SpaceBetween,
   Textarea,
+  Toggle,
 } from "@cloudscape-design/components";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { colorBorderDividerDefault } from "@cloudscape-design/design-tokens";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import type { AgentSpace } from "../../../models/agentSpace";
 import type { InvestigationPriority } from "../../../models/investigation";
 import type { TestRunDetails, TestResults, BaselineResponse } from "../types/testResults";
@@ -49,6 +52,7 @@ export function SendToAgentModal({
 }: SendToAgentModalProps) {
   const [selectedAgentSpace, setSelectedAgentSpace] = useState<string>(agentSpaces[0]?.id ?? "");
   const [additionalContext, setAdditionalContext] = useState("");
+  const [includeContext, setIncludeContext] = useState(true);
   const [priority, setPriority] = useState<InvestigationPriority>("MEDIUM");
   const errorRef = useRef<HTMLDivElement>(null);
 
@@ -82,7 +86,9 @@ export function SendToAgentModal({
 
   const handleSubmit = () => {
     if (!selectedAgentSpace) return;
-    onSubmit(selectedAgentSpace, additionalContext, priority);
+    // With the toggle off the typed context is withheld rather than cleared, so
+    // toggling back on does not cost the user what they wrote.
+    onSubmit(selectedAgentSpace, includeContext ? additionalContext : "", priority);
   };
 
   const descriptionPreview = useMemo(
@@ -90,12 +96,20 @@ export function SendToAgentModal({
     [visible, testRun, baseline],
   );
 
+  const runSummary = useMemo(() => (visible ? buildRunSummary(testRun) : null), [visible, testRun]);
+
   return (
     <Modal
       visible={visible}
       onDismiss={onDismiss}
-      header="Send to DevOps Agent"
-      size="large"
+      header={
+        <Box variant="span" fontSize="heading-l" fontWeight="bold">
+          Investigate with DevOps Agent
+        </Box>
+      }
+      // x-large (1024px), not large (820px), so the two-column body fits without the
+      // Duration row wrapping. Not "max", which stretches to the whole viewport.
+      size="x-large"
       footer={
         <Box float="right">
           <SpaceBetween size="xs" direction="horizontal">
@@ -122,32 +136,28 @@ export function SendToAgentModal({
           </div>
         )}
 
-        {/* Investigation Focus — read-only summary */}
-        <Container
-          header={
-            <Header variant="h3" description="A summary of the test run that DLT will send to the agent.">
-              Investigation Focus
-            </Header>
-          }
+        {/* Run context left, choices right. Keyed off "xs" (688px) rather than "s"
+            (912px) because Grid measures its own container, not the viewport, and this
+            modal is narrower than 912px — an "s" rule would never apply. */}
+        <Grid
+          gridDefinition={[
+            { colspan: { default: 12, xs: 7 } },
+            { colspan: { default: 12, xs: 5 } },
+          ]}
         >
-          <SpaceBetween size="xs">
-            <Box padding={{ top: "s" }}>
-              <Box variant="code">
-                <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0, fontSize: "12px" }}>
-                  {descriptionPreview}
-                </pre>
+          {runSummary ? (
+            <SpaceBetween size="m">
+              <Box variant="h3" padding={{ top: "n", bottom: "n" }}>
+                {runSummary.title}
               </Box>
-            </Box>
-          </SpaceBetween>
-        </Container>
+              <SummaryGrid groups={[runSummary.configRows, runSummary.metricRows].filter((g) => g.length > 0)} />
+            </SpaceBetween>
+          ) : (
+            <div />
+          )}
 
-        {/* Configuration */}
-        <Container header={<Header variant="h3">Configuration</Header>}>
-          <SpaceBetween size="m">
-            <FormField
-              label="DevOps Agent Instance"
-              description="Which agent instance should investigate this run?"
-            >
+          <SpaceBetween size="l">
+            <FormField label="Agent space">
               <Select
                 selectedOption={agentSpaceOptions.find((o) => o.value === selectedAgentSpace) ?? null}
                 onChange={({ detail }) => setSelectedAgentSpace(detail.selectedOption.value ?? "")}
@@ -157,33 +167,168 @@ export function SendToAgentModal({
             </FormField>
 
             <FormField
-              label="Investigation context"
-              description="Help the agent understand your system and focus the investigation."
-              constraintText="Optional. Include any combination of: system architecture, SLOs or thresholds, recent changes, known issues, or areas to skip."
+              label="What should the agent know?"
+              constraintText={
+                includeContext
+                  ? undefined
+                  : "Not sent — turn this back on to include your text. The run summary is always sent."
+              }
             >
-              <Textarea
-                value={additionalContext}
-                onChange={({ detail }) => setAdditionalContext(detail.value)}
-                placeholder="e.g., This is a payments API backed by DynamoDB and SQS. P99 target is <500ms. We deployed v2.4 thirty minutes before this test (changed connection pool from 50 to 25). Ignore DNS latency spikes — our provider has a known issue."
-                rows={4}
-              />
+              <SpaceBetween size="xs">
+                <Textarea
+                  value={additionalContext}
+                  onChange={({ detail }) => setAdditionalContext(detail.value)}
+                  disabled={!includeContext}
+                  placeholder="Add any context about your system, SLOs, recent changes, or areas to skip..."
+                  rows={6}
+                />
+                <Toggle checked={includeContext} onChange={({ detail }) => setIncludeContext(detail.checked)}>
+                  Include my context in the investigation prompt
+                </Toggle>
+              </SpaceBetween>
             </FormField>
 
-            <FormField
-              label="Priority"
-              description="Select the investigation priority."
-            >
-              <Select
-                selectedOption={PRIORITY_OPTIONS.find((o) => o.value === priority) ?? null}
-                onChange={({ detail }) => setPriority((detail.selectedOption.value as InvestigationPriority) ?? "MEDIUM")}
-                options={PRIORITY_OPTIONS}
-              />
-            </FormField>
+            <ExpandableSection headerText="Advanced options">
+              <FormField label="Priority" description="How urgently should the agent pick this up?">
+                <Select
+                  selectedOption={PRIORITY_OPTIONS.find((o) => o.value === priority) ?? null}
+                  onChange={({ detail }) =>
+                    setPriority((detail.selectedOption.value as InvestigationPriority) ?? "MEDIUM")
+                  }
+                  options={PRIORITY_OPTIONS}
+                />
+              </FormField>
+            </ExpandableSection>
           </SpaceBetween>
-        </Container>
+        </Grid>
+
+        {/* Full width below a rule: the payload is a wide preformatted block that would
+            wrap badly in a 7/12 column. Rule and section share a div so the parent
+            list's gap does not stack on top of the section header's own padding. */}
+        <div>
+          <hr style={{ border: 0, borderTop: `1px solid ${colorBorderDividerDefault}`, margin: 0 }} />
+          <ExpandableSection headerText="Payload preview">
+            <Box variant="code">
+              <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0, fontSize: "12px" }}>
+                {descriptionPreview}
+              </pre>
+            </Box>
+          </ExpandableSection>
+        </div>
       </SpaceBetween>
     </Modal>
   );
+}
+
+interface SummaryRow {
+  readonly label: string;
+  readonly value: ReactNode;
+}
+
+interface RunSummary {
+  readonly title: string;
+  readonly configRows: SummaryRow[];
+  /** Empty when the run produced no measurements. */
+  readonly metricRows: SummaryRow[];
+}
+
+/**
+ * Label/value list for the run context. One grid across all groups so every value
+ * lines up on the same column, with a blank row between groups.
+ */
+function SummaryGrid({ groups }: { readonly groups: SummaryRow[][] }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "max-content minmax(0, 1fr)", columnGap: "24px", rowGap: "4px" }}>
+      {groups.map((rows, groupIndex) => (
+        <Fragment key={rows[0].label}>
+          {groupIndex > 0 && <div style={{ gridColumn: "1 / -1", height: "12px" }} />}
+          {rows.map(({ label, value }) => (
+            <Fragment key={label}>
+              <Box variant="awsui-key-label">{label}</Box>
+              <Box>{value}</Box>
+            </Fragment>
+          ))}
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Condenses the run into what a user needs to decide whether it is worth
+ * investigating. Reuses buildDescriptionPreview's helpers, so the screen and the
+ * payload cannot disagree.
+ */
+function buildRunSummary(testRun: TestRunDetails): RunSummary {
+  const results = testRun.results?.["total"] ?? testRun.results?.[Object.keys(testRun.results ?? {})[0]];
+  const scenarioName = testRun.testScenario?.execution?.[0]?.scenario ?? "Unknown";
+  const title = buildPreviewTitle(scenarioName, testRun.status, results);
+
+  const totalTasks = testRun.testTaskConfigs?.reduce((sum, c) => sum + c.taskCount, 0) ?? 0;
+  const totalConcurrency = testRun.testTaskConfigs?.reduce((sum, c) => sum + c.concurrency, 0) ?? 0;
+  const configRows: SummaryRow[] = [
+    { label: "Framework", value: testRun.testType },
+    { label: "Tasks / Concurrency", value: `${totalTasks} tasks, ${totalConcurrency} concurrent users` },
+    { label: "Duration", value: `${testRun.startTime} to ${testRun.endTime}` },
+    { label: "Regions", value: testRun.testTaskConfigs?.map((c) => c.region).join(", ") ?? "" },
+  ];
+
+  const targetUrls = extractTargetUrlsFromScenarios(testRun.testScenario?.scenarios);
+  if (targetUrls.length === 0 && results?.labels) {
+    extractTargetUrlsFromLabels(targetUrls, results.labels);
+  }
+  if (targetUrls.length > 0) {
+    configRows.push({ label: "Target", value: targetUrls.join(", ") });
+  }
+
+  if (!results) {
+    return { title, configRows, metricRows: [] };
+  }
+
+  const failures = Number(results.fail) || 0;
+  const succ = Number(results.succ) || 0;
+  const totalRequests = failures + succ;
+  const metricRows: SummaryRow[] = [
+    {
+      label: "Total requests",
+      value: `${totalRequests.toLocaleString()} (${succ.toLocaleString()} success, ${failures.toLocaleString()} failures)`,
+    },
+    { label: "Error rate", value: totalRequests > 0 ? `${((failures / totalRequests) * 100).toFixed(1)}%` : "N/A" },
+    { label: "Avg response time", value: `${results.avg_rt}ms` },
+    { label: "p99", value: `${results.p99_0}ms` },
+    { label: "p99.9", value: `${results.p99_9}ms` },
+  ];
+
+  const httpErrors = rollUpHttpErrors(results);
+  if (httpErrors.length > 0) {
+    metricRows.push({
+      label: "HTTP error codes",
+      value: (
+        <SpaceBetween size="xs" direction="horizontal">
+          {httpErrors.map(({ code, count }) => (
+            <Box key={code} variant="span">{`${count}x ${code}`}</Box>
+          ))}
+        </SpaceBetween>
+      ),
+    });
+  }
+
+  return { title, configRows, metricRows };
+}
+
+/**
+ * Response codes summed across every endpoint, worst first. Counts live per label, so
+ * a single-endpoint run falls back to the aggregate's own codes.
+ */
+function rollUpHttpErrors(results: TestResults): Array<{ code: string; count: number }> {
+  const codeCounts = new Map<string, number>();
+  const sources = results.labels?.length ? results.labels : [results];
+  for (const source of sources) {
+    for (const rc of source.rc ?? []) {
+      codeCounts.set(rc.code, (codeCounts.get(rc.code) ?? 0) + rc.count);
+    }
+  }
+  return [...codeCounts.entries()].map(([code, count]) => ({ code, count })).sort((a, b) => b.count - a.count);
 }
 
 /**

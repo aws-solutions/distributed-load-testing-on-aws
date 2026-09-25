@@ -11,6 +11,7 @@ import {
   Box,
 } from "@cloudscape-design/components";
 import { useCollection } from "@cloudscape-design/collection-hooks";
+import { isBaselineEligibleRunStatus, isTerminalRunStatus } from "@amzn/dlt-common/validation";
 import { TestRun } from "../types";
 import { TablePreferences } from "../../../components/common/TablePreferences";
 
@@ -96,10 +97,12 @@ export const TestRunsTable: React.FC<TestRunsTableProps> = ({
         variant="normal"
         onClick={() => onSetBaseline([...(collectionProps.selectedItems || [])])}
         disabled={(() => {
-          // no test runs selected
+          // exactly one run must be selected
           const noTestRunSelected = (collectionProps.selectedItems?.length || 0) !== 1;
-          // no running / cancelling
-          const statusCheck = ! (collectionProps.selectedItems || []).every(item => item.status === "complete");
+          // and it must be baseline-eligible (completed) — shared rule with the API
+          const statusCheck = !(collectionProps.selectedItems || []).every((item) =>
+            isBaselineEligibleRunStatus(item.status)
+          );
           return noTestRunSelected || statusCheck || isSettingBaseline;
         })()}
         loading={isSettingBaseline}
@@ -110,7 +113,9 @@ export const TestRunsTable: React.FC<TestRunsTableProps> = ({
         variant="normal" 
         disabled={(() => {
           const noTestRunSelected = (collectionProps.selectedItems?.length || 0) === 0;
-          const statusCheck = (collectionProps.selectedItems || []).filter(item => item.status && ["running", "cancelling"].includes(item.status)).length > 0;
+          const statusCheck = !(collectionProps.selectedItems || []).every((item) =>
+            item.status !== undefined && isTerminalRunStatus(item.status)
+          );
           return noTestRunSelected || statusCheck || isDeletingTestRuns;
         })()}
         loading={isDeletingTestRuns}
@@ -129,6 +134,7 @@ export const TestRunsTable: React.FC<TestRunsTableProps> = ({
       loading={isLoading}
       loadingText="Loading test runs..."
       selectionType="multi"
+      isItemDisabled={(item) => item.status === undefined || !isTerminalRunStatus(item.status)}
       wrapLines={preferences.wrapLines}
       stripedRows={preferences.stripedRows}
       contentDensity={preferences.contentDensity}

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from "aws-lambda";
-import { createResponse } from "./handlers/types.ts";
 import { handleTasks } from "./handlers/tasks.ts";
+import { createResponse } from "./handlers/types.ts";
 
 // TODO: JS module — implicitly typed as `any` until migrated to TypeScript
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
@@ -154,7 +154,12 @@ export const handler = async (event: APIGatewayProxyEvent, context: Context): Pr
     // Validate request body using Zod (for POST, PUT, DELETE with body)
     if (event.body && event.httpMethod !== "GET") {
       try {
-        validateBodyForResource(event.resource, event.httpMethod, config);
+        // Use Zod output, whose schemas apply default values and coerce numeric
+        // strings into expected format.
+        const validated: unknown = validateBodyForResource(event.resource, event.httpMethod, config);
+        if (validated !== null && typeof validated === "object" && !Array.isArray(validated)) {
+          config = validated as Record<string, unknown>;
+        }
       } catch (validationError: unknown) {
         throw new scenarios.ErrorException(
           "INVALID_REQUEST_BODY",
@@ -292,8 +297,8 @@ export const handler = async (event: APIGatewayProxyEvent, context: Context): Pr
           pathParams["testId"],
           pathParams["testRunId"],
           pathParams["investigationId"],
-          event.queryStringParameters?.type || "investigation",
-          event.queryStringParameters?.format || "markdown",
+          event.queryStringParameters?.["type"] || "investigation",
+          event.queryStringParameters?.["format"] || "markdown",
           correlationId,
           event.requestContext?.identity?.cognitoIdentityId
         );
@@ -326,4 +331,4 @@ export const handler = async (event: APIGatewayProxyEvent, context: Context): Pr
   return response;
 };
 
-export { validateConfig, sendScenarioWriteMetric };
+export { sendScenarioWriteMetric, validateConfig };

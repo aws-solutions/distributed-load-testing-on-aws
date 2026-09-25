@@ -1,14 +1,18 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Box, Button, ContentLayout, Form, Header, Modal, Spinner, SpaceBetween } from "@cloudscape-design/components";
+import { Box, Button, Checkbox, ContentLayout, Form, Header, Modal, SpaceBetween } from "@cloudscape-design/components";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { useFormData } from "./hooks/useFormData";
+import { createEmptyNativeModeInput, useFormData } from "./hooks/useFormData";
 import { useTagManagement } from "./hooks/useTagManagement";
+import { PageLoadingState } from "../../components/common";
 
 import { get } from "aws-amplify/api";
 import { uploadData } from "aws-amplify/storage";
+import type { NativeRunMode } from "@amzn/dlt-common/validation";
+import { fileTypeForAssetFilename } from "@amzn/dlt-common/s3-keys";
+import { buildNativeRunMode } from "../../api/contract/createScenario";
 import { useCreateScenarioMutation, useGetScenarioDetailsQuery } from "../../store/scenariosApiSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../store/store";
@@ -19,10 +23,10 @@ import { extractErrorMessage } from "../../utils/errorUtils";
 import { generateUniqueId } from "../../utils/generateUniqueId.ts";
 import { transformScenarioToFormData } from "../../utils/scenarioTransformer";
 import { getFileExtension, isScriptTestType } from "../../utils/scenarioUtils";
-import { TestTypes, VALIDATION_LIMITS } from "./constants";
+import { TestMode, TestTypes, VALIDATION_LIMITS } from "./constants";
 import { sendConsoleMetric } from "../../utils/consoleMetrics";
-import { CreateScenarioRequest } from "./types/createTest.ts";
 import { usePageLoadMetric } from "../../hooks/usePageLoadMetric";
+import { CreateScenarioRequest, RegionalTaskDetail } from "./types/createTest.ts";
 
 import { TestConfigurationSection } from "./components/TestConfigurationSection";
 import { ScheduleSection } from "./components/ScheduleSection";
@@ -30,10 +34,60 @@ import { TestTypeSection } from "./components/TestTypeSection";
 import { HttpEndpointSection } from "./components/HttpEndpointSection";
 import { FileUploadSection } from "./components/FileUploadSection";
 import { MultiRegionConfigSection } from "./components/MultiRegionConfigSection";
+import { NativeModeReview } from "./components/NativeModeGuidance";
 import { TestDurationSection } from "./components/TestDurationSection";
-import { RegionalTaskAvailabilitySection } from "./components/RegionalTaskAvailabilitySection";
+import { serializeDuration, toSeconds } from "./utils/duration";
 import { SECTION_IDS, validateScenarioForm } from "./utils/scenarioValidation";
 import { scrollToFirstError } from "./utils/scrollToFirstError";
+
+/** Standard-mode traffic-shape fields, cleared when switching to native mode. */
+const CLEARED_STANDARD_FIELDS: Partial<FormData> = {
+  rampUpValue: "",
+  rampUpUnit: "minutes",
+  holdForValue: "",
+  holdForUnit: "minutes",
+};
+
+const buildNativeRunModeFromForm = (formData: FormData): NativeRunMode => {
+  const { maxDuration } = formData.nativeMode;
+  // The script owns the load shape; DLT only sends the safety-duration cap.
+  return buildNativeRunMode({ maxTestDurationSeconds: toSeconds(maxDuration.value, maxDuration.unit) });
+};
+
+const fetchRegionalTaskDetails = async (executionTiming: string): Promise<Record<string, RegionalTaskDetail>> => {
+  try {
+    const [vCPUResponse, tasksResponse] = await Promise.all([
+      get({ apiName: "solution-api", path: "/vCPUDetails" }).response.then((response) => response.body.json()),
+      get({ apiName: "solution-api", path: "/tasks" }).response.then((response) => response.body.json()),
+    ]);
+
+    const tasksByRegion = Array.isArray(tasksResponse)
+      ? tasksResponse.reduce<Record<string, number>>((tasks, task: any) => {
+          tasks[task.region] = task.taskArns?.length || 0;
+          return tasks;
+        }, {})
+      : {};
+
+    return Object.entries(vCPUResponse || {}).reduce<Record<string, RegionalTaskDetail>>((details, [region, value]) => {
+      const vCPUData = value;
+      if (!vCPUData) return details;
+
+      const runningTasks = executionTiming === "run-now" ? tasksByRegion[region] || 0 : 0;
+      const dltTaskLimit = Math.floor(vCPUData.vCPULimit / vCPUData.vCPUsPerTask);
+      details[region] = {
+        vCPULimit: vCPUData.vCPULimit,
+        vCPUsPerTask: vCPUData.vCPUsPerTask,
+        vCPUsInUse: vCPUData.vCPUsInUse,
+        dltTaskLimit,
+        dltAvailableTasks: dltTaskLimit - runningTasks,
+      };
+      return details;
+    }, {});
+  } catch (error) {
+    console.error("Failed to fetch regional task details:", error);
+    return {};
+  }
+};
 
 export default function CreateTestScenarioPage() {
   usePageLoadMetric("CreateTestScenario", { dataReady: true });
@@ -44,7 +98,7 @@ export default function CreateTestScenarioPage() {
   // Mode is derived from the route: /scenarios/:testId/edit → edit, ?cloneFrom= → clone, else create
   const isEdit = Boolean(editTestId);
   const sourceScenarioId = editTestId || cloneFromId || "";
-  const { formData, updateFormData, resetFormData } = useFormData();
+  const { formData, updateFormData, updateNativeMode, resetFormData } = useFormData();
   const tagManagement = useTagManagement(formData, updateFormData);
   const dispatch = useDispatch();
 
@@ -95,74 +149,63 @@ export default function CreateTestScenarioPage() {
   }, [sourceScenarioId, sourceScenario, isEdit, updateFormData, formData.testId]);
 
   const isScriptTest = isScriptTestType(formData.testType);
+  const isNativeMode = formData.testMode === TestMode.NATIVE;
+
+  // Switching mode clears the mode that's going away, so hidden values can never
+  // reach the payload or fail validation with no visible error. Concurrency is a
+  // Standard-only input, so it's cleared alongside ramp up / hold for.
+  const handleModeChange = (testMode: TestMode) => {
+    updateFormData(
+      testMode === TestMode.NATIVE
+        ? {
+            testMode,
+            ...CLEARED_STANDARD_FIELDS,
+            regions: formData.regions.map((region) => ({ ...region, concurrency: "" })),
+          }
+        : { testMode, nativeMode: createEmptyNativeModeInput() }
+    );
+  };
 
   const createApiPayload = async () => {
-    const regionalTaskDetails: any = {};
-
-    try {
-      const [vCPUResponse, tasksResponse] = await Promise.all([
-        get({ apiName: "solution-api", path: "/vCPUDetails" }).response.then((r) => r.body.json()),
-        get({ apiName: "solution-api", path: "/tasks" }).response.then((r) => r.body.json()),
-      ]);
-
-      const tasksByRegion = Array.isArray(tasksResponse)
-        ? tasksResponse.reduce((acc: any, task: any) => {
-            acc[task.region] = task.taskArns?.length || 0;
-            return acc;
-          }, {})
-        : {};
-
-      if (vCPUResponse) {
-        Object.keys(vCPUResponse).forEach((region) => {
-          const vCPUData = (vCPUResponse as any)[region];
-          if (vCPUData) {
-            // runningTasks calculation only makes sense for scenarios running now.
-            // If we're scheduling for later, we can't predict how many running
-            // tasks will exist at the time that the test runs.
-            const isRunNow = formData.executionTiming === "run-now";
-            const runningTasks = (isRunNow && (tasksByRegion as any)[region]) || 0;
-            const dltTaskLimit = Math.floor(vCPUData.vCPULimit / vCPUData.vCPUsPerTask);
-
-            regionalTaskDetails[region] = {
-              vCPULimit: vCPUData.vCPULimit,
-              vCPUsPerTask: vCPUData.vCPUsPerTask,
-              vCPUsInUse: vCPUData.vCPUsInUse,
-              dltTaskLimit,
-              dltAvailableTasks: dltTaskLimit - runningTasks,
-            };
-          }
-        });
-      }
-    } catch (error) {
-      console.error("Failed to fetch regional task details:", error);
-    }
-    // Get file extension (e.g. jmx, js, py, zip)
-    const scriptFileType = isScriptTest ? getFileExtension(formData.scriptFile?.[0].name) : "none";
-    const fileTypeCategory = scriptFileType === "zip" ? "zip" : scriptFileType === "none" ? "none" : "script";
-    // Build file name using the test id + correct file type (e.g. <test_id>.<file_type> -> ABCDE12345.zip)
-    const scriptFileName = formData.scriptFile?.[0]?.name ? `${formData.testId}.${scriptFileType}` : "";
+    // Trim the name at the wire boundary too, not only on blur: it is sent as the
+    // field, the execution scenario reference, and the scenarios-map key, and the
+    // schema rejects surrounding whitespace on all of them.
+    const testName = formData.testName.trim();
+    const regionalTaskDetails = await fetchRegionalTaskDetails(formData.executionTiming);
+    // The uploaded file's extension (e.g. jmx, js, py, zip) names the stored asset.
+    const scriptExtension = isScriptTest ? getFileExtension(formData.scriptFile?.[0].name) : "none";
+    // Derive the API fileType category from the shared asset-key contract (the same
+    // rule the API, task runner, CLI, and MCP use), so a .zip is declared "zip" and
+    // its object is found in S3 instead of the API 400-ing and orphaning the upload.
+    const fileTypeCategory = isScriptTest ? fileTypeForAssetFilename(formData.scriptFile?.[0]?.name ?? "") : "none";
+    // Build file name using the test id + extension (e.g. <test_id>.<ext> -> ABCDE12345.zip)
+    const scriptFileName = formData.scriptFile?.[0]?.name ? `${formData.testId}.${scriptExtension}` : "";
 
     const payload: CreateScenarioRequest = {
       testId: formData.testId,
-      testName: formData.testName,
+      testName,
       testDescription: formData.testDescription,
       testTaskConfigs:
         formData.regions?.map((region) => ({
-          concurrency: parseInt(region.concurrency),
-          taskCount: parseInt(region.taskCount),
+          concurrency: isNativeMode ? 1 : Number.parseInt(region.concurrency),
+          taskCount: Number.parseInt(region.taskCount),
           region: region.region,
         })) || [],
       testScenario: {
         execution: [
           {
-            "ramp-up": `${formData.rampUpValue}${formData.rampUpUnit?.charAt(0) || "m"}`,
-            "hold-for": `${formData.holdForValue}${formData.holdForUnit?.charAt(0) || "m"}`,
-            scenario: formData.testName,
+            ...(isNativeMode
+              ? { "ramp-up": "0s", "hold-for": "1s" } // unused placeholder, never used and cleared when switching modes
+              : {
+                  "ramp-up": serializeDuration(formData.rampUpValue, formData.rampUpUnit),
+                  "hold-for": serializeDuration(formData.holdForValue, formData.holdForUnit),
+                }),
+            scenario: testName,
             executor: formData.testType === TestTypes.SIMPLE ? undefined : formData.testType,
           },
         ],
         scenarios: {
-          [formData.testName]: isScriptTest
+          [testName]: isScriptTest
             ? {
                 script: scriptFileName,
               }
@@ -183,8 +226,14 @@ export default function CreateTestScenarioPage() {
       showLive: formData.showLive,
       regionalTaskDetails,
       tags: formData.tags.map((tag) => tag.label),
-      healthyThreshold: parseInt(formData.healthyThreshold) || 90,
+      healthyThreshold: Number.isNaN(Number.parseInt(formData.healthyThreshold))
+        ? 90
+        : Number.parseInt(formData.healthyThreshold),
     };
+
+    if (isNativeMode) {
+      payload.nativeRunMode = buildNativeRunModeFromForm(formData);
+    }
 
     // Add run schedule
     if (formData.executionTiming === "run-once") {
@@ -265,7 +314,7 @@ export default function CreateTestScenarioPage() {
         addNotification({
           id: `scenario-${verb}-${formData.testId}`,
           type: "success",
-          content: `Scenario "${formData.testName}" ${verb} successfully`,
+          content: `Scenario "${formData.testName.trim()}" ${verb} successfully`,
           autoDismiss: true,
         })
       );
@@ -312,6 +361,15 @@ export default function CreateTestScenarioPage() {
 
   const submitLabel = isEdit ? "Update" : formData.executionTiming === "run-now" ? "Run Now" : "Schedule";
 
+  if (isLoadingScenario) {
+    return (
+      <PageLoadingState
+        title={isEdit ? "Edit Test Scenario" : "Create Test Scenario"}
+        description="Configure the settings for your load test"
+      />
+    );
+  }
+
   return (
     <ContentLayout
       header={
@@ -320,80 +378,90 @@ export default function CreateTestScenarioPage() {
         </Header>
       }
     >
-      {isLoadingScenario ? (
-        <Box textAlign="center" padding={{ vertical: "xxl" }}>
-          <Spinner size="large" />
-        </Box>
-      ) : (
-        <form onSubmit={(e) => e.preventDefault()}>
-          <Form
-            errorText={error}
-            actions={
-              <SpaceBetween direction="horizontal" size="xs">
-                <Button formAction="none" variant="link" onClick={handleCancel} disabled={isSubmitting || isUploading || isSaving}>
-                  Cancel
-                </Button>
-                <Button formAction="none" onClick={() => handleSubmit("save")} loading={isSaving}>
-                  Save
-                </Button>
-                <Button
-                  variant="primary"
-                  formAction="submit"
-                  onClick={() => handleSubmit("submit")}
-                  loading={isSubmitting || isUploading}
-                >
-                  {submitLabel}
-                </Button>
-              </SpaceBetween>
-            }
-          >
-            <SpaceBetween direction="vertical" size="l">
-              <TestConfigurationSection
-                formData={formData}
-                updateFormData={updateFormData}
-                showValidationErrors={submitAttempted}
-                {...tagManagement}
-              />
-              <ScheduleSection
-                formData={formData}
-                updateFormData={updateFormData}
-                showValidationErrors={submitAttempted}
-              />
-              <TestTypeSection formData={formData} updateFormData={updateFormData} />
-              {/* HTTP endpoint vs. file upload swap in place by test type. FileUploadSection is a
+      <form onSubmit={(e) => e.preventDefault()}>
+        <Form
+          errorText={error}
+          actions={
+            <SpaceBetween direction="horizontal" size="m" alignItems="center">
+              <Checkbox
+                onChange={({ detail }) => updateFormData({ showLive: detail.checked })}
+                checked={formData.showLive}
+              >
+                Real-time monitoring
+              </Checkbox>
+              <Button
+                formAction="none"
+                variant="link"
+                onClick={handleCancel}
+                disabled={isSubmitting || isUploading || isSaving}
+              >
+                Cancel
+              </Button>
+              <Button formAction="none" onClick={() => handleSubmit("save")} loading={isSaving}>
+                Save
+              </Button>
+              <Button
+                data-cy="submit-scenario-btn"
+                variant="primary"
+                formAction="submit"
+                onClick={() => handleSubmit("submit")}
+                loading={isSubmitting || isUploading}
+              >
+                {submitLabel}
+              </Button>
+            </SpaceBetween>
+          }
+        >
+          <SpaceBetween direction="vertical" size="l">
+            <TestConfigurationSection
+              formData={formData}
+              updateFormData={updateFormData}
+              showValidationErrors={submitAttempted}
+              {...tagManagement}
+            />
+            <TestTypeSection formData={formData} updateFormData={updateFormData} onModeChange={handleModeChange} />
+            {isNativeMode && <NativeModeReview />}
+            {/* HTTP endpoint vs. file upload swap in place by test type. FileUploadSection is a
                   FormSection (own data-section-id); HttpEndpointSection is a plain Container, so the
                   page wraps it with a data-section-id for scroll-to-error. */}
-              {isScriptTest ? (
-                <FileUploadSection
+            {isScriptTest ? (
+              <FileUploadSection
+                formData={formData}
+                updateFormData={updateFormData}
+                updateNativeMode={updateNativeMode}
+                showValidationErrors={submitAttempted}
+              />
+            ) : (
+              <div data-section-id={SECTION_IDS.HTTP_ENDPOINT}>
+                <HttpEndpointSection
                   formData={formData}
                   updateFormData={updateFormData}
                   showValidationErrors={submitAttempted}
                 />
-              ) : (
-                <div data-section-id={SECTION_IDS.HTTP_ENDPOINT}>
-                  <HttpEndpointSection
-                    formData={formData}
-                    updateFormData={updateFormData}
-                    showValidationErrors={submitAttempted}
-                  />
-                </div>
-              )}
-              {/* Read-only regional availability sits directly above the region selector for context. */}
-              <RegionalTaskAvailabilitySection />
-              <MultiRegionConfigSection
-                formData={formData}
-                updateFormData={updateFormData}
-                showValidationErrors={submitAttempted}
-              />
+              </div>
+            )}
+            <MultiRegionConfigSection
+              formData={formData}
+              updateFormData={updateFormData}
+              showValidationErrors={submitAttempted}
+            />
+            {/* Standard mode sets ramp/hold here; Native mode has no duration
+                section (its safety cap lives in the Upload test file section). */}
+            {!isNativeMode && (
               <TestDurationSection
                 formData={formData}
                 updateFormData={updateFormData}
                 showValidationErrors={submitAttempted}
               />
-            </SpaceBetween>
-          </Form>
-        </form>
-      )}
+            )}
+            <ScheduleSection
+              formData={formData}
+              updateFormData={updateFormData}
+              showValidationErrors={submitAttempted}
+            />
+          </SpaceBetween>
+        </Form>
+      </form>
 
       <Modal
         visible={showCancelConfirm}

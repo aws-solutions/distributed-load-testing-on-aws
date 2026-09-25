@@ -298,7 +298,11 @@ describe("handler", () => {
       const response = await apiServices.handler(event, context);
 
       expect(response.statusCode).toBe(200);
-      expect(scenarios.createTest).toHaveBeenCalledWith(testConfig, "test-function");
+      expect(scenarios.createTest).toHaveBeenCalledWith(
+        // Handlers receive the validated body, so schema defaults are filled in.
+        { ...testConfig, healthyThreshold: 90 },
+        "test-function"
+      );
     });
 
     it("should still succeed when getTestEntry throws a transient error", async () => {
@@ -327,7 +331,11 @@ describe("handler", () => {
       const response = await apiServices.handler(event, context);
 
       expect(response.statusCode).toBe(200);
-      expect(scenarios.createTest).toHaveBeenCalledWith(testConfig, "test-function");
+      expect(scenarios.createTest).toHaveBeenCalledWith(
+        // Handlers receive the validated body, so schema defaults are filled in.
+        { ...testConfig, healthyThreshold: 90 },
+        "test-function"
+      );
       expect(consoleSpy).toHaveBeenCalledWith(
         "Failed to fetch existing entry for metric:",
         expect.any(Error)
@@ -371,6 +379,7 @@ describe("handler", () => {
         expect.objectContaining({
           Type: "TestUpdate",
           TestId: "existing-test-123",
+          RunMode: "standard",
           FieldsChanged: ["testName"],
           UserAgent: "test-agent",
         })
@@ -411,6 +420,7 @@ describe("handler", () => {
         expect.objectContaining({
           Type: "TestCreate",
           TestId: "new-test-456",
+          RunMode: "standard",
           UserAgent: "test-agent",
         })
       );
@@ -894,7 +904,7 @@ describe("handler", () => {
 
     expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
     // Zod provides comprehensive validation errors
-    expect(response.body).toContain("testId: Expected string, received number");
+    expect(response.body).toContain("testId: Invalid input: expected string, received number");
   });
 
   describe("Validation Integration Tests", () => {
@@ -947,7 +957,7 @@ describe("handler", () => {
         const response = await apiServices.handler(event, {});
 
         expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
-        expect(response.body).toContain("Invalid enum value");
+        expect(response.body).toContain("op: Invalid input: expected");
       });
 
       it("should reject invalid test runs query parameters", async () => {
@@ -983,7 +993,7 @@ describe("handler", () => {
         const response = await apiServices.handler(event, {});
 
         expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
-        expect(response.body).toContain("Invalid enum value");
+        expect(response.body).toContain("Invalid option: expected one of");
       });
 
       // Note: Positive query parameter validation is covered by the unit tests
@@ -1078,6 +1088,23 @@ describe("handler", () => {
         expect(response.body).toContain("At least one testRunId is required");
       });
 
+      it("should reject an over-limit delete test runs request before dispatch", async () => {
+        const event = {
+          resource: "/scenarios/{testId}/testruns",
+          httpMethod: "DELETE",
+          pathParameters: {
+            testId: "test-123",
+          },
+          body: JSON.stringify(Array.from({ length: 26 }, (_, index) => `run-${index}`)),
+        };
+
+        const response = await apiServices.handler(event, {});
+
+        expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
+        expect(response.body).toContain("A maximum of 25 testRunIds is allowed per request");
+        expect(scenarios.deleteTestRuns).not.toHaveBeenCalled();
+      });
+
       // Note: Positive request body validation is covered by the unit tests
     });
 
@@ -1150,7 +1177,7 @@ describe("handler", () => {
         expect(response.statusCode).toBe(scenarios.StatusCodes.BAD_REQUEST);
         expect(response.body).toContain("testTaskConfigs[1]");
         expect(response.body).toContain("Invalid region format");
-        expect(response.body).toContain("Number must be greater than 0");
+        expect(response.body).toContain("Too small: expected number to be >0");
         expect(response.body).toContain("Maximum 5 tags allowed");
       });
     });
@@ -1205,6 +1232,7 @@ describe("sendScenarioWriteMetric", () => {
     expect(utils.sendMetric).toHaveBeenCalledWith(
       expect.objectContaining({
         Type: "TestCreate",
+        RunMode: "standard",
         TestRunNumber: 3,
         HasBaseline: "true",
         ConcurrencyTotal: 8,
@@ -1225,7 +1253,8 @@ describe("sendScenarioWriteMetric", () => {
       existingEntry: { testId: "1234", testName: "Old Name" },
       data: { testId: "1234" },
       config: {
-        testType: "simple",
+        testType: "k6",
+        nativeRunMode: { maxTestDurationSeconds: 3600 },
         testTaskConfigs: [{ region: "us-east-1", taskCount: 1, concurrency: 5 }],
         testScenario: { execution: [{ "hold-for": "1m", "ramp-up": "1m" }] },
       },
@@ -1235,6 +1264,7 @@ describe("sendScenarioWriteMetric", () => {
     expect(utils.sendMetric).toHaveBeenCalledWith(
       expect.objectContaining({
         Type: "TestUpdate",
+        RunMode: "native",
         TestRunNumber: 5,
         FieldsChanged: ["testName", "testScenario"],
       })

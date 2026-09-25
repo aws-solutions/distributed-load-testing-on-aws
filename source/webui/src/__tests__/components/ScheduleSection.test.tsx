@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, test, vi, type Mock } from "vitest";
+import createWrapper from "@cloudscape-design/components/test-utils/dom";
 import fc from "fast-check";
+import { afterEach, beforeEach, describe, expect, test, vi, type Mock } from "vitest";
 import { ScheduleSection } from "../../pages/scenarios/components/ScheduleSection";
-import { TestTypes } from "../../pages/scenarios/constants";
+import { TestMode, TestTypes } from "../../pages/scenarios/constants";
+import { createEmptyNativeModeInput } from "../../pages/scenarios/hooks/useFormData";
 import { FormData } from "../../pages/scenarios/types";
 
 describe("ScheduleSection", () => {
@@ -39,9 +41,11 @@ describe("ScheduleSection", () => {
       scriptFile: [],
       fileError: "",
       rampUpValue: "5",
-      rampUpUnit: "m",
+      rampUpUnit: "minutes",
       holdForValue: "10",
-      holdForUnit: "m",
+      holdForUnit: "minutes",
+      testMode: TestMode.STANDARD,
+      nativeMode: createEmptyNativeModeInput(),
       healthyThreshold: "90",
       k6LicenseAcknowledged: false,
     };
@@ -55,9 +59,10 @@ describe("ScheduleSection", () => {
     test("renders all execution timing options", () => {
       render(<ScheduleSection formData={mockFormData} updateFormData={mockUpdateFormData} />);
 
-      expect(screen.getByText("Run Now")).toBeInTheDocument();
-      expect(screen.getByText("Run Once")).toBeInTheDocument();
-      expect(screen.getByText("Run on a Schedule")).toBeInTheDocument();
+      const timing = createWrapper(document.body).findSegmentedControl()!;
+      expect(timing.findSegmentById("run-now")).not.toBeNull();
+      expect(timing.findSegmentById("run-once")).not.toBeNull();
+      expect(timing.findSegmentById("run-schedule")).not.toBeNull();
     });
   });
 
@@ -76,9 +81,99 @@ describe("ScheduleSection", () => {
     });
   });
 
+  describe("run once validation", () => {
+    beforeEach(() => {
+      mockFormData.executionTiming = "run-once";
+    });
+
+    test("shows no errors on initial render (empty, untouched, not submitted)", () => {
+      render(<ScheduleSection formData={mockFormData} updateFormData={mockUpdateFormData} />);
+      expect(screen.queryByText("Run time is required")).not.toBeInTheDocument();
+      expect(screen.queryByText("Run date is required")).not.toBeInTheDocument();
+    });
+
+    test("reveals required errors for empty fields on submit", () => {
+      render(<ScheduleSection formData={mockFormData} updateFormData={mockUpdateFormData} showValidationErrors />);
+      expect(screen.getByText("Run time is required")).toBeInTheDocument();
+      expect(screen.getByText("Run date is required")).toBeInTheDocument();
+    });
+
+    test("reveals the required error after the empty time field is blurred", () => {
+      render(<ScheduleSection formData={mockFormData} updateFormData={mockUpdateFormData} />);
+      expect(screen.queryByText("Run time is required")).not.toBeInTheDocument();
+      fireEvent.blur(screen.getByPlaceholderText("00:00"));
+      expect(screen.getByText("Run time is required")).toBeInTheDocument();
+    });
+
+    test("does not show a time format error until the field is blurred", () => {
+      mockFormData.scheduleTime = "25:00";
+      render(<ScheduleSection formData={mockFormData} updateFormData={mockUpdateFormData} />);
+      expect(screen.queryByText(/HH:MM/)).not.toBeInTheDocument();
+      fireEvent.blur(screen.getByPlaceholderText("00:00"));
+      expect(screen.getByText(/HH:MM/)).toBeInTheDocument();
+    });
+
+    test("accepts a valid future date and time without error", () => {
+      mockFormData.scheduleTime = "12:00";
+      mockFormData.scheduleDate = "2099-12-31";
+      render(<ScheduleSection formData={mockFormData} updateFormData={mockUpdateFormData} showValidationErrors />);
+      expect(screen.queryByText(/Run time is required/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/HH:MM/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/must be in the future/)).not.toBeInTheDocument();
+    });
+
+    test("flags a past date and time as not in the future", () => {
+      mockFormData.scheduleTime = "00:00";
+      mockFormData.scheduleDate = "2000-01-01";
+      render(<ScheduleSection formData={mockFormData} updateFormData={mockUpdateFormData} />);
+      expect(screen.getByText("Scheduled date and time must be in the future")).toBeInTheDocument();
+    });
+  });
+
   describe("cron schedule configuration", () => {
     beforeEach(() => {
       mockFormData.executionTiming = "run-schedule";
+    });
+
+    test("shows no cron error on initial render", () => {
+      render(<ScheduleSection formData={mockFormData} updateFormData={mockUpdateFormData} />);
+      expect(screen.queryByText("Minutes is required")).not.toBeInTheDocument();
+    });
+
+    test("reveals a required error after an empty cron field is blurred", () => {
+      render(<ScheduleSection formData={mockFormData} updateFormData={mockUpdateFormData} />);
+      expect(screen.queryByText("Minutes is required")).not.toBeInTheDocument();
+      fireEvent.blur(screen.getByPlaceholderText("minutes"));
+      expect(screen.getByText("Minutes is required")).toBeInTheDocument();
+    });
+
+    test("does not format-validate a partial cron until all fields are filled", () => {
+      // Invalid minutes ("1,5") but the rest empty & untouched → no error shown yet.
+      const partial = { ...mockFormData, cronMinutes: "1,5" };
+      render(<ScheduleSection formData={partial} updateFormData={mockUpdateFormData} />);
+      expect(screen.queryByText(/Minutes must be a single value/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/is required/)).not.toBeInTheDocument();
+    });
+
+    test("format-validates once all five cron fields are filled", () => {
+      const allFilled = {
+        ...mockFormData,
+        cronMinutes: "1,5",
+        cronHours: "9",
+        cronDayOfMonth: "*",
+        cronMonth: "*",
+        cronDayOfWeek: "*",
+      };
+      render(<ScheduleSection formData={allFilled} updateFormData={mockUpdateFormData} />);
+      expect(
+        screen.getByText("Minutes must be a single value (0-59). Step values and lists are not supported.")
+      ).toBeInTheDocument();
+    });
+
+    test("reveals cron required errors when an expiry date is set, even with cron untouched", () => {
+      const withExpiry = { ...mockFormData, cronExpiryDate: "2099/01/01" };
+      render(<ScheduleSection formData={withExpiry} updateFormData={mockUpdateFormData} />);
+      expect(screen.getByText("Minutes is required")).toBeInTheDocument();
     });
 
     test("shows cron schedule fields when selected", () => {
@@ -308,9 +403,11 @@ describe("ScheduleSection Bug Condition Exploration", () => {
       scriptFile: [],
       fileError: "",
       rampUpValue: "5",
-      rampUpUnit: "m",
+      rampUpUnit: "minutes",
       holdForValue: "10",
-      holdForUnit: "m",
+      holdForUnit: "minutes",
+      testMode: TestMode.STANDARD,
+      nativeMode: createEmptyNativeModeInput(),
       healthyThreshold: "90",
       k6LicenseAcknowledged: false,
     };
@@ -520,9 +617,11 @@ describe("ScheduleSection Preservation Properties", () => {
       scriptFile: [],
       fileError: "",
       rampUpValue: "5",
-      rampUpUnit: "m",
+      rampUpUnit: "minutes",
       holdForValue: "10",
-      holdForUnit: "m",
+      holdForUnit: "minutes",
+      testMode: TestMode.STANDARD,
+      nativeMode: createEmptyNativeModeInput(),
       healthyThreshold: "90",
       k6LicenseAcknowledged: false,
     };
@@ -644,7 +743,9 @@ describe("ScheduleSection Preservation Properties", () => {
     expect(screen.getByText("Next Runs (Local time)")).toBeInTheDocument();
     expect(screen.queryAllByText(/^• /)).toHaveLength(0);
     expect(
-      screen.getByText("Month must be *, a value (1-12), name prefix (JAN-DEC), or a range/list (e.g., 1-5, 1,5). Use '/N' to increment by N.")
+      screen.getByText(
+        "Month must be *, a value (1-12), name prefix (JAN-DEC), or a range/list (e.g., 1-5, 1,5). Use '/N' to increment by N."
+      )
     ).toBeInTheDocument();
     consoleErrorSpy.mockRestore();
   });
@@ -714,9 +815,8 @@ describe("ScheduleSection Preservation Properties", () => {
 
     render(<ScheduleSection formData={formData} updateFormData={mockUpdateFormData} />);
 
-    // Click "Run Now" radio button
-    const runNowRadio = screen.getByLabelText("Run Now");
-    fireEvent.click(runNowRadio);
+    // Select the "Run Now" segment
+    createWrapper(document.body).findSegmentedControl()!.findSegmentById("run-now")!.click();
 
     expect(mockUpdateFormData).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -875,9 +975,11 @@ describe("ScheduleSection Cron Comprehensive Tests", () => {
       scriptFile: [],
       fileError: "",
       rampUpValue: "5",
-      rampUpUnit: "m",
+      rampUpUnit: "minutes",
       holdForValue: "10",
-      holdForUnit: "m",
+      holdForUnit: "minutes",
+      testMode: TestMode.STANDARD,
+      nativeMode: createEmptyNativeModeInput(),
       healthyThreshold: "90",
       k6LicenseAcknowledged: false,
     };
@@ -938,9 +1040,7 @@ describe("ScheduleSection Cron Comprehensive Tests", () => {
 
       render(<ScheduleSection formData={formData} updateFormData={mockUpdateFormData} />);
 
-      expect(
-        screen.getByText("Constraint error, got value 99 expected range 0-23")
-      ).toBeInTheDocument();
+      expect(screen.getByText("Constraint error, got value 99 expected range 0-23")).toBeInTheDocument();
       const bulletItems = screen.queryAllByText(/^• /);
       expect(bulletItems).toHaveLength(0);
       consoleErrorSpy.mockRestore();
@@ -959,9 +1059,7 @@ describe("ScheduleSection Cron Comprehensive Tests", () => {
 
       render(<ScheduleSection formData={formData} updateFormData={mockUpdateFormData} />);
 
-      expect(
-        screen.getByText("Constraint error, got value 13 expected range 1-12")
-      ).toBeInTheDocument();
+      expect(screen.getByText("Constraint error, got value 13 expected range 1-12")).toBeInTheDocument();
       const bulletItems = screen.queryAllByText(/^• /);
       expect(bulletItems).toHaveLength(0);
       consoleErrorSpy.mockRestore();
@@ -980,9 +1078,7 @@ describe("ScheduleSection Cron Comprehensive Tests", () => {
 
       render(<ScheduleSection formData={formData} updateFormData={mockUpdateFormData} />);
 
-      expect(
-        screen.getByText("Constraint error, got value 8 expected range 0-7")
-      ).toBeInTheDocument();
+      expect(screen.getByText("Constraint error, got value 8 expected range 0-7")).toBeInTheDocument();
       const bulletItems = screen.queryAllByText(/^• /);
       expect(bulletItems).toHaveLength(0);
       consoleErrorSpy.mockRestore();
@@ -1001,9 +1097,7 @@ describe("ScheduleSection Cron Comprehensive Tests", () => {
 
       render(<ScheduleSection formData={formData} updateFormData={mockUpdateFormData} />);
 
-      expect(
-        screen.getByText("Constraint error, got value 60 expected range 0-59")
-      ).toBeInTheDocument();
+      expect(screen.getByText("Constraint error, got value 60 expected range 0-59")).toBeInTheDocument();
       // Verify no bullet-point entries are rendered
       const bulletItems = screen.queryAllByText(/^• /);
       expect(bulletItems).toHaveLength(0);
@@ -1096,8 +1190,7 @@ describe("ScheduleSection Cron Comprehensive Tests", () => {
 
       render(<ScheduleSection formData={formData} updateFormData={mockUpdateFormData} />);
 
-      const runNowRadio = screen.getByLabelText("Run Now");
-      fireEvent.click(runNowRadio);
+      createWrapper(document.body).findSegmentedControl()!.findSegmentById("run-now")!.click();
 
       expect(mockUpdateFormData).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1126,8 +1219,7 @@ describe("ScheduleSection Cron Comprehensive Tests", () => {
 
       render(<ScheduleSection formData={formData} updateFormData={mockUpdateFormData} />);
 
-      const runOnceRadio = screen.getByLabelText("Run Once");
-      fireEvent.click(runOnceRadio);
+      createWrapper(document.body).findSegmentedControl()!.findSegmentById("run-once")!.click();
 
       expect(mockUpdateFormData).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1152,8 +1244,7 @@ describe("ScheduleSection Cron Comprehensive Tests", () => {
 
       render(<ScheduleSection formData={formData} updateFormData={mockUpdateFormData} />);
 
-      const runScheduleRadio = screen.getByLabelText("Run on a Schedule");
-      fireEvent.click(runScheduleRadio);
+      createWrapper(document.body).findSegmentedControl()!.findSegmentById("run-schedule")!.click();
 
       expect(mockUpdateFormData).toHaveBeenCalledWith(
         expect.objectContaining({

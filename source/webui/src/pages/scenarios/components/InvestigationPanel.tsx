@@ -20,8 +20,8 @@ import {
   useCancelInvestigationMutation,
   useGetInvestigationFindingsQuery,
 } from "../../../store/investigationsApiSlice";
-import { TERMINAL_STATES } from "../../../models/investigation";
-import type { InvestigationStatus, InvestigationStructuredFindings } from "../../../models/investigation";
+import { InvestigationStatus, TERMINAL_STATES } from "../../../models/investigation";
+import type { InvestigationStructuredFindings } from "../../../models/investigation";
 import { useInvestigationPolling } from "../hooks/useInvestigationPolling";
 import { parseStructuredFindings } from "../../../utils/parseInvestigationFindings";
 
@@ -40,7 +40,7 @@ export function InvestigationPanel({ testId, testRunId }: InvestigationPanelProp
 
   const { activeInvestigation, status, isStatusLoading, isStatusError, isPollingExpired } = useInvestigationPolling(
     testId,
-    testRunId,
+    testRunId
   );
 
   const [cancelInvestigation, { isLoading: isCanceling }] = useCancelInvestigationMutation();
@@ -49,10 +49,10 @@ export function InvestigationPanel({ testId, testRunId }: InvestigationPanelProp
   const investigationId = activeInvestigation?.investigationId ?? "";
   const currentStatus = status?.status;
   const statusMatchesInvestigation = status?.investigationId === investigationId;
-  const isCompleted = statusMatchesInvestigation && currentStatus === "COMPLETED";
+  const isCompleted = statusMatchesInvestigation && currentStatus === InvestigationStatus.COMPLETED;
   const { currentData: findingsData, isFetching: isFindingsLoading } = useGetInvestigationFindingsQuery(
     { testId, testRunId, investigationId, type: "investigation", format: "structured" },
-    { skip: !isCompleted || !investigationId },
+    { skip: !isCompleted || !investigationId }
   );
 
   if (!activeInvestigation) {
@@ -138,15 +138,15 @@ export function InvestigationPanel({ testId, testRunId }: InvestigationPanelProp
 function computeHeaderTitle(
   isCompleted: boolean,
   currentStatus: InvestigationStatus | undefined,
-  structuredFindings: InvestigationStructuredFindings | null,
+  structuredFindings: InvestigationStructuredFindings | null
 ): string {
   if (isCompleted && structuredFindings?.findings.some((f) => f.type === "root_cause")) {
     return "Investigation (root cause found)";
   }
   if (isCompleted) return "Investigation (complete)";
-  if (currentStatus === "FAILED") return "Investigation (failed)";
-  if (currentStatus === "TIMED_OUT") return "Investigation (timed out)";
-  if (currentStatus === "PENDING_CUSTOMER_APPROVAL") return "Investigation (awaiting approval)";
+  if (currentStatus === InvestigationStatus.FAILED) return "Investigation (failed)";
+  if (currentStatus === InvestigationStatus.TIMED_OUT) return "Investigation (timed out)";
+  if (currentStatus === InvestigationStatus.PENDING_CUSTOMER_APPROVAL) return "Investigation (awaiting approval)";
   return "Investigation (in progress)";
 }
 
@@ -183,7 +183,7 @@ function computeHeaderActions({
       </SpaceBetween>
     );
   }
-  if (currentStatus === "CANCELED") {
+  if (currentStatus === InvestigationStatus.CANCELED) {
     return undefined;
   }
   return (
@@ -248,9 +248,7 @@ function InvestigationPanelBody({
         statusReason={status?.statusReason}
       />
       {isPollingExpired && !isTerminal && (
-        <Alert type="info">
-          Auto-refresh stopped after 30 minutes. Refresh the page to resume polling.
-        </Alert>
+        <Alert type="info">Auto-refresh stopped after 30 minutes. Refresh the page to resume polling.</Alert>
       )}
     </SpaceBetween>
   );
@@ -301,8 +299,6 @@ function InProgressLayout({
   createdAt: string;
   statusReason: string | null | undefined;
 }) {
-  const isFailed = currentStatus === "FAILED" || currentStatus === "TIMED_OUT";
-
   return (
     <SpaceBetween size="s">
       <Box variant="h4">Investigation timeline</Box>
@@ -310,20 +306,30 @@ function InProgressLayout({
       <SpaceBetween size="xxs">
         <TimelineEntry type="pending" label="Investigation started" timestamp={formatTimestamp(createdAt)} />
 
-        {isFailed ? (
-          <TimelineEntry
-            type="error"
-            label={currentStatus === "TIMED_OUT" ? "Investigation timed out" : "Investigation failed"}
-            detail={statusReason ?? undefined}
-          />
-        ) : currentStatus === "PENDING_CUSTOMER_APPROVAL" ? (
-          <TimelineEntry type="pending" label="Awaiting approval in DevOps Agent console" />
-        ) : (
-          <TimelineEntry type="pending" label="DevOps Agent is analyzing infrastructure metrics, logs, and traces..." />
-        )}
+        <CurrentStateEntry currentStatus={currentStatus} statusReason={statusReason} />
       </SpaceBetween>
     </SpaceBetween>
   );
+}
+
+/** The timeline's trailing entry: how the investigation stands right now. */
+function CurrentStateEntry({
+  currentStatus,
+  statusReason,
+}: {
+  readonly currentStatus: InvestigationStatus | undefined;
+  readonly statusReason: string | null | undefined;
+}) {
+  if (currentStatus === InvestigationStatus.TIMED_OUT) {
+    return <TimelineEntry type="error" label="Investigation timed out" detail={statusReason ?? undefined} />;
+  }
+  if (currentStatus === InvestigationStatus.FAILED) {
+    return <TimelineEntry type="error" label="Investigation failed" detail={statusReason ?? undefined} />;
+  }
+  if (currentStatus === InvestigationStatus.PENDING_CUSTOMER_APPROVAL) {
+    return <TimelineEntry type="pending" label="Awaiting approval in DevOps Agent console" />;
+  }
+  return <TimelineEntry type="pending" label="DevOps Agent is analyzing infrastructure metrics, logs, and traces..." />;
 }
 
 // ─── Completed (No Findings) Layout ─────────────────────────────────────────
@@ -483,9 +489,7 @@ function TimelineEntry({
   return (
     <Box>
       <SpaceBetween size="xxs" direction="horizontal" alignItems="center">
-        <StatusIndicator type={indicatorType}>
-          {label}
-        </StatusIndicator>
+        <StatusIndicator type={indicatorType}>{label}</StatusIndicator>
         {timestamp && (
           <Box variant="small" color="text-body-secondary">
             {timestamp}
@@ -514,7 +518,10 @@ function formatTimestamp(isoDate: string): string {
     if (diffMin < 60) return `${diffMin} minute${diffMin > 1 ? "s" : ""} ago`;
 
     // Show full timestamp for older entries
-    return date.toISOString().replace("T", ", ").replace(/\.\d{3}Z$/, " UTC");
+    return date
+      .toISOString()
+      .replace("T", ", ")
+      .replace(/\.\d{3}Z$/, " UTC");
   } catch {
     return isoDate;
   }

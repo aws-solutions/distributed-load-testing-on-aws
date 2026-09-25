@@ -1,6 +1,6 @@
 {
   "name": "@amzn/dlt-task-runner",
-  "version": "4.2.6",
+  "version": "4.3.0",
   "private": true,
   "description": "Task Runner Lambda for DLT — creates ephemeral ECS services for load tests",
   "type": "module",
@@ -18,8 +18,8 @@
     "@amzn/dlt-common": "*",
     "@aws-sdk/client-cloudwatch": "^3.993.0",
     "@aws-sdk/client-cloudwatch-logs": "^3.993.0",
-    "@aws-sdk/client-dynamodb": "^3.993.0",
+    "@aws-sdk/client-dynamodb": "^3.1030.0",
     "@aws-sdk/client-ecs": "^3.993.0",
-    "@aws-sdk/lib-dynamodb": "^3.993.0"
+    "@aws-sdk/lib-dynamodb": "^3.1030.0"
   }
 }

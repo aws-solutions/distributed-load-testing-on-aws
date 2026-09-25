@@ -1,6 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+const { randomInt } = require("node:crypto");
+
 /**
  * Exponential backoff with full jitter.
  * Delay = random(0, min(cap, base * 2^attempt))
@@ -27,7 +29,8 @@ const RETRYABLE_ERRORS = new Set(["ThrottlingException", "InternalServerExceptio
 const computeDelay = (attempt, baseMs = DEFAULT_BASE_MS, capMs = DEFAULT_CAP_MS) => {
   const exponential = baseMs * Math.pow(2, attempt);
   const capped = Math.min(capMs, exponential);
-  return Math.floor(Math.random() * capped);
+  const upperBound = Math.max(1, Math.ceil(capped));
+  return internals.randomInt(upperBound);
 };
 
 /**
@@ -41,7 +44,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /**
  * Internal references that tests can override (dependency injection seam).
  */
-const internals = { sleep };
+const internals = { randomInt, sleep };
 
 /**
  * Determines whether an error is retryable based on its name.

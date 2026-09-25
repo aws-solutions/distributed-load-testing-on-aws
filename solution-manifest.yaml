@@ -1,6 +1,6 @@
 id: SO0062
 name: distributed-load-testing-on-aws
-version: v4.2.6
+version: v4.3.0
 cloudformation_templates:
   - template: distributed-load-testing-on-aws.template
     main_template: true
@@ -14,5 +14,8 @@ build_environment:
     build_image: 'aws/codebuild/standard:7.0'
 container_images:
   - distributed-load-testing-on-aws-load-tester
+  - distributed-load-testing-on-aws-load-tester-locust
+  - distributed-load-testing-on-aws-load-tester-k6
+  - distributed-load-testing-on-aws-load-tester-jmeter
   - distributed-load-testing-on-aws-web-console
 auto_create_github_pr: true
