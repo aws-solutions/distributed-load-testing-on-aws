@@ -259,9 +259,24 @@ export class CognitoAuthConstruct extends Construct {
       // OAuth callback port (shared by CLI and MCP clients that support configurable ports)
       "http://localhost:7521/callback",
       "http://localhost:7521",
-      "http://127.0.0.1:7521", // Kiro requires explicit IP address
+      "http://127.0.0.1:7521",
 
-      // MCP clients with fixed callback schemes
+      // MCP clients with fixed callbacks
+      // Kiro configured redirectUri: https://kiro.dev/docs/mcp/configuration/#oauth-configuration
+      "http://localhost:7521/oauth/callback",
+      // Claude hosted/Desktop: https://claude.com/docs/connectors/building/authentication#callback-urls
+      "https://claude.ai/api/mcp/auth_callback",
+      // Cursor web/agents: https://cursor.com/docs/context/mcp#static-redirect-url
+      "https://www.cursor.com/agents/mcp/oauth/callback",
+      // VS Code/Copilot Chat: https://code.visualstudio.com/docs/copilot/guides/mcp-developer-guide#authorization
+      "http://127.0.0.1:33418",
+      // VS Code web/Copilot Chat: https://code.visualstudio.com/docs/copilot/guides/mcp-developer-guide#authorization
+      "https://vscode.dev/redirect",
+      // OpenCode: https://github.com/anomalyco/opencode/blob/dev/specs/v2/config.md#L337
+      "http://127.0.0.1:19876/mcp/oauth/callback",
+      // Cursor desktop: https://cursor.com/docs/context/mcp#static-redirect-url
+      "http://localhost:8787/callback",
+      // Cursor legacy (not present in current Cursor documentation)
       "cursor://anysphere.cursor-mcp/oauth/callback",
     ];
     const logoutUrls = callbackUrls;
