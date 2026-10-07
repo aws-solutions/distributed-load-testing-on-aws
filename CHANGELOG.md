@@ -5,17 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.3.1] - 2026-10-06
+## [4.3.1] - 2026-10-07
 
 ### Fixed
 
 - **MCP client authentication**: Added OAuth callback URLs for Kiro, Claude, Cursor, VS Code/Copilot Chat, and OpenCode.
-- **Web console test reliability**: Fixed cross-test request leakage in `ScenarioDetailsPage` tests that caused intermittent pipeline failures.
+- **Web console test reliability**: Fixed leaked requests and outstanding animation frames that caused intermittent web application test failures.
 
 ### Security
 
-- Upgraded `undici` to 7.30.0 for CVE-2026-85024 and `source-map-js` to 1.2.2 for CVE-2026-93749.
-- Refreshed container base images, upgraded vulnerable Python and Alpine packages, and removed the unused RPM-provided pip installation.
+- Updated npm dependencies to address known vulnerabilities in `axios`, `brace-expansion`, `fast-uri`, `source-map-js`, and `undici`.
+- Refreshed container base images; upgraded `urllib3`, `pcre2`, `nghttp2-libs`, and `libpng`; and removed the unused RPM-provided pip installation.
 
 ## [4.3.0] - 2026-09-24
 
