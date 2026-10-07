@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { App, DefaultStackSynthesizer, Stack, CfnCondition, Aws, Fn } from "aws-cdk-lib";
-import { Template } from "aws-cdk-lib/assertions";
+import { Match, Template } from "aws-cdk-lib/assertions";
 
 import { CognitoAuthConstruct } from "../lib/front-end/auth";
 import { createTemplateWithoutS3Key } from "./snapshot_helpers";
@@ -24,6 +24,18 @@ test("DLT API Test", () => {
     scenariosBucketArn: "arn:aws:s3:::DOC-EXAMPLE-BUCKET",
   });
 
+  Template.fromStack(stack).hasResourceProperties("AWS::Cognito::UserPoolClient", {
+    CallbackURLs: Match.arrayWith([
+      "http://localhost:7521/oauth/callback",
+      "https://claude.ai/api/mcp/auth_callback",
+      "https://www.cursor.com/agents/mcp/oauth/callback",
+      "http://127.0.0.1:33418",
+      "https://vscode.dev/redirect",
+      "http://127.0.0.1:19876/mcp/oauth/callback",
+      "http://localhost:8787/callback",
+      "cursor://anysphere.cursor-mcp/oauth/callback",
+    ]),
+  });
   expect(createTemplateWithoutS3Key(stack)).toMatchSnapshot();
   expect(auth.cognitoIdentityPoolId).toBeDefined();
   expect(auth.cognitoUserPoolClientId).toBeDefined();

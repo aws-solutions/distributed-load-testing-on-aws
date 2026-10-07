@@ -1,4 +1,4 @@
-FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:72b79c55b79d724c10e7d36f789a9eb48203229e0ae5ce0e9358ffed5f088540
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:5c546c873970e79e5c9152cd9c8a9c7013824352bc89071d21feb15ad68496aa
 
 # Install system dependencies
 RUN dnf upgrade -y --refresh && \
@@ -35,9 +35,17 @@ RUN mkdir -p /etc/bzt.d && echo '{"settings": {"artifacts-dir": "/tmp/artifacts"
 # bzt pins setuptools==79.0.1, so this must be upgraded after bzt setup
 RUN $PIP_INSTALL 'setuptools>=83.0.0'
 
+# Temporary fix for CVE-2026-97687, CVE-2026-97688, and CVE-2026-97689 in urllib3 < 2.8.0
+# bzt 1.17.1 pins urllib3==2.7.0, so this must be upgraded after bzt setup
+RUN $PIP_INSTALL 'urllib3>=2.8.0'
+
 # Install Locust at the version pinned in locust.json
 RUN LOCUST_VERSION=$(jq -r '.version' /frameworks/locust.json) && \
     $PIP_INSTALL "locust==${LOCUST_VERSION}"
+
+# Remove the RPM-provided pip 22.3.1 (CVE-2023-5752, CVE-2025-8869, and others).
+# It is unused once pip is upgraded into /usr/local above.
+RUN dnf remove -y python3.11-pip && dnf clean all
 
 # Create non-root user and set permissions
 RUN useradd -m -r appuser

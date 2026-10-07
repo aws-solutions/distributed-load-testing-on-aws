@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # amazonlinux:2023-minimal
-FROM public.ecr.aws/amazonlinux/amazonlinux@sha256:72b79c55b79d724c10e7d36f789a9eb48203229e0ae5ce0e9358ffed5f088540
+FROM public.ecr.aws/amazonlinux/amazonlinux@sha256:5c546c873970e79e5c9152cd9c8a9c7013824352bc89071d21feb15ad68496aa
 
 # Python runs the Locust process and the sidecar; Node runs the DLT entrypoint.
 # jq reads the pinned Locust version out of locust.json, matching the sibling
@@ -28,6 +28,10 @@ RUN LOCUST_VERSION=$(jq -r '.version' /opt/dlt/locust.json) \
 
 # Upgrade setuptools version pulled in by venv to address vulnerabilities.
 RUN /opt/locust/bin/pip install --no-cache-dir 'setuptools>=83.0.0'
+
+# Remove the RPM-provided pip 22.3.1 (CVE-2023-5752, CVE-2025-8869, and others).
+# It is unused once the venv has its own upgraded pip.
+RUN dnf remove -y python3.11-pip && dnf clean all
 
 # Put the venv on PATH so the runner can execute `locust`.
 ENV PATH="/opt/locust/bin:${PATH}"

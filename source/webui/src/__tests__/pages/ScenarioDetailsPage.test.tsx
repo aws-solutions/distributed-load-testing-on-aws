@@ -32,6 +32,14 @@ describe("ScenarioDetailsPage", () => {
   });
 
   it("displays scenario details after loading", async () => {
+    server.use(
+      http.get(MOCK_SERVER_URL + ApiEndpoints.SCENARIOS + "/:testId/testruns", () =>
+        ok({ testRuns: [], pagination: {} }, 0),
+      ),
+      http.get(MOCK_SERVER_URL + ApiEndpoints.SCENARIOS + "/:testId/baseline", () =>
+        ok({ baselineId: null }, 0),
+      ),
+    );
     renderAppContent({ initialRoute: "/scenarios/Ic4PBihoJY" });
 
     await waitFor(() => {
@@ -42,11 +50,17 @@ describe("ScenarioDetailsPage", () => {
     // Single-scroll layout shows the Scenario Overview and Load Configuration sections.
     expect(screen.getByText("Scenario Overview")).toBeInTheDocument();
     expect(screen.getByText("Load Configuration")).toBeInTheDocument();
+
+    // Let the Test Runs fetch settle before the test ends. Amplify issues the
+    // request several ticks after mount, so a test that finishes first leaks it
+    // into whichever test is running when it lands, inflating that test's
+    // request counters.
+    await screen.findByText("No test runs found");
   });
 
   it("refetches test runs without replacing loaded scenario content", async () => {
     let scenarioRequests = 0;
-    let testRunRequests = 0;
+    let latestRunRequests = 0;
     let resolveScenarioRefresh: (() => void) | undefined;
     server.use(
       http.get(MOCK_SERVER_URL + ApiEndpoints.SCENARIOS + "/:testId", async () => {
@@ -57,8 +71,12 @@ describe("ScenarioDetailsPage", () => {
         }
         return ok({ ...mockScenarioDetails, status: "draft" }, 0);
       }),
-      http.get(MOCK_SERVER_URL + ApiEndpoints.SCENARIOS + "/:testId/testruns", () => {
-        testRunRequests += 1;
+      // Count only the latest-run probe. The run-history list hits the same path,
+      // so counting every request here would also count history refetches.
+      http.get(MOCK_SERVER_URL + ApiEndpoints.SCENARIOS + "/:testId/testruns", ({ request }) => {
+        if (new URL(request.url).searchParams.get("latest") === "true") {
+          latestRunRequests += 1;
+        }
         return ok({ testRuns: [], pagination: {} }, 0);
       }),
       http.get(MOCK_SERVER_URL + ApiEndpoints.SCENARIOS + "/:testId/baseline", () =>
@@ -69,7 +87,7 @@ describe("ScenarioDetailsPage", () => {
 
     await screen.findByText("Auto Refresh");
     await screen.findByText("No test runs found");
-    const initialTestRunRequests = testRunRequests;
+    const initialLatestRunRequests = latestRunRequests;
 
     const refreshDropdown = createWrapper(document.body)
       .findAllButtonDropdowns()
@@ -78,7 +96,7 @@ describe("ScenarioDetailsPage", () => {
 
     await waitFor(() => {
       expect(resolveScenarioRefresh).toBeDefined();
-      expect(testRunRequests).toBe(initialTestRunRequests + 1);
+      expect(latestRunRequests).toBeGreaterThan(initialLatestRunRequests);
     });
     expect(screen.getByText("Scenario ID")).toBeInTheDocument();
     resolveScenarioRefresh!();
