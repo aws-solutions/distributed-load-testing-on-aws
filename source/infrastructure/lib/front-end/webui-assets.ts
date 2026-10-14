@@ -102,6 +102,7 @@ export interface WebUIZipConstructProps extends AwsExportsConfig {
   readonly destinationBucket: IBucket;
   readonly destinationKey: string;
   readonly solutionVersion: string;
+  readonly timestamp?: string;
 }
 
 /**
@@ -111,6 +112,8 @@ export interface WebUIZipConstructProps extends AwsExportsConfig {
 export class WebUIZipConstruct extends Construct {
   /** S3 URI of the generated ZIP file (s3://bucket/key) */
   public readonly zipLocation: string;
+  /** S3 version ID of the generated ZIP; changes on every rewrite */
+  public readonly zipVersionId: string;
 
   constructor(scope: Construct, id: string, props: WebUIZipConstructProps) {
     super(scope, id);
@@ -154,10 +157,12 @@ export class WebUIZipConstruct extends Construct {
         DestinationBucket: props.destinationBucket.bucketName,
         DestinationKey: props.destinationKey,
         SolutionVersion: props.solutionVersion,
+        Timestamp: props.timestamp,
       },
     });
 
     this.zipLocation = resource.getAttString("ZipLocation");
+    this.zipVersionId = resource.getAttString("ZipVersionId");
 
     Aspects.of(this).add(new LambdaSuppressionAspect());
   }

@@ -574,12 +574,19 @@ export abstract class DLTBaseStack extends Stack {
 
     if (dltConsole.needsWebConsoleZip) {
       // ALB/ECS and headless: package web assets + config into ZIP
-      new WebUIZipConstruct(this, "WebConsoleAssets", {
+      const webConsoleZip = new WebUIZipConstruct(this, "WebConsoleAssets", {
         ...awsExportsConfig,
         destinationBucket: dltConsole.consoleBucket,
         destinationKey: "dlt-web-console.zip",
         solutionVersion: props.solution.version,
+        timestamp: Date.now().toString(),
       });
+
+      // ALB+ECS: tasks download the ZIP once at startup. Referencing the ZIP's S3 version ID makes the
+      // task definition wait for the ZIP upload and roll new tasks whenever the ZIP is rewritten.
+      if (dltConsole.webConsoleContainer) {
+        dltConsole.webConsoleContainer.addEnvironment("WEB_CONSOLE_ZIP_VERSION", webConsoleZip.zipVersionId);
+      }
     } else {
       // CloudFront + S3: write aws-exports.json only (assets deployed via BucketDeployment)
       new WebUIConfigConstruct(this, "WebConsoleAssets", {

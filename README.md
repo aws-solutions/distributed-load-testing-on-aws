@@ -20,10 +20,13 @@ The intended audience for using this solution's features and capabilities in the
 - [Local Development](#local-development)
 - [Testing](#testing)
 - [Creating a custom build](#creating-a-custom-build)
+- [Creating a custom container build](#creating-a-custom-container-build)
+- [Third-party testing frameworks](#third-party-testing-frameworks)
+- [Collection of operational metrics](#collection-of-operational-metrics)
 
 ## Public Roadmap
 
-See what we're building next on the [DLT Roadmap board](https://github.com/orgs/aws-solutions/projects/24).
+See what we're building next on the [DLT Roadmap board](https://github.com/orgs/aws-solutions/projects/29/views/1).
 
 We welcome community input:
 
@@ -43,64 +46,66 @@ Deploying this solution with the default parameters deploys the following compon
 
 The high-level process flow for the solution components deployed with the AWS CloudFormation template is as follows:
 
-1. A distributed load tester API leverages [Amazon API Gateway](https://aws.amazon.com/api-gateway) to invoke the solution's microservices ([AWS Lambda](https://aws.amazon.com/lambda) functions).
+1. _(CloudFront + S3 hosting option)_ The console user accesses the web console through [Amazon CloudFront](https://aws.amazon.com/cloudfront), which serves the [AWS Amplify](https://aws.amazon.com/amplify) application hosted in an [Amazon Simple Storage Service](https://aws.amazon.com/s3) (Amazon S3) bucket.
 
-2. The microservices provide the business logic to manage test data and run the tests.
+2. _(ALB + ECS Fargate hosting option)_ The console user accesses the web console through an [Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/), which routes traffic to the Amplify application running on [Amazon Elastic Container Service](https://aws.amazon.com/ecs) (Amazon ECS) on [AWS Fargate](https://aws.amazon.com/fargate) inside an [Amazon Virtual Private Cloud](https://aws.amazon.com/vpc) (Amazon VPC).
 
-3. These microservices interact with [Amazon Simple Storage Service](https://aws.amazon.com/s3) (Amazon S3), [Amazon DynamoDB](https://aws.amazon.com/dynamodb), and [AWS Step Functions](https://aws.amazon.com/step-functions) to store test scenario details and results and to orchestrate test execution.
+3. _(Headless hosting option)_ No public front end is deployed. The solution provides the web console as a downloadable ZIP archive in a private S3 bucket, which the console user can serve from a self-hosted web server.
 
-4. An [Amazon Virtual Private Cloud](https://aws.amazon.com/vpc) (Amazon VPC) network topology deploys containing the solution's [Amazon Elastic Container Service](https://aws.amazon.com/ecs) (Amazon ECS) containers running on [AWS Fargate](https://aws.amazon.com/fargate).
+4. During initial configuration, the solution creates a default administrator user in the [Amazon Cognito](https://aws.amazon.com/cognito) user pool and sends an account creation email to the address you provide. The Cognito user pool manages user access to the web console, the REST API, the CLI, and the MCP Server.
 
-5. The containers use an [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/) base image with the [Taurus](https://gettaurus.org/) load testing framework installed. Taurus is an open-source test automation framework that supports JMeter, K6, Locust, and other testing tools. Which engine runs a given test depends on its traffic-shape mode: Standard mode executes through Taurus, while Native mode runs the uploaded script under the framework's own command line (see [Traffic shape: Standard and Native](#traffic-shape-standard-and-native) below). The container image is [Open Container Initiative](https://opencontainers.org/) (OCI) compliant and hosted by AWS in an [Amazon Elastic Container Registry](https://aws.amazon.com/ecr) (Amazon ECR) public repository. For more information, refer to [Container image customization](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/container-image.html).
+5. [Amazon API Gateway](https://aws.amazon.com/api-gateway) invokes [AWS Lambda](https://aws.amazon.com/lambda) microservices that provide the business logic to manage test data and run the tests.
 
-6. A web console powered by [AWS Amplify](https://aws.amazon.com/amplify) deploys into an S3 bucket configured for static web hosting.
+6. The microservices interact with Amazon S3, [Amazon DynamoDB](https://aws.amazon.com/dynamodb), and [Amazon EventBridge](https://aws.amazon.com/eventbridge) to store test scenario details and manage test schedules. When you schedule a test to run at a future time or on a recurring interval, the microservices create an EventBridge Scheduler schedule that invokes the microservice at the scheduled time.
 
-7. [Amazon CloudFront](https://aws.amazon.com/cloudfront) provides secure, public access to the solution's website bucket contents.
+7. To run a test, the microservices invoke [AWS Step Functions](https://aws.amazon.com/step-functions), which orchestrates the test execution.
 
-8. During initial configuration, the solution creates a default administrator role (IAM role) and sends an access invite to a customer-specified user email address.
+8. EventBridge rules route Amazon ECS task failure events and Step Functions failure events to a failure handler Lambda function.
 
-9. An [Amazon Cognito](https://aws.amazon.com/cognito) user pool manages user access to the console, the distributed load tester API, and the MCP Server.
+9. Step Functions creates an ephemeral Amazon ECS service on AWS Fargate in each AWS Region you selected, which launches the test tasks for that Region.
 
-10. After you deploy this solution, you can use the web console or APIs to create and run test scenarios that define a series of tasks.
+10. Each task runs within an Amazon VPC in the selected Region.
 
-11. The microservices use this test scenario to run ECS tasks on Fargate in the specified Regions.
+11. The load testing containers use an [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/) base image, and which engine runs a given test depends on its traffic-shape mode. Standard mode runs the test through the [Taurus](https://gettaurus.org/) test automation framework, which drives JMeter, k6, Locust, or a Simple HTTP Endpoint test. Native mode runs your uploaded script under the framework's own command line in a per-framework image that does not include Taurus. See [Traffic shape: Standard and Native](#traffic-shape-standard-and-native) below. The container images are hosted by AWS in an [Amazon Elastic Container Registry](https://aws.amazon.com/ecr) (Amazon ECR) public repository. For more information, refer to [Container image customization](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/container-image.html).
 
-12. When the test completes, the solution stores results in S3 and DynamoDB and logs output in [Amazon CloudWatch](https://aws.amazon.com/cloudwatch).
+12. Each Fargate task writes its per-Region test results to Amazon S3 and emits logs to [Amazon CloudWatch](https://aws.amazon.com/cloudwatch). When all Regions complete, the microservices aggregate the results in DynamoDB.
 
-13. If you enable the live data option, the solution sends CloudWatch logs from the Fargate tasks to a Lambda function during the test for each Region where the test runs.
+13. If you enable the live data option, a Lambda function receives CloudWatch logs from the Fargate tasks during the test.
 
-14. The Lambda function publishes the data to the corresponding topic in [AWS IoT Core](https://aws.amazon.com/iot-core) in the Region where the main stack was deployed. The web console subscribes to the topic and displays real-time data while the test runs.
+14. The Lambda function publishes the logs to a topic in [AWS IoT Core](https://aws.amazon.com/iot-core) in the Region where the main stack was deployed. The web console subscribes to the topic to display real-time metrics while the test runs.
+
+15. _(Optional CLI access)_ You can install the DLT command-line interface locally to interact with the solution from a terminal. The CLI authenticates through Cognito and calls the REST API directly, which enables scripted automation and CI/CD integration. See [source/cli/README.md](source/cli/README.md).
 
 ### MCP Server Integration (Optional)
 
 > **Note**: The following steps describe the optional MCP Server integration for AI-assisted load testing analysis. This component is only deployed if you select the MCP Server option during solution deployment.
 
-15. An MCP client (AI development tool) connects to the [AWS AgentCore Gateway](https://aws.amazon.com/bedrock/agentcore/) endpoint to access the Distributed Load Testing solution's data through the Model Context Protocol. AgentCore Gateway validates the user's Cognito authentication token to ensure authorized access to the MCP server.
+16. An MCP client (AI development tool) connects to the [Amazon Bedrock AgentCore Gateway](https://aws.amazon.com/bedrock/agentcore/) endpoint to access the solution's data through the Model Context Protocol. AgentCore Gateway validates the user's Cognito authentication token to ensure authorized access to the MCP Server.
 
-16. Upon successful authentication, AgentCore Gateway forwards the MCP tool request to the DLT MCP Server Lambda function. The Lambda function returns the structured data to AgentCore Gateway, which sends it back to the MCP client for AI-assisted analysis and insights.
+17. Upon successful authentication, AgentCore Gateway forwards the MCP tool request to the DLT MCP Server Lambda function.
 
-17. The Lambda function processes the request and queries the appropriate AWS resources (DynamoDB tables, S3 buckets, or CloudWatch logs) to retrieve the requested load testing data.
+18. The Lambda function calls the DLT REST API to retrieve the requested load testing data, and reads from or writes to the scenarios S3 bucket for test script uploads and result artifacts. It then returns the structured data to AgentCore Gateway, which sends it back to the MCP client for AI-assisted analysis and insights.
 
 ## Traffic shape: Standard and Native
 
 Every test scenario runs in one of two traffic-shape modes, which decide whether the solution or your script controls the load. Standard is the default and is what every test used before v4.3.0, so existing scenarios keep behaving exactly as they did.
 
-**Standard.** Standard mode puts DLT in control of the load. You set the Fargate task count per Region, the concurrent virtual users per task, a ramp-up period, and a hold duration, and DLT runs the test through the Taurus automation framework, which applies those values over whatever load your script declares. A Region's virtual users are the task count multiplied by the per-task concurrency. Standard is the only mode that lets you set an exact virtual-user count and change the ramp-up and hold shape without editing the script, and the only one that supports the Simple HTTP Endpoint type. Its limit is expressiveness: anything Taurus cannot represent, such as weighted scenarios, per-stage thresholds, or arrival-rate executors, is unavailable. This is how every DLT test ran before v4.3.0, so existing scenarios keep behaving exactly as they did.
+**Standard.** Standard mode puts DLT in control of the load. You set the Fargate task count per Region, the concurrent virtual users per task, a ramp-up period, and a hold duration, and DLT runs the test through the Taurus automation framework, which applies those values over whatever load your script declares. A Region's virtual users are the task count multiplied by the per-task concurrency. Standard is the only mode that lets you set an exact virtual-user count and change the ramp-up and hold shape without editing the script, and the only one that supports the Simple HTTP Endpoint type. Its limit is expressiveness: anything Taurus cannot represent, such as weighted scenarios, per-stage thresholds, or arrival-rate executors, is unavailable.
 
 **Native.** Native mode puts your script in control of the load. DLT runs the file you uploaded under the framework's own command line and passes no load flags, so your script is the sole authority on the traffic it generates. Two controls remain: how many Fargate tasks to launch per Region, and a required safety duration of up to 24 hours. The safety duration guards against a script that never exits rather than scheduling the run: if the test is still going when it elapses, DLT stops the framework, keeps the results for the portion that ran, and records the run as completed. Tasks are uncoordinated and each runs a full copy of the script, so a k6 script holding 200 virtual users on five tasks puts 1,000 virtual users on the target. Task count is therefore the only load dial; changing the ramp, the hold time, or the virtual-user count means editing the script. Native requires an uploaded script, so Simple HTTP Endpoint is unavailable, and Locust scripts must not set processes.
 
-| If you need | Use |
-| --- | --- |
-| An exact virtual-user count, set from outside the script | Standard |
-| To change the ramp-up or hold time without editing the script | Standard |
-| A single URL with no script at all | Standard |
-| The same load shape regardless of framework | Standard |
-| To reuse a CI or local script unchanged | Native |
-| The script's own stages, thresholds, or shape honored | Native |
-| k6 scenarios, thresholds, or arrival-rate executors | Native |
-| A Locust `LoadTestShape` or weighted task set | Native |
-| JMeter timers and thread groups run exactly as authored | Native |
-| To scale load only in whole multiples of the script's own load | Native |
+| If you need                                                    | Use      |
+| -------------------------------------------------------------- | -------- |
+| An exact virtual-user count, set from outside the script       | Standard |
+| To change the ramp-up or hold time without editing the script  | Standard |
+| A single URL with no script at all                             | Standard |
+| The same load shape regardless of framework                    | Standard |
+| To reuse a CI or local script unchanged                        | Native   |
+| The script's own stages, thresholds, or shape honored          | Native   |
+| k6 scenarios, thresholds, or arrival-rate executors            | Native   |
+| A Locust `LoadTestShape` or weighted task set                  | Native   |
+| JMeter timers and thread groups run exactly as authored        | Native   |
+| To scale load only in whole multiples of the script's own load | Native   |
 
 Both modes report the same metrics, stream live data to the console during a run, and scale by adding tasks, so results stay comparable across a mode switch. Select the mode on the Traffic shape step of the create form, with `--native-mode` in the [DLT CLI](source/cli/README.md), or with `native_run_mode` through the [MCP server](source/mcp-server/README.md).
 
@@ -116,58 +121,82 @@ The solution provides three deployment templates to suit different hosting requi
 
 The solution can be deployed using either CloudFormation or AWS CDK:
 
-**CloudFormation Deployment**: The solution is deployed using a CloudFormation template. To simulate users from regions other than the region the solution is initially deployed in, a regional template must be deployed within the other desired regions. For details on deploying the solution, see the [implementation guide](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/deployment.html).
+**CloudFormation Deployment**: The solution is deployed using a CloudFormation template. To simulate users from regions other than the region the solution is initially deployed in, a regional template must be deployed within the other desired regions. For details on deploying the solution, see the [implementation guide](https://docs.aws.amazon.com/solutions/latest/distributed-load-testing-on-aws/deploy-the-solution.html).
 
 **AWS CDK Deployment**: For custom deployments and direct infrastructure-as-code management, the solution's infrastructure is developed with AWS CDK v2. See the [infrastructure README](source/infrastructure/README.md) for detailed CDK deployment instructions including prerequisites, bootstrapping, and deployment of all stack variants.
 
 ## Source Code
 
 **source/api-services**<br/>
-A NodeJS Lambda function for the API microservices. Integrated with Amazon API Gateway, used to manage test scenarios.
-
-**source/build-tools**<br/>
-Custom build scripts and utilities used for building and packaging the solution.
+A TypeScript Lambda function for the API microservices. Integrated with Amazon API Gateway, used to manage test scenarios and test runs.
 
 **source/cli**<br/>
 A TypeScript command-line interface for headless interaction with the DLT solution. Supports three authentication modes (browser OAuth/PKCE, SRP headless, and IAM), and provides commands to manage test scenarios, query run results, download artifacts from S3, and inspect token status. Designed for both interactive developer use and CI/CD integration. See [source/cli/README.md](source/cli/README.md) for full documentation.
+
+**source/common**<br/>
+A TypeScript library of shared utilities, types, and validation schemas imported by the other TypeScript packages in the solution.
 
 **source/custom-resource**<br/>
 A NodeJS Lambda function used as a CloudFormation custom resource for sending operational metrics to AWS, configuration for regional testing infrastructure, and iot configuration.
 
 **source/infrastructure**<br/>
-A Typescript [AWS Cloud Development Kit (AWS CDK)](https://aws.amazon.com/cdk/) [v2](https://docs.aws.amazon.com/cdk/v2/guide/home.html) package that defines the infrastructure resources to run the Distributed Load Testing on AWS solution.
+A Typescript [AWS Cloud Development Kit (AWS CDK)](https://aws.amazon.com/cdk/) [v2](https://docs.aws.amazon.com/cdk/v2/guide/home.html) package that defines the infrastructure resources to run the Distributed Load Testing on AWS solution. It defines all stack variants (default, ALB + ECS, headless, and regional) and hosts a small number of inline Lambda functions under `source/infrastructure/lambda`.
 
-It also uses the [AWS Solutions Constructs](https://aws.amazon.com/solutions/constructs/) [aws-cloudfront-s3](https://docs.aws.amazon.com/solutions/latest/constructs/aws-cloudfront-s3.html) package to define the CloudFront distribution and the S3 bucket that stores the content that makes up the UI.
+It also uses the [AWS Solutions Constructs](https://aws.amazon.com/solutions/constructs/) [aws-cloudfront-s3](https://docs.aws.amazon.com/solutions/latest/constructs/aws_cloudfront_s3.html) package to define the CloudFront distribution and the S3 bucket that stores the content that makes up the UI.
 
-**source/integration-tests**<br/>
-Integration tests for the solution, including API tests and end-to-end console tests using Cypress. Includes comprehensive test suites for validating deployed solution functionality.
+**source/load-tester**<br/>
+A TypeScript package containing the container entrypoints and runners for the per-framework load testing images. The entrypoints under `src/entrypoints` are bundled into the Docker build contexts in `deployment/ecr` at build time.
+
+**source/mcp-server**<br/>
+A TypeScript package that implements the Model Context Protocol (MCP) server for AI-assisted load testing analysis. Provides structured access to DLT data through Amazon Bedrock AgentCore Gateway. See [source/mcp-server/README.md](source/mcp-server/README.md).
 
 **source/metrics-utils**<br/>
-A TypeScript package containing utilities for operational metrics collection and reporting used across the solution.
+A TypeScript package that provides the operational metrics CDK construct and its supporting Lambda functions, used by the main and regional stacks.
+
+**source/orphan-cleanup**<br/>
+A TypeScript Lambda function that runs on an hourly schedule to detect and delete leaked ECS services that have no active Step Functions execution, which prevents ongoing Fargate charges.
 
 **source/real-time-data-publisher**<br/>
 A NodeJS Lambda function used to publish the real time load test data to an IoT topic.
 
+**source/regional-sync**<br/>
+A TypeScript Lambda function that validates every selected Region is ready before test execution begins, so a multi-Region test starts in sync.
+
 **source/results-parser**<br/>
 A NodeJS Lambda function used to write the xml output from the docker images to Amazon DynamoDB and generate the final results for each test.
+
+**source/sfn-failure-handler**<br/>
+A TypeScript Lambda function triggered by EventBridge when the orchestration state machine exits without success. It acts as a secondary safety net that cleans up ECS resources the state machine did not.
 
 **source/solution-utils**<br/>
 A NodeJS package that contains commonly used functionality that is imported by other packages in this solution.
 
+**source/stabilization-checker**<br/>
+A TypeScript Lambda function that polls ECS service health and resolves task IP addresses while the state machine waits for a Region's tasks to become stable.
+
+**source/start-command**<br/>
+A TypeScript Lambda function that writes the S3 start markers that release the waiting tasks in each Region, so all Regions begin generating load together.
+
 **source/task-canceler**<br/>
-A NodeJS Lambda function used to stop tasks for a test that has been cancelled.
+A TypeScript Lambda function that coordinates test cancellation. Invoked by the API, it marks the test as cancelling, stops the running state machine execution, and invokes test-cleanup for each Region.
+
+**source/task-failure-handler**<br/>
+A TypeScript Lambda function that detects ECS task failures through EventBridge and updates the test status in DynamoDB.
 
 **source/task-runner**<br/>
-A NodeJS Lambda function that runs the Amazon ECS task definition for each test.
+A TypeScript Lambda function that creates the ephemeral ECS service and task definition for a test in one Region.
 
 **source/task-status-checker**<br/>
-A NodeJS Lambda function that checks if the Amazon ECS tasks are running or not.
+A TypeScript Lambda function with two roles in the state machine: it checks whether a test is already running before a new run starts, and it polls S3 completion markers and DynamoDB status to detect when a running test has finished.
+
+**source/test-cleanup**<br/>
+A TypeScript Lambda function that tears down the ECS resources for one Region and records the final test status. Invoked on both the success and failure paths of the state machine and by task-canceler.
+
+**source/test-metadata-updater**<br/>
+A TypeScript Lambda function that updates the scenario and history DynamoDB tables as a test moves through its lifecycle, guarding against overwriting terminal states.
 
 **source/webui**<br/>
-React-based single page application that provides the web console interface for the solution. Built with Cloudscape Design System, Redux for state management, and AWS Amplify for authentication. Authenticated through Amazon Cognito, this dashboard allows users to create tests and view results.
-
-**source/mcp-server**<br/>
-A TypeScript package that implements the Model Context Protocol (MCP) server for AI-assisted load testing analysis. Provides structured access to DLT data through AWS AgentCore Gateway.
+React-based single page application that provides the web console interface for the solution. Built with Vite, Cloudscape Design System, Redux Toolkit for state management, and AWS Amplify for authentication. Authenticated through Amazon Cognito, this dashboard allows users to create tests and view results.
 
 ## Local Development
 
@@ -191,16 +220,25 @@ For developers working on the solution locally, this section provides step-by-st
 
    ```bash
    # CDK Parameters
-   TARGET_REGION=us-east-1                    # Your primary deployment region
+   TARGET_REGION=us-west-2                    # Your primary deployment region
+
+   # Stack name selects the deployment mode: the default CloudFront stack,
+   # distributed-load-testing-on-aws-alb-ecs, or distributed-load-testing-on-aws-headless
    MAIN_STACK_NAME=distributed-load-testing-on-aws
    REGIONAL_STACK_NAME=distributed-load-testing-on-aws-regional
 
    # Stack Parameters
    ADMIN_NAME=your_username                   # Admin username (no spaces)
    ADMIN_EMAIL=your-email@example.com         # Admin email address
+
+   # Optional
+   STACK_TAGS=                                # Space-separated key=value tags for cdk deploy
+   REGIONAL_STACKS=                           # Space-separated regions for make regional-deploy
    ```
 
-### Main Stack Deployment
+   The ALB + ECS stack also requires `CONSOLE_DOMAIN_NAME` and `ACM_CERTIFICATE_ARN`. See `.env.example` for the full annotated list.
+
+### Deploying from Source
 
 1. **Install dependencies**:
 
@@ -214,27 +252,37 @@ For developers working on the solution locally, this section provides step-by-st
    make deploy
    ```
 
-   > **Note**: This automatically builds web and JMeter assets before deploying.
+   > **Note**: This automatically builds the web and JMeter assets and synthesizes the regional template before deploying.
 
-3. **Run the web app locally**:
-   ```bash
-   make dev
-   ```
-
-### Regional Stack Management
-
-To enable load testing from multiple regions, you can deploy regional stacks that contain the testing infrastructure (ECS clusters, VPC, etc.). The `regional-deploy` target automatically bootstraps CDK in the target region if needed.
-
-1. **Deploy regional stack**:
+3. **Add regional testing capacity** (optional):
 
    ```bash
    make regional-deploy REGION=us-west-2
    ```
 
-2. **Deploy to multiple regions**:
+4. **Run the web app locally** against the deployed stack:
+
    ```bash
-   make regional-deploy REGION=eu-west-1
-   make regional-deploy REGION=ap-southeast-1
+   make dev
+   ```
+
+   `make dev` resolves the console bucket from the stack outputs and fetches `aws-exports.json` before starting the Vite dev server, so the main stack must already be deployed.
+
+### Regional Stack Management
+
+To enable load testing from multiple regions, you can deploy regional stacks that contain the testing infrastructure (ECS clusters, VPC, etc.). The `regional-deploy` target automatically bootstraps CDK in the target region if needed.
+
+1. **Deploy to a single region**:
+
+   ```bash
+   make regional-deploy REGION=us-west-2
+   ```
+
+2. **Deploy to several regions at once** by listing them in `REGIONAL_STACKS` in `.env` and omitting `REGION`:
+
+   ```bash
+   # .env: REGIONAL_STACKS=us-west-2 eu-west-1 ap-southeast-1
+   make regional-deploy
    ```
 
 ### Regional Stack Version Compatibility
@@ -266,30 +314,13 @@ If a test targets an incompatible region, the API rejects the request with a des
 - `make deploy` - Deploy the main DLT stack (builds web and JMeter assets automatically)
 - `make diff` - Preview stack changes before deployment
 - `make changeset` - Create CloudFormation changeset for review
-- `make regional-deploy REGION=<region>` - Deploy regional stack (auto-bootstraps CDK in target region)
-
-### Development Workflow
-
-1. **Initial Setup**:
-
-   ```bash
-   cp .env.example .env
-   # Edit .env with your values
-   make install-deps
-   make deploy
-   # Update .env with stack outputs
-   ```
-
-2. **Add Regional Testing Capacity**:
-
-   ```bash
-   make regional-deploy REGION=us-west-2
-   ```
-
-3. **Local Development**:
-   ```bash
-   make dev  # Starts local development server
-   ```
+- `make regional-deploy` - Deploy regional stacks to every region listed in `REGIONAL_STACKS`
+- `make regional-deploy REGION=<region>` - Deploy a regional stack to one region (auto-bootstraps CDK in the target region)
+- `make test` - Run all unit tests, linting, and formatting checks (the same checks as CI)
+- `make sync` - Fix auto-fixable workspace dependency version mismatches
+- `make bundle-cli` - Bundle the DLT CLI into a single portable file
+- `make worktree-add` - Create a dev worktree on a new branch, copying `.env` and installing dependencies
+- `make worktree-remove` - Remove a dev worktree
 
 ### Notes
 
@@ -300,9 +331,13 @@ If a test targets an incompatible region, the API rejects the request with a des
 
 ## Testing
 
-The solution includes comprehensive testing capabilities:
+**Unit tests, lint, and format checks**: the `test` target runs the same checks as CI.
 
-**Unit Tests**: Run unit tests for all components using the provided script:
+```bash
+make test
+```
+
+To run the underlying script directly, including dependency installation:
 
 ```bash
 cd deployment
@@ -312,7 +347,7 @@ chmod +x ./run-unit-tests.sh
 
 ## Creating a custom build
 
-The solution can be deployed through the CloudFormation template available on the solution home page: [Distributed Load Testing](https://aws.amazon.com/solutions/implementations/distributed-load-testing-on-aws/).
+The solution can be deployed through the CloudFormation template available on the solution home page: [Distributed Load Testing on AWS](https://docs.aws.amazon.com/solutions/distributed-load-testing-on-aws/).
 
 To make changes to the solution, download or clone this repository, update the source code and then run the deployment/build-s3-dist.sh script to deploy the updated Lambda code to an Amazon S3 bucket in your account.
 
@@ -348,9 +383,9 @@ export REGION=aws-region-code # the AWS region to launch the solution (e.g. us-e
 export BUCKET_PREFIX=my-bucket-name # prefix of the bucket name without the region code
 export BUCKET_NAME=$BUCKET_PREFIX-$REGION # full bucket name where the code will reside
 export SOLUTION_NAME=my-solution-name
-export VERSION=my-version # version number for the customized code (must contain a valid semver, e.g. v4.1.0 or custom-v4.1.0)
+export VERSION=my-version # version number for the customized code (must contain a valid semver, e.g. v4.3.0 or custom-v4.3.0)
 export PUBLIC_ECR_REGISTRY=public.ecr.aws/aws-solutions # replace with the container registry and image if you want to use a different container image
-export PUBLIC_ECR_TAG=v4.2_stable # replace with the container image tag if you want to use a different container image
+export PUBLIC_ECR_TAG=v4.3_stable # replace with the container image tag if you want to use a different container image
 ```
 
 - Build the distributable.
@@ -363,7 +398,7 @@ chmod +x ./build-s3-dist.sh
 
 > **Note**: The _build-s3-dist_ script expects the bucket name **without the region suffix** as one of its parameters.
 
-> **Note**: The `VERSION` parameter must contain a valid semantic version pattern (`MAJOR.MINOR.PATCH`, e.g. `v4.1.0`, `custom-v4.1.0`, or `v4.1.0-ITL`). The script will reject values that don't match this format and warn if the version doesn't align with the `solutionVersion` in `source/infrastructure/cdk.json`.
+> **Note**: The `VERSION` parameter must contain a valid semantic version pattern (`MAJOR.MINOR.PATCH`, e.g. `v4.3.0`, `custom-v4.3.0`, or `v4.3.0-ITL`). The script will reject values that don't match this format and warn if the version doesn't align with the `solutionVersion` in `source/infrastructure/cdk.json`.
 
 - Deploy the distributable to the Amazon S3 bucket in your account.
   - Make sure you are uploading the files in `deployment/global-s3-assets` and `deployment/regional-s3-assets` to `$BUCKET_NAME/$SOLUTION_NAME/$VERSION`.

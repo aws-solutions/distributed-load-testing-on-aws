@@ -236,6 +236,11 @@ describe("single-run-per-scenario enforcement", () => {
     mockS3.mockReset();
     mockStepFunctions.mockReset();
     mockDynamoDB.mockReset();
+    // Default Fargate capacity for the server-side task ceiling: 2 vCPUs per task, 4000 vCPU quota, nothing in use
+    mockEcs.mockReset();
+    mockEcs.mockImplementation(() => Promise.resolve({ taskDefinition: { cpu: "2048" }, clusterArns: [], taskArns: [], tasks: [] }));
+    mockServiceQuotas.mockReset();
+    mockServiceQuotas.mockImplementation(() => Promise.resolve({ Quota: { Value: 4000 } }));
   });
 
   // A start against any in-flight state is rejected with 409 TEST_RUNNING and

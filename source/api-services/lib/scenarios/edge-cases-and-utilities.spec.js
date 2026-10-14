@@ -117,6 +117,9 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
     mockLambda.mockReset();
     mockCloudFormation.mockReset();
     mockServiceQuotas.mockReset();
+    // Default Fargate capacity for the server-side task ceiling: 2 vCPUs per task, 4000 vCPU quota, nothing in use
+    mockEcs.mockImplementation(() => Promise.resolve({ taskDefinition: { cpu: "2048" }, clusterArns: [], taskArns: [], tasks: [] }));
+    mockServiceQuotas.mockImplementation(() => Promise.resolve({ Quota: { Value: 4000 } }));
     mockGetLatestVersionFromRss.mockReset();
     mockGetLatestVersionFromRss.mockResolvedValue("9.9.9");
   });
@@ -202,7 +205,7 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
       
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // getTestEntry
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ // getAllRegionConfigs scan
-        Items: [{ testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster", version: "v3.0.0" }]
+        Items: [{ testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster", taskDefinition: "arn:of:taskDef", version: "v3.0.0" }]
       }));
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ 
         Item: { region: "us-east-1", taskCluster: "cluster" } 
@@ -349,7 +352,8 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
   describe("Additional edge cases for exported functions", () => {
     it("should handle getTestDurationSeconds with different time units", () => {
       // This function is exported and we can test its edge cases
-      expect(() => lambda.getTestDurationSeconds("2h")).toThrow("Invalid hold-for unit");
+      expect(lambda.getTestDurationSeconds("2h")).toBe(7200);
+      expect(lambda.getTestDurationSeconds("1d")).toBe(86400);
       expect(() => lambda.getTestDurationSeconds("invalid")).toThrow();
     });
 
@@ -404,7 +408,7 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
 
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // getTestEntry
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ // getAllRegionConfigs scan
-        Items: [{ testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster", version: "v3.0.0" }]
+        Items: [{ testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster", taskDefinition: "arn:of:taskDef", version: "v3.0.0" }]
       }));
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ 
         Item: { region: "us-east-1", taskCluster: "cluster" } 
@@ -427,6 +431,7 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
       };
 
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // getTestEntry
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ Items: [] })); // getAllRegionConfigs scan: no us-east-1 stack
 
       try {
         await lambda.createTest(config, "functionName");
@@ -450,7 +455,7 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
 
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // getTestEntry
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ // getAllRegionConfigs scan
-        Items: [{ testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster", version: "v3.0.0" }]
+        Items: [{ testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster", taskDefinition: "arn:of:taskDef", version: "v3.0.0" }]
       }));
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ 
         Item: { region: "us-east-1", taskCluster: "cluster" } 
@@ -483,7 +488,7 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
 
         mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // getTestEntry
         mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ // getAllRegionConfigs scan
-          Items: [{ testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster", version: "v3.0.0" }]
+          Items: [{ testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster", taskDefinition: "arn:of:taskDef", version: "v3.0.0" }]
         }));
         mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ 
           Item: { region: "us-east-1", taskCluster: "cluster" } 
@@ -508,7 +513,7 @@ describe("Scenarios Module - Edge Cases and Utilities", () => {
 
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({})); // getTestEntry - returns undefined
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ // getAllRegionConfigs scan
-        Items: [{ testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster", version: "v3.0.0" }]
+        Items: [{ testId: "region-us-east-1", region: "us-east-1", taskCluster: "cluster", taskDefinition: "arn:of:taskDef", version: "v3.0.0" }]
       }));
       mockDynamoDB.mockImplementationOnce(() => Promise.resolve({ 
         Item: { region: "us-east-1", taskCluster: "cluster" } 

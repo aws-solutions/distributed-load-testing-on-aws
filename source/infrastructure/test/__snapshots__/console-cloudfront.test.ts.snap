@@ -27,6 +27,9 @@ exports[`DLT API Test 1`] = `
         },
       },
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
@@ -44,6 +47,7 @@ exports[`DLT API Test 1`] = `
             "Ref": "TestConsoleResourcesDeployWebsiteAwsCliLayer05FE2CFC",
           },
         ],
+        "MemorySize": 1024,
         "Role": {
           "Fn::GetAtt": [
             "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265",

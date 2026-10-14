@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.2] - 2026-10-14
+
+### Fixed
+
+- **Test durations in hours and days**: Fixed tests with ramp-up or hold-for in hours, days, or plain seconds that saved but failed to start.
+- **ALB-ECS web console after stack updates**: Prevented console tasks from serving a stale build after a stack update.
+- **Fargate task limits**: Enforced the Fargate vCPU quota when a run starts, instead of trusting a client-supplied task limit.
+
+### Security
+
+- Updated npm dependencies to address known vulnerabilities in `handlebars`, `brace-expansion`, and `braces`.
+- Patched `zlib` and `tiff` in the web console image.
+- Updated the load-tester base images to a newer Amazon Linux 2023 release.
+
 ## [4.3.1] - 2026-10-07
 
 ### Fixed

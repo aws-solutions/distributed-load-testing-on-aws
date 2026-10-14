@@ -15,6 +15,7 @@ jest.mock("fs", () => ({
 }));
 
 jest.mock("archiver", () => ({
+  __esModule: true,
   default: jest.fn(() => ({
     on: jest.fn(),
     append: jest.fn(),
@@ -73,6 +74,23 @@ describe("webui-zip-handler", () => {
     });
 
     expect(result.PhysicalResourceId).toMatch(/^web-console-zip-\d+$/);
+  });
+
+  it("returns ZipLocation and the uploaded object's ZipVersionId on success", async () => {
+    const fs = jest.requireMock("fs");
+    fs.existsSync.mockReturnValueOnce(true);
+    mockSend.mockResolvedValueOnce({ VersionId: "version-abc" });
+
+    const result = await handler({
+      RequestType: "Update",
+      ResourceProperties: baseProps,
+    });
+
+    expect(result.Status).toBe("SUCCESS");
+    expect(result.Data).toEqual({
+      ZipLocation: "s3://dest-bucket/web-console.zip",
+      ZipVersionId: "version-abc",
+    });
   });
 
   it("returns FAILED when web-assets directory does not exist (Create)", async () => {

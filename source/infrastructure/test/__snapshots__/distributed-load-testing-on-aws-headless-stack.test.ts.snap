@@ -13007,6 +13007,7 @@ Native. Native mode puts your script in control of the load. DLT runs the file y
           ],
         },
         "SolutionVersion": "testVersion",
+        "Timestamp": "Omitted to remove snapshot dependency on timestamp",
         "UserFilesBucket": {
           "Ref": "DLTTestRunnerStorageDLTScenariosBucketA9290D21",
         },

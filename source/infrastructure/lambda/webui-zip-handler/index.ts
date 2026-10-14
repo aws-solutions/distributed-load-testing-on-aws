@@ -96,10 +96,10 @@ async function createZipBuffer(awsExports: Record<string, string>): Promise<Buff
  * @param {string} bucket - S3 bucket name
  * @param {string} key - S3 object key
  * @param {Buffer} body - File content as Buffer
- * @returns {Promise<void>}
+ * @returns {Promise<string>} S3 version ID of the uploaded object (empty string if bucket is unversioned)
  */
-async function uploadToS3(bucket: string, key: string, body: Buffer): Promise<void> {
-  await s3Client.send(
+async function uploadToS3(bucket: string, key: string, body: Buffer): Promise<string> {
+  const { VersionId } = await s3Client.send(
     new PutObjectCommand({
       Bucket: bucket,
       Key: key,
@@ -107,7 +107,8 @@ async function uploadToS3(bucket: string, key: string, body: Buffer): Promise<vo
       ContentType: "application/zip",
     })
   );
-  console.log(`Uploaded ZIP to s3://${bucket}/${key}`);
+  console.log(`Uploaded ZIP to s3://${bucket}/${key} (version ${VersionId})`);
+  return VersionId ?? "";
 }
 
 /**
@@ -132,12 +133,19 @@ export const handler = async (event: CloudFormationEvent): Promise<CloudFormatio
     const zipBuffer = await createZipBuffer(awsExports);
     console.log(`Created ZIP: ${zipBuffer.length} bytes`);
 
-    await uploadToS3(ResourceProperties.DestinationBucket, ResourceProperties.DestinationKey, zipBuffer);
+    const zipVersionId = await uploadToS3(
+      ResourceProperties.DestinationBucket,
+      ResourceProperties.DestinationKey,
+      zipBuffer
+    );
 
     return {
       Status: "SUCCESS",
       PhysicalResourceId: physicalResourceId,
-      Data: { ZipLocation: `s3://${ResourceProperties.DestinationBucket}/${ResourceProperties.DestinationKey}` },
+      Data: {
+        ZipLocation: `s3://${ResourceProperties.DestinationBucket}/${ResourceProperties.DestinationKey}`,
+        ZipVersionId: zipVersionId,
+      },
     };
   } catch (error: unknown) {
     console.error("Error:", error);
