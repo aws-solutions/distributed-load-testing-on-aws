@@ -950,6 +950,8 @@ const setNextRun = (scheduledTime, scheduleRecurrence = "", cronValue = "", cron
 /**
  * Validates the setting for task count and task concurrency
  * @param {object} testTaskConfigs
+ * @param {object} regionalTaskDetails the ceilings per region: from the request for saves and schedules,
+ *   from getServerRegionalTaskDetails when a run starts
  * @returns testTaskConfigs
  */
 const validateTaskCountConcurrency = (testTaskConfigs, regionalTaskDetails) => {
@@ -968,10 +970,13 @@ const validateTaskCountConcurrency = (testTaskConfigs, regionalTaskDetails) => {
     }
     const taskCount = Number.parseInt(regionalTestConfig.taskCount);
     if (Number.isNaN(taskCount) || Number.parseInt(taskCount) < 1 || Number.parseInt(taskCount) > availableTasks) {
-      throw new ErrorException(
+      const error = new ErrorException(
         "InvalidParameter",
         `Task count should be positive number between 1 to ${availableTasks}.`
       );
+      // Lets createTest record a run rejected for capacity; the API error is unchanged
+      error.taskCeilingExceeded = taskCount > availableTasks;
+      throw error;
     }
     regionalTestConfig.taskCount = taskCount;
 
@@ -1046,20 +1051,24 @@ const formatStringKey = (testScenario, key) => {
   return testScenario;
 };
 
+const DURATION_UNIT_SECONDS = { s: 1, m: 60, h: 3600, d: 86400 };
+
 /**
- *
- * @param {string} testDuration
+ * Converts a ramp-up or hold-for value to seconds. Accepts every format the
+ * shared schema allows: a whole number followed by s, m, h, or d, or a bare
+ * whole number (legacy scenarios), which is read as seconds like Taurus does.
+ * @param {string|number} testDuration
  */
 const getTestDurationSeconds = (testDuration) => {
-  const splitDurationRegex = /[a-z]+|\d+/gi;
-  const [durationValue, durationUnit] = testDuration.match(splitDurationRegex);
-  if (durationUnit === "s") {
-    return Number.parseInt(durationValue);
-  } else if (durationUnit === "m") {
-    return Number.parseInt(durationValue) * 60;
-  } else {
-    throw new ErrorException("InvalidParameter", "Invalid hold-for unit, it should be either m or s.");
+  const match = /^(\d+)([smhd]?)$/.exec(String(testDuration).trim());
+  if (!match) {
+    throw new ErrorException(
+      "InvalidParameter",
+      "Invalid duration, it should be a whole number followed by s, m, h, or d."
+    );
   }
+  const [, durationValue, durationUnit] = match;
+  return Number.parseInt(durationValue) * DURATION_UNIT_SECONDS[durationUnit || "s"];
 };
 
 /**
@@ -1118,8 +1127,8 @@ const compensateK6RampUp = (execution, nativeRunMode) => {
     if (rampUpSeconds <= 0) return;
     execution["hold-for"] = `${getTestDurationSeconds(String(execution["hold-for"])) + rampUpSeconds}s`;
   } catch {
-    // Durations this parser cannot read (h/d, bare numbers) already fail later
-    // in createTest, so don't add a second throw site here.
+    // Durations this parser cannot read already fail later in createTest, so
+    // don't add a second throw site here.
   }
 };
 
@@ -1454,6 +1463,29 @@ const transitionToCancelling = async (testId) => {
 };
 
 /**
+ * Saves the next scheduled run for a test whose run start was rejected. The rejection
+ * skips the record write in createTest, which would otherwise leave nextRun pointing at
+ * the occurrence that was just rejected. Best-effort: failures are logged, not thrown.
+ *
+ * @param {string} testId
+ * @param {string|undefined} nextRun The next run createTest calculated, if it got that far
+ */
+const saveNextRun = async (testId, nextRun) => {
+  if (nextRun === undefined) return;
+  try {
+    await dynamoDB.update({
+      TableName: SCENARIOS_TABLE,
+      Key: { testId },
+      UpdateExpression: "SET nextRun = :nr",
+      ConditionExpression: "attribute_exists(testId)",
+      ExpressionAttributeValues: { ":nr": nextRun },
+    });
+  } catch (err) {
+    console.error(`Failed to save nextRun for testId=${testId}: ${err.message}`);
+  }
+};
+
+/**
  * Best-effort revert of a run-slot claim when the start fails after claiming
  * (e.g. the S3 write or Step Functions execution throws). Restores the prior
  * status only if the record is still in the "queued" state we set, so it never
@@ -1560,11 +1592,23 @@ const assertNoDrainingService = async (testId, testTaskConfigs, regionalConfigs)
   }
 };
 
+/**
+ * Whether a run start (not a save-only edit) was rejected for Fargate capacity:
+ * over the task ceiling, or the capacity lookup failed
+ * @param {Error} err the error from starting the run
+ * @param {object} config the test configuration of the request
+ * @returns {boolean}
+ */
+const isRunCapacityRejection = (err, config) =>
+  !config.saveOnly && (err.taskCeilingExceeded === true || err.code === "FARGATE_CAPACITY_UNAVAILABLE");
+
 const createTest = async (config, functionName) => {
   let claimed = false;
   let previousStatus;
+  let isExistingTest = false;
+  let calculatedNextRun;
   try {
-    const { testName, testDescription, testType, showLive, regionalTaskDetails, cronValue } = config;
+    const { testName, testDescription, testType, showLive, cronValue } = config;
     let { testId, testScenario, testTaskConfigs, fileType, scheduleTime, eventBridge, recurrence, cronExpiryDate } =
       config;
     cronExpiryDate = cronExpiryDate || "";
@@ -1586,6 +1630,7 @@ const createTest = async (config, functionName) => {
     }
 
     const testEntry = await getTestEntry(testId);
+    isExistingTest = Boolean(testEntry);
     if (testEntry?.nextRun) nextRun = parseISODate(testEntry.nextRun, scheduleTimezone).toJSDate();
 
     const operation = testEntry ? 'update' : 'create';
@@ -1645,18 +1690,24 @@ const createTest = async (config, functionName) => {
 
     if (nextRun && startTime < nextRun) nextRun = convertDateToString(nextRun, scheduleTimezone);
     else nextRun = setNextRun(startTime, recurrence, cronValue, cronExpiryDate, scheduleTimezone);
+    calculatedNextRun = nextRun;
 
     const scheduleRecurrence = recurrence || "";
     startTime = convertDateToString(startTime);
 
+    const regionalConfigs = await getAllRegionConfigs();
+
+    // Starting a run (including a scheduled run firing) checks against the capacity
+    // free right now, computed on the server. A save-only edit keeps the request's values.
+    const regionalTaskDetails = config.saveOnly
+      ? config.regionalTaskDetails
+      : await getServerRegionalTaskDetails(testTaskConfigs, regionalConfigs);
     testTaskConfigs = validateTaskCountConcurrency(testTaskConfigs, regionalTaskDetails);
 
     // Compute the total desired task count across all regions for threshold checking
     const desiredTaskCount = testTaskConfigs.reduce((sum, c) => sum + c.taskCount, 0);
 
     // Validate regional stack version compatibility
-    const regionalConfigs = await getAllRegionConfigs();
-    
     const incompatibleStacks = testTaskConfigs
       .map(tc => regionalConfigs.find(c => c.region === tc.region))
       .filter(rc => rc && rc.compatible === false);
@@ -1795,10 +1846,15 @@ const createTest = async (config, functionName) => {
       await revertRunSlotClaim(config.testId, previousStatus);
     }
 
-    // Write a failure history entry for existing tests that hit incompatible regional stacks.
-    // This is useful for scheduled tests where no caller is waiting for the API response.
-    // For new tests, the API response itself notifies the user of the failed test creation.
-    if (err.code === ERROR_INCOMPATIBLE_REGIONAL_STACKS && config.testId) {
+    // Write a failure history entry for existing tests that hit incompatible regional stacks,
+    // or whose run start was rejected for Fargate capacity. This is useful for scheduled tests
+    // where no caller is waiting for the API response. For new tests, the API response itself
+    // notifies the user of the failed test creation. A new test can already carry a testId
+    // (the console assigns one up front), so the capacity case checks the saved test exists.
+    if (
+      (err.code === ERROR_INCOMPATIBLE_REGIONAL_STACKS && config.testId) ||
+      (isRunCapacityRejection(err, config) && isExistingTest)
+    ) {
       try {
         const now = convertDateToString(new Date());
         await dynamoDB.put({
@@ -1815,9 +1871,10 @@ const createTest = async (config, functionName) => {
             testDescription: config.testDescription,
           },
         });
-        // Increment here for the incompatible-stacks error path: the SFN never starts,
+        // Increment here for these error paths: the SFN never starts,
         // so the metadata handler (which increments for normal test runs) is never invoked.
         await incrementTestRunCount(dynamoDB, SCENARIOS_TABLE, config.testId);
+        if (isExistingTest) await saveNextRun(config.testId, calculatedNextRun);
       } catch (historyErr) {
         console.error("Failed to write history entry:", historyErr);
       }
@@ -2599,6 +2656,54 @@ const getAccountFargatevCPUDetails = async () => {
     console.error(error);
     throw error;
   }
+};
+
+/**
+ * Computes the available DLT task ceiling for each requested region on the server, so a
+ * client-supplied dltAvailableTasks is never trusted. The ceiling is
+ * floor((vCPULimit - vCPUsInUse) / vCPUsPerTask). Usage that cannot be read counts as 0;
+ * an unknown vCPU limit or vCPUs per task rejects the request.
+ * @param {Array<object>} testTaskConfigs the regional task configs of the request
+ * @param {Array<object>} regionalConfigs the DLT regional configs from getAllRegionConfigs
+ * @returns {Promise<Object>} map of region to { dltAvailableTasks } for requested regions with a deployed stack
+ */
+const getServerRegionalTaskDetails = async (testTaskConfigs, regionalConfigs) => {
+  const requestedRegions = new Set(testTaskConfigs.map((config) => config.region));
+  const deployedConfigs = regionalConfigs.filter((config) => requestedRegions.has(config.region));
+  if (deployedConfigs.length === 0) return {};
+
+  const capacityError = (region) =>
+    new ErrorException(
+      "FARGATE_CAPACITY_UNAVAILABLE",
+      `Unable to determine the available Fargate capacity for "${region}". Please try again.`,
+      StatusCodes.INTERNAL_SERVER_ERROR
+    );
+
+  // The hub's task definition is the single source of truth for vCPUs per task
+  const hubRegion = process.env.AWS_REGION;
+  const hubConfig = regionalConfigs.find((config) => config.region === hubRegion);
+  const vCPUsPerTask = hubConfig?.taskDefinition
+    ? await getRegionDLTvCPUsPerTask(new ECS(utils.getOptions({ region: hubRegion })), hubConfig.taskDefinition).catch(() => undefined)
+    : undefined;
+  if (!vCPUsPerTask) throw capacityError(hubRegion);
+
+  const regionalTaskDetails = {};
+  await Promise.all(
+    deployedConfigs.map(async ({ region }) => {
+      const regionOptions = utils.getOptions({ region });
+      const vCPULimitPromise = getRegionFargatevCPULimit(new ServiceQuotas(regionOptions)).catch(() => undefined);
+      const vCPUsInUsePromise = getRegionFargatevCPUsInUse(new ECS(regionOptions)).catch(() => undefined);
+
+      const vCPULimit = await vCPULimitPromise;
+      const vCPUsInUse = (await vCPUsInUsePromise) ?? 0;
+      if (typeof vCPULimit !== "number") throw capacityError(region);
+
+      regionalTaskDetails[region] = {
+        dltAvailableTasks: Math.max(0, Math.floor((vCPULimit - vCPUsInUse) / vCPUsPerTask)),
+      };
+    })
+  );
+  return regionalTaskDetails;
 };
 
 /**

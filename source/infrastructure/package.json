@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws-infrastructure",
-  "version": "4.3.1",
+  "version": "4.3.2",
   "author": {
     "name": "Amazon Web Services",
     "url": "https://aws.amazon.com/solutions"
@@ -25,7 +25,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^24.11.0",
     "aws-cdk": "^2.1108.0",
-    "aws-cdk-lib": "^2.241.0",
+    "aws-cdk-lib": "^2.273.0",
     "constructs": "^10.5.1",
     "esbuild": "^0.28.1",
     "jest": "^30.2.0",

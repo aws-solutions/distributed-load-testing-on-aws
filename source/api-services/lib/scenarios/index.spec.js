@@ -788,6 +788,9 @@ describe("#SCENARIOS API:: ", () => {
     mockLambda.mockReset();
     mockCloudFormation.mockReset();
     mockServiceQuotas.mockReset();
+    // Default Fargate capacity for the server-side task ceiling: 2 vCPUs per task, 4000 vCPU quota, nothing in use
+    mockEcs.mockImplementation(() => Promise.resolve({ taskDefinition: { cpu: "2048" }, clusterArns: [], taskArns: [], tasks: [] }));
+    mockServiceQuotas.mockImplementation(() => Promise.resolve({ Quota: { Value: 4000 } }));
     mockScheduler.mockReset();
     mockGetLatestVersionFromRss.mockReset();
     mockGetLatestVersionFromRss.mockResolvedValue("9.9.9");
@@ -1610,16 +1613,20 @@ describe("#SCENARIOS API:: ", () => {
       }
     });
 
-    it("leaves the scenario alone for durations the seconds parser cannot read", async () => {
-      // h and d suffixes pass API validation but already fail createTest's own
-      // testDuration calculation, which is a separate pre-existing bug.
-      // Compensation must not add an earlier failure of its own.
+    it.each([
+      ["1h", "2h", 10800],
+      ["1d", "2d", 259200],
+      ["30s", 300, 330],
+    ])("starts a test with ramp-up %p and hold-for %p", async (rampUp, holdFor, totalSeconds) => {
       primeCreateTestMocks();
-      config.testScenario.execution[0]["hold-for"] = "2h";
+      config.testScenario.execution[0]["ramp-up"] = rampUp;
+      config.testScenario.execution[0]["hold-for"] = holdFor;
 
-      await expect(lambda.createTest(config, context.functionName)).rejects.toThrow();
+      await lambda.createTest(config, context.functionName);
 
-      expect(scenarioFileFor("us-east-1").execution[0]["hold-for"]).toBe("2h");
+      expect(scenarioFileFor("us-east-1").execution[0]["hold-for"]).toBe(`${totalSeconds}s`);
+      expect(storedScenario().execution[0]["hold-for"]).toBe(holdFor);
+      expect(stepFunctionInput().testDuration).toBe(totalSeconds);
     });
   });
 
@@ -1887,6 +1894,39 @@ describe("#SCENARIOS API:: ", () => {
 
     const response = await lambda.scheduleTest(eventInput(), context);
     expect(response.testStatus).toEqual("scheduled");
+  });
+
+  it("should create a cron schedule for a test with ramp-up and hold-for in hours", async () => {
+    config.scheduleStep = "create";
+    config.cronValue = "0 0 * * *";
+    config.cronExpiryDate = "2017-12-31";
+    config.testScenario.execution[0]["ramp-up"] = "1h";
+    config.testScenario.execution[0]["hold-for"] = "2h";
+
+    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve({ Rules: [] }));
+    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve(rulesResponse));
+    mockLambda.mockImplementationOnce(() => Promise.resolve());
+    mockCloudWatchEvents.mockImplementationOnce(() => Promise.resolve());
+    mockDynamoDB.mockImplementation(() => {
+      let scheduleData = updateData;
+      scheduleData.Attributes.testStatus = "scheduled";
+      return Promise.resolve(scheduleData);
+    });
+    const response = await lambda.scheduleTest(eventInput(), context);
+    expect(response.testStatus).toEqual("scheduled");
+  });
+
+  it("should reject a cron schedule whose interval is shorter than an hours-long test", async () => {
+    config.scheduleStep = "create";
+    config.cronValue = "0 * * * *";
+    config.cronExpiryDate = "2017-12-31";
+    config.testScenario.execution[0]["ramp-up"] = "1h";
+    config.testScenario.execution[0]["hold-for"] = "2h";
+
+    mockDynamoDB.mockImplementation(() => Promise.resolve(updateData));
+    await expect(lambda.scheduleTest(eventInput(), context)).rejects.toThrow(
+      "The interval between scheduled tests is too short."
+    );
   });
 
   it('should return SUCCESS and delete past eventbridge rules when "SCHEDULETEST" runs with a testId', async () => {
@@ -2384,6 +2424,7 @@ describe("#SCENARIOS API:: ", () => {
   it('should return "InvalidParameter" when "CREATETEST" fails due to task count being less than 1', async () => {
     config.testTaskConfigs[0]["taskCount"] = "0";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
     try {
       await lambda.createTest(config, context.functionName);
     } catch (error) {
@@ -2395,42 +2436,234 @@ describe("#SCENARIOS API:: ", () => {
   });
 
   it('should return "InvalidParameter" when "CREATETEST" fails due to task count being greater than available tasks for first region', async () => {
+    // 4000 vCPU quota / 2 vCPUs per task = 2000 available tasks
     config.testTaskConfigs[0]["taskCount"] = "3000";
-    const availableTasks = config.regionalTaskDetails["us-east-1"].dltAvailableTasks;
-    let errorThrown = false;
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
-    try {
-      await lambda.createTest(config, context.functionName);
-    } catch (error) {
-      errorThrown = true;
-      expect(error.code).toEqual("InvalidParameter");
-      expect(error.message).toEqual(`Task count should be positive number between 1 to ${availableTasks}.`);
-    }
-    expect(errorThrown).toStrictEqual(true);
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+    await expect(lambda.createTest(config, context.functionName)).rejects.toMatchObject({
+      code: "InvalidParameter",
+      message: "Task count should be positive number between 1 to 2000.",
+    });
     //reset config
     config.testTaskConfigs[0]["taskCount"] = "5";
   });
 
   it('should return "InvalidParameter" when "CREATETEST" fails due to task count being greater than available task for second region', async () => {
-    config.testTaskConfigs[1]["taskCount"] = "2000";
-    const availableTasks = config.regionalTaskDetails["eu-west-1"].dltAvailableTasks;
-    let errorThrown = false;
+    config.testTaskConfigs[1]["taskCount"] = "3000";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
-    try {
-      await lambda.createTest(config, context.functionName);
-    } catch (error) {
-      errorThrown = true;
-      expect(error.code).toEqual("InvalidParameter");
-      expect(error.message).toEqual(`Task count should be positive number between 1 to ${availableTasks}.`);
-    }
-    expect(errorThrown).toStrictEqual(true);
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+    await expect(lambda.createTest(config, context.functionName)).rejects.toMatchObject({
+      code: "InvalidParameter",
+      message: "Task count should be positive number between 1 to 2000.",
+    });
     //reset config
     config.testTaskConfigs[1]["taskCount"] = "5";
+  });
+
+  describe("server-side task ceiling", () => {
+    // ECS mock that answers each call by its params: hub task definition (2 vCPUs per task),
+    // one cluster with one RUNNING task using the given vCPUs, and no draining services.
+    const mockEcsWithVcpusInUse = (vCPUsInUse) =>
+      mockEcs.mockImplementation((params) => {
+        if (params?.taskDefinition) return Promise.resolve({ taskDefinition: { cpu: "2048" } });
+        if (params?.services) return Promise.resolve({ services: [] });
+        if (params?.tasks) return Promise.resolve({ tasks: [{ lastStatus: "RUNNING", cpu: vCPUsInUse * 1024 }] });
+        if (params?.cluster) return Promise.resolve({ taskArns: ["arn:of:task1"] });
+        return Promise.resolve({ clusterArns: ["arn:of:cluster1"] });
+      });
+
+    it("ignores a client-supplied dltAvailableTasks above the real ceiling", async () => {
+      config.testTaskConfigs[0]["taskCount"] = "5000";
+      config.regionalTaskDetails["us-east-1"].dltAvailableTasks = "999999";
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+
+      await expect(lambda.createTest(config, context.functionName)).rejects.toMatchObject({
+        code: "InvalidParameter",
+        message: "Task count should be positive number between 1 to 2000.",
+      });
+      expect(mockStepFunctions).not.toHaveBeenCalled();
+    });
+
+    it("subtracts the Fargate vCPUs in use when a run starts", async () => {
+      // (4000 - 3000) / 2 = 500 available tasks
+      mockEcsWithVcpusInUse(3000);
+      config.testTaskConfigs[0]["taskCount"] = "600";
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+
+      await expect(lambda.createTest(config, context.functionName)).rejects.toMatchObject({
+        code: "InvalidParameter",
+        message: "Task count should be positive number between 1 to 500.",
+      });
+    });
+
+    it("subtracts the Fargate vCPUs in use when a scheduled run fires", async () => {
+      mockEcsWithVcpusInUse(3000);
+      config.eventBridge = "true";
+      config.scheduleTime = "02:30";
+      config.recurrence = "daily";
+      config.testTaskConfigs[0]["taskCount"] = "600";
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+
+      await expect(lambda.createTest(config, context.functionName)).rejects.toMatchObject({
+        code: "InvalidParameter",
+        message: "Task count should be positive number between 1 to 500.",
+      });
+    });
+
+    it("treats unreadable Fargate usage as zero", async () => {
+      mockEcs.mockImplementation((params) =>
+        params?.taskDefinition
+          ? Promise.resolve({ taskDefinition: { cpu: "2048" } })
+          : Promise.reject(new Error("ThrottlingException"))
+      );
+      config.testTaskConfigs[0]["taskCount"] = "2001";
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+
+      await expect(lambda.createTest(config, context.functionName)).rejects.toMatchObject({
+        code: "InvalidParameter",
+        message: "Task count should be positive number between 1 to 2000.",
+      });
+    });
+
+    it("rejects when the Fargate vCPU quota cannot be read", async () => {
+      mockServiceQuotas.mockImplementation(() => Promise.reject(new Error("AccessDenied")));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+
+      await expect(lambda.createTest(config, context.functionName)).rejects.toMatchObject({
+        code: "FARGATE_CAPACITY_UNAVAILABLE",
+        statusCode: 500,
+      });
+      expect(mockStepFunctions).not.toHaveBeenCalled();
+    });
+
+    it("rejects when the vCPUs per task cannot be read", async () => {
+      mockEcs.mockImplementation(() => Promise.reject(new Error("AccessDenied")));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+      mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+
+      await expect(lambda.createTest(config, context.functionName)).rejects.toMatchObject({
+        code: "FARGATE_CAPACITY_UNAVAILABLE",
+        message: 'Unable to determine the available Fargate capacity for "us-east-1". Please try again.',
+        statusCode: 500,
+      });
+    });
+
+    describe("failed run history for run starts rejected for capacity", () => {
+      const historyPuts = () =>
+        mockDynamoDB.mock.calls.map(([params]) => params).filter((params) => params?.TableName === "testHistoryTable");
+
+      const startTest = ({ existing = true } = {}) => {
+        if (existing) config.testId = testId;
+        mockDynamoDB.mockImplementation(() => Promise.resolve({}));
+        mockDynamoDB.mockImplementationOnce(() => Promise.resolve(existing ? getData : {}));
+        mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
+        return lambda.createTest(config, context.functionName);
+      };
+
+      it("records a run rejected for its task count", async () => {
+        config.testTaskConfigs[0]["taskCount"] = "2001";
+
+        await expect(startTest()).rejects.toMatchObject({ code: "InvalidParameter" });
+
+        expect(historyPuts()).toHaveLength(1);
+        expect(historyPuts()[0].Item).toMatchObject({
+          testId,
+          status: "failed",
+          errorReason: "Task count should be positive number between 1 to 2000.",
+        });
+      });
+
+      const nextRunUpdates = () =>
+        mockDynamoDB.mock.calls.map(([params]) => params).filter((params) => params?.UpdateExpression === "SET nextRun = :nr");
+
+      it("saves the next run that a successful run would have saved when a recurring test is rejected", async () => {
+        config.recurrence = "daily";
+        config.testTaskConfigs[0]["taskCount"] = "2001";
+
+        await expect(startTest()).rejects.toMatchObject({ code: "InvalidParameter" });
+
+        expect(nextRunUpdates()).toHaveLength(1);
+        expect(nextRunUpdates()[0]).toMatchObject({
+          Key: { testId },
+          ConditionExpression: "attribute_exists(testId)",
+          ExpressionAttributeValues: { ":nr": "2017-04-23 02:28:37" },
+        });
+      });
+
+      it("records a run rejected because the capacity lookup failed", async () => {
+        mockServiceQuotas.mockImplementation(() => Promise.reject(new Error("ThrottlingException")));
+
+        await expect(startTest()).rejects.toMatchObject({ code: "FARGATE_CAPACITY_UNAVAILABLE" });
+
+        expect(historyPuts()).toHaveLength(1);
+        expect(historyPuts()[0].Item.errorReason).toContain("Unable to determine the available Fargate capacity");
+      });
+
+      it("does not record a save-only edit rejected for its task count", async () => {
+        config.saveOnly = true;
+        config.testTaskConfigs[0]["taskCount"] = "2001";
+
+        await expect(startTest()).rejects.toMatchObject({ code: "InvalidParameter" });
+
+        expect(historyPuts()).toHaveLength(0);
+        expect(nextRunUpdates()).toHaveLength(0);
+      });
+
+      it("does not record a run rejected for other validation errors", async () => {
+        config.testTaskConfigs[0]["concurrency"] = "0";
+
+        await expect(startTest()).rejects.toMatchObject({
+          code: "InvalidParameter",
+          message: "Concurrency should be positive number",
+        });
+
+        expect(historyPuts()).toHaveLength(0);
+      });
+
+      it("does not record a new test rejected for its task count", async () => {
+        config.testTaskConfigs[0]["taskCount"] = "2001";
+
+        await expect(startTest({ existing: false })).rejects.toMatchObject({ code: "InvalidParameter" });
+
+        expect(historyPuts()).toHaveLength(0);
+      });
+
+      it("does not record a new test that already has a testId, as the console assigns", async () => {
+        config.testId = "newTestId1";
+        config.testTaskConfigs[0]["taskCount"] = "2001";
+
+        await expect(startTest({ existing: false })).rejects.toMatchObject({ code: "InvalidParameter" });
+
+        expect(historyPuts()).toHaveLength(0);
+        expect(nextRunUpdates()).toHaveLength(0);
+      });
+    });
+
+    it("checks a new schedule against the request's dltAvailableTasks without a capacity lookup", async () => {
+      mockServiceQuotas.mockImplementation(() => Promise.reject(new Error("should not be called")));
+      config.scheduleStep = "create";
+      config.recurrence = "daily";
+      config.testTaskConfigs[0]["taskCount"] = "2001";
+
+      await expect(lambda.scheduleTest(eventInput(), context)).rejects.toMatchObject({
+        code: "InvalidParameter",
+        message: `Task count should be positive number between 1 to ${config.regionalTaskDetails["us-east-1"].dltAvailableTasks}.`,
+      });
+      expect(mockServiceQuotas).not.toHaveBeenCalled();
+      expect(mockScheduler).not.toHaveBeenCalled();
+    });
+
   });
 
   it('should return "InvalidParameter" when "CREATETEST" fails due to concurrency being less 1', async () => {
     config.testTaskConfigs[0]["concurrency"] = "0";
     mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
+    mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
     try {
       await lambda.createTest(config, context.functionName);
     } catch (error) {
@@ -2512,12 +2745,19 @@ describe("#SCENARIOS API:: ", () => {
     expect(testDuration).toEqual(120);
   });
 
-  it("should return an error when invalid hold-for string is provided", async () => {
-    try {
-      const testDuration = lambda.getTestDurationSeconds("3h");
-    } catch (error) {
-      expect(error.code).toEqual("InvalidParameter");
-    }
+  it.each([
+    ["3h", 10800],
+    ["2d", 172800],
+    [300, 300],
+    ["300", 300],
+  ])("should return test duration in seconds when getTestDurationSeconds is passed %p", (duration, expected) => {
+    expect(lambda.getTestDurationSeconds(duration)).toEqual(expected);
+  });
+
+  it.each(["3w", "1m30s", "", undefined])("should return an error when invalid duration %p is provided", (duration) => {
+    expect(() => lambda.getTestDurationSeconds(duration)).toThrow(
+      expect.objectContaining({ code: "InvalidParameter" })
+    );
   });
 
   it('should return an exception when "CreateTest" fails to return a regional config', async () => {
@@ -2804,6 +3044,11 @@ it('should return "INTERNAL_SERVER_ERROR" when CloudFormation fails', async () =
 });
 
 it('should return "S3 ERROR" when "PUTOBJECT" fails', async () => {
+  // Top-level tests share mock state; reset the Fargate capacity lookups for the task ceiling
+  mockEcs.mockReset();
+  mockEcs.mockImplementation(() => Promise.resolve({ taskDefinition: { cpu: "2048" }, clusterArns: [], taskArns: [], tasks: [] }));
+  mockServiceQuotas.mockReset();
+  mockServiceQuotas.mockImplementation(() => Promise.resolve({ Quota: { Value: 4000 } }));
   mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getData));
   mockDynamoDB.mockImplementationOnce(() => Promise.resolve(getAllRegionalConfs));
   mockS3.mockImplementation(() => Promise.reject("S3 ERROR"));

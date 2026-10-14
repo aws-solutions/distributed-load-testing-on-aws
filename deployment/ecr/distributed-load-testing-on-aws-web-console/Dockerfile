@@ -15,12 +15,15 @@ FROM public.ecr.aws/nginx/nginx:alpine@sha256:42f630b748ea564bfae750a1b170972e0d
 # CVE-2026-78409, and CVE-2026-78410.
 # Then upgrade pcre2 to >= 10.49-r0 (CVE-2026-103111), nghttp2-libs to
 # >= 1.70.0-r0 (CVE-2026-58055), and libpng to >= 1.6.59-r0 (CVE-2026-46675).
+# Then upgrade zlib to >= 1.3.2-r1 (CVE-2026-85091) and tiff to >= 4.7.2-r0
+# (CVE-2026-4775).
 RUN apk upgrade --no-cache libexpat && \
     apk add --no-cache aws-cli && \
     apk upgrade --no-cache python3 && \
     apk upgrade --no-cache libssl3 && \
     apk upgrade --no-cache libuuid && \
-    apk upgrade --no-cache pcre2 nghttp2-libs libpng
+    apk upgrade --no-cache pcre2 nghttp2-libs libpng && \
+    apk upgrade --no-cache zlib tiff
 
 # Copy nginx configuration and entrypoint script
 COPY nginx.conf /etc/nginx/nginx.conf

@@ -245,6 +245,9 @@ describe("saveOnly behavior", () => {
     mockLambda.mockReset();
     mockCloudFormation.mockReset();
     mockServiceQuotas.mockReset();
+    // Default Fargate capacity for the server-side task ceiling: 2 vCPUs per task, 4000 vCPU quota, nothing in use
+    mockEcs.mockImplementation(() => Promise.resolve({ taskDefinition: { cpu: "2048" }, clusterArns: [], taskArns: [], tasks: [] }));
+    mockServiceQuotas.mockImplementation(() => Promise.resolve({ Quota: { Value: 4000 } }));
     mockGetLatestVersionFromRss.mockReset();
     mockGetLatestVersionFromRss.mockResolvedValue("9.9.9");
     jest.useFakeTimers("modern");
@@ -276,6 +279,25 @@ describe("saveOnly behavior", () => {
         ExpressionAttributeValues: expect.objectContaining({ ":st": "" }),
       })
     );
+  });
+
+  it("CREATETEST with saveOnly=true checks the task count against the request's dltAvailableTasks without a capacity lookup", async () => {
+    mockServiceQuotas.mockImplementation(() => Promise.reject(new Error("should not be called")));
+    const config = {
+      ...baseConfig,
+      saveOnly: true,
+      testTaskConfigs: [
+        { region: "us-east-1", concurrency: "5", taskCount: "2000" },
+        { region: "eu-west-1", concurrency: "5", taskCount: "5" },
+      ],
+    };
+    wireCreateTestMocks({ existing: existingTestEntry("complete") });
+
+    const response = await lambda.createTest(config, context.functionName);
+
+    expect(response.testStatus).toEqual("complete");
+    expect(mockServiceQuotas).not.toHaveBeenCalled();
+    expect(mockStepFunctions).not.toHaveBeenCalled();
   });
 
   // Test 2: saveOnly=true on a complete test preserves the status and skips SFN.
