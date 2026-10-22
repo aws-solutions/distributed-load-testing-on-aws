@@ -7,36 +7,34 @@ import { Stack } from "aws-cdk-lib";
 export function createTemplateWithoutS3Key(stack: Stack): Template {
   const templateJson = Template.fromStack(stack).toJSON();
 
-  Object.keys(templateJson.Resources).forEach((key) => {
-    if (templateJson.Resources[key].Properties?.Code?.S3Key) {
-      templateJson.Resources[key].Properties.Code.S3Key = "Omitted to remove snapshot dependency on hash";
+  Object.values(templateJson.Resources).forEach((res: any) => {
+    if (res.Properties?.Code?.S3Key) {
+      res.Properties.Code.S3Key = "Omitted to remove snapshot dependency on hash";
     }
-    if (templateJson.Resources[key].Properties?.Content?.S3Key) {
-      templateJson.Resources[key].Properties.Content.S3Key = "Omitted to remove snapshot dependency on hash";
+    if (res.Properties?.Content?.S3Key) {
+      res.Properties.Content.S3Key = "Omitted to remove snapshot dependency on hash";
     }
-    if (templateJson.Resources[key].Properties?.SourceObjectKeys) {
-      templateJson.Resources[key].Properties.SourceObjectKeys = [
-        "Omitted to remove snapshot dependency on demo ui module hash",
-      ];
+    if (res.Properties?.SourceObjectKeys) {
+      res.Properties.SourceObjectKeys = ["Omitted to remove snapshot dependency on demo ui module hash"];
     }
-    if (templateJson.Resources[key].Properties?.Environment?.Variables?.SOLUTION_VERSION) {
-      templateJson.Resources[key].Properties.Environment.Variables.SOLUTION_VERSION =
+    if (res.Properties?.Environment?.Variables?.SOLUTION_VERSION) {
+      res.Properties.Environment.Variables.SOLUTION_VERSION =
         "Omitted to remove snapshot dependency on solution version";
     }
-    if (templateJson.Resources[key].Properties?.Timestamp) {
-      templateJson.Resources[key].Properties.Timestamp = "Omitted to remove snapshot dependency on timestamp";
+    if (res.Properties?.Timestamp) {
+      res.Properties.Timestamp = "Omitted to remove snapshot dependency on timestamp";
     }
     // Sanitize Cognito Domain with token placeholders
     if (
-      templateJson.Resources[key].Properties?.Domain &&
-      typeof templateJson.Resources[key].Properties.Domain === "string" &&
-      templateJson.Resources[key].Properties.Domain.includes("${token[")
+      res.Properties?.Domain &&
+      typeof res.Properties.Domain === "string" &&
+      res.Properties.Domain.includes("${token[")
     ) {
-      templateJson.Resources[key].Properties.Domain = "Omitted to remove snapshot dependency on token IDs";
+      res.Properties.Domain = "Omitted to remove snapshot dependency on token IDs";
     }
     // Sanitize UserPoolDomain in Fn::Join arrays
-    if (templateJson.Resources[key].Properties?.UserPoolDomain?.["Fn::Join"]) {
-      const joinArray = templateJson.Resources[key].Properties.UserPoolDomain["Fn::Join"][1];
+    if (res.Properties?.UserPoolDomain?.["Fn::Join"]) {
+      const joinArray = res.Properties.UserPoolDomain["Fn::Join"][1];
       if (Array.isArray(joinArray)) {
         for (let i = 0; i < joinArray.length; i++) {
           if (typeof joinArray[i] === "string" && joinArray[i].includes("${token[")) {
@@ -44,6 +42,15 @@ export function createTemplateWithoutS3Key(stack: Stack): Template {
           }
         }
       }
+    }
+    // Sanitize docker image hash
+    if (res.Properties?.ContainerDefinitions) {
+      res.Properties.ContainerDefinitions.forEach((def: any) => {
+        const regex = /:[a-f0-9]{64}/;
+        if (regex.test(def.Image?.["Fn::Sub"] ?? "")) {
+          def.Image["Fn::Sub"] = def.Image["Fn::Sub"].replace(regex, ":[Omitted HASH]");
+        }
+      });
     }
   });
 
