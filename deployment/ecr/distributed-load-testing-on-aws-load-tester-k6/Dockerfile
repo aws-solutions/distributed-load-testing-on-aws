@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # amazonlinux:2023-minimal
-FROM public.ecr.aws/amazonlinux/amazonlinux@sha256:c25add18b6c35620a6e096ef03ecbafbcaed993281ad227792f67c324980011b
+FROM public.ecr.aws/amazonlinux/amazonlinux@sha256:d4495d25da60ef3f2d44bc7f6a2dd2ec1646c14414e0dfaaa44dc3ff653e1c2b
 
 # Node runs the DLT entrypoint. k6 is deliberately absent from the image and is
 # downloaded into /tmp at runtime; tar and gzip unpack its verified release.
