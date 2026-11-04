@@ -190,7 +190,11 @@ Keep `locustfile.py` at the root either way. A `requirements.txt` with no `packa
 python3 -I <lint-skill-dir>/scripts/lint_bundle.py --framework locust <bundle-dir>/loadtest.zip
 ```
 
-**4. Upload only on PASS.** Upload only when the lint exits 0 and reports PASS. A SigV4 bundle draws the expected temporary-key WARN. If you change a file afterward, zip and lint again. Delete `<bundle-dir>` after the upload, because it holds the credentials. For the DLT console:
+**4. Upload only on PASS.** Upload only when the lint exits 0 and reports PASS. A SigV4 bundle draws the expected temporary-key WARN. If you change a file afterward, zip and lint again. Delete `<bundle-dir>` after the upload, because it holds the credentials.
+
+**Stop here and confirm authorization before any load.** Show the user the DLT stack, its hub Region and AWS account, every host the locustfile calls, and the run's Regions, task count, concurrency, and duration. Ask whether they own each host or are authorized to load test it, and whether they approve this load, then wait for the answer. A request to create or run the test is not that confirmation. Continue without asking only when the user's own messages already say they own or are authorized to test each host and approve this load. Until then, create the scenario only with `--save-only`, which sends no load. The authorization guardrail below lists everything to show.
+
+For the DLT console:
 
 1. Create a new test scenario and choose "Locust" as the test type.
 2. Upload the linted `loadtest.zip`.

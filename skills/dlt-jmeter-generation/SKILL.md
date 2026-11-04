@@ -142,6 +142,8 @@ Keep `<output-dir>` free of credentials, so its plan and `users.csv` hold only p
 
 ## Step 6: Upload and Create the Scenario
 
+**Stop here and confirm authorization before any load.** Show the user the DLT stack, its hub Region and AWS account, every host the plan calls, and the run's Regions, task count, concurrency, and duration. Ask whether they own each host or are authorized to load test it, and whether they approve this load, then wait for the answer. A request to create or run the test is not that confirmation. Continue without asking only when the user's own messages already say they own or are authorized to test each host and approve this load. Until then, create the scenario only with `--save-only`, which sends no load. The authorization guardrail below lists everything to show.
+
 Prefer the `dlt` CLI or the DLT MCP server. Fall back to raw S3 and the API only when neither is available.
 
 **Option A: `dlt` CLI (recommended, v4.3.0 and later).** One command uploads the file to the scenarios bucket and creates the scenario. For the plan this skill generates, select Native with `--native-mode` and set the Safety duration with `--max-test-duration`. Native takes no `--concurrency`, `--ramp-up`, or `--hold-for`, because the plan's thread groups own all three; `--task-count` and `--regions` decide how many copies of the plan run.

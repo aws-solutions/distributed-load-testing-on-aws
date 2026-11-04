@@ -153,6 +153,14 @@ or cookie passes it. Confirm with the user that each such credential is short-li
 python3 -I <lint-skill-dir>/scripts/lint_bundle.py --framework jmeter calibration.jmx
 ```
 
+**Stop here and confirm authorization before any load.** Show the user the DLT stack, its hub
+Region and AWS account, the target host, and the run's Regions, task count, per-task rate, and
+duration. Ask whether they own the host or are authorized to load test it, and whether they approve
+this load, then wait for the answer. A request to calibrate or run the test is not that
+confirmation. Continue without asking only when the user's own messages already say they own or are
+authorized to test the host and approve this load. Until then, create the scenario only with
+`--save-only`, which sends no load. The first guardrail below lists everything to show.
+
 ```bash
 dlt scenarios create --test-name "rps calibration" --test-description "stepped calibration" \
   --test-type jmeter --file calibration.jmx --task-count 5 --regions <region> \

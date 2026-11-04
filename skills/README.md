@@ -12,6 +12,7 @@ The skills follow the [Agent Skills](https://agentskills.io/) format: each one i
 
 - [Prerequisites](#prerequisites)
 - [Install](#install)
+- [Using the Skills](#using-the-skills)
 - [Update](#update)
 - [Remove](#remove)
 - [Manual Install](#manual-install)
@@ -52,12 +53,63 @@ Install the whole collection, because the skills refer to each other. The genera
 
 ### Claude Code Skill Listing
 
-Claude Code lists the name and description of every installed skill in its context, within a budget of 1% of the model's context window. When the listing overflows, Claude Code drops the descriptions of the skills you use least and keeps only their names. On a model with a 200,000-token context window, this collection's descriptions alone exceed that budget, so some DLT skills can appear by name only and activate less reliably. Two settings keep the descriptions visible:
+Claude Code lists the name and description of every installed skill in its context, within a budget of 1% of the model's context window. When the listing overflows, Claude Code drops the descriptions of the skills you use least and keeps only their names. On a model with a 200,000-token context window, such as Claude Sonnet 4.6, this collection's descriptions alone exceed that budget. Some DLT skills can then appear by name only and activate less reliably. Two settings keep the descriptions visible:
 
 - Raise the budget with the [`skillListingBudgetFraction`](https://code.claude.com/docs/en/settings-reference#skilllistingbudgetfraction) setting, for example `0.03` for 3%.
 - Set skills you rarely use to `"name-only"` in the `skillOverrides` setting, which frees budget for the rest.
 
 The Claude Code documentation explains both settings in [Skill descriptions are cut short](https://code.claude.com/docs/en/skills#skill-descriptions-are-cut-short).
+
+## Using the Skills
+
+### Tested Clients and Models
+
+The skills were tested end to end with Claude Code on Claude Opus 5.5 with a 1M-token context window, and with Kiro CLI 3.0 on its default model. On Claude Sonnet 5.5, the expected skill loaded for 9 of 10 test requests, but few of those requests ran end to end. On Claude Sonnet 4.6, only skill loading was tested. We have not tested other clients. On a model with a 200,000-token context window in Claude Code, raise `skillListingBudgetFraction` as [Claude Code Skill Listing](#claude-code-skill-listing) describes.
+
+### Tell the Agent About Your Stack
+
+Start a request with the facts the agent would otherwise have to find or guess:
+
+- The DLT stack's name and Region, and the Regions of any regional stacks.
+- Whether the `dlt` CLI is configured and signed in for that stack.
+- Which AWS credentials the agent's shell has, for example a read-only profile.
+- How the load generators reach your target. The tasks run in the stack's VPC, and your own machine may not reach the same address. Say so when the agent should not call the target from your machine.
+
+For example:
+
+> My DLT stack is dlt-team in us-east-1, with a regional stack in us-west-2. The dlt CLI is configured and signed in for it, and the AWS CLI has read-only credentials. Write a k6 test for GET /orders and POST /orders on https://api.example.com, check it, and run it with 1 task and 10 users for 5 minutes. I own api.example.com and I am authorized to load test it, and this run is approved.
+
+### Approve the Load Yourself
+
+A load test sends real traffic, and a host named in a repository or an API document can belong to someone else. Before the agent starts a test, tell it which hosts you own or are authorized to test. Also give the load you approve: the Regions, the tasks, the users per task, and the duration. The skills tell the agent to ask for this before it starts load. Keep your client's permission prompt for `dlt scenarios create` and `dlt scenarios start`, so you see each start before it happens.
+
+### Start With Read-Only AWS Credentials
+
+Give the agent's shell read-only AWS credentials at first. Diagnosis, results analysis, capacity planning, preflight checks, and teardown planning need only read access. When a skill reaches a change, such as a regional stack deploy, a VPC change, or a stack delete, it shows you the exact change and waits. Run that step yourself, or switch to credentials that can write for that step only. Use a test account when you can.
+
+Read-only AWS credentials do not limit the `dlt` CLI or the MCP server. Both act through your DLT sign-in, so an agent with read-only AWS credentials can still create, start, cancel, and delete tests.
+
+### Set Up the `dlt` CLI
+
+Install and configure the CLI before you start, as [source/cli/README.md](../source/cli/README.md) describes. In a session without a browser, sign in with `dlt login --srp --username <user>` and put the password in the `DLT_PASSWORD` environment variable. This sign-in needs a permanent password, so a new user signs in to the console once first to replace the temporary one. The skills prefer the CLI, because one command uploads the script and creates the test.
+
+### Start Small
+
+Run the smallest useful version first, such as 1 task for 2 minutes, and scale up after it completes with no errors. Each load-generator task is a billable Fargate task with 2 vCPU and 4 GiB of memory. A run takes several minutes from start to results, so let the agent wait for it instead of asking for a second run.
+
+### Name Tests Uniquely
+
+Give each test a name that says what it is for. When several tests share a name, the agent has to ask which one you mean, or work from the test ID.
+
+### Pin a Version
+
+An install from the preview branch tracks the branch. To pin the content, for example for a team or a CI job, put a commit SHA after `#` instead of the branch name:
+
+```bash
+npx skills add 'https://github.com/aws-solutions/distributed-load-testing-on-aws#<commit-sha>'
+```
+
+`skills-lock.json` records the commit.
 
 ## Update
 
@@ -244,7 +296,7 @@ Checks a DLT create-test payload against the product's request schema before you
 
 Checks that a JMeter, k6, or Locust script or zip meets the DLT container's entry-point contract, and names each packaging problem it finds.
 
-**Use it when** you prepare a bundle, setup fails because the script was not found, or a zip that worked in Standard mode fails in Native mode.
+**Use it when** you prepare a bundle or replace an existing test's script. It also helps when setup fails because the script was not found, or when a zip that worked in Standard mode fails in Native mode.
 
 **What it does**
 

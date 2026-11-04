@@ -156,6 +156,8 @@ Keep the output directory free of credentials, so its script and config module h
 
 A script that needs no credential can ship as a bare `.ts` or `.js` file with no copy. Lint it by its own path, such as `./output/loadtest.ts`, and upload it only on PASS.
 
+**Stop here and confirm authorization before any load.** Show the user the DLT stack, its hub Region and AWS account, every host the script calls, and the run's Regions, task count, concurrency, and duration. Ask whether they own each host or are authorized to load test it, and whether they approve this load, then wait for the answer. A request to create or run the test is not that confirmation. Continue without asking only when the user's own messages already say they own or are authorized to test each host and approve this load. Until then, create the scenario only with `--save-only`, which sends no load. The authorization guardrail below lists everything to show.
+
 Prefer an automated path when your environment provides one:
 
 - **dlt CLI or a DLT MCP server (preferred).** If the `dlt` CLI (v4.3.0 or later) is available, create the scenario with `--save-only`, then start it with `dlt scenarios start <testId>` once the user approves the run, as the first guardrail below requires. A single-file script with no credential needs no zip:
