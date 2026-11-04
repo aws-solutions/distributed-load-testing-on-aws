@@ -1,0 +1,138 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * <APP NAME> k6 load test for Distributed Load Testing on AWS (Native traffic shape).
+ *
+ * This is the JavaScript variant of the k6 template. Prefer the TypeScript
+ * template when you can, since DLT's k6 runtime supports TypeScript natively.
+ * Apart from the type annotations, the two templates are functionally
+ * identical.
+ *
+ * Application under test:
+ *   <One paragraph describing the service and its HTTP API.>
+ *
+ * Endpoints exercised:
+ *   GET    /items          list, paginated
+ *   POST   /items          create
+ *   GET    /items/{id}     read one
+ *
+ * Authentication:
+ *   Detected auth type: <bearer | api_key | basic | sigv4 | cognito_sigv4 | none>
+ *   <How this script supplies credentials. DLT passes no environment
+ *    variables, so a DLT run reads a short-lived token from a bundled config
+ *    file. For sigv4 and cognito_sigv4 see the companion skills
+ *    dlt-sigv4-request-signing and dlt-api-auth-detection.>
+ *
+ * How DLT drives load:
+ *   In the Native traffic shape (DLT v4.3.0 and later) it does not. DLT runs
+ *   this file with `k6 run` and passes NO load flags: no --vus, no --duration,
+ *   no --stage. The options block below is the sole authority on how much load
+ *   runs and on when the run ends. Keep the stages, or an explicit duration or
+ *   iteration count. Without one, k6 falls back to its own default of one
+ *   virtual user (VU) for one iteration, and the run sends a single request.
+ *   Each DLT task runs a full copy of this script, so total load is this shape
+ *   multiplied by the task count. In the Standard traffic shape Taurus applies
+ *   the scenario's concurrency, ramp-up, and hold-for instead, overriding this
+ *   block.
+ *
+ *   The console's "Safety duration" is only a force-stop cap, default 4 hours.
+ *   A script that does not end itself burns the whole cap in Fargate, and DLT
+ *   then records the run as failed even if every request succeeded. Set the
+ *   cap several minutes above the run length of the stages below.
+ *
+ * Runtime constraints:
+ *   Built-in k6 modules and, if needed, pure-JavaScript modules from
+ *   https://jslib.k6.io. Importing a k6/x/... extension makes k6 download a
+ *   different k6 build when each task starts, so add one only on request.
+ *   DLT sets no custom environment variables: every __ENV lookup below falls
+ *   back to its default on DLT, so the defaults must hold real values.
+ */
+
+import http from "k6/http";
+import { check, sleep } from "k6";
+
+// __ENV overrides these for local runs only; DLT passes no custom variables,
+// so a DLT run uses the defaults. Replace the placeholder host with the real
+// target. Supply a short-lived token from a bundled config file, not a
+// long-lived secret.
+const BASE_URL = __ENV.BASE_URL || "https://api.example.com";
+const AUTH_TOKEN = __ENV.AUTH_TOKEN || "";
+
+export const options = {
+  // A breach makes k6 exit non-zero. In Native mode the task still finishes
+  // and its results upload. DLT records the non-zero exit, and the run details
+  // page shows a warning alert quoting k6's message. A breach on every task at
+  // the end of the run still completes the run. DLT fails the run only when
+  // tasks that exited non-zero take the Region below its healthy threshold and
+  // other tasks are still running two minutes later. Set thresholds you mean to
+  // act on, and for run-level gating use the CLI --fail-on-* result gates.
+  thresholds: {
+    http_req_failed: ["rate<0.01"],
+    http_req_duration: ["p(95)<800", "p(99)<1500"],
+  },
+  // This is the load shape under Native mode and in local runs; nothing
+  // overrides it there. The stages must reach a terminating state so the run
+  // ends on its own; their durations sum to the run length. Scale total load
+  // with DLT task count and Regions, not by expecting a bigger shape from DLT.
+  scenarios: {
+    default_load: {
+      executor: "ramping-vus",
+      exec: "default",
+      startVUs: 0,
+      stages: [
+        { duration: "30s", target: 20 },
+        { duration: "1m", target: 20 },
+      ],
+    },
+  },
+};
+
+function authHeaders() {
+  const headers = { "Content-Type": "application/json" };
+  if (AUTH_TOKEN !== "") {
+    headers["Authorization"] = `Bearer ${AUTH_TOKEN}`;
+  }
+  return headers;
+}
+
+function makeItemPayload() {
+  const suffix = Math.floor(Math.random() * 1000000);
+  return { name: `item-${suffix}`, quantity: (suffix % 10) + 1 };
+}
+
+export default function () {
+  // Every request carries a stable `name` tag so DLT groups it into one label
+  // instead of one row per URL.
+  const list = http.get(`${BASE_URL}/items?limit=20`, {
+    headers: authHeaders(),
+    tags: { name: "GET /items" },
+  });
+  check(list, { "list status is 200": (r) => r.status === 200 });
+
+  const created = http.post(`${BASE_URL}/items`, JSON.stringify(makeItemPayload()), {
+    headers: authHeaders(),
+    tags: { name: "POST /items" },
+  });
+  const createdOk = check(created, {
+    "create status is 2xx": (r) => r.status >= 200 && r.status < 300,
+  });
+
+  if (createdOk) {
+    let id;
+    try {
+      id = created.json("id");
+    } catch (e) {
+      id = undefined;
+    }
+    if (id) {
+      // Keep the id out of the `name` tag so the endpoint collapses to one label.
+      const read = http.get(`${BASE_URL}/items/${id}`, {
+        headers: authHeaders(),
+        tags: { name: "GET /items/{id}" },
+      });
+      check(read, { "read status is 200": (r) => r.status === 200 });
+    }
+  }
+
+  sleep(1);
+}

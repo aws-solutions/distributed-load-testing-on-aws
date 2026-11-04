@@ -1,0 +1,370 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+"""Helpers for the generated Locust load-test suite.
+
+This module uses only the standard library, so the bundle runs in both DLT
+traffic shapes without a requirements.txt. It uses PyYAML when PyYAML is
+importable, which it is in the Standard mode image because Taurus depends on
+it. The Native image has no PyYAML, so load_config() then falls back to a small
+built-in reader. That reader handles the subset of YAML that
+loadtest_config.yaml uses: nested mappings of scalars and lists of scalars. Avoid faker, requests, boto3, and botocore, because none is
+guaranteed in the images. A package you add must be declared in a top-level
+requirements.txt (DLT v4.3.0 and later).
+
+Provides:
+  - load_config(): read loadtest_config.yaml next to this file
+  - target_base_url(): the host ApiUser targets
+  - check_auth_config(): stop at startup when the auth settings are incomplete
+  - auth_headers(): build auth (and SigV4 signing) per the detected auth type
+  - payload factories and inline random data generation
+
+Adapt make_item_payload() and add factories to match the real data models.
+"""
+
+import base64
+import hashlib
+import hmac
+import json
+import os
+import random
+import string
+from datetime import datetime, timezone
+from urllib.parse import parse_qsl, quote, urlparse
+
+try:
+    import yaml
+except ImportError:  # The Native mode image does not ship PyYAML.
+    yaml = None
+
+_CONFIG_CACHE = None
+
+
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+def load_config():
+    """Load loadtest_config.yaml from the same directory as this file."""
+    global _CONFIG_CACHE
+    if _CONFIG_CACHE is not None:
+        return _CONFIG_CACHE
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "loadtest_config.yaml")
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as fh:
+            text = fh.read()
+        _CONFIG_CACHE = (yaml.safe_load(text) if yaml else _simple_yaml(text)) or {}
+    else:
+        _CONFIG_CACHE = {}
+    return _CONFIG_CACHE
+
+
+def target_base_url():
+    """Return the host for ApiUser: TARGET_HOST when set, else target.base_url.
+
+    DLT passes Locust no --host in either traffic shape, so the locustfile has to
+    supply one. TARGET_HOST is a convenience for local runs; DLT sets no custom
+    environment variables, so on DLT the value comes from loadtest_config.yaml.
+    """
+    target = load_config().get("target") or {}
+    url = os.environ.get("TARGET_HOST") or str(target.get("base_url") or "")
+    # Locust sends base_url + path, so a trailing slash here would double it.
+    return url.rstrip("/")
+
+
+def _strip_comment(line):
+    """Drop a trailing # comment that is not inside a quoted value."""
+    quote_char = None
+    for index, char in enumerate(line):
+        if quote_char:
+            if char == quote_char:
+                quote_char = None
+        elif char in "\"'":
+            quote_char = char
+        elif char == "#" and (index == 0 or line[index - 1].isspace()):
+            return line[:index]
+    return line
+
+
+def _parse_scalar(text):
+    """Convert a YAML scalar to a Python value: quoted text, bool, null, or number."""
+    text = text.strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'":
+        return text[1:-1]
+    lowered = text.lower()
+    if lowered in ("", "~", "null"):
+        return None
+    if lowered in ("true", "false"):
+        return lowered == "true"
+    for cast in (int, float):
+        try:
+            return cast(text)
+        except ValueError:
+            pass
+    return text
+
+
+def _simple_yaml(text):
+    """Read the YAML subset loadtest_config.yaml uses, with no third-party parser.
+
+    Supports nested mappings by indentation, scalar values, comments, and lists
+    of scalars written either indented under their key or at the key's own
+    indent, the two forms PyYAML accepts. Anything richer (anchors, flow
+    collections, multi-line strings) needs PyYAML, which in Native mode means
+    declaring it in requirements.txt.
+    """
+    entries = []
+    owner = None  # indent of a value-less key whose list items share its indent
+    for raw in text.splitlines():
+        line = _strip_comment(raw).rstrip()
+        if not line.strip() or line.strip() == "---":
+            continue
+        indent, content = len(line) - len(line.lstrip(" ")), line.strip()
+        if content.startswith("-") and indent == owner:
+            # A list written at its key's own indent belongs to that key, so
+            # treat it as indented one level under the key.
+            entries.append((indent + 1, content))
+            continue
+        owner = indent if not content.startswith("-") and content.endswith(":") else None
+        entries.append((indent, content))
+
+    root = {}
+    stack = [(-1, root)]
+    for index, (indent, content) in enumerate(entries):
+        while indent <= stack[-1][0]:
+            stack.pop()
+        container = stack[-1][1]
+        if content.startswith("-"):
+            if isinstance(container, list):
+                container.append(_parse_scalar(content[1:]))
+            continue
+        if not isinstance(container, dict):
+            continue
+        key, _, rest = content.partition(":")
+        key = _parse_scalar(key)
+        if rest.strip():
+            container[key] = _parse_scalar(rest)
+            continue
+        following = entries[index + 1] if index + 1 < len(entries) else None
+        if following and following[0] > indent:
+            child = [] if following[1].startswith("-") else {}
+            container[key] = child
+            stack.append((indent, child))
+        else:
+            container[key] = None
+    return root
+
+
+def _resolve(value):
+    """Resolve a ${ENV_VAR} reference against the environment."""
+    if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
+        return os.environ.get(value[2:-1], "")
+    return value
+
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+def check_auth_config():
+    """Raise ValueError at startup when the SigV4 settings are incomplete.
+
+    locustfile.py calls this once at import time, so a missing or long-term
+    credential stops the run with a clear message instead of failing every
+    request with a 403.
+    """
+    auth = load_config().get("auth") or {}
+    if auth.get("type", "none") in ("sigv4", "cognito_sigv4"):
+        sigv4_credentials(auth)
+
+
+def auth_headers(client, method, path, body=None, params=None):
+    """Return request headers for the configured auth type.
+
+    For sigv4 and cognito_sigv4 this also computes the SigV4 Authorization
+    header, which covers the method, path, query parameters, and body. Pass the
+    same path, params, and body that the request itself sends.
+    """
+    auth = load_config().get("auth", {})
+    auth_type = auth.get("type", "none")
+
+    if auth_type in ("sigv4", "cognito_sigv4"):
+        return _sigv4_headers(client, auth, method, path, body, params)
+    if auth_type == "bearer":
+        return {"Authorization": f"Bearer {_resolve(auth.get('token', ''))}"}
+    if auth_type == "api_key":
+        header = auth.get("api_key_header", "X-API-Key")
+        return {header: _resolve(auth.get("api_key", ""))}
+    if auth_type == "basic":
+        raw = f"{_resolve(auth.get('username', ''))}:{_resolve(auth.get('password', ''))}"
+        token = base64.b64encode(raw.encode("utf-8")).decode("ascii")
+        return {"Authorization": f"Basic {token}"}
+    return {}
+
+
+# ---------------------------------------------------------------------------
+# AWS Signature Version 4 (standard library only)
+# ---------------------------------------------------------------------------
+_TEMPORARY_ONLY = (
+    "SigV4 auth accepts only temporary credentials, because DLT keeps every "
+    "uploaded bundle as an object version that any console user can download. "
+    "Assume a role that allows only execute-api:Invoke on the target API, for a "
+    "duration that covers the whole test, and set aws_access_key_id, "
+    "aws_secret_access_key, and aws_session_token from that session."
+)
+
+
+def sigv4_credentials(auth):
+    """Return the Region and temporary credentials to sign with, or raise ValueError.
+
+    The values come from loadtest_config.yaml. When a cognito_sigv4 bundle signs
+    in to Cognito for its credentials, return the cached sign-in result here
+    instead, with the same keys, and keep the checks.
+    """
+    keys = ("aws_region", "aws_access_key_id", "aws_secret_access_key", "aws_session_token")
+    creds = {key: str(_resolve(auth.get(key)) or "") for key in keys}
+    missing = [f"auth.{key}" for key in keys[:3] if not creds[key]]
+    if missing:
+        raise ValueError(
+            f"SigV4 auth needs a value for {', '.join(missing)} in loadtest_config.yaml. "
+            "A ${VAR} reference is empty on DLT, which sets no custom environment variables."
+        )
+    # Long-term access keys start with AKIA and have no session token.
+    if creds["aws_access_key_id"].startswith("AKIA"):
+        raise ValueError(
+            "auth.aws_access_key_id is a long-term access key (it starts with AKIA). When this "
+            "runs on DLT, the bundle that holds it is already stored, and replacing the bundle "
+            "keeps the old version, so deactivate and rotate the key in IAM now. " + _TEMPORARY_ONLY
+        )
+    if not creds["aws_session_token"]:
+        raise ValueError(_TEMPORARY_ONLY)
+    return creds
+
+
+def _sha256_hex(data):
+    return hashlib.sha256(data.encode("utf-8") if isinstance(data, str) else data).hexdigest()
+
+
+def _hmac(key, msg):
+    return hmac.new(key, msg.encode("utf-8"), hashlib.sha256).digest()
+
+
+def _signing_key(secret_key, date_stamp, region, service):
+    k_date = _hmac(("AWS4" + secret_key).encode("utf-8"), date_stamp)
+    k_region = _hmac(k_date, region)
+    k_service = _hmac(k_region, service)
+    return _hmac(k_service, "aws4_request")
+
+
+def _canonical_query(query, params):
+    """Return the sorted, percent-encoded query string that SigV4 signs.
+
+    `query` is any query string written into the path, and `params` is what the
+    request passes to self.client. As in requests, a list value repeats its key
+    and a None value is dropped.
+    """
+    pairs = parse_qsl(query, keep_blank_values=True)
+    items = params.items() if isinstance(params, dict) else (params or [])
+    for key, value in items:
+        values = value if isinstance(value, (list, tuple)) else [value]
+        pairs.extend((key, item) for item in values if item is not None)
+    encoded = sorted(
+        (quote(str(key), safe="-_.~"), quote(str(value), safe="-_.~")) for key, value in pairs
+    )
+    return "&".join(f"{k}={v}" for k, v in encoded)
+
+
+def _sigv4_headers(client, auth, method, path, body=None, params=None):
+    """Compute AWS SigV4 headers for a single request.
+
+    Locust sends client.base_url + path, so the signed path is the base URL's
+    path (an API Gateway stage such as /prod) joined to `path` by one slash.
+    Pass `path` percent-encoded the way it goes on the wire.
+    """
+    creds = sigv4_credentials(auth)
+    region = creds["aws_region"]
+    service = auth.get("aws_service") or "execute-api"
+
+    base = urlparse(getattr(client, "base_url", "") or "")
+    host = base.netloc
+    path, _, path_query = path.partition("?")
+    full_path = base.path.rstrip("/") + "/" + path.lstrip("/")
+
+    payload = ""
+    if body is not None:
+        payload = body if isinstance(body, str) else json.dumps(body)
+    payload_hash = _sha256_hex(payload)
+
+    now = datetime.now(timezone.utc)
+    amz_date = now.strftime("%Y%m%dT%H%M%SZ")
+    date_stamp = now.strftime("%Y%m%d")
+
+    headers_to_sign = {
+        "host": host,
+        "x-amz-content-sha256": payload_hash,
+        "x-amz-date": amz_date,
+        "x-amz-security-token": creds["aws_session_token"],
+    }
+    signed_headers = ";".join(sorted(headers_to_sign))
+    canonical_headers = "".join(
+        f"{name}:{headers_to_sign[name]}\n" for name in sorted(headers_to_sign)
+    )
+
+    canonical_request = "\n".join([
+        method.upper(),
+        quote(full_path, safe="/-_.~"),
+        _canonical_query(path_query, params),
+        canonical_headers,
+        signed_headers,
+        payload_hash,
+    ])
+
+    scope = f"{date_stamp}/{region}/{service}/aws4_request"
+    string_to_sign = "\n".join([
+        "AWS4-HMAC-SHA256",
+        amz_date,
+        scope,
+        _sha256_hex(canonical_request),
+    ])
+
+    signature = hmac.new(
+        _signing_key(creds["aws_secret_access_key"], date_stamp, region, service),
+        string_to_sign.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    authorization = (
+        f"AWS4-HMAC-SHA256 Credential={creds['aws_access_key_id']}/{scope}, "
+        f"SignedHeaders={signed_headers}, Signature={signature}"
+    )
+    return {
+        "Authorization": authorization,
+        "x-amz-date": amz_date,
+        "x-amz-content-sha256": payload_hash,
+        "x-amz-security-token": creds["aws_session_token"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Inline random data (no faker)
+# ---------------------------------------------------------------------------
+def random_string(length=10):
+    return "".join(random.choices(string.ascii_lowercase + string.digits, k=length))
+
+
+def random_email():
+    return f"{random_string(8)}@example.com"
+
+
+def random_int(low=1, high=1000):
+    return random.randint(low, high)
+
+
+# ---------------------------------------------------------------------------
+# Payload factories (adapt to the discovered data models)
+# ---------------------------------------------------------------------------
+def make_item_payload():
+    """Build a realistic request body. Replace fields with the real model."""
+    return {
+        "name": f"item-{random_string(6)}",
+        "description": f"generated {random_string(12)}",
+        "quantity": random_int(1, 100),
+    }

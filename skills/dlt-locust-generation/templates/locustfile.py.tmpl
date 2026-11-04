@@ -1,0 +1,194 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+"""
+<APP NAME>: Locust Load Test Suite
+==================================
+
+Application under test:
+  <One-paragraph description of the service and its REST API.>
+
+API endpoints discovered and tested:
+  <Method  Path                         Tested?  Notes>
+  GET      /items                       yes      list, paginated
+  POST     /items                       yes      create
+  GET      /items/{id}                  yes      read one
+  PUT      /items/{id}                  yes      update
+  DELETE   /items/{id}                  yes      delete
+
+Authentication mechanism:
+  Detected auth type: <sigv4 | cognito_sigv4 | bearer | api_key | basic | none>
+  <How auth was determined and how this suite handles it.>
+
+User journeys:
+  - ItemCrudJourney: create -> read -> update -> read -> delete, carrying the
+    created id through each step.
+  - BrowseJourney: list -> get detail on a sampled id.
+
+Assumptions:
+  - <Any assumptions about API behavior, id formats, required fields, etc.>
+
+Traffic shape this bundle targets: <Native | Standard>
+  This matters, because the two modes have opposite load-shape requirements.
+  Delete the branch that does not apply, in this header and in BoundedRun below.
+
+  Native (DLT v4.3.0 and later): DLT runs locust directly and passes NO
+  --users, --spawn-rate, or --run-time. This file must therefore define a
+  LoadTestShape whose tick() returns None at the deadline. With no shape the run
+  never ends on its own. It burns the console's Safety duration (default 4
+  hours) on every task, and DLT then records it as failed even if every request
+  succeeded. Each task runs a full copy of this script, so total users are
+  USER_COUNT times the task count times the Regions.
+
+  Standard (Taurus): Taurus passes --users, --spawn-rate, and --run-time from
+  the scenario's concurrency, ramp-up, and hold-for, so do NOT define a
+  LoadTestShape. A shape class takes over from the user count and spawn rate
+  Taurus passes.
+
+  Both modes: DLT passes no --host, so ApiUser.host below must resolve to the
+  target. Third-party packages need a top-level requirements.txt (DLT v4.3.0
+  and later). PyYAML is present only in the Standard image, which is why
+  helpers.py carries its own config reader. Never set `processes`: DLT only
+  counts requests correctly while locust runs as a single process.
+"""
+
+from locust import HttpUser, LoadTestShape, task, between, tag, SequentialTaskSet
+
+import helpers
+
+# Stop at startup, with a message that names the missing setting, when the auth
+# settings are incomplete. Otherwise every request would fail with a 403.
+helpers.check_auth_config()
+
+
+class ItemCrudJourney(SequentialTaskSet):
+    """Create, read, update, read, then delete a single item."""
+
+    def on_start(self):
+        self.item_id = None
+
+    @tag("crud", "write")
+    @task
+    def create_item(self):
+        payload = helpers.make_item_payload()
+        with self.client.post(
+            "/items",
+            json=payload,
+            headers=helpers.auth_headers(self.client, "POST", "/items", payload),
+            catch_response=True,
+            name="/items [POST]",
+        ) as response:
+            if response.status_code in (200, 201):
+                try:
+                    self.item_id = response.json().get("id")
+                    response.success()
+                except ValueError:
+                    response.failure("create returned non-JSON body")
+            else:
+                response.failure(f"create failed: {response.status_code}")
+
+    @tag("crud", "read")
+    @task
+    def read_item(self):
+        if not self.item_id:
+            return
+        path = f"/items/{self.item_id}"
+        with self.client.get(
+            path,
+            headers=helpers.auth_headers(self.client, "GET", path),
+            catch_response=True,
+            name="/items/[id] [GET]",
+        ) as response:
+            if response.status_code == 200:
+                response.success()
+            else:
+                response.failure(f"read failed: {response.status_code}")
+
+    @tag("crud", "write")
+    @task
+    def update_item(self):
+        if not self.item_id:
+            return
+        path = f"/items/{self.item_id}"
+        payload = helpers.make_item_payload()
+        with self.client.put(
+            path,
+            json=payload,
+            headers=helpers.auth_headers(self.client, "PUT", path, payload),
+            catch_response=True,
+            name="/items/[id] [PUT]",
+        ) as response:
+            if response.status_code in (200, 204):
+                response.success()
+            else:
+                response.failure(f"update failed: {response.status_code}")
+
+    @tag("crud", "write")
+    @task
+    def delete_item(self):
+        if not self.item_id:
+            return
+        path = f"/items/{self.item_id}"
+        with self.client.delete(
+            path,
+            headers=helpers.auth_headers(self.client, "DELETE", path),
+            catch_response=True,
+            name="/items/[id] [DELETE]",
+        ) as response:
+            if response.status_code in (200, 202, 204):
+                response.success()
+            else:
+                response.failure(f"delete failed: {response.status_code}")
+        self.item_id = None
+        self.interrupt()
+
+
+# ── Native mode only: the shape and the stop condition ──────────────────────
+# Delete this class when the bundle targets Standard mode, where Taurus supplies
+# the shape and a script-side shape would fight it.
+RUN_SECONDS = 300
+USER_COUNT = 20
+SPAWN_RATE = 2
+
+
+class BoundedRun(LoadTestShape):
+    """Hold a flat user count for RUN_SECONDS, then end the test.
+
+    Returning None from tick() is how a Locust script asks Locust to stop, which
+    is what makes this bundle self-terminating without a --run-time flag. Ramp by
+    returning a rising user count over time instead of a flat tuple.
+    """
+
+    def tick(self):
+        if self.get_run_time() >= RUN_SECONDS:
+            return None
+        return (USER_COUNT, SPAWN_RATE)
+
+
+class ApiUser(HttpUser):
+    """Simulated API client.
+
+    `host` must come from this file in both traffic shapes, because DLT passes
+    Locust no --host. target_base_url() returns TARGET_HOST when it is set for a
+    local run, and otherwise target.base_url from loadtest_config.yaml.
+    """
+
+    host = helpers.target_base_url()
+    wait_time = between(1, 3)
+    tasks = [ItemCrudJourney]
+
+    @tag("read")
+    @task(3)
+    def list_items(self):
+        # SigV4 signs the query string, so pass the same params to both calls.
+        params = {"limit": 20}
+        with self.client.get(
+            "/items",
+            params=params,
+            headers=helpers.auth_headers(self.client, "GET", "/items", params=params),
+            catch_response=True,
+            name="/items [GET]",
+        ) as response:
+            if response.status_code == 200:
+                response.success()
+            else:
+                response.failure(f"list failed: {response.status_code}")

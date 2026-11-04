@@ -1,0 +1,70 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+# Load-test configuration for Distributed Load Testing on AWS.
+# =============================================================
+# helpers.py reads this file at startup. The ${VAR} references below resolve
+# from the environment for local runs. DLT sets no custom environment
+# variables, so on DLT a reference resolves to an empty string: before upload,
+# replace each value the DLT run needs. Never commit real credentials here.
+#
+# DLT keeps the uploaded bundle in the stack's versioned scenarios bucket, and
+# every console user can download it. Old versions survive a new upload, the
+# scenario's deletion, and the stack's deletion. Use only credentials that
+# expire or that you revoke after the test, because deleting the bundle does
+# not remove them.
+#
+# Keep this file to plain nested keys, scalar values, and lists of scalars. The
+# Native traffic shape has no PyYAML, so helpers.py reads it with a small
+# built-in reader that does not understand anchors, flow collections, or
+# multi-line strings.
+
+target:
+  # This is the host every request goes to. DLT passes Locust no --host in either
+  # traffic shape, so ApiUser.host comes from this value (or from TARGET_HOST
+  # when you run Locust locally). Replace the placeholder before uploading.
+  base_url: "https://<api-id>.execute-api.<region>.amazonaws.com/prod"
+
+auth:
+  # Set exactly one detected type and uncomment only the fields it needs.
+  # type: sigv4 | cognito_sigv4 | bearer | api_key | basic | none
+  type: "none"
+
+  # --- For AWS SigV4 signing (API Gateway with AuthorizationType.IAM) ---
+  # helpers.py accepts only temporary credentials, so the session token is
+  # required. Assume a role that allows only execute-api:Invoke on the target
+  # API, for a duration that covers the whole test, and use that session. The
+  # TARGET_ names keep your own AWS_* credentials out of the bundle.
+  # aws_region: "${TARGET_AWS_REGION}"
+  # aws_access_key_id: "${TARGET_AWS_ACCESS_KEY_ID}"
+  # aws_secret_access_key: "${TARGET_AWS_SECRET_ACCESS_KEY}"
+  # aws_session_token: "${TARGET_AWS_SESSION_TOKEN}"
+  # aws_service: "execute-api"
+
+  # --- For Cognito + SigV4 (Cognito authenticates the user, API uses IAM auth) ---
+  # The client authenticates with Cognito, exchanges the token for temporary AWS
+  # credentials through the Cognito Identity Pool, then SigV4-signs each request.
+  # For load testing, pre-generate those temporary credentials and supply them
+  # below; the environment references work only for local runs. If the bundle
+  # signs in itself, use a dedicated test user whose password you change after
+  # the test, never a real person's account.
+  # aws_region: "${TARGET_AWS_REGION}"
+  # aws_service: "execute-api"
+  # aws_access_key_id: "${TARGET_AWS_ACCESS_KEY_ID}"
+  # aws_secret_access_key: "${TARGET_AWS_SECRET_ACCESS_KEY}"
+  # aws_session_token: "${TARGET_AWS_SESSION_TOKEN}"
+  # cognito_user_pool_id: "${COGNITO_USER_POOL_ID}"
+  # cognito_client_id: "${COGNITO_CLIENT_ID}"
+  # cognito_identity_pool_id: "${COGNITO_IDENTITY_POOL_ID}"
+  # cognito_username: "${COGNITO_USERNAME}"
+  # cognito_password: "${COGNITO_PASSWORD}"
+
+  # --- For bearer token auth (including Cognito JWT via AuthorizationType.COGNITO) ---
+  # token: "${AUTH_TOKEN}"
+
+  # --- For API key auth ---
+  # api_key: "${API_KEY}"
+  # api_key_header: "X-API-Key"
+
+  # --- For HTTP Basic auth ---
+  # username: "${USERNAME}"
+  # password: "${PASSWORD}"

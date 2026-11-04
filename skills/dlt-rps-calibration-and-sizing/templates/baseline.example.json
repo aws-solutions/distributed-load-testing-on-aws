@@ -1,0 +1,90 @@
+{
+  "_comment": "Illustrative numbers only, not measurements. Replace the steps with steady-state values from a calibration run.",
+  "baseline": {
+    "script": "plain GET, HTTP keep-alive, open model",
+    "target_rt_ms": 4,
+    "steps": [
+      {
+        "rps": 500,
+        "cpu": 0.16,
+        "heap_after_gc_mb": 180,
+        "container_mem_mb": 1450,
+        "inflight": 2.0,
+        "bytes_per_s": 290000,
+        "achieved_ratio": 1.0
+      },
+      {
+        "rps": 1000,
+        "cpu": 0.27,
+        "heap_after_gc_mb": 185,
+        "container_mem_mb": 1460,
+        "inflight": 4.1,
+        "bytes_per_s": 580000,
+        "achieved_ratio": 1.0
+      },
+      {
+        "rps": 2000,
+        "cpu": 0.49,
+        "heap_after_gc_mb": 192,
+        "container_mem_mb": 1480,
+        "inflight": 8.3,
+        "bytes_per_s": 1160000,
+        "achieved_ratio": 0.999
+      }
+    ],
+    "idle_cpu": null,
+    "heap_base_mb": null,
+    "heap_per_inflight_mb": 0.5,
+    "mem_base_mb": null,
+    "mem_per_inflight_mb": 1.2
+  },
+  "limits": {
+    "cpu_max": 0.75,
+    "heap_max_mb": 2150,
+    "mem_max_mb": 3480,
+    "net_max_bytes_s": null,
+    "margin": 0.1,
+    "min_achieved_ratio": 0.98
+  },
+  "target": {
+    "peak_rps": 100000,
+    "think_ms": 0,
+    "shape": [
+      {
+        "duration_s": 600,
+        "rps": 100000,
+        "ramp": true
+      },
+      {
+        "duration_s": 900,
+        "rps": 100000
+      }
+    ]
+  },
+  "regions": [
+    {
+      "name": "us-west-2",
+      "available_tasks": 2000,
+      "rt_ms": 4,
+      "weight": 1
+    },
+    {
+      "name": "us-east-2",
+      "available_tasks": 2000,
+      "rt_ms": 55,
+      "weight": 1
+    },
+    {
+      "name": "us-east-1",
+      "available_tasks": 2000,
+      "rt_ms": 70,
+      "weight": 1
+    },
+    {
+      "name": "eu-west-1",
+      "available_tasks": 2000,
+      "rt_ms": 135,
+      "weight": 1
+    }
+  ]
+}
