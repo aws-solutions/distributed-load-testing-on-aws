@@ -1,6 +1,6 @@
 {
   "name": "source",
-  "version": "4.3.5",
+  "version": "4.3.6",
   "private": true,
   "description": "ESLint and prettier dependencies to be used within the solution",
   "license": "Apache-2.0",
@@ -40,5 +40,10 @@
     "eslint-plugin-react": "^7.32.2",
     "prettier": "~2.7.1",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.1"
+    }
   }
 }

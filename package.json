@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws",
-  "version": "4.3.5",
+  "version": "4.3.6",
   "private": true,
   "description": "Workspace for Distributed Load Testing on AWS",
   "license": "Apache-2.0",
@@ -61,5 +61,9 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.65.0",
     "vitest": "^4.1.12"
+  },
+  "overrides": {
+    "glob": "^14.0.2",
+    "minimatch": "^11.0.1"
   }
 }

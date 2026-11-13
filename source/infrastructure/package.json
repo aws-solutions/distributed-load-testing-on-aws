@@ -1,6 +1,6 @@
 {
   "name": "distributed-load-testing-on-aws-infrastructure",
-  "version": "4.3.5",
+  "version": "4.3.6",
   "author": {
     "name": "Amazon Web Services",
     "url": "https://aws.amazon.com/solutions"
@@ -39,6 +39,19 @@
     "source-map-support": "^0.5.16"
   },
   "overrides": {
-    "fast-xml-parser": ">=5.5.6"
+    "fast-xml-parser": ">=5.5.6",
+    "@jest/reporters": {
+      "glob": "^14.0.2"
+    },
+    "jest-config": {
+      "glob": "^14.0.2"
+    },
+    "jest-runtime": {
+      "glob": "^14.0.2"
+    },
+    "test-exclude": {
+      "glob": "^14.0.2",
+      "minimatch": "^11.0.1"
+    }
   }
 }
