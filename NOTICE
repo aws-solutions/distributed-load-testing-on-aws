@@ -285,6 +285,7 @@ isexe under the ISC license
 @floating-ui/react-dom under the MIT license
 @fontsource/inter under the OFL-1.1 license
 @isaacs/cliui under the ISC license
+@isaacs/nonrecursive-glob-match under the BlueOak-1.0.0 license
 @istanbuljs/load-nyc-config under the ISC license
 @istanbuljs/schema under the MIT license
 @jest/console under the MIT license

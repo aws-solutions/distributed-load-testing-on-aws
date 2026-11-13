@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # amazonlinux:2023-minimal
-FROM public.ecr.aws/amazonlinux/amazonlinux@sha256:d4495d25da60ef3f2d44bc7f6a2dd2ec1646c14414e0dfaaa44dc3ff653e1c2b
+FROM public.ecr.aws/amazonlinux/amazonlinux@sha256:158a9044f9dc0777f098b76c8b54346f6ed4560b9a6a416dec7a5ba3bc483af4
 
 # Python runs the Locust process and the sidecar; Node runs the DLT entrypoint.
 # jq reads the pinned Locust version out of locust.json, matching the sibling

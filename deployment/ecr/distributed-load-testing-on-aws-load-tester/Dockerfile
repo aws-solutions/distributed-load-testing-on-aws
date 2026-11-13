@@ -1,4 +1,4 @@
-FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:d4495d25da60ef3f2d44bc7f6a2dd2ec1646c14414e0dfaaa44dc3ff653e1c2b
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:158a9044f9dc0777f098b76c8b54346f6ed4560b9a6a416dec7a5ba3bc483af4
 
 # Install system dependencies
 RUN dnf upgrade -y --refresh && \
@@ -10,6 +10,8 @@ ENV PIP_INSTALL="pip3.11 install --no-cache-dir"
 # Install Python dependencies
 # Pin urwid<4 — urwid 4.0.0 (2026-03-30) removed urwid.decoration module,
 # breaking Taurus/bzt which imports it at startup. bzt requires urwid>=3.0.2.
+# CVE-2026-103022 is fixed only in urwid 4.0.7; bzt 1.17.2 still requires urwid<4,
+# so the fix waits until bzt supports urwid 4.
 # https://github.com/Blazemeter/taurus/issues/1972
 # https://github.com/Blazemeter/taurus/blob/master/requirements.txt
 #
